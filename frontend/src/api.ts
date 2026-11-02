@@ -43,7 +43,9 @@ export interface RunResult {
 const CUSTOMER_ID = 'cust_aitt_001'
 export const MIN_PROMPT = 5
 export const MAX_PROMPT = 4000
-const CLIENT_TIMEOUT_MS = 200_000 // above the 180 s sent to the backend
+// The contract's maximum; a run stopped early still costs the tokens it used.
+const RUN_TIMEOUT_SECONDS = 300
+const CLIENT_TIMEOUT_MS = 330_000 // above the limit sent to the backend
 
 // Backend returns HTTP 200 "success" even when Hermes was rejected for credentials (known bug).
 const CREDENTIAL_REJECTION =
@@ -119,7 +121,7 @@ async function liveRun(department: Department, prompt: string, signal: AbortSign
         department,
         prompt,
         multi_agent: true,
-        timeout_seconds: 180,
+        timeout_seconds: RUN_TIMEOUT_SECONDS,
       }),
       signal: AbortSignal.any([signal, AbortSignal.timeout(CLIENT_TIMEOUT_MS)]),
     })
@@ -162,7 +164,7 @@ async function mockRun(department: Department, prompt: string, signal: AbortSign
   if (prompt.includes('[uji-jaringan]')) throw new RunError('network', 'Tidak bisa terhubung ke layanan. Periksa koneksi Anda, lalu coba lagi.')
   if (prompt.includes('[uji-400]')) throw errorFrom(400, { error: 'Field prompt is required' })
   if (prompt.includes('[uji-500]')) throw errorFrom(500, { status: 'error', error_code: 'INTERNAL_SERVER_ERROR', message: 'boom' })
-  if (prompt.includes('[uji-504]')) throw errorFrom(504, { status: 'error', error_code: 'EXECUTION_TIMEOUT', message: 'melebihi 180 detik' })
+  if (prompt.includes('[uji-504]')) throw errorFrom(504, { status: 'error', error_code: 'EXECUTION_TIMEOUT', message: 'melebihi 300 detik' })
   const base = sampleBody(department)
   if (prompt.includes('[uji-rusak]')) {
     const msg = 'Error: API key rejected. Invalid credentials (401) for provider opencode-go.'

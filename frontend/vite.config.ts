@@ -12,8 +12,8 @@ export default defineConfig(({ mode }) => {
     '/api': {
       target: 'http://127.0.0.1:8080',
       changeOrigin: true,
-      timeout: 200_000, // above the backend's 180 s limit
-      proxyTimeout: 200_000,
+      timeout: 330_000, // above the 300 s run limit
+      proxyTimeout: 330_000,
       configure(p) {
         p.on('proxyReq', (req) => {
           if (key) req.setHeader('X-Pegawai-AI-Key', key)

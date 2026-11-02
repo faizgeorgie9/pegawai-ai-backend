@@ -277,7 +277,7 @@ function RosterTiles({ department, stack }: { department: Department; stack?: bo
   )
 }
 
-const EXPECTED_SECONDS = 120 // real runs took 62 to 101 s; the service stops at 180 s
+const EXPECTED_SECONDS = 120 // real runs took 62 to 101 s, one CS run passed 180 s; the limit is 300 s
 const RING = 2 * Math.PI * 88
 function Processing({ department, prompt, from }: { department: Department; prompt: string; from: number }) {
   const [secs, setSecs] = useState(from)
