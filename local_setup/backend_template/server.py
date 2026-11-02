@@ -412,8 +412,9 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
 
         elif path == "/health" or path == "/api/v1/health":
             hermes_exists = os.path.exists(HERMES_BIN)
+            has_opencode_go_key = bool(os.environ.get("OPENCODE_GO_API_KEY"))
             has_opencode_key = bool(os.environ.get("OPENCODE_ZEN_API_KEY") or os.environ.get("OPENCODE_API_KEY"))
-            has_deepseek_key = bool(os.environ.get("DEEPSEEK_API_KEY")) and not has_opencode_key
+            has_deepseek_key = bool(os.environ.get("DEEPSEEK_API_KEY")) and not has_opencode_key and not os.environ.get("DEEPSEEK_API_KEY", "").startswith("oc_")
             
             resp = {
                 "status": "healthy",
@@ -428,9 +429,9 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
                 "model_configuration": {
                     "target_model": "DeepSeek V4.1 Flash",
                     "target_identifier": "deepseek-v4.1-flash",
-                    "active_provider": "opencode" if has_opencode_key else ("deepseek" if has_deepseek_key else "copilot"),
-                    "credentials_status": "READY (Active via Opencode Provider)" if has_opencode_key else ("READY (Direct DeepSeek)" if has_deepseek_key else "FALLBACK_COPILOT"),
-                    "live_model_in_use": "deepseek-v4.1-flash" if (has_opencode_key or has_deepseek_key) else "gpt-4o"
+                    "active_provider": "opencode-go" if has_opencode_go_key else ("opencode" if has_opencode_key else ("deepseek" if has_deepseek_key else "copilot")),
+                    "credentials_status": "READY (Active via Opencode Go Provider)" if has_opencode_go_key else ("READY (Active via Opencode Provider)" if has_opencode_key else ("READY (Direct DeepSeek)" if has_deepseek_key else "FALLBACK_COPILOT")),
+                    "live_model_in_use": "deepseek-v4.1-flash" if (has_opencode_go_key or has_opencode_key or has_deepseek_key) else "gpt-4o"
                 },
                 "server_time": time.strftime("%Y-%m-%dT%H:%M:%S%z")
             }
@@ -532,11 +533,16 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
             fallback_applied = False
             blocker_note = None
 
+            has_opencode_go = bool(os.environ.get("OPENCODE_GO_API_KEY"))
             has_opencode = bool(os.environ.get("OPENCODE_ZEN_API_KEY") or os.environ.get("OPENCODE_API_KEY"))
             has_deepseek = bool(os.environ.get("DEEPSEEK_API_KEY"))
 
-            if req_provider in ["deepseek", "opencode"]:
-                if has_opencode:
+            if req_provider in ["deepseek", "opencode", "opencode-go"]:
+                if has_opencode_go:
+                    actual_provider = "opencode-go"
+                    actual_model = "deepseek-v4.1-flash"
+                    logger.info("Routing DeepSeek request to Opencode Go provider with deepseek-v4.1-flash")
+                elif has_opencode:
                     actual_provider = "opencode"
                     actual_model = "deepseek-v4.1-flash"
                     logger.info("Routing DeepSeek request to Opencode provider with deepseek-v4.1-flash")
