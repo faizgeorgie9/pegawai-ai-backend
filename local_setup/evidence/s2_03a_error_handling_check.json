@@ -1,0 +1,7 @@
+{
+  "test_case": "validation_missing_prompt",
+  "http_status": 400,
+  "response_payload": {
+    "error": "Field 'prompt' is required"
+  }
+}

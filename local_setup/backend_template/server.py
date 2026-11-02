@@ -417,8 +417,8 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
             
             resp = {
                 "status": "healthy",
-                "service": "Pegawai AI Backend Template (Dynamic Multi-Agent POC)",
-                "sprint": "Sprint 2 - Day 2 (October 30, 2026)",
+                "service": "Pegawai AI Shared Backend POC (S2-03A)",
+                "sprint": "Sprint 2 - Day 3 (November 2, 2026)",
                 "intern_role": "Intern 1: Local Setup & Technical Research",
                 "hermes": {
                     "installed": hermes_exists,

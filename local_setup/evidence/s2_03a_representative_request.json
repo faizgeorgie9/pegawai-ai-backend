@@ -1,0 +1,9 @@
+{
+  "customer_id": "cust_aitt_001",
+  "department": "marketing",
+  "prompt": "Susun naskah pengumuman peluncuran layanan Konsultasi Otomasi AI untuk pelaku UMKM, fokus pada efisiensi waktu kerja dan pemangkasan biaya operasional tanpa overpromising.",
+  "agent_mode": "auto",
+  "provider": "opencode",
+  "model": "deepseek-v4.1-flash",
+  "timeout_seconds": 180
+}
