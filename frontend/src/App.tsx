@@ -208,7 +208,7 @@ function TaskStep(p: {
             value={p.prompt}
             maxLength={MAX_PROMPT}
             placeholder={`Tulis tugas untuk ${team.members.map((m) => m.name).join(', ')}.`}
-            aria-describedby="task-hint"
+            aria-describedby={p.department === 'customer_support' ? 'task-hint task-sensitive' : 'task-hint'}
             aria-invalid={problem ? true : undefined}
             onChange={(e) => {
               p.setPrompt(e.target.value)
@@ -221,6 +221,11 @@ function TaskStep(p: {
               {p.prompt.length} / {MAX_PROMPT}
             </span>
           </div>
+          {p.department === 'customer_support' && (
+            <p className="muted small" id="task-sensitive">
+              Jangan tempel kata sandi, token, atau data rekening pelanggan di sini.
+            </p>
+          )}
           {problem && (
             <p className="problem" role="alert">
               {problem}
@@ -402,7 +407,7 @@ function Gate({
 function EscalationCard({ esc }: { esc?: Escalation }) {
   return (
     <section className="card esc" aria-labelledby="esc-h">
-      <h2 id="esc-h">Status eskalasi</h2>
+      <h2 id="esc-h">Rekomendasi eskalasi</h2>
       {esc ? (
         <>
           <p className={`pill big ${esc.tone}`}>{esc.label}</p>
@@ -414,10 +419,10 @@ function EscalationCard({ esc }: { esc?: Escalation }) {
               ))}
             </ul>
           )}
-          <p className="muted small">Ditentukan {esc.by} dalam catatan audit.</p>
+          <p className="muted small">Rekomendasi dari {esc.by} dalam catatan audit. Belum ada tindakan yang dijalankan.</p>
         </>
       ) : (
-        <p className="muted">Status eskalasi tidak ditemukan dalam catatan tim.</p>
+        <p className="muted">Rekomendasi eskalasi tidak ditemukan dalam catatan tim.</p>
       )}
     </section>
   )
@@ -485,7 +490,7 @@ function ResultStep({
         ? result.score >= min
           ? `${scorer.name} memberi ${result.score} dari 100, di atas ambang SOP ${min}.`
           : `${scorer.name} memberi ${result.score} dari 100, di bawah ambang SOP ${min}. Draf perlu diperbaiki sebelum dipakai.`
-        : `${scorer.name} memberi ${result.score} dari 100.${esc ? ` Status eskalasi: ${esc.label.toLowerCase()}.` : ''}`
+        : `${scorer.name} memberi ${result.score} dari 100.${esc ? ` Rekomendasi eskalasi: ${esc.label.toLowerCase()}.` : ''}`
 
   const more = (n: number, by: string, index: number) => (
     <p className="gate-more">

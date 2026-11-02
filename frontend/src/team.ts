@@ -64,7 +64,11 @@ export const EXAMPLES: Record<Department, { title: string; text: string }[]> = {
     },
     {
       title: 'TKT-1003: layanan terputus dan minta refund',
-      text: 'Tiket TKT-1003: pelanggan Pak Andi marah karena layanan terputus dua hari, meminta refund penuh, dan mengancam akan membawa masalah ini ke jalur hukum. Buat draf balasan dan tentukan status eskalasinya.',
+      text: 'Tiket TKT-1003: pelanggan Pak Andi marah karena layanan terputus dua hari, meminta refund penuh, dan mengancam akan membawa masalah ini ke jalur hukum. Buat draf balasan dan beri rekomendasi eskalasinya.',
+    },
+    {
+      title: 'TKT-1004: tagihan ganda dan minta refund',
+      text: 'Tiket TKT-1004 (data sintetis): pelanggan Ibu Sari menemukan tagihan langganan bulan ini terpotong dua kali dengan jumlah sama dan meminta pengembalian dana untuk satu tagihan. Buat draf balasan berdasarkan data terverifikasi dan rekomendasikan apakah perlu eskalasi, tanpa menyatakan refund sudah diproses.',
     },
   ],
 }
