@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "index_metadata": {
+    "artifact_code": "S1-04D",
+    "document_name": "Consolidated Four-Candidate Evidence Index & OpenBot Reserve Note",
+    "version": "v1.0.0",
+    "release_date": "2026-10-28",
+    "status": "APPROVED_BY_LEAD",
+    "business_profile_ref": "AI Top Trends v1.0.0 (S1-04A)"
+  },
+  "active_candidates": {
+    "candidate_a": {
+      "id": "A",
+      "name": "Hermes Agent",
+      "organization": "Nous Research",
+      "version": "v0.22.2",
+      "architecture": "Autonomous Single-Agent CLI & Tool-Calling (Python/Rust)",
+      "license": "MIT License (Commercial Permitted, Royalty-Free)",
+      "official_repository": "https://github.com/NousResearch/Hermes-Agent",
+      "verification_date": "2026-10-21",
+      "key_native_features": [
+        "21 Built-in Tools (read_file, write_file, web_search, bash)",
+        "SQLite Persistence (state.db)",
+        "Default Safety Guardrails (confirm_dangerous_commands: true)",
+        "Headless Server Daemon (hermes serve)"
+      ],
+      "required_custom_integrations": [
+        "Docker Container per-tenant isolation (to resolve single-tenant state.db)",
+        "REST API Gateway wrapper (FastAPI/Express)"
+      ],
+      "known_failures_and_constraints": [
+        "Windows git file-lock during clone (resolved via git reset --hard HEAD)",
+        "Rejects models with context window < 64k tokens (e.g., gpt-4o-mini rejected)",
+        "Base system prompt & tool overhead ~55 KB per turn"
+      ]
+    },
+    "candidate_b": {
+      "id": "B",
+      "name": "MausBot",
+      "organization": "MausBot Community",
+      "version": "v1.4.0",
+      "architecture": "Computer-Using Agent (CUA) Desktop & Visual Browser GUI (Electron/Chromium)",
+      "license": "Apache 2.0 / Commercial Hybrid",
+      "official_repository": "https://github.com/MausBot/desktop-agent",
+      "verification_date": "2026-10-22",
+      "key_native_features": [
+        "Visual Element Recognition via Vision Models",
+        "Mouse Coordinate Clicking & Keyboard Input",
+        "Autonomous Full-page Screenshots"
+      ],
+      "required_custom_integrations": [
+        "Virtual Display Server (Xvfb/RDP) for headless VPS",
+        "Browser Profile Sandbox Isolation"
+      ],
+      "known_failures_and_constraints": [
+        "Misclicks on dynamic UI overlays / animated popups",
+        "High RAM consumption (8-16 GB)",
+        "Instant crash on headless Linux without display buffer"
+      ]
+    },
+    "candidate_c": {
+      "id": "C",
+      "name": "Rakazo",
+      "organization": "Rakazo Technologies",
+      "version": "v2.1.0",
+      "architecture": "Enterprise Workflow Orchestration & DAG Pipeline Engine",
+      "license": "Proprietary Commercial B2B / Source-Available",
+      "official_repository": "https://github.com/Rakazo-Orchestrator/rakazo-core",
+      "verification_date": "2026-10-23",
+      "key_native_features": [
+        "Deterministic Directed Acyclic Graph (DAG) Pipeline Execution",
+        "Enterprise Audit Logging & Role-Based Access Control (RBAC)",
+        "Automated Retry Mechanism & Webhook Ingestion"
+      ],
+      "required_custom_integrations": [
+        "Creative Open-Ended Prompt Adapter",
+        "Custom SME Marketing Modules"
+      ],
+      "known_failures_and_constraints": [
+        "Rigid execution schema unsuitable for unguided creative generation",
+        "High initial pipeline configuration overhead",
+        "Proprietary license fee scaling at multi-tenant volume"
+      ]
+    },
+    "candidate_d": {
+      "id": "D",
+      "name": "CrewAI",
+      "organization": "CrewAI Inc.",
+      "version": "v0.80.0",
+      "architecture": "Multi-Agent Role-Based Python Collaboration Framework",
+      "license": "MIT License (Commercial Permitted)",
+      "official_repository": "https://github.com/joaomdmoura/crewAI",
+      "verification_date": "2026-10-24",
+      "key_native_features": [
+        "Hierarchical Role-playing (Leader, Researcher, Copywriter, Editor)",
+        "Task Delegation & Review Feedback Loops",
+        "Rich Tool Ecosystem (LangChain / CrewAI Tools)"
+      ],
+      "required_custom_integrations": [
+        "External Vector DB / SQLite Persistence Layer (Memory is stateless by default)",
+        "External Task Scheduler (Celery / Redis Queue / OS Cron)"
+      ],
+      "known_failures_and_constraints": [
+        "High token amplification (3x-5x token cost compared to single tool-calling agent)",
+        "Potential infinite conversational loops between agents if max_iter is not bounded"
+      ]
+    }
+  },
+  "reserve_candidate_note": {
+    "candidate_id": "RESERVE-OPENBOT",
+    "name": "OpenBot",
+    "organization": "Intel OpenBot Research",
+    "status": "INFORMATIONAL_RESERVE_ONLY",
+    "is_fifth_research_track": false,
+    "architecture": "Physical Computing / Smartphone Robotics Agent (Android / Arduino)",
+    "evaluation_summary": "Evaluated strictly as an informational reserve. Unsuitable for primary digital marketing worker SaaS due to physical sensor/motor orientation and high OS latency. Archived for future physical retail kiosk appliance exploration only.",
+    "official_website": "https://www.openbot.org",
+    "verification_date": "2026-10-25"
+  },
+  "data_safety_audit": {
+    "real_customer_data_detected": false,
+    "secret_credentials_leaked": false,
+    "synthetic_context_verified": true,
+    "auditor": "R&D Lead",
+    "audit_status": "PASSED"
+  }
+}

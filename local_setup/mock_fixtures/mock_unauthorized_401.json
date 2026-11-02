@@ -1,0 +1,14 @@
+{
+  "run_id": "run_err_20261030_u001",
+  "status": "failed",
+  "error": {
+    "code": "AUTH_UNAUTHORIZED",
+    "message": "Header otentikasi 'X-Pegawai-AI-Key' tidak ditemukan atau tidak valid.",
+    "details": {
+      "header_expected": "X-Pegawai-AI-Key",
+      "instruction": "Kirimkan kunci API klien yang valid dalam header HTTP permintaan."
+    },
+    "timestamp": "2026-10-30T11:20:00+0700"
+  }
+}
+

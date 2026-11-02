@@ -1,0 +1,41 @@
+{
+  "benchmark_metadata": {
+    "version": "1.0.0",
+    "business_name": "AI Top Trends",
+    "prepared_by": "Candidate A Researcher (Hermes)",
+    "reviewed_by": "Rakazo Researcher & R&D Lead",
+    "purpose": "Shared standard input for Hermes, MausBot, Rakazo, and CrewAI"
+  },
+  "business_context": {
+    "industry": "AI Education & Digital Worker Agency",
+    "tagline": "Membangun Pekerja Digital yang Menghasilkan Nilai Nyata untuk Bisnis",
+    "primary_product": "Pegawai AI Marketing Specialist",
+    "brand_voice": {
+      "tone": "Grounded, Practical, Insightful, Professional",
+      "style_guideline": "Direct to business value, no buzzwords, no get-rich-quick claims, human-in-the-loop required"
+    }
+  },
+  "benchmark_task": {
+    "task_id": "BENCHMARK-TASK-001",
+    "target_audience": "UMKM & Local Online Business Owners",
+    "brief": "Buatkan paket draf konten pemasaran 1 topik: 'Cara pemilik toko online menghemat 15 jam per minggu menggunakan Pegawai AI Marketing'.",
+    "expected_outputs": [
+      {
+        "platform": "Instagram Carousel",
+        "slides_count": 5,
+        "include_caption": true,
+        "include_hashtags": true
+      },
+      {
+        "platform": "TikTok Video Script",
+        "duration_seconds": 45,
+        "structure": ["Visual Hook 0-3s", "Core Problem & Solution 4-35s", "CTA 36-45s"]
+      }
+    ],
+    "quality_gates": {
+      "require_human_approval_tag": true,
+      "max_words": 600,
+      "output_status": "DRAFT_PENDING_APPROVAL"
+    }
+  }
+}

@@ -1,0 +1,210 @@
+{
+  "verification_date": "2026-10-29",
+  "verified_by": "Intern 1",
+  "model_required": "DeepSeek V4.1 Flash",
+  "official_sources": [
+    "https://api-docs.deepseek.com/quick_start/pricing",
+    "https://api.deepseek.com",
+    "https://openrouter.ai/models/deepseek/deepseek-v4.1-flash"
+  ],
+  "official_identifiers": {
+    "direct_provider_id": "deepseek",
+    "direct_model_id": "deepseek-flash",
+    "canonical_model_id": "deepseek/deepseek-v4.1-flash-1017",
+    "openrouter_model_id": "deepseek/deepseek-v4.1-flash",
+    "openrouter_snapshot_id": "deepseek/deepseek-v4.1-flash-1017"
+  },
+  "official_model_specs": {
+    "id": "deepseek-flash",
+    "name": "DeepSeek V4.1 Flash 1017",
+    "description": "October 17 update of DeepSeek V4.1 Flash with improved reasoning, coding, agentic tasks, and visual understanding",
+    "family": "deepseek-flash",
+    "attachment": true,
+    "reasoning": true,
+    "reasoning_options": [
+      {
+        "type": "toggle"
+      },
+      {
+        "type": "effort",
+        "values": [
+          "low",
+          "high",
+          "max"
+        ]
+      }
+    ],
+    "tool_call": true,
+    "interleaved": {
+      "field": "reasoning_content"
+    },
+    "structured_output": true,
+    "temperature": true,
+    "knowledge": "2025-05",
+    "release_date": "2026-10-17",
+    "last_updated": "2026-10-17",
+    "modalities": {
+      "input": [
+        "text",
+        "image"
+      ],
+      "output": [
+        "text"
+      ]
+    },
+    "open_weights": true,
+    "limit": {
+      "context": 1048576,
+      "output": 393216
+    },
+    "cost": {
+      "input": 0.15,
+      "output": 0.6,
+      "reasoning": 0.6,
+      "cache_read": 0.003
+    },
+    "canonical_model_id": "deepseek/deepseek-v4.1-flash-1017"
+  },
+  "provider_api_config": {
+    "api_base": "https://api.deepseek.com",
+    "env_var_required": [
+      "DEEPSEEK_API_KEY"
+    ],
+    "sdk_adapter": "@ai-sdk/openai-compatible"
+  },
+  "openrouter_entries": {
+    "deepseek/deepseek-v4.1-flash": {
+      "id": "deepseek/deepseek-v4.1-flash",
+      "name": "DeepSeek V4.1 Flash",
+      "description": "Fast DeepSeek model for efficient chat, coding help, and agent loops",
+      "family": "deepseek-flash",
+      "attachment": true,
+      "reasoning": true,
+      "reasoning_options": [
+        {
+          "type": "effort",
+          "values": [
+            "none",
+            "low",
+            "high",
+            "max"
+          ]
+        }
+      ],
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": true,
+      "knowledge": "2025-05",
+      "release_date": "2026-09-10",
+      "last_updated": "2026-09-10",
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "open_weights": true,
+      "limit": {
+        "context": 1048576,
+        "output": 131072
+      },
+      "cost": {
+        "input": 0.14,
+        "output": 0.42,
+        "cache_read": 0.0042
+      },
+      "canonical_model_id": "deepseek/deepseek-v4.1-flash"
+    },
+    "deepseek/deepseek-v4.1-flash-1017": {
+      "id": "deepseek/deepseek-v4.1-flash-1017",
+      "name": "DeepSeek V4.1 Flash 1017",
+      "description": "Fast DeepSeek model for efficient chat, coding help, and agent loops",
+      "family": "deepseek-flash",
+      "attachment": true,
+      "reasoning": true,
+      "reasoning_options": [
+        {
+          "type": "effort",
+          "values": [
+            "none",
+            "low",
+            "high",
+            "max"
+          ]
+        }
+      ],
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": true,
+      "knowledge": "2025-05",
+      "release_date": "2026-10-17",
+      "last_updated": "2026-10-17",
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "open_weights": true,
+      "limit": {
+        "context": 1048576,
+        "output": 393216
+      },
+      "cost": {
+        "input": 0.3,
+        "output": 1.2,
+        "cache_read": 0.006
+      },
+      "canonical_model_id": "deepseek/deepseek-v4.1-flash-1017"
+    },
+    "~deepseek/deepseek-flash-latest": {
+      "id": "~deepseek/deepseek-flash-latest",
+      "name": "DeepSeek Flash Latest",
+      "description": "Fast DeepSeek model for efficient chat, coding help, and agent loops",
+      "family": "deepseek-flash",
+      "attachment": true,
+      "reasoning": true,
+      "reasoning_options": [
+        {
+          "type": "effort",
+          "values": [
+            "none",
+            "low",
+            "high",
+            "max"
+          ]
+        }
+      ],
+      "tool_call": true,
+      "structured_output": true,
+      "temperature": true,
+      "release_date": "2026-09-14",
+      "last_updated": "2026-09-14",
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "open_weights": false,
+      "limit": {
+        "context": 1048576,
+        "output": 943718
+      },
+      "cost": {
+        "input": 0.0151,
+        "output": 1.8,
+        "cache_read": 0.015
+      }
+    }
+  }
+}

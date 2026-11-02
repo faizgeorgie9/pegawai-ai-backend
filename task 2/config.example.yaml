@@ -1,0 +1,82 @@
+# =============================================================================
+# HERMES AGENT - SAFE CONFIGURATION TEMPLATE (TASK 2)
+# File: config.example.yaml
+# Keamanan: JANGAN simpan API Key atau secrets di file ini!
+# Simpan API Key di file terpisah (.env) yang di-ignore oleh Git (.gitignore).
+# =============================================================================
+
+# Schema Version
+_config_version: 50
+
+# -----------------------------------------------------------------------------
+# 1. Model & Inference Configuration
+# -----------------------------------------------------------------------------
+model:
+  # Provider default: openrouter, anthropic, openai, copilot, atau ollama
+  provider: "openrouter"
+  
+  # Model default: Pastikan model memiliki context window >= 64,000 tokens!
+  # Contoh: "anthropic/claude-3.5-sonnet", "openai/gpt-4o", "meta-llama/llama-3.1-70b-instruct"
+  default: "anthropic/claude-3.5-sonnet"
+  
+  # Base URL kustom (opsional, jika menggunakan local inference atau proxy)
+  # base_url: "https://openrouter.ai/api/v1"
+  
+  # Context window (Hermes Agent mewajibkan minimal 64k tokens)
+  # context_length: 128000
+  
+  # Batas maksimum turn/percakapan dalam satu sesi untuk mencegah loop tak terbatas
+  max_turns: 500
+  
+  # Temperature inferensi (0.0 - 1.0)
+  temperature: 0.7
+
+# -----------------------------------------------------------------------------
+# 2. Fallback Provider Chain (Kandidat Cadangan jika Provider Utama Down)
+# -----------------------------------------------------------------------------
+# fallback:
+#   - provider: "anthropic"
+#     model: "claude-3-5-sonnet-20241022"
+#   - provider: "copilot"
+#     model: "gpt-4o"
+#   - provider: "ollama"
+#     model: "qwen2.5:72b"
+
+# -----------------------------------------------------------------------------
+# 3. Security, Guardrails & Human-in-the-Loop
+# -----------------------------------------------------------------------------
+agent:
+  # Approval untuk perintah berbahaya (Wajib TRUE untuk keamanan Pegawai AI)
+  # Jangan aktifkan yolo_mode di environment produksi!
+  confirm_dangerous_commands: true
+  yolo_mode: false
+  
+  # Tingkat reasoning default: none, low, medium, high
+  reasoning_effort: "medium"
+  
+  # Hook auto accept (false memastikan pengguna selalu mengonfirmasi hook baru)
+  hooks_auto_accept: false
+
+# -----------------------------------------------------------------------------
+# 4. Terminal & Workspace Execution Limits
+# -----------------------------------------------------------------------------
+terminal:
+  backend: "local"
+  working_dir: "."
+  # Timeout eksekusi command (detik) untuk mencegah proses gantung
+  timeout: 180
+
+# -----------------------------------------------------------------------------
+# 5. Database & Session Storage
+# -----------------------------------------------------------------------------
+database:
+  journal_mode: "wal"
+  wal_autocheckpoint: 1000
+
+# -----------------------------------------------------------------------------
+# 6. Observability & Logging
+# -----------------------------------------------------------------------------
+logging:
+  level: "INFO"
+  log_to_file: true
+  log_dir: "logs"

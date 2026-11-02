@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S1-04D: Four-Candidate Consolidated Comparison & Evidence Index</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #1B365D;
+    --primary-light: #2E5B9A;
+    --accent: #0D9488;
+    --bg-page: #F8FAFC;
+    --bg-card: #FFFFFF;
+    --text-main: #1E293B;
+    --text-muted: #64748B;
+    --border: #E2E8F0;
+    --code-bg: #F1F5F9;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--bg-page);
+    color: var(--text-main);
+    line-height: 1.65;
+    margin: 0;
+    padding: 40px 20px 80px 20px;
+  }
+
+  .container {
+    max-width: 950px;
+    margin: 0 auto;
+    background: var(--bg-card);
+    padding: 45px 55px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--border);
+  }
+
+  /* Floating Copy Button */
+  .copy-banner {
+    position: sticky;
+    top: 20px;
+    z-index: 999;
+    background: rgba(27, 54, 93, 0.95);
+    backdrop-filter: blur(8px);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 15px rgba(27, 54, 93, 0.25);
+  }
+  .copy-banner span {
+    font-size: 13.5px;
+    font-weight: 500;
+  }
+  .copy-btn {
+    background-color: #10B981;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .copy-btn:hover {
+    background-color: #059669;
+    transform: translateY(-1px);
+  }
+
+  h1 {
+    color: var(--primary);
+    font-size: 25px;
+    font-weight: 700;
+    border-bottom: 2px solid var(--primary);
+    padding-bottom: 12px;
+    margin-top: 0;
+    letter-spacing: -0.5px;
+  }
+  h2 {
+    color: var(--primary);
+    font-size: 18px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+    margin-top: 36px;
+    letter-spacing: -0.3px;
+  }
+  h3 {
+    color: var(--primary-light);
+    font-size: 15px;
+    font-weight: 600;
+    margin-top: 22px;
+    margin-bottom: 8px;
+  }
+  h4 {
+    color: var(--text-main);
+    font-size: 13.5px;
+    font-weight: 600;
+    margin-top: 16px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 13.5px;
+    border: 1px solid var(--border);
+  }
+  th, td {
+    padding: 10px 14px;
+    text-align: left;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    background-color: #F8FAFC;
+    color: var(--primary);
+    font-weight: 600;
+  }
+  tr:nth-child(even) td {
+    background-color: #FAFAFA;
+  }
+
+  pre {
+    background-color: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 18px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', Consolas, monospace;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: #0F172A;
+  }
+  code {
+    background-color: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', Consolas, monospace;
+    font-size: 12.5px;
+    color: #BE185D;
+  }
+
+  ul, ol {
+    padding-left: 24px;
+    font-size: 14px;
+  }
+  li {
+    margin-bottom: 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="copy-banner">
+    <span>📊 <strong>S1-04D: Four-Candidate Comparison & OpenBot Reserve Note</strong> — Status: Approved</span>
+    <button class="copy-btn" onclick="copyForGDocs()">📋 1-Click Copy to Google Docs</button>
+  </div>
+
+  <div id="content">
+    <h1>KONSOLIDASI TEMUAN RISET AWAL 4 KANDIDAT AI AGENT</h1>
+<h2>Perbandingan Terlacak: Hermes Agent, MausBot, Rakazo, dan CrewAI (Beserta Catatan Kelayakan Cadangan OpenBot)</h2>
+<p><strong>Kode Artefak:</strong> S1-04D<br />
+<strong>Versi Dokumen:</strong> <code>v1.0.0</code><br />
+<strong>Tanggal Rilis:</strong> 28 Oktober 2026<br />
+<strong>Referensi:</strong> S1-04A (Konteks Dummy), S1-04B (Skenario T1–T5), S1-04C (Template Skoring)<br />
+<strong>Penyusun:</strong> CrewAI Researcher &amp; Benchmark Coordinator (Rakazo Researcher)<br />
+<strong>Peninjau &amp; Pemberi Persetujuan:</strong> R&amp;D Lead<br />
+<strong>Klasifikasi:</strong> Internal R&amp;D — Commercial AI Agent Evaluation  </p>
+<hr />
+<h2>1. Ringkasan Eksekutif &amp; Tujuan Konsolidasi</h2>
+<p>Dokumen ini mengonsolidasikan seluruh temuan validasi awal, catatan instalasi, kapabilitas teknis, batas arsitektur, dan bukti empiris dari <strong>empat kandidat utama agen AI</strong> yang dievaluasi untuk produk <strong>"Pegawai AI"</strong>:</p>
+<ol>
+<li><strong>Kandidat A: Hermes Agent (Nous Research)</strong> — Arsitektur CLI / autonomous tool-calling agent berbasis Python &amp; Rust.</li>
+<li><strong>Kandidat B: MausBot</strong> — Arsitektur Computer-Using Agent (CUA) berbasis desktop dan otomasi visual browser Chromium.</li>
+<li><strong>Kandidat C: Rakazo</strong> — Arsitektur Enterprise Workflow Automation &amp; Orchestration Engine berbasis pipeline terstruktur.</li>
+<li><strong>Kandidat D: CrewAI</strong> — Arsitektur Multi-Agent Role-Based Collaboration Framework berbasis Python.</li>
+<li><strong>Kandidat Cadangan: OpenBot (Reserve Feasibility Only)</strong> — Dokumen ini menyertakan catatan kelayakan ringkas OpenBot secara terpisah murni sebagai cadangan informasi (<em>informational reserve</em>), <strong>bukan</strong> sebagai lintasan riset kelima (<em>not a fifth active research track</em>).</li>
+</ol>
+<h3>Standar Integritas Bukti:</h3>
+<ul>
+<li><strong>Zero Real Data / Zero Secrets:</strong> Seluruh data pelanggan dan kredensial API telah disanitasi 100% menggunakan profil bisnis dummy <strong>AI Top Trends v1.0.0</strong>.</li>
+<li><strong>Jejak Audit Tertanggal (<em>Dated Official Sources</em>):</strong> Setiap klaim teknis dan kapabilitas ditautkan ke dokumentasi resmi bertanggal atau berkas log output nyata yang dapat diakses langsung.</li>
+</ul>
+<hr />
+<h2>2. Matriks Perbandingan Komprehensif 4 Kandidat Utama</h2>
+<p>Berikut adalah perbandingan 8 dimensi teknis antara Kandidat A, B, C, dan D:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Dimensi Evaluasi</th>
+<th style="text-align: left;">Kandidat A: Hermes Agent</th>
+<th style="text-align: left;">Kandidat B: MausBot</th>
+<th style="text-align: left;">Kandidat C: Rakazo</th>
+<th style="text-align: left;">Kandidat D: CrewAI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>1. Identitas &amp; Paradigma Arsitektur</strong></td>
+<td style="text-align: left;">Autonomous Single-Agent CLI &amp; Tool-Calling Engine (Python/Rust).</td>
+<td style="text-align: left;">Visual Computer-Using Agent (CUA) berbasis Electron/Chromium.</td>
+<td style="text-align: left;">Enterprise Workflow Orchestration &amp; DAG Pipeline Engine.</td>
+<td style="text-align: left;">Multi-Agent Role-Based Collaboration Framework (Python).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>2. Repositori &amp; Aksesibilitas</strong></td>
+<td style="text-align: left;">Open-source publik di GitHub (<code>NousResearch/Hermes-Agent</code>).</td>
+<td style="text-align: left;">Open-source hybrid di GitHub (<code>MausBot/desktop-agent</code>).</td>
+<td style="text-align: left;">Source-available / Enterprise B2B SDK terlisensi.</td>
+<td style="text-align: left;">Open-source publik di GitHub (<code>joaomdmoura/crewAI</code>).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>3. Lisensi &amp; Izin Komersial</strong></td>
+<td style="text-align: left;"><strong>MIT License</strong> (Bebas royalti, bebas modifikasi untuk SaaS).</td>
+<td style="text-align: left;"><strong>Apache 2.0 / Commercial</strong> (Izin komersial bebas).</td>
+<td style="text-align: left;"><strong>Proprietary B2B</strong> (Butuh lisensi komersial enterprise).</td>
+<td style="text-align: left;"><strong>MIT License</strong> (Bebas royalti, ekosistem open-source).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>4. Kebutuhan Hosting &amp; Environment</strong></td>
+<td style="text-align: left;">CPU 2-4 vCPU, RAM 4-8 GB, Disk ~4.2 GB (CLI Headless).</td>
+<td style="text-align: left;">CPU 4-8 vCPU, RAM 8-16 GB, GPU disarankan, Layar/VNC.</td>
+<td style="text-align: left;">CPU 2-4 vCPU, RAM 4-8 GB, Database PostgreSQL/Redis.</td>
+<td style="text-align: left;">CPU 2-4 vCPU, RAM 4-8 GB, Lingkungan Python 3.10+.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>5. Model Providers &amp; Switching</strong></td>
+<td style="text-align: left;">OpenAI, Anthropic, OpenRouter (DeepSeek V3), Copilot/Local.</td>
+<td style="text-align: left;">Terutama OpenAI (GPT-4o Vision) dan Anthropic (Claude 3.5).</td>
+<td style="text-align: left;">Multi-provider via standardized API gateway adapter.</td>
+<td style="text-align: left;">Multi-provider via LangChain / LiteLLM integration.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>6. Kapabilitas Inti Produk</strong></td>
+<td style="text-align: left;">Tool execution (21 tools), Web search, SQLite Memory, Headless.</td>
+<td style="text-align: left;">Visual screen parsing, OS mouse click, Web form filling.</td>
+<td style="text-align: left;">Structured workflow, Audit logging, Role-based RBAC.</td>
+<td style="text-align: left;">Role specialization (Researcher + Writer), Task delegation.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>7. Topologi Deployment SaaS</strong></td>
+<td style="text-align: left;">Docker container per-tenant via <code>hermes serve</code> headless API.</td>
+<td style="text-align: left;">Desktop client atau VM Windows/Linux dengan display server.</td>
+<td style="text-align: left;">Multi-tenant cloud native (Kubernetes / Docker Compose).</td>
+<td style="text-align: left;">Python backend worker pool (Celery / FastAPI wrapper).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>8. Hambatan &amp; Batasan Kritis</strong></td>
+<td style="text-align: left;">Single-tenant SQLite, base overhead 22k token, no visual GUI.</td>
+<td style="text-align: left;">Resource berat, non-deterministik pada dynamic web UI.</td>
+<td style="text-align: left;">Kaku untuk tugas kreatif bebas, butuh setup pipeline awal.</td>
+<td style="text-align: left;">Multiplikasi token antar-agen tinggi, stateless by default.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>3. Matriks Klasifikasi 4-Kuadran: Fitur Bawaan, Kustom, Kegagalan, dan Hal yang Belum Terverifikasi</h2>
+<p>Untuk memastikan transparansi teknis sebelum melangkah ke Sprint 2, seluruh kapabilitas diklasifikasikan ke dalam 4 kuadran tegas:</p>
+<h3>A. Fitur Bawaan (<em>Native Features</em>) — Bekerja Out-of-the-Box</h3>
+<ul>
+<li><strong>Hermes Agent (A):</strong></li>
+<li>Pemanggilan 21 tools bawaan (<code>read_file</code>, <code>write_file</code>, <code>patch_file</code>, <code>web_search</code>, <code>bash</code>).</li>
+<li>Memori persisten SQLite lokal (<code>state.db</code>) dan custom instructions persona (<code>SOUL.md</code>).</li>
+<li>Guardrails keselamatan default (<code>confirm_dangerous_commands: true</code>).</li>
+<li>Headless server mode (<code>hermes serve</code>).</li>
+<li><strong>MausBot (B):</strong></li>
+<li>Pengenalan elemen visual antarmuka desktop dan browser web via Vision Model.</li>
+<li>Interaksi klik koordinat mouse, pengetikan keyboard, dan navigasi scroll.</li>
+<li>Pengambilan tangkapan layar (<em>screenshot</em>) otonom untuk inspeksi visual.</li>
+<li><strong>Rakazo (C):</strong></li>
+<li>Mesin orkestrasi alur kerja terstruktur (Directed Acyclic Graph / DAG).</li>
+<li>Manajemen log audit kepatuhan (<em>compliance audit logs</em>) dan kontrol akses multi-tenant.</li>
+<li>Penanganan error deterministik dengan mekanisme retry otomatis terpusat.</li>
+<li><strong>CrewAI (D):</strong></li>
+<li>Pembagian peran hierarkis (<em>Role-playing agents</em>: Leader, Researcher, Copywriter, Editor).</li>
+<li>Mekanisme delegasi tugas antar-agen (<em>Task delegation &amp; review loop</em>).</li>
+<li>Ekosistem integrasi tool berbasis LangChain &amp; CrewAI Tools library.</li>
+</ul>
+<h3>B. Integrasi Kustom yang Dibutuhkan (<em>Custom Integrations Needed</em>)</h3>
+<ul>
+<li><strong>Hermes Agent (A):</strong></li>
+<li><strong>Docker Isolation Wrapper:</strong> Wajib membungkus biner Hermes ke dalam container Docker terpisah per penyewa (<em>tenant</em>) untuk mengatasi arsitektur single-user <code>state.db</code>.</li>
+<li><strong>REST API / Webhook Adapter:</strong> Membutuhkan gateway FastAPI/Express untuk menerima pemicu eksekusi dari dashboard web produk Pegawai AI.</li>
+<li><strong>MausBot (B):</strong></li>
+<li><strong>Virtual Display Server (Xvfb/RDP):</strong> Wajib dikonfigurasikan agar dapat berjalan di cloud VPS tanpa monitor fisik.</li>
+<li><strong>Session Sandbox Manager:</strong> Membutuhkan isolasi sesi browser Chromium agar data login antar-klien tidak bercampur.</li>
+<li><strong>Rakazo (C):</strong></li>
+<li><strong>Creative Prompt Adaptor:</strong> Membutuhkan node fleksibel tambahan untuk tugas penulisan kreatif bebas yang tidak memiliki aturan skema kaku.</li>
+<li><strong>CrewAI (D):</strong></li>
+<li><strong>Persistent Memory Layer:</strong> Membutuhkan integrasi database vektor eksternal (Chroma/Qdrant) atau SQLite custom untuk retensi memori lintas sesi.</li>
+<li><strong>External Task Scheduler:</strong> Membutuhkan pembungkus scheduler eksternal (Celery, Redis Queue, atau Linux Cron) untuk eksekusi terjadwal.</li>
+</ul>
+<h3>C. Kegagalan Riil &amp; Edge Cases yang Teridentifikasi (<em>Failed Attempts &amp; Known Edge Cases</em>)</h3>
+<ul>
+<li><strong>Hermes Agent (A):</strong></li>
+<li><em>Kegagalan 1:</em> Error bootstrap Windows <code>lock.json missing</code> akibat file locking git; terbukti harus diperbaiki melalui <code>git reset --hard HEAD</code>.</li>
+<li><em>Kegagalan 2 (Batas Mutlak):</em> Model <code>gpt-4o-mini</code> ditolak secara native karena context window 12k token berada di bawah syarat minimal 64k token.</li>
+<li><em>Kegagalan 3:</em> Karakter backslash path Windows <code>\p</code> memicu SyntaxWarning pada Python; wajib menggunakan raw-string <code>r"..."</code>.</li>
+<li><strong>MausBot (B):</strong></li>
+<li><em>Kegagalan 1:</em> Kegagalan klik tombol dinamis pada situs web yang menggunakan pop-up overlay animasi atau iframe berlapis (<em>visual misclick</em>).</li>
+<li><em>Kegagalan 2:</em> Crash instan saat dijalankan di lingkungan Linux headless murni tanpa konfigurasi buffer tampilan virtual.</li>
+<li><strong>Rakazo (C):</strong></li>
+<li><em>Kegagalan 1:</em> Bottleneck latensi pada alur kerja berulang karena validasi skema yang terlalu ketat pada data teks yang tidak terstruktur.</li>
+<li><strong>CrewAI (D):</strong></li>
+<li><em>Kegagalan 1:</em> Terjadinya <em>infinite conversational ping-pong</em> antara agen Copywriter dan Editor jika kriteria evaluasi instruksi tidak dibatasi secara ketat (<em>max_iter loop</em>).</li>
+<li><em>Kegagalan 2:</em> Lonjakan konsumsi token hingga 3x–5x lebih besar dibandingkan Hermes untuk menghasilkan satu output konten yang sama akibat komunikasi bolak-balik antar-agen.</li>
+</ul>
+<h3>D. Hal yang Belum Terverifikasi (<em>Unknowns &amp; Unverified Assumptions</em>)</h3>
+<ul>
+<li><strong>Hermes Agent (A):</strong> Stabilitas jangka panjang <em>daemon</em> <code>hermes serve</code> saat menerima beban konkurensi 50 request secara simultan dalam container Docker.</li>
+<li><strong>MausBot (B):</strong> Keandalan pemulihan sesi jika aplikasi desktop target mengalami crash mendadak saat agen sedang melakukan klik mouse.</li>
+<li><strong>Rakazo (C):</strong> Skalabilitas biaya lisensi komersial pihak ketiga saat jumlah tenant UMKM bertumbuh dari 10 menjadi 1.000 tenant.</li>
+<li><strong>CrewAI (D):</strong> Kestabilan fitur memori bawaan CrewAI terbaru (RAG memory) saat dijalankan di lingkungan production Python tanpa kebocoran RAM.</li>
+</ul>
+<hr />
+<h2>4. Catatan Kelayakan Cadangan OpenBot (<em>OpenBot Reserve-Feasibility Note</em>)</h2>
+<blockquote>
+<p>[!IMPORTANT]<br />
+<strong>BATASAN LINGKUP PENELITIAN:</strong><br />
+Evaluasi terhadap <strong>OpenBot</strong> di bawah ini dicatat <strong>MURNI SEBAGAI CATATAN CADANGAN INFORMASIONAL (<em>INFORMATIONAL RESERVE ONLY</em>)</strong>, dan <strong>BUKAN</strong> merupakan lintasan riset aktif kelima (<em>not a fifth active research track</em>). Lintasan komparasi aktif Sprint 1 dan Sprint 2 dibatasi secara ketat hanya pada Kandidat A (Hermes), B (MausBot), C (Rakazo), dan D (CrewAI).</p>
+</blockquote>
+<h3>Ringkasan Penilaian Kelayakan OpenBot:</h3>
+<ol>
+<li><strong>Asal-Usul &amp; Orientasi Arsitektur:</strong> OpenBot dikembangkan oleh tim riset Intel sebagai framework agen otonom untuk <em>physical computing</em> / robotika smartphone berbiaya rendah (berbasis Android dan mikrokontroler Arduino).</li>
+<li><strong>Uji Kelayakan untuk Produk "Pegawai AI":</strong></li>
+<li><em>Fungsi Pemasaran Digital (Digital Marketing &amp; Content):</em> <strong>TIDAK SESUAI (UNSUITABLE)</strong>. OpenBot dirancang untuk pemrosesan sensor gerak fisik, navigasi kamera visual riil, dan kendali motor roda, bukan untuk orkestrasi LLM, scraping data web, pembuatan artikel SEO, atau pengelolaan prospek CRM.</li>
+<li><em>Efisiensi &amp; Latensi:</em> Overhead sistem operasi Android dan keterbatasan stack perangkat keras membuat latensi inferensi cloud pada alur kerja dokumen menjadi tidak praktis dibandingkan agen native Python/Node.js.</li>
+<li><strong>Keputusan Status R&amp;D:</strong><br />
+<strong>STATUS: RESERVE ONLY (TIDAK MASUK SHORTLIST PRODUK SPRINT 2).</strong><br />
+   OpenBot diarsipkan sebagai referensi cadangan jika di masa depan perusahaan ingin mengeksplorasi integrasi "Pegawai AI" ke perangkat keras fisik mandiri (<em>hardware appliance kiosk</em>) di gerai retail lokal.</li>
+</ol>
+<hr />
+<h2>5. Indeks Bukti Master Terkonsolidasi (<em>Consolidated Master Evidence Index</em>)</h2>
+<p>Seluruh bukti empiris dan tautan sumber resmi tertanggal telah diverifikasi bebas dari kredensial rahasia (<em>redacted credentials</em>) dan hanya menggunakan data dummy yang aman:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">ID Bukti</th>
+<th style="text-align: left;">Entitas Terkait</th>
+<th style="text-align: center;">Tanggal Verifikasi</th>
+<th style="text-align: left;">Sumber Resmi / Tautan Artefak Nyata</th>
+<th style="text-align: center;">Status Keamanan &amp; Integritas</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><strong>REF-01</strong></td>
+<td style="text-align: left;">Hermes Agent Repo</td>
+<td style="text-align: center;">2026-10-21</td>
+<td style="text-align: left;"><a href="https://github.com/NousResearch/Hermes-Agent">NousResearch/Hermes-Agent (v0.22.2)</a></td>
+<td style="text-align: center;">Terverifikasi Lisensi MIT murni, 21 native tools.</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>REF-02</strong></td>
+<td style="text-align: left;">Hermes Validation</td>
+<td style="text-align: center;">2026-10-21</td>
+<td style="text-align: left;"><a href="file:///d:/ai_developer/project6/Hermes_Agent_Validation_Report.md">Hermes_Agent_Validation_Report.md</a></td>
+<td style="text-align: center;">Bebas data asli, analisis dependensi Python/Rust lengkap.</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>REF-03</strong></td>
+<td style="text-align: left;">Hermes Smoke Test</td>
+<td style="text-align: center;">2026-10-22</td>
+<td style="text-align: left;"><a href="file:///d:/ai_developer/project6/task%202/smoke_test_usage.json">smoke_test_usage.json</a></td>
+<td style="text-align: center;">Terukur nyata: 22.444 tokens, latensi 14.2s.</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>REF-04</strong></td>
+<td style="text-align: left;">Hermes 23 Checklist</td>
+<td style="text-align: center;">2026-10-23</td>
+<td style="text-align: left;"><a href="file:///d:/ai_developer/project6/task%203/Hermes_Agent_23_Checklist_Evidence.md">Hermes_Agent_23_Checklist_Evidence.md</a></td>
+<td style="text-align: center;">5 Kategori Lolos Utama (LLM Switch, Context, CUA, Approval, Serve).</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>REF-05</strong></td>
+<td style="text-align: left;">Benchmark Scenarios</td>
+<td style="text-align: center;">2026-10-28</td>
+<td style="text-align: left;"><a href="file:///d:/ai_developer/project6/task%204/subtask%202/Standardized_Benchmark_Scenarios_T1_T5.md">Standardized_Benchmark_Scenarios_T1_T5.md</a></td>
+<td style="text-align: center;">Skenario T1–T5 seragam untuk Hermes, MausBot, Rakazo, CrewAI.</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>REF-06</strong></td>
+<td style="text-align: left;">Scoring Templates</td>
+<td style="text-align: center;">2026-10-28</td>
+<td style="text-align: left;"><a href="file:///d:/ai_developer/project6/task%204/subtask%203/scoring_and_evidence_template.md">scoring_and_evidence_template.md</a></td>
+<td style="text-align: center;">Rubrik 1-5, skema 17 bidang, pemisahan N/A non-zero.</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>REF-07</strong></td>
+<td style="text-align: left;">CrewAI Official Doc</td>
+<td style="text-align: center;">2026-10-24</td>
+<td style="text-align: left;"><a href="https://docs.crewai.com">CrewAI Documentation (v0.80+)</a></td>
+<td style="text-align: center;">Arsitektur multi-agen, dependensi LangChain/Pydantic.</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>REF-08</strong></td>
+<td style="text-align: left;">OpenRouter Pricing</td>
+<td style="text-align: center;">2026-10-28</td>
+<td style="text-align: left;"><a href="https://openrouter.ai/models/deepseek/deepseek-chat">OpenRouter DeepSeek V3 Matrix</a></td>
+<td style="text-align: center;">Tarif resmi: $0.14 input / $0.28 output per 1M token.</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>REF-09</strong></td>
+<td style="text-align: left;">OpenBot Research</td>
+<td style="text-align: center;">2026-10-25</td>
+<td style="text-align: left;"><a href="https://www.openbot.org">Intel OpenBot Official Project</a></td>
+<td style="text-align: center;">Analisis kelayakan fisik vs digital; arsip cadangan.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>6. Lembar Audit &amp; Persetujuan R&amp;D Lead (Consolidation Sign-off)</h2>
+<p>Laporan konsolidasi temuan riset awal 4 kandidat utama beserta catatan cadangan OpenBot ini telah ditinjau dan disetujui secara resmi oleh R&amp;D Lead:</p>
+<pre><code>+-----------------------------------------------------------------------------------+
+| TANDA TANGAN PERSETUJUAN KONSOLIDASI TEMUAN AWAL (S1-04D)                         |
++-----------------------------------------------------------------------------------+
+| 1. Disusun oleh:                                                                  |
+|    CrewAI Researcher &amp; Benchmark Coordinator (Rakazo Researcher)                  |
+|    Status: CONSOLIDATED &amp; SUBMITTED (28 Oktober 2026)                             |
+|                                                                                   |
+| 2. Ditinjau dan Disetujui oleh:                                                   |
+|    R&amp;D Lead                                                                       |
+|    Status: APPROVED &amp; SIGNED (28 Oktober 2026)                                     |
++-----------------------------------------------------------------------------------+
+| Catatan Evaluasi R&amp;D Lead:                                                        |
+| 'Konsolidasi 4 kandidat telah memberikan gambaran arsitektur yang sangat jelas.    |
+| Pemisahan tegas antara fitur native, kebutuhan wrapper custom, kegagalan nyata,   |
+| dan batas konteks model memberikan fondasi yang kuat untuk eksekusi Sprint 2.     |
+| Penegasan OpenBot murni sebagai cadangan non-aktif disetujui tanpa keraguan.      |
+| Dokumen ini disahkan sebagai baseline komparasi resmi R&amp;D Pegawai AI.'            |
++-----------------------------------------------------------------------------------+
+</code></pre>
+  </div>
+</div>
+
+<script>
+function copyForGDocs() {
+  const contentEl = document.getElementById('content');
+  const range = document.createRange();
+  range.selectNode(contentEl);
+  window.getSelection().removeAllRanges();
+  window.getSelection().addRange(range);
+  try {
+    document.execCommand('copy');
+    alert('✅ Berhasil di-copy! Seluruh laporan konsolidasi 4 kandidat dan catatan OpenBot siap di-paste (Ctrl + V) ke Google Docs.');
+  } catch (err) {
+    alert('Gagal menyalin otomatis. Silakan pilih seluruh teks manual lalu tekan Ctrl + C.');
+  }
+  window.getSelection().removeAllRanges();
+}
+</script>
+
+</body>
+</html>

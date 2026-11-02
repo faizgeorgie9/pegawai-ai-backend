@@ -1,0 +1,15 @@
+{
+  "run_id": "run_err_20261030_t001",
+  "status": "timeout",
+  "error": {
+    "code": "EXECUTION_TIMEOUT_EXCEEDED",
+    "message": "Eksekusi Hermes Agent melebihi batas waktu maksimal yang ditetapkan (180 detik).",
+    "details": {
+      "timeout_configured_seconds": 180,
+      "elapsed_seconds": 180.2,
+      "remedy": "Kurangi panjang prompt atau periksa ketersediaan gateway upstream."
+    },
+    "timestamp": "2026-10-30T11:30:00+0700"
+  }
+}
+

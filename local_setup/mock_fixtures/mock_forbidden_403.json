@@ -1,0 +1,20 @@
+{
+  "run_id": "run_err_20261030_f001",
+  "status": "failed",
+  "error": {
+    "code": "AUTH_FORBIDDEN_DEPARTMENT",
+    "message": "Klien 'cust_aitt_001' tidak memiliki izin akses ke divisi 'finance'. Pilihan UI bukan bentuk otorisasi backend.",
+    "details": {
+      "customer_id": "cust_aitt_001",
+      "requested_department": "finance",
+      "allowed_departments": [
+        "marketing",
+        "customer_support",
+        "sales",
+        "general"
+      ]
+    },
+    "timestamp": "2026-10-30T11:25:00+0700"
+  }
+}
+

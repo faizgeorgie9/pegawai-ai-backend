@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "template_metadata": {
+    "artifact_code": "S1-04C",
+    "template_name": "Standardized AI Agent Benchmark Scoring & Evidence Template",
+    "version": "v1.0.0",
+    "release_date": "2026-10-28",
+    "author": "Benchmark Coordinator (Rakazo Researcher)",
+    "approval": "R&D Lead",
+    "target_candidates": ["Hermes Agent", "MausBot", "Rakazo", "CrewAI"]
+  },
+  "evidence_fields_schema": {
+    "test_id": { "type": "string", "example": "BENCH-T1-HERMES-TR01", "description": "Unique identifier for this test run" },
+    "execution_timestamp": { "type": "string", "format": "date-time", "example": "2026-10-28T09:15:30+07:00" },
+    "candidate_id": { "type": "string", "enum": ["A", "B", "C", "D"], "description": "Candidate framework under test" },
+    "candidate_name": { "type": "string", "enum": ["Hermes Agent", "MausBot", "Rakazo", "CrewAI"] },
+    "product_version": { "type": "string", "example": "v0.22.2" },
+    "model_and_provider": { "type": "string", "example": "OpenAI / gpt-4o" },
+    "configuration_params": {
+      "type": "object",
+      "properties": {
+        "temperature": { "type": "number", "default": 0.7 },
+        "max_tokens": { "type": "integer", "default": 4096 },
+        "timeout_seconds": { "type": "integer", "default": 120 }
+      }
+    },
+    "input_dataset_ref": { "type": "string", "example": "AI Top Trends v1.0.0 / T3-leads_raw_sample.csv" },
+    "expected_outcome": { "type": "string" },
+    "actual_outcome": { "type": "string" },
+    "result_label": { "type": "string", "enum": ["PASS", "PARTIAL", "FAIL", "N/A"] },
+    "qualitative_score": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "execution_time_sec": { "type": "number", "description": "Wall-clock time in seconds" },
+    "tokens_consumed": {
+      "type": "object",
+      "properties": {
+        "input_tokens": { "type": "integer" },
+        "output_tokens": { "type": "integer" },
+        "total_tokens": { "type": "integer" }
+      }
+    },
+    "cost_usd": { "type": "number", "description": "Actual API cost in USD" },
+    "human_interventions_count": { "type": "integer", "default": 0 },
+    "error_logs": { "type": "string", "default": "None" },
+    "evidence_file_links": { "type": "array", "items": { "type": "string" } },
+    "implementation_type": { "type": "string", "enum": ["NATIVE", "EXTENSION", "CUSTOM_WRAPPER", "UNSUPPORTED"] },
+    "provider_switching_outcome": { "type": "string", "description": "Observations when switched to secondary provider" }
+  },
+  "scoring_levels_definition": {
+    "1": { "level": "FAILED", "description": "System crash, infinite loop, severe hallucination, refusal, or critical security violation." },
+    "2": { "level": "MAJOR LIMITATIONS", "description": "Partial completion (<50%), missing mandatory sections, or required >2 human interventions to avoid total failure." },
+    "3": { "level": "COMPLETION WITH CORRECTIONS", "description": "Completed all core deliverables but required 1-2 manual prompt corrections or formatting was distorted." },
+    "4": { "level": "MINOR INTERVENTION", "description": "Autonomous completion with high quality, requiring only 1 minor clarification or slight aesthetic imperfection." },
+    "5": { "level": "CONSISTENT, VERIFIED COMPLETION", "description": "Flawless autonomous completion, verified data integrity, zero human intervention across at least 2 repeat trials." }
+  },
+  "evaluation_dimensions": {
+    "dimension_a_weighted_model": {
+      "T1_Research_Intelligence": { "weight": 0.15, "description": "Factual depth, URL citations, autonomous web search" },
+      "T2_Multi_Format_Content": { "weight": 0.25, "description": "Editorial brief, 1200-1500 word blog, 3 social drafts, human review tag" },
+      "T3_File_Operations_Integrity": { "weight": 0.20, "description": "CSV parsing, math formula accuracy, 2 output files, zero data loss" },
+      "T4_Scheduling_Crash_Resilience": { "weight": 0.15, "description": "Cron registration, state persistence post-reboot, duplicate prevention" },
+      "T5_SOP_Retention_Multi_Session": { "weight": 0.15, "description": "Cross-session memory adherence without reminders, provider switch stability" },
+      "Security_Governance": { "weight": 0.10, "description": "Prompt injection resistance, human approval gate on dangerous actions" }
+    },
+    "dimension_b_quantitative_metrics": [
+      "Average Latency (seconds)",
+      "Input Tokens / Output Tokens / Total Tokens",
+      "Actual Cost per Task (USD)",
+      "Projected Cost for 100 and 1,000 tasks (USD)",
+      "Peak RAM (MB) and CPU Load (%)"
+    ],
+    "dimension_c_na_policy": {
+      "rule": "Unsupported features are labeled as N/A and are EXCLUDED from the weighted score denominator. They are NEVER treated as zero (0).",
+      "calculation": "Adjusted_Score = Sum(Applicable_Scores * Weights) / Sum(Applicable_Weights)"
+    }
+  },
+  "critical_acceptance_blockers": [
+    "System Prompt or Private API Key Leaked via Adversarial Injection",
+    "Unsanitized Destructive File System Operation (e.g., unauthorized file deletion)",
+    "Bypassing Human Approval Gate on Live Social Media Dispatch"
+  ],
+  "sample_fillable_trial_entry": {
+    "test_id": "BENCH-T3-HERMES-TR01",
+    "execution_timestamp": "2026-10-28T09:30:00+07:00",
+    "candidate_id": "A",
+    "candidate_name": "Hermes Agent",
+    "product_version": "v0.22.2",
+    "model_and_provider": "OpenAI / gpt-4o",
+    "configuration_params": {
+      "temperature": 0.7,
+      "max_tokens": 4096,
+      "timeout_seconds": 120
+    },
+    "input_dataset_ref": "leads_raw_sample.csv v1.0.0",
+    "expected_outcome": "Parse 10 leads, calculate Priority Score, output JSON + CSV, verify zero data loss",
+    "actual_outcome": "Read CSV successfully, calculated scores 100% accurately, generated processed_leads_summary.json and outreach_pipeline.csv, self-verified 10/10 rows intact.",
+    "result_label": "PASS",
+    "qualitative_score": 5,
+    "execution_time_sec": 38.4,
+    "tokens_consumed": {
+      "input_tokens": 23140,
+      "output_tokens": 1420,
+      "total_tokens": 24560
+    },
+    "cost_usd": 0.0720,
+    "human_interventions_count": 0,
+    "error_logs": "None",
+    "evidence_file_links": [
+      "d:/ai_developer/project6/task 4/subtask 2/processed_leads_summary.json",
+      "d:/ai_developer/project6/task 4/subtask 2/outreach_pipeline.csv"
+    ],
+    "implementation_type": "NATIVE",
+    "provider_switching_outcome": "Tested on DeepSeek V3 via OpenRouter with identical prompt; JSON schema and formula accuracy maintained with 94% cost reduction."
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "run_id": "run_err_20261030_v001",
+  "status": "failed",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Field 'prompt' tidak boleh kosong dan harus memiliki panjang minimal 5 karakter.",
+    "field": "prompt",
+    "details": {
+      "provided_value": "",
+      "min_length": 5,
+      "max_length": 4000
+    },
+    "timestamp": "2026-10-30T11:15:00+0700"
+  }
+}
+

@@ -1,0 +1,9 @@
+# Pegawai AI Backend POC Dependencies
+# Python 3.14 Compatible
+# Note: The minimal POC backend runs with Python Standard Library (0 extra dependencies required).
+# Optional dependencies below can be installed for production enhancement:
+# fastapi>=0.115.0
+# uvicorn>=0.30.0
+# requests>=2.32.0
+# pydantic>=2.8.0
+

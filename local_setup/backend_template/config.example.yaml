@@ -1,0 +1,150 @@
+# ==============================================================================
+# Pegawai AI - Shared Backend Configuration Template (Sprint 2 - Day 2)
+# Owner: Intern 1 (Local Setup & Technical Research)
+# Date: October 30, 2026
+# Target Environment: Minimal POC (Targeting Day 3 Workflow & Frontend Integration)
+# ==============================================================================
+
+app:
+  name: "Pegawai AI Workforce Backend"
+  version: "0.2.0-poc"
+  environment: "development"
+  host: "127.0.0.1"
+  port: 8080
+  cors_allowed_origins:
+    - "http://localhost:3000"
+    - "http://127.0.0.1:3000"
+    - "http://localhost:5173"
+    - "http://127.0.0.1:8080"
+
+hermes:
+  binary_path: "${HERMES_BIN_PATH:-%LOCALAPPDATA%\\hermes\\bin\\hermes.exe}"
+  default_timeout_seconds: 180
+  max_concurrent_sessions: 2
+  log_level: "INFO"
+
+# Model Provider Hierarchy & Verified Identifiers
+models:
+  # Primary Target Model (Verified Active via Opencode Zen)
+  target:
+    provider: "opencode"
+    model_identifier: "deepseek-v4.1-flash"
+    canonical_id: "deepseek/deepseek-v4.1-flash-1017"
+    api_base: "https://opencode.ai/inference/openai/v1"
+    api_key: "${OPENCODE_ZEN_API_KEY:-${DEEPSEEK_API_KEY}}"
+    context_limit: 1048576
+    reasoning_support: true
+    cost_per_million:
+      input_usd: 0.15
+      output_usd: 0.60
+      cache_read_usd: 0.003
+
+  # Alternative Direct DeepSeek Provider
+  direct_deepseek:
+    provider: "deepseek"
+    model_identifier: "deepseek-flash"
+    api_base: "https://api.deepseek.com"
+    api_key: "${DEEPSEEK_API_KEY}"
+
+  # Fallback Model (Used only if upstream provider credentials fail)
+  fallback:
+    provider: "copilot"
+    model_identifier: "gpt-4o"
+    context_limit: 64000
+    reasoning_support: false
+
+# Customer Context Conventions (Synthetic Baseline)
+customer_context:
+  active_profile: "AI Top Trends v1.0.0"
+  company_name: "PT AI Top Trends"
+  business_sector: "Jasa Konsultan Otomasi AI & Digital Agency"
+  brand_voice:
+    pillars:
+      - name: "Otoritatif tapi Rendah Hati"
+        description: "Praktisi berpengalaman, bukan penjual mimpi, berbasis data nyata"
+      - name: "Praktis & Berorientasi Bisnis"
+        description: "Fokus nilai guna nyata: waktu hemat, alur rapi, anti-jargon"
+      - name: "Transparan & Akuntabel"
+        description: "Kontrol manusia (Human-in-the-Loop), AI adalah asisten terverifikasi"
+    forbidden_terms:
+      - "kaya mendadak"
+      - "kaya instan dengan AI"
+      - "autopilot 100% tanpa kerja"
+      - "skema cepat kaya"
+
+# Department Context & Operational SOPs
+departments:
+  marketing:
+    name: "Divisi Pemasaran & Konten Kreatif"
+    sop_file: "context/sops/sop_marketing.md"
+    framework: "AIDA (Attention, Interest, Desire, Action)"
+    allowed_tools: ["read_file", "write_file", "image_composer"]
+    max_tokens: 2500
+    team:
+      copywriter: "Rian (AI 1)"
+      qc_auditor: "Diana (AI 2)"
+      visual_designer: "Budi (AI 3)"
+
+  customer_support:
+    name: "Divisi Layanan Pelanggan (CS)"
+    sop_file: "context/sops/sop_customer_support.md"
+    framework: "4-Step Empathic Care (Salam, Validasi, Solusi, Penutup)"
+    allowed_tools: ["read_file", "crm_lookup"]
+    max_tokens: 1500
+    sla:
+      frt_seconds: 15
+      resolution_minutes: 5
+
+  sales:
+    name: "Divisi Penjualan & Lead Qualification"
+    sop_file: "context/sops/sop_sales.md"
+    framework: "BANT (Budget, Authority, Need, Timing) & ROI Analysis"
+    allowed_tools: ["read_file", "write_file", "lead_scoring"]
+    max_tokens: 2000
+
+# Security, Ingress & Authorization Boundaries
+authorization:
+  mode: "header_api_key"
+  header_name: "X-Pegawai-AI-Key"
+  dev_bypass_key: "dev-pegawai-ai-2026"
+  # RULE: UI customer/department selection is NOT backend authorization.
+  # The backend enforces permission matrices before invoking Hermes.
+  enforce_department_boundary: true
+  allowed_departments:
+    - "marketing"
+    - "customer_support"
+    - "sales"
+    - "general"
+  sandbox_filesystem: true
+  allowed_workspaces:
+    - "./workspace"
+    - "./outputs"
+    - "./local_setup/evidence"
+
+# Telemetry & Metrics Specification
+telemetry:
+  run_id_format: "run_{dept}_{YYYYMMDD}_{uuid8}"
+  supported_metrics:
+    - name: "execution_time_seconds"
+      type: "float"
+      source: "server monotonic clock"
+    - name: "input_tokens"
+      type: "integer"
+      source: "hermes --usage-file report"
+    - name: "output_tokens"
+      type: "integer"
+      source: "hermes --usage-file report"
+    - name: "total_tokens"
+      type: "integer"
+      source: "hermes --usage-file report"
+    - name: "cache_read_tokens"
+      type: "integer"
+      source: "DeepSeek CSA2 KV Cache hit count"
+    - name: "estimated_cost_usd"
+      type: "float"
+      formula: "(input * 0.15 + output * 0.60 + cache_read * 0.003) / 1000000"
+  unsupported_metrics:
+    - name: "gpu_vram_and_cuda_temp"
+      reason: "Inference runs remotely via cloud API, local hardware metrics are unavailable"
+    - name: "time_to_first_token_ttft"
+      reason: "Hermes batch execution mode (-z) captures end-to-end latency, not token streaming TTFT"

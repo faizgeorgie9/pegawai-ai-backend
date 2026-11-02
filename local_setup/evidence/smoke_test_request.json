@@ -1,0 +1,13 @@
+{
+  "customer_id": "cust_aitt_001",
+  "department": "marketing",
+  "prompt": "Tuliskan 1 kalimat slogan profesional untuk PT AI Top Trends.",
+  "provider": "deepseek",
+  "model": "deepseek-flash",
+  "tools_enabled": [
+    "read_file",
+    "write_file",
+    "terminal"
+  ],
+  "timeout_seconds": 60
+}

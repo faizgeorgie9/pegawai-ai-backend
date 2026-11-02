@@ -1,0 +1,29 @@
+{
+  "run_id": "run_sls_20261030_i9j0k1l2",
+  "status": "completed",
+  "department": "sales",
+  "multi_agent": false,
+  "requested": {
+    "provider": "opencode",
+    "model": "deepseek-v4.1-flash"
+  },
+  "executed": {
+    "provider": "opencode",
+    "model": "deepseek-v4.1-flash",
+    "fallback_applied": false,
+    "blocker_note": null
+  },
+  "execution_time_seconds": 11.20,
+  "output": "HASIL KUALIFIKASI LEADS (BANT FRAMEWORK) — PT SUKSES MAKMUR\n\n1. Analisa Parameter BANT:\n- Need (Kebutuhan): Sangat Kuat. Volume pesan masuk mencapai 600 chat/hari, tim CS manual sering mengalami keterlambatan balasan hingga 45 menit.\n- Authority (Wewenang): Tinggi. Kontak utama adalah Bapak Budi Santoso (Direktur Operasional).\n- Budget (Anggaran): Terkonfirmasi. Alokasi anggaran operasional bulanan Rp 15.000.000 (Sesuai dengan Paket Enterprise Pegawai AI).\n- Timing (Urgensi): Sangat Mendesak. Ditargetkan aktif sebelum periode kampanye akhir tahun (< 3 minggu).\n\n2. Penilaian Skor Kualifikasi (Lead Scoring):\n- Status: 🔥 HOT LEAD (Skor 92/100)\n\n3. Analisa ROI & Efisiensi Bisnis:\n- Pengurangan waktu tunggu respon dari 45 menit menjadi < 20 detik.\n- Estimasi penghematan biaya lembur CS hingga 60% per bulan.\n\n4. Rekomendasi Tindak Lanjut:\nJadwalkan sesi 'Live Strategy Demo 30 Menit' bersama Solution Architect kami pada hari Selasa pukul 10.00 WIB.",
+  "multi_agent_data": null,
+  "metrics": {
+    "input_tokens": 12800,
+    "output_tokens": 285,
+    "total_tokens": 13085,
+    "cache_read_tokens": 12600,
+    "estimated_cost_usd": 0.0
+  },
+  "error": null,
+  "timestamp": "2026-10-30T11:00:00+0700"
+}
+
