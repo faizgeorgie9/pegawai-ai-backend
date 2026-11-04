@@ -57,6 +57,29 @@ Server akan aktif di: **`http://127.0.0.1:8080`**
 
 ---
 
+## Menjalankan BFF
+
+BFF (`bff/`) adalah backend untuk frontend: kuota, run di latar belakang, grup bot, dan log aktivitas. Browser hanya bicara ke BFF (lewat proxy `/bff` di Vite); key Hermes tidak pernah sampai ke browser. Spesifikasi: `docs/bff-spec.md`.
+
+Prasyarat: Python 3.12+, [uv](https://docs.astral.sh/uv/), PostgreSQL, dan gateway Hermes yang berjalan di `127.0.0.1:8642` (multiplex profil aktif).
+
+1. **Buat database** (sekali; akan diminta password user `postgres`):
+   ```powershell
+   & "D:\Program Files\PostgreSQL\18\bin\createdb.exe" -h 127.0.0.1 -p 5432 -U postgres pegawai_ai
+   ```
+   Tabel dibuat otomatis saat BFF pertama kali jalan.
+2. **Isi `bff/.env`**: salin `bff/.env.example` menjadi `bff/.env`, lalu isi
+   - `DATABASE_URL=postgresql://postgres:PASSWORD_ANDA@127.0.0.1:5432/pegawai_ai`
+   - `BFF_API_KEY`: buat dengan `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+3. **Samakan key di frontend**: tulis `BFF_API_KEY=<nilai yang sama>` di `frontend/.env.local`. Proxy Vite mengirimnya sebagai header `X-Pegawai-AI-Key`.
+4. **Batasi alat bot** (sekali, aman diulang): `cd bff; uv run python -m bff.harden`. Perintah ini mematikan terminal, file, eksekusi kode, browser, dan computer use pada API server lima bot bawaan, dan memasang approval manual. Hermes Desktop tidak terpengaruh.
+5. **Jalankan**: `.\start-dev.ps1` dari folder ini (atau klik dua kali `start-dev.bat`). Perintah BFF-nya: `cd bff; uv run uvicorn bff.main:app --host 127.0.0.1 --port 8090 --loop asyncio:SelectorEventLoop` (flag `--loop` wajib di Windows karena psycopg tidak bisa memakai loop bawaan).
+6. **Cek**: `http://127.0.0.1:8090/api/health` harus menjawab `{"ok":true,"db":true,"hermes":true}`.
+
+Tes: `cd bff; uv run pytest`.
+
+---
+
 ## 📡 Ringkasan Kontrak REST API
 
 ### 1. `POST /api/v1/agent/execute`

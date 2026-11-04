@@ -5,6 +5,7 @@ import '@fontsource/dm-sans/500.css'
 import '@fontsource/dm-sans/600.css'
 import '@fontsource/dm-sans/700.css'
 import './styles.css'
+import './chat.css'
 import App from './App'
 
 createRoot(document.getElementById('root')!).render(
