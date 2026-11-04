@@ -1,0 +1,9 @@
+{
+  "customer_id": "cust_aitt_001",
+  "department": "customer_support",
+  "prompt": "Pelanggan menyampaikan keluhan bahwa pesanan nomor #ORD-9912 belum tiba setelah 4 hari pengiriman, mohon penjelasannya segera.",
+  "agent_mode": "auto",
+  "provider": "opencode",
+  "model": "deepseek-v4.1-flash",
+  "timeout_seconds": 180
+}
