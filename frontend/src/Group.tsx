@@ -3,9 +3,9 @@ import { ApiError, api, asStr, errText } from './bff'
 import type { Bot, GroupMsg } from './bff'
 import { Md } from './Chat'
 import { useData } from './data'
-import { PanelButtons, SidePanel, Split, openThinking } from './Panel'
+import { PanelButtons, SidePanel, Split } from './Panel'
 import { groupPath } from './router'
-import { BotAvatar, ErrorLine, PENCIL, Icon, botColor, clock, teamLabel } from './ui'
+import { BotAvatar, ErrorLine, PENCIL, Icon, ThinkingBlock, botColor, clock, teamLabel } from './ui'
 
 const sameId = (a: string, b: string) => a === b
 type Problem = { text: string; upgrade?: boolean } | null
@@ -20,6 +20,8 @@ export default function GroupChat({ id }: { id: string }) {
   const [hasMore, setHasMore] = useState(false)
   const [older, setOlder] = useState(false)
   const [typing, setTyping] = useState<Record<string, 'thinking' | 'writing'>>({})
+  const [rv, setRv] = useState(0) // bumped when group_reasoning arrives
+  const [thoughts, setThoughts] = useState<Record<string, string>>({}) // run_id -> reasoning
   const [pv, setPv] = useState(0) // bumped whenever the side panel's data may have changed
   const [pending, setPending] = useState<string[]>([]) // ids of queued user messages
   const [problem, setProblem] = useState<Problem>(null)
@@ -73,7 +75,12 @@ export default function GroupChat({ id }: { id: string }) {
           bump()
         }
       }),
-      on('group_reasoning', (d) => asStr(d.group_id) === id && bump()),
+      on('group_reasoning', (d) => {
+        if (asStr(d.group_id) === id) {
+          setRv((n) => n + 1)
+          bump()
+        }
+      }),
       on('group_typing', (d) => {
         if (asStr(d.group_id) !== id) return
         const b = asStr(d.bot_id)
@@ -97,6 +104,17 @@ export default function GroupChat({ id }: { id: string }) {
     ]
     return () => offs.forEach((f) => f())
   }, [id, on])
+
+  useEffect(() => {
+    let live = true
+    api.thinking({ group_id: id }).then(
+      (t) => live && setThoughts(Object.fromEntries(t.map((x) => [x.run_id, x.reasoning]))),
+      () => {}, // the inline block is optional; the side panel reports errors
+    )
+    return () => {
+      live = false
+    }
+  }, [id, rv, msgs.length])
 
   useLayoutEffect(() => {
     const el = scroller.current
@@ -273,7 +291,7 @@ export default function GroupChat({ id }: { id: string }) {
             </div>
           )}
           {msgs.map((m) => (
-            <GroupBubble key={m.id} m={m} bot={bots.find((b) => b.id === m.bot_id)} queued={pending.includes(m.id)} />
+            <GroupBubble key={m.id} m={m} bot={bots.find((b) => b.id === m.bot_id)} queued={pending.includes(m.id)} thought={thoughts[m.run_id ?? '']} />
           ))}
           {typingBots.length > 0 && (
             <div className="typing" style={{ ['--bot' as string]: botColor(typingBots[0]) }}>
@@ -379,7 +397,7 @@ export default function GroupChat({ id }: { id: string }) {
   )
 }
 
-function GroupBubble({ m, bot, queued }: { m: GroupMsg; bot?: Bot; queued: boolean }) {
+function GroupBubble({ m, bot, queued, thought }: { m: GroupMsg; bot?: Bot; queued: boolean; thought?: string }) {
   if (m.role === 'system') return <p className="sys-msg">{m.text}</p>
   if (m.role === 'user') {
     return (
@@ -399,14 +417,10 @@ function GroupBubble({ m, bot, queued }: { m: GroupMsg; bot?: Bot; queued: boole
           {bot?.team && <span className="team-tag">{teamLabel(bot.team)}</span>}
           <time>{clock(m.created_at)}</time>
         </p>
+        {thought && <ThinkingBlock text={thought} running={false} />}
         <div className="bubble">
           <Md text={m.text} />
         </div>
-        {m.run_id && (
-          <button className="btn link think-link" onClick={() => openThinking(m.run_id)}>
-            Lihat proses berpikir
-          </button>
-        )}
       </div>
     </div>
   )

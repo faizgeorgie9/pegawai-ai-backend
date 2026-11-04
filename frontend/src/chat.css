@@ -171,9 +171,18 @@ textarea ~ .counter { align-self: flex-end; }
 .chip .dot { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--positive); }
 .chip[data-status="run"] .dot { background: var(--accent); animation: pulse 1.4s ease-in-out infinite; }
 .chip[data-status="bad"] .dot { background: var(--negative); }
-.think { padding: 10px 14px; background: var(--raised); border-radius: var(--radius-control); color: var(--muted); font-size: 13px; line-height: 1.55; }
-.think summary { cursor: pointer; font-weight: 600; }
-.think p { margin-top: 8px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 320px; overflow-y: auto; }
+.thinking { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; max-width: 100%; }
+.thinking-head { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 2px 0; background: none; border: 0; color: var(--faint); font: inherit; font-size: 13px; cursor: pointer; text-align: left; border-radius: 4px; }
+.thinking-head:hover { color: var(--muted); }
+.thinking-head:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.thinking-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.thinking[data-running] .thinking-label { animation: pulse 1.6s ease-in-out infinite; }
+.thinking-chev { display: inline-flex; flex: none; transition: transform .15s var(--ease); }
+.thinking-head[aria-expanded="true"] .thinking-chev { transform: rotate(180deg); }
+.thinking-box { align-self: stretch; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-control); color: var(--muted); font-size: 13px; line-height: 1.55; display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+.thinking-box p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.thinking-box .thinking-title { font-weight: 600; color: var(--faint); }
+@media (prefers-reduced-motion: reduce) { .thinking[data-running] .thinking-label { animation: none; } .thinking-chev { transition: none; } }
 .approval { padding: 12px 14px; background: var(--warn-bg); color: var(--warn-ink); border-radius: var(--radius-control); display: flex; flex-direction: column; gap: 6px; }
 .approval-title { font-weight: 700; }
 .approval p { overflow-wrap: anywhere; }

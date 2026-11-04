@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Bot } from './bff'
 
@@ -94,6 +94,40 @@ export function ErrorLine({ text, onRetry }: { text: string; onRetry?: () => voi
         <button className="btn link" onClick={onRetry}>
           Coba lagi
         </button>
+      )}
+    </div>
+  )
+}
+
+// Claude-style thinking block: one quiet summary line, expands to the steps (separated by blank lines).
+function thinkSummary(text: string): string {
+  const last = text.split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean).pop() ?? ''
+  const flat = last.replace(/[*_`#>]/g, '').replace(/\s+/g, ' ')
+  const first = flat.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? flat
+  return first.length > 80 ? first.slice(0, 79).trimEnd() + '…' : first
+}
+export function ThinkingBlock({ text, running, seconds, defaultOpen }: { text: string; running: boolean; seconds?: number; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(!!defaultOpen)
+  useEffect(() => setOpen(!!defaultOpen), [defaultOpen])
+  const steps = text.split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean)
+  if (!steps.length && !running) return null
+  const sum = thinkSummary(text)
+  const title = seconds ? `Berpikir selama ${seconds}s` : 'Proses berpikir'
+  return (
+    <div className="thinking" data-running={running || undefined}>
+      <button type="button" className="thinking-head" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span className="thinking-label">{running ? (sum ? `Sedang berpikir: ${sum}` : 'Sedang berpikir…') : sum || title}</span>
+        <span className="thinking-chev" aria-hidden="true">
+          <Icon d="M6 9l6 6 6-6" size={14} />
+        </span>
+      </button>
+      {open && (
+        <div className="thinking-box">
+          <p className="thinking-title">{running ? 'Sedang berpikir…' : title}</p>
+          {steps.map((t, i) => (
+            <p key={i}>{t}</p>
+          ))}
+        </div>
       )}
     </div>
   )

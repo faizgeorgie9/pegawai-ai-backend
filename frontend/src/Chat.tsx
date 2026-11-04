@@ -6,7 +6,7 @@ import type { Bot, ChatMessage, Raw, Session, SseState, ToolChip } from './bff'
 import { useData } from './data'
 import { go, botPath } from './router'
 import { PanelButtons, SidePanel, Split } from './Panel'
-import { BotAvatar, CLOSE, Icon, nf } from './ui'
+import { BotAvatar, CLOSE, Icon, ThinkingBlock, nf } from './ui'
 
 const THINK_KEY = 'pegawai.showThinking'
 function readThink(): boolean {
@@ -449,18 +449,13 @@ function Message(p: {
             ))}
           </ul>
         )}
-        {p.showThink && m.reasoning && (
-          <details className="think" open={live || undefined}>
-            <summary>Proses berpikir</summary>
-            <p>{m.reasoning}</p>
-          </details>
-        )}
+        <ThinkingBlock text={m.reasoning} running={waiting && !m.tools.length} defaultOpen={p.showThink} />
         {m.content ? (
           <Md text={m.content} />
-        ) : waiting ? (
+        ) : waiting && m.tools.length > 0 ? (
           <p className="quiet working">
             <span className="dots" aria-hidden="true" />
-            {m.tools.length ? 'Bot sedang bekerja...' : m.reasoning ? 'Bot sedang berpikir...' : 'Menunggu bot...'}
+            Bot sedang bekerja…
           </p>
         ) : null}
         {m.approval && (
