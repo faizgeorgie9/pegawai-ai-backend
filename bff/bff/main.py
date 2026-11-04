@@ -424,7 +424,8 @@ async def thinking(session_id: str | None = None, group_id: str | None = None):
     sid, gid = _scope(session_id, group_id)
     col, val = ("r.group_id", gid) if gid else ("r.session_id", sid)
     return await db.q(
-        "select * from (select r.id as run_id, r.bot_id, r.status, r.created_at, r.reasoning from runs r "
+        "select * from (select r.id as run_id, r.bot_id, r.status, r.created_at, r.started_at, r.finished_at, r.reasoning, "
+        "floor(extract(epoch from r.finished_at - coalesce(r.started_at, r.created_at)))::int as seconds from runs r "
         f"where r.user_id = %s and {col} = %s and (r.reasoning is not null or r.status = any(%s)) "
         "order by r.created_at desc limit 50) t order by created_at", current_user(), val, list(engine.ACTIVE))
 

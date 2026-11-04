@@ -21,7 +21,7 @@ export default function GroupChat({ id }: { id: string }) {
   const [older, setOlder] = useState(false)
   const [typing, setTyping] = useState<Record<string, 'thinking' | 'writing'>>({})
   const [rv, setRv] = useState(0) // bumped when group_reasoning arrives
-  const [thoughts, setThoughts] = useState<Record<string, string>>({}) // run_id -> reasoning
+  const [thoughts, setThoughts] = useState<Record<string, { text: string; seconds?: number }>>({}) // run_id -> reasoning
   const [pv, setPv] = useState(0) // bumped whenever the side panel's data may have changed
   const [pending, setPending] = useState<string[]>([]) // ids of queued user messages
   const [problem, setProblem] = useState<Problem>(null)
@@ -108,7 +108,7 @@ export default function GroupChat({ id }: { id: string }) {
   useEffect(() => {
     let live = true
     api.thinking({ group_id: id }).then(
-      (t) => live && setThoughts(Object.fromEntries(t.map((x) => [x.run_id, x.reasoning]))),
+      (t) => live && setThoughts(Object.fromEntries(t.map((x) => [x.run_id, { text: x.reasoning, seconds: x.seconds }]))),
       () => {}, // the inline block is optional; the side panel reports errors
     )
     return () => {
@@ -397,7 +397,7 @@ export default function GroupChat({ id }: { id: string }) {
   )
 }
 
-function GroupBubble({ m, bot, queued, thought }: { m: GroupMsg; bot?: Bot; queued: boolean; thought?: string }) {
+function GroupBubble({ m, bot, queued, thought }: { m: GroupMsg; bot?: Bot; queued: boolean; thought?: { text: string; seconds?: number } }) {
   if (m.role === 'system') return <p className="sys-msg">{m.text}</p>
   if (m.role === 'user') {
     return (
@@ -417,7 +417,7 @@ function GroupBubble({ m, bot, queued, thought }: { m: GroupMsg; bot?: Bot; queu
           {bot?.team && <span className="team-tag">{teamLabel(bot.team)}</span>}
           <time>{clock(m.created_at)}</time>
         </p>
-        {thought && <ThinkingBlock text={thought} running={false} />}
+        {thought?.text && <ThinkingBlock text={thought.text} running={false} seconds={thought.seconds} />}
         <div className="bubble">
           <Md text={m.text} />
         </div>

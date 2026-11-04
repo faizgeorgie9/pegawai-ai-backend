@@ -67,6 +67,32 @@ export default function Chat({ bot, sid, sessions, onSessions }: { bot: Bot; sid
 
   const edit = (key: string, fn: (m: ChatMessage) => ChatMessage) => setMessages((cur) => cur.map((m) => (m.key === key ? fn(m) : m)))
 
+  // Durations come from /thinking; a message only gets one when its reasoning text matches exactly one run.
+  function loadTimes(forSid: string | undefined) {
+    if (!forSid) return
+    api.thinking({ session_id: forSid }).then(
+      (t) => {
+        if (sidRef.current !== forSid) return
+        const seen = new Map<string, number | undefined>()
+        const dup = new Set<string>()
+        for (const x of t) {
+          const k = x.reasoning.trim()
+          if (!k) continue
+          if (seen.has(k)) dup.add(k)
+          seen.set(k, x.seconds)
+        }
+        setMessages((cur) =>
+          cur.map((m) => {
+            const k = m.reasoning.trim()
+            const sec = m.role === 'assistant' && k && !dup.has(k) ? seen.get(k) : undefined
+            return sec === undefined || sec === m.seconds ? m : { ...m, seconds: sec }
+          }),
+        )
+      },
+      () => {}, // optional: the block falls back to "Proses berpikir"
+    )
+  }
+
   function attach(runId: string, key: string) {
     live.current = key
     const finish = () => {
@@ -77,6 +103,7 @@ export default function Chat({ bot, sid, sessions, onSessions }: { bot: Bot; sid
       refreshMe()
       bump()
       onSessions()
+      loadTimes(sidRef.current)
       window.setTimeout(onSessions, 6000) // Hermes names the topic a few seconds later
     }
     const stop = subscribe(
@@ -180,6 +207,7 @@ export default function Chat({ bot, sid, sessions, onSessions }: { bot: Bot; sid
           setRun({ id: r.id })
           attach(r.id, a.key)
         } else setMessages(msgs)
+        loadTimes(sid)
       } catch (e) {
         if (mine === epoch.current && !isAbort(e)) setProblem({ text: errText(e) })
       } finally {
@@ -449,7 +477,7 @@ function Message(p: {
             ))}
           </ul>
         )}
-        <ThinkingBlock text={m.reasoning} running={waiting && !m.tools.length} defaultOpen={p.showThink} />
+        <ThinkingBlock text={m.reasoning} running={waiting && !m.tools.length} seconds={m.seconds} defaultOpen={p.showThink} />
         {m.content ? (
           <Md text={m.content} />
         ) : waiting && m.tools.length > 0 ? (

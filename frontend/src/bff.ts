@@ -129,6 +129,7 @@ export interface Thought {
   bot_id: string
   status: string
   created_at: number
+  seconds?: number
   reasoning: string
 }
 export interface Usage {
@@ -180,6 +181,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   reasoning: string
+  seconds?: number // whole-run duration, matched from /thinking by identical reasoning text
   tools: ToolChip[]
   tokens?: { input: number; output: number }
   stopped?: boolean
@@ -388,6 +390,7 @@ export const api = {
       bot_id: asStr(r.bot_id),
       status: asStr(r.status),
       created_at: epoch(r.created_at),
+      seconds: typeof r.seconds === 'number' ? r.seconds : undefined,
       reasoning: asStr(r.reasoning),
     })),
   activity: async (f: { bot?: string; status?: string; before?: string; session_id?: string; group_id?: string }) => list(await call('GET', `/activity${q({ ...f, limit: 100 })}`)).map(toActivity),
