@@ -8,16 +8,12 @@ import { BotAvatar, COLORS, Dialog, ErrorLine, botColor, nf, teamLabel } from '.
 type Problem = { text: string; upgrade: boolean } | null
 const problemOf = (e: unknown): Problem => ({ text: errText(e), upgrade: e instanceof ApiError && e.upgrade })
 
-function ProblemLine({ p, onPlan }: { p: Problem; onPlan: () => void }) {
+// The plan dialog is no longer reachable from the UI, so a 402 shows as a plain error.
+function ProblemLine({ p }: { p: Problem; onPlan?: () => void }) {
   if (!p) return null
   return (
     <p className="problem-bar" role="alert">
       {p.text}
-      {p.upgrade && (
-        <button type="button" className="btn link" onClick={onPlan}>
-          Lihat paket
-        </button>
-      )}
     </p>
   )
 }
@@ -34,7 +30,7 @@ export function Dialogs() {
 
 // ---------- Bot baru ----------
 function BotDialog({ onClose }: { onClose: () => void }) {
-  const { bots, refreshBots, refreshMe, setDialog } = useData()
+  const { bots, refreshBots, refreshMe, setDialog, flash } = useData()
   const [tab, setTab] = useState<'template' | 'custom'>('template')
   const [tpls, setTpls] = useState<Template[]>([])
   const [tplState, setTplState] = useState<'loading' | 'ok' | 'error'>('loading')
@@ -79,7 +75,7 @@ function BotDialog({ onClose }: { onClose: () => void }) {
     e.preventDefault()
     const body = { name: name.trim(), role: role.trim(), team: team.trim(), color: tab === 'custom' ? color : undefined }
     if (!body.name || !body.role || !body.team) return setProblem({ text: 'Nama, peran, dan tim wajib diisi.', upgrade: false })
-    if (tab === 'custom' && !persona.trim()) return setProblem({ text: 'Tulis persona bot, supaya bot tahu cara bekerja.', upgrade: false })
+    if (tab === 'custom' && !persona.trim()) return setProblem({ text: 'Tulis persona agen, supaya agen tahu cara bekerja.', upgrade: false })
     setBusy(true)
     setProblem(null)
     try {
@@ -87,6 +83,7 @@ function BotDialog({ onClose }: { onClose: () => void }) {
       await refreshBots().catch(() => [])
       refreshMe()
       onClose()
+      flash(`Agen ${b.name} dibuat`)
       go(botPath(b.id))
     } catch (err) {
       setProblem(problemOf(err))
@@ -99,7 +96,7 @@ function BotDialog({ onClose }: { onClose: () => void }) {
     <div className="fields">
       <label className="field">
         <span>Nama</span>
-        <input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} placeholder="Nama bot baru" required />
+        <input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} placeholder="Nama agen baru" required />
       </label>
       <label className="field">
         <span>Peran</span>
@@ -124,9 +121,9 @@ function BotDialog({ onClose }: { onClose: () => void }) {
   )
 
   return (
-    <Dialog title="Bot baru" onClose={onClose} wide>
+    <Dialog title="Agen baru" onClose={onClose} wide>
       <form onSubmit={(e) => void submit(e)} className="dlg-body">
-        <div className="seg" role="tablist" aria-label="Cara membuat bot">
+        <div className="seg" role="tablist" aria-label="Cara membuat agen">
           {(['template', 'custom'] as const).map((t) => (
             <button key={t} type="button" role="tab" aria-selected={tab === t} disabled={busy} onClick={() => { setTab(t); setProblem(null) }}>
               {t === 'template' ? 'Dari template' : 'Buat sendiri'}
@@ -176,7 +173,7 @@ function BotDialog({ onClose }: { onClose: () => void }) {
         {busy && (
           <div className="progress" role="status">
             <span className="bar-ind" aria-hidden="true" />
-            Menyiapkan bot… bisa sampai 40 detik
+            Membuat agen… bisa sampai 40 detik
           </div>
         )}
         <footer className="dlg-foot">
@@ -184,7 +181,7 @@ function BotDialog({ onClose }: { onClose: () => void }) {
             Batal
           </button>
           <button type="submit" className="btn primary" disabled={busy || (tab === 'template' && !selected)}>
-            Buat bot
+            Buat agen
           </button>
         </footer>
       </form>
@@ -353,7 +350,7 @@ function PlanDialog({ onClose }: { onClose: () => void }) {
 
 // ---------- Hapus bot ----------
 function DeleteBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
-  const { refreshBots, refreshGroups, refreshMe } = useData()
+  const { refreshBots, refreshGroups, refreshMe, flash } = useData()
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<Problem>(null)
   async function remove() {
@@ -365,7 +362,8 @@ function DeleteBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
       refreshMe()
       onClose()
       const r = parse(location.hash)
-      if (r.name === 'bot' && r.id === bot.id) go('/')
+      flash(`Agen ${bot.name} dihapus`)
+      if ((r.name === 'bot' || r.name === 'agen-detail' || r.name === 'agen-ubah') && r.id === bot.id) go('/agen')
     } catch (e) {
       setProblem(problemOf(e))
       setBusy(false)
@@ -375,7 +373,7 @@ function DeleteBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
     <Dialog title={`Hapus ${bot.name}?`} onClose={onClose}>
       <div className="dlg-body">
         <p>
-          {bot.name} dihapus dari daftar bot dan dari semua grup. Riwayat chat dengan {bot.name} tidak bisa dibuka lagi. Bot yang sedang bekerja tidak bisa dihapus.
+          {bot.name} dihapus dari daftar agen dan dari semua grup. Riwayat chat dengan {bot.name} tidak bisa dibuka lagi. Agen yang sedang bekerja tidak bisa dihapus.
         </p>
         <ProblemLine p={problem} onPlan={() => {}} />
         <footer className="dlg-foot">
@@ -383,7 +381,7 @@ function DeleteBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
             Batal
           </button>
           <button className="btn danger" onClick={() => void remove()} disabled={busy}>
-            {busy ? 'Menghapus...' : 'Hapus bot'}
+            {busy ? 'Menghapus...' : 'Hapus agen'}
           </button>
         </footer>
       </div>

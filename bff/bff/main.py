@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bots, config, db, engine, groups, hermes, usage
+from . import bots, config, db, engine, groups, harden, hermes, usage
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -164,6 +164,38 @@ async def create_bot(request: Request):
     return await bots.create_bot(current_user(), await body_of(request))
 
 
+@api.get("/bots/{bot_id}")
+async def get_bot(bot_id: str):
+    return await bots.get_bot_view(current_user(), bot_id)
+
+
+@api.patch("/bots/{bot_id}")
+async def update_bot(bot_id: str, request: Request):
+    return await bots.update_bot(current_user(), bot_id, await body_of(request))
+
+
+@api.get("/tools")
+async def tools(bot: str | None = None):
+    """Toolsets each bot's Hermes API serves right now (GET /p/<bot>/v1/toolsets). A bot that does not answer is ok=false."""
+    async def one(b: dict) -> dict:
+        try:
+            r = await hermes.call(b["id"], "GET", "/v1/toolsets", timeout=8)
+            data = r.json()["data"] if r.status_code == 200 else None
+            if not isinstance(data, list):
+                raise ValueError
+            ts = [{"name": t["name"], "label": t.get("label") or t["name"], "description": t.get("description") or "",
+                   "tools": t.get("tools") or [], "enabled": t.get("enabled") is True} for t in data]
+            return {"bot_id": b["id"], "name": b["name"], "ok": True, "toolsets": ts}
+        except (ApiError, ValueError, KeyError, TypeError):
+            return {"bot_id": b["id"], "name": b["name"], "ok": False, "toolsets": []}
+    rows = await bots.list_bots(current_user())
+    if bot:
+        rows = [b for b in rows if b["id"] == bot]
+        if not rows:
+            raise ApiError(404, "Bot tidak ditemukan")
+    return {"deny": sorted(harden.DENY), "bots": await asyncio.gather(*(one(b) for b in rows))}
+
+
 @api.delete("/bots/{bot_id}", status_code=204)
 async def delete_bot(bot_id: str):
     await bots.delete_bot(current_user(), bot_id)
@@ -244,13 +276,13 @@ async def create_run(bot_id: str, request: Request):
 
 
 @api.get("/runs")
-async def list_runs(status: str = "recent", limit: int = 30):
+async def list_runs(status: str = "recent", limit: int = 30, bot: str | None = None):
     limit = max(1, min(limit, 100))
     cond = "r.status = any(%s)" if status == "active" else "not (r.status = any(%s))"
     rows = await db.q(f"select r.id, r.bot_id, b.name as bot_name, r.kind, r.status, left(r.input, 120) as input, "
                       f"r.group_id, r.session_id, r.total_tokens, r.created_at, r.finished_at from runs r "
-                      f"join bots b on b.id = r.bot_id where r.user_id = %s and {cond} "
-                      f"order by r.created_at desc limit %s", current_user(), list(engine.ACTIVE), limit)
+                      f"join bots b on b.id = r.bot_id where r.user_id = %s and {cond} and (%s::text is null or r.bot_id = %s) "
+                      f"order by r.created_at desc limit %s", current_user(), list(engine.ACTIVE), bot, bot, limit)
     return rows
 
 

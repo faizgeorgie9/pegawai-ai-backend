@@ -16,7 +16,7 @@ export class ApiError extends Error {
 
 function fallbackMessage(status: number): string {
   if (status === 401) return 'Akses ditolak. Kunci BFF belum diisi atau salah.'
-  if (status === 402) return 'Kuota paket habis. Naikkan paket untuk melanjutkan.'
+  if (status === 402) return 'Batas penggunaan tercapai. Coba lagi nanti.'
   if (status === 404) return 'Data tidak ditemukan. Mungkin sudah dihapus.'
   if (status === 409) return 'Permintaan bentrok dengan keadaan saat ini. Coba lagi.'
   if (status === 429) return 'Terlalu banyak tugas berjalan, coba sebentar lagi.'
@@ -45,7 +45,9 @@ async function call<T>(method: string, path: string, body?: unknown, signal?: Ab
       /* empty or non-JSON error body */
     }
     const msg = typeof j.error === 'string' && j.error ? j.error : fallbackMessage(res.status)
-    throw new ApiError(msg, res.status, j.upgrade === true || res.status === 402)
+    // 402 = quota reached. The plan UI is hidden, so show a plain error (no upgrade hint).
+    if (res.status === 402) throw new ApiError('Batas penggunaan tercapai. Coba lagi nanti.', 402, false)
+    throw new ApiError(msg, res.status, j.upgrade === true)
   }
   if (res.status === 204) return undefined as T
   try {
@@ -82,6 +84,28 @@ export interface Bot {
   status: BotStatus
   activity: string
   about: string
+  createdAt: number // epoch seconds, 0 when unknown
+}
+export interface BotDetail extends Bot {
+  persona: string
+  template: string
+}
+export interface Toolset {
+  name: string
+  label: string
+  description: string
+  tools: string[]
+  enabled: boolean
+}
+export interface BotTools {
+  bot_id: string
+  name: string
+  ok: boolean
+  toolsets: Toolset[]
+}
+export interface ToolsInfo {
+  deny: string[]
+  bots: BotTools[]
 }
 export interface Template {
   id: string
@@ -213,6 +237,7 @@ const toBot = (r: Raw): Bot => ({
   status: r.status === 'working' || r.status === 'discussing' ? r.status : 'idle',
   activity: asStr(r.activity),
   about: asStr(r.about),
+  createdAt: epoch(r.created_at),
 })
 const toLimits = (r: Raw = {}): Limits => ({
   monthly_tokens: r.monthly_tokens == null ? null : asNum(r.monthly_tokens),
@@ -289,7 +314,7 @@ const toActivity = (r: Raw): ActivityRow => {
     status: asStr(r.status) === 'error' ? 'error' : 'ok',
     duration: asNum(r.duration),
     preview: asStr(r.preview),
-    link: group_id ? `/grup/${encodeURIComponent(group_id)}` : bot_id ? `/bot/${encodeURIComponent(bot_id)}${sid ? '/' + encodeURIComponent(sid) : ''}` : '',
+    link: group_id ? `/grup/${encodeURIComponent(group_id)}` : bot_id ? `/chat/${encodeURIComponent(bot_id)}${sid ? '/' + encodeURIComponent(sid) : ''}` : '',
     where: asStr(r.group_name ?? r.chat_name ?? r.session_title),
   }
 }
@@ -348,6 +373,32 @@ export const api = {
   bots: async () => list(await call('GET', '/bots')).map(toBot),
   createBot: async (b: { name: string; role: string; team: string; color?: string; template?: string; persona?: string }) =>
     toBot(await call<Raw>('POST', '/bots', b)),
+  bot: async (id: string): Promise<BotDetail> => {
+    const r = await call<Raw>('GET', `/bots/${enc(id)}`)
+    return { ...toBot(r), persona: asStr(r.persona), template: asStr(r.template) }
+  },
+  updateBot: async (id: string, p: { name?: string; role?: string; team?: string; color?: string; persona?: string }): Promise<BotDetail> => {
+    const r = await call<Raw>('PATCH', `/bots/${enc(id)}`, p)
+    return { ...toBot(r), persona: asStr(r.persona), template: asStr(r.template) }
+  },
+  tools: async (bot?: string): Promise<ToolsInfo> => {
+    const r = await call<Raw>('GET', `/tools${q({ bot })}`)
+    return {
+      deny: Array.isArray(r.deny) ? r.deny.map((x: unknown) => asStr(x)) : [],
+      bots: list(r.bots).map((b) => ({
+        bot_id: asStr(b.bot_id),
+        name: asStr(b.name),
+        ok: b.ok === true,
+        toolsets: list(b.toolsets).map((t) => ({
+          name: asStr(t.name),
+          label: asStr(t.label, asStr(t.name)),
+          description: asStr(t.description),
+          tools: Array.isArray(t.tools) ? t.tools.map((x: unknown) => asStr(x)) : [],
+          enabled: t.enabled === true,
+        })),
+      })),
+    }
+  },
   deleteBot: (id: string) => call<void>('DELETE', `/bots/${enc(id)}`),
   sessions: async (botId: string, signal?: AbortSignal) =>
     list(await call('GET', `/bots/${enc(botId)}/sessions`, undefined, signal))
@@ -361,7 +412,7 @@ export const api = {
     const r = await call<Raw>('POST', `/bots/${enc(botId)}/runs`, session_id ? { input, session_id } : { input })
     return { run: toRun(r.run ?? r), session_id: asStr(r.session_id ?? r.run?.session_id) }
   },
-  runs: async (status: 'active' | 'recent', limit?: number) => list(await call('GET', `/runs${q({ status, limit })}`)).map(toRun),
+  runs: async (status: 'active' | 'recent', limit?: number, bot?: string) => list(await call('GET', `/runs${q({ status, limit, bot })}`)).map(toRun),
   run: async (id: string) => {
     const r = await call<Raw>('GET', `/runs/${enc(id)}`)
     return { ...toRun(r.run ?? r), output: asStr((r.run ?? r).output) }
@@ -393,7 +444,7 @@ export const api = {
       seconds: typeof r.seconds === 'number' ? r.seconds : undefined,
       reasoning: asStr(r.reasoning),
     })),
-  activity: async (f: { bot?: string; status?: string; before?: string; session_id?: string; group_id?: string }) => list(await call('GET', `/activity${q({ ...f, limit: 100 })}`)).map(toActivity),
+  activity: async (f: { bot?: string; status?: string; before?: string; session_id?: string; group_id?: string; limit?: number }) => list(await call('GET', `/activity${q({ limit: 100, ...f })}`)).map(toActivity),
 }
 
 // ---- SSE ----

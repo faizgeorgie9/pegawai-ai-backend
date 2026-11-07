@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Activity from './Activity'
+import { AgentDetail, AgentEdit, AgentList, AgentNew } from './Agents'
 import { api, errText, isAbort } from './bff'
 import type { Bot, Session } from './bff'
 import Chat from './Chat'
+import Dashboard from './Dashboard'
 import { DataProvider, useData } from './data'
 import { Dialogs } from './Dialogs'
 import GroupChat from './Group'
+import { Building, ComputerUse, Scheduler, Tools } from './Platform'
 import { botPath, go, groupPath, useRoute } from './router'
 import type { Route } from './router'
-import { BotAvatar, CHEVRON, CLOSE, DOTS, ErrorLine, Icon, MENU, PENCIL, PLUS, TRASH, ago, botColor, elapsed, nf, teamLabel } from './ui'
+import { BotAvatar, CLOSE, DOTS, ErrorLine, Icon, MENU, PENCIL, PLUS, TRASH, ago, botColor, elapsed, teamLabel } from './ui'
+import { statusText } from './ui-extra'
 
 export default function App() {
   return (
@@ -103,11 +107,20 @@ function Shell() {
           (bot ? (
             <Chat key={bot.id} bot={bot} sid={route.sid} sessions={hist.sessions} onSessions={() => hist.refresh(true)} />
           ) : (
-            <PageState what="Bot" loadState={loadState} error={error} reload={reload} />
+            <PageState what="Agen" loadState={loadState} error={error} reload={reload} />
           ))}
         {route.name === 'grup' && <GroupChat key={route.id} id={route.id} />}
         {route.name === 'aktivitas' && <Activity />}
-        {route.name === 'home' && <Home />}
+        {route.name === 'home' && <Dashboard />}
+        {route.name === 'agen' && <AgentList />}
+        {route.name === 'agen-baru' && <AgentNew />}
+        {route.name === 'agen-detail' && <AgentDetail key={route.id} id={route.id} />}
+        {route.name === 'agen-ubah' && <AgentEdit key={route.id} id={route.id} />}
+        {route.name === 'tools' && <Tools />}
+        {route.name === 'computer-use' && <ComputerUse />}
+        {route.name === 'scheduler' && <Scheduler />}
+        {route.name === 'marketing' && <Building title="Workspace Marketing" />}
+        {route.name === 'cs' && <Building title="Workspace CS" />}
       </main>
 
       <div className="toasts" aria-live="polite">
@@ -130,7 +143,7 @@ function Shell() {
               className="toast-main"
               onClick={() => {
                 dismissToast(t.id)
-                go(t.href)
+                if (t.href) go(t.href)
               }}
             >
               {t.text}
@@ -150,39 +163,6 @@ function PageState({ what, loadState, error, reload }: { what: string; loadState
   return (
     <section className="page center-page">
       {loadState === 'loading' ? <p className="quiet">Memuat...</p> : loadState === 'error' ? <ErrorLine text={error} onRetry={reload} /> : <p className="quiet">{what} tidak ditemukan. Mungkin sudah dihapus.</p>}
-    </section>
-  )
-}
-
-function Home() {
-  const { bots, groups, loadState, error, reload } = useData()
-  return (
-    <section className="page center-page">
-      <div className="empty">
-        <Mark />
-        <h1>Pegawai AI</h1>
-        {loadState === 'error' ? (
-          <ErrorLine text={error} onRetry={reload} />
-        ) : loadState === 'loading' ? (
-          <p>Memuat tim Anda...</p>
-        ) : bots.length + groups.length === 0 ? (
-          <p>Belum ada bot. Buat bot pertama lewat tombol Bot baru di samping.</p>
-        ) : (
-          <>
-            <p>Pilih bot untuk mulai mengobrol, atau grup untuk menyuruh beberapa bot bekerja bersama.</p>
-            <ul className="home-bots">
-              {bots.map((b) => (
-                <li key={b.id}>
-                  <a href={'#' + botPath(b.id)} className="chip home-chip" style={{ ['--bot' as string]: botColor(b) }}>
-                    <BotAvatar bot={b} size={20} />
-                    {b.name}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </div>
     </section>
   )
 }
@@ -218,6 +198,74 @@ function Sidebar({ route, hist, bot, onClose }: { route: Route; hist: Hist; bot?
       </div>
 
       <div className="side-scroll">
+        <nav className="side-sec nav-list" aria-label="Dashboard">
+          <a className="nav-link" href="#/" aria-current={route.name === 'home' ? 'page' : undefined}>
+            Dashboard
+          </a>
+        </nav>
+        <section className="side-sec" aria-labelledby="sb">
+          <div className="sec-head">
+            <h2 id="sb">Chat</h2>
+            <button className="btn new" onClick={() => go('/agen/baru')}>
+              <Icon d={PLUS} />
+              Agen baru
+            </button>
+          </div>
+          {loadState === 'loading' && <p className="quiet pad">Memuat agen...</p>}
+          {loadState === 'error' && bots.length === 0 && <ErrorLine text={error} onRetry={reload} />}
+          {loadState === 'ok' && bots.length === 0 && <p className="quiet pad">Belum ada agen.</p>}
+          {Object.entries(teams).map(([team, list]) => (
+            <div key={team} className="bot-group">
+              <h3>{teamLabel(team)}</h3>
+              <ul>
+                {list.map((b) => (
+                  <li key={b.id} className="bot-li">
+                    <a
+                      className="row"
+                      href={'#' + botPath(b.id)}
+                      aria-current={route.name === 'bot' && route.id === b.id ? 'page' : undefined}
+                      title={statusText(b)}
+                      style={{ ['--bot' as string]: botColor(b) }}
+                    >
+                      <BotAvatar bot={b} size={32} />
+                      <span className="bot-text">
+                        <b>{b.name}</b>
+                        <small>{b.role}</small>
+                        <small className="st">{statusText(b)}</small>
+                      </span>
+                      <span className="status-dot" data-s={b.status} role="img" aria-label={b.status === 'idle' ? 'Siap' : b.status === 'working' ? 'Bekerja' : 'Berdiskusi'} />
+                    </a>
+                    {!b.builtin && (
+                      <span className="row-menu">
+                        <button
+                          className="icon-btn"
+                          aria-label={`Menu ${b.name}`}
+                          aria-expanded={menu === b.id}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setMenu(menu === b.id ? null : b.id)
+                          }}
+                        >
+                          <Icon d={DOTS} />
+                        </button>
+                        {menu === b.id && (
+                          <div className="popmenu" role="menu">
+                            <button role="menuitem" onClick={() => setDialog({ kind: 'delete', bot: b })}>
+                              <Icon d={TRASH} />
+                              Hapus agen
+                            </button>
+                          </div>
+                        )}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </section>
+
+        {bot && <History bot={bot} hist={hist} sid={route.name === 'bot' ? route.sid : undefined} />}
         <section className="side-sec" aria-labelledby="sg">
           <div className="sec-head">
             <h2 id="sg">Grup</h2>
@@ -228,7 +276,7 @@ function Sidebar({ route, hist, bot, onClose }: { route: Route; hist: Hist; bot?
           </div>
           {loadState === 'loading' && <p className="quiet pad">Memuat grup...</p>}
           {loadState === 'error' && groups.length === 0 && <ErrorLine text={error} onRetry={reload} />}
-          {loadState === 'ok' && groups.length === 0 && <p className="quiet pad">Belum ada grup. Gabungkan 2 sampai 6 bot.</p>}
+          {loadState === 'ok' && groups.length === 0 && <p className="quiet pad">Belum ada grup. Gabungkan 2 sampai 6 agen.</p>}
           <ul>
             {groups.map((g) => {
               const ms = g.members.map((m) => bots.find((b) => b.id === m)).filter((b): b is Bot => !!b)
@@ -252,113 +300,37 @@ function Sidebar({ route, hist, bot, onClose }: { route: Route; hist: Hist; bot?
           </ul>
         </section>
 
-        <section className="side-sec" aria-labelledby="sb">
-          <div className="sec-head">
-            <h2 id="sb">Bot</h2>
-            <button className="btn new" onClick={() => setDialog({ kind: 'bot' })}>
-              <Icon d={PLUS} />
-              Bot baru
-            </button>
-          </div>
-          {loadState === 'loading' && <p className="quiet pad">Memuat bot...</p>}
-          {loadState === 'error' && bots.length === 0 && <ErrorLine text={error} onRetry={reload} />}
-          {loadState === 'ok' && bots.length === 0 && <p className="quiet pad">Belum ada bot.</p>}
-          {Object.entries(teams).map(([team, list]) => (
-            <div key={team} className="bot-group">
-              <h3>{teamLabel(team)}</h3>
-              <ul>
-                {list.map((b) => (
-                  <li key={b.id} className="bot-li">
-                    <a
-                      className="row"
-                      href={'#' + botPath(b.id)}
-                      aria-current={route.name === 'bot' && route.id === b.id ? 'page' : undefined}
-                      title={b.status === 'working' ? b.activity || 'Sedang bekerja' : b.status === 'discussing' ? 'Sedang berdiskusi di grup' : 'Siap'}
-                      style={{ ['--bot' as string]: botColor(b) }}
-                    >
-                      <BotAvatar bot={b} size={32} />
-                      <span className="bot-text">
-                        <b>{b.name}</b>
-                        <small>{b.status === 'working' && b.activity ? b.activity : b.role}</small>
-                      </span>
-                      <span className="status-dot" data-s={b.status} role="img" aria-label={b.status === 'idle' ? 'Siap' : b.status === 'working' ? 'Bekerja' : 'Berdiskusi'} />
-                    </a>
-                    {!b.builtin && (
-                      <span className="row-menu">
-                        <button
-                          className="icon-btn"
-                          aria-label={`Menu ${b.name}`}
-                          aria-expanded={menu === b.id}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setMenu(menu === b.id ? null : b.id)
-                          }}
-                        >
-                          <Icon d={DOTS} />
-                        </button>
-                        {menu === b.id && (
-                          <div className="popmenu" role="menu">
-                            <button role="menuitem" onClick={() => setDialog({ kind: 'delete', bot: b })}>
-                              <Icon d={TRASH} />
-                              Hapus bot
-                            </button>
-                          </div>
-                        )}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </section>
-
-        {bot && <History bot={bot} hist={hist} sid={route.name === 'bot' ? route.sid : undefined} />}
+        <nav className="side-sec nav-list" aria-label="Halaman">
+          <a className="nav-link" href="#/agen" aria-current={route.name.startsWith('agen') ? 'page' : undefined}>
+            Agen
+          </a>
+          <a className="nav-link" href="#/tools" aria-current={route.name === 'tools' ? 'page' : undefined}>
+            Tools / Plugins
+          </a>
+          <a className="nav-link" href="#/computer-use" aria-current={route.name === 'computer-use' ? 'page' : undefined}>
+            Computer Use <span className="nav-tag">Diblokir</span>
+          </a>
+          <a className="nav-link" href="#/scheduler" aria-current={route.name === 'scheduler' ? 'page' : undefined}>
+            Scheduler <span className="nav-tag">Diblokir</span>
+          </a>
+          <a className="nav-link" href="#/marketing" aria-current={route.name === 'marketing' ? 'page' : undefined}>
+            Workspace Marketing
+          </a>
+          <a className="nav-link" href="#/cs" aria-current={route.name === 'cs' ? 'page' : undefined}>
+            Workspace CS
+          </a>
+          <a className="nav-link" href="#/aktivitas" aria-current={route.name === 'aktivitas' ? 'page' : undefined}>
+            Aktivitas
+          </a>
+        </nav>
       </div>
 
       <footer className="side-foot">
         <div className="runs-slot">
           <RunsPill />
         </div>
-        <Quota />
-        <nav className="foot-links" aria-label="Halaman lain">
-          <a href="#/aktivitas" aria-current={route.name === 'aktivitas' ? 'page' : undefined}>
-            Aktivitas
-          </a>
-        </nav>
       </footer>
     </aside>
-  )
-}
-
-function Quota() {
-  const { me, loadState, setDialog } = useData()
-  if (!me) {
-    return (
-      <div className="quota quota-off">
-        <b>Paket</b>
-        <small>{loadState === 'loading' ? 'Memuat kuota...' : 'Kuota belum bisa dimuat'}</small>
-      </div>
-    )
-  }
-  const { usage: u, limits: l } = me
-  const ratio = l.monthly_tokens ? Math.min(1, u.tokens_month / l.monthly_tokens) : 0
-  return (
-    <button className="quota" onClick={() => setDialog({ kind: 'plan' })} aria-label={`Paket ${me.plan.name}. Buka daftar paket`}>
-      <span className="quota-top">
-        <b>{me.plan.name}</b>
-        <Icon d={CHEVRON} size={14} />
-      </span>
-      <span className="quota-track" aria-hidden="true">
-        <span style={{ transform: `scaleX(${ratio})` }} data-hot={ratio >= 0.9 || undefined} />
-      </span>
-      <small className="num">
-        {l.monthly_tokens === null ? `${nf.format(u.tokens_month)} token · Tanpa batas` : `${nf.format(u.tokens_month)} dari ${nf.format(l.monthly_tokens)} token`}
-      </small>
-      <small className="num">
-        {u.bots}/{l.max_bots} bot · {u.groups}/{l.max_groups} grup
-      </small>
-    </button>
   )
 }
 
@@ -392,7 +364,7 @@ function History({ bot, hist, sid }: { bot: Bot; hist: Hist; sid?: string }) {
     <section className="side-sec history" aria-label={`Riwayat chat ${bot.name}`}>
       <div className="sec-head">
         <h2>Riwayat {bot.name}</h2>
-        <button className="btn new" onClick={() => go(botPath(bot.id))}>
+        <button className="btn new" title="Mulai percakapan baru, riwayat lama tetap ada" onClick={() => go(botPath(bot.id))}>
           <Icon d={PLUS} />
           Topik baru
         </button>

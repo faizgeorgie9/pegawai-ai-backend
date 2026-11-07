@@ -37,6 +37,7 @@ interface Data {
   askNotify: () => void
   answerNotify: (yes: boolean) => void
   viewing: (href: string) => void
+  flash: (text: string) => void
 }
 
 const Ctx = createContext<Data | null>(null)
@@ -123,6 +124,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         n.close()
       }
     }
+  }, [])
+
+  // Plain success toast (no link).
+  const flash = useCallback((text: string) => {
+    const id = Date.now() + Math.random()
+    setToasts((t) => [...t.slice(-3), { id, text, href: '' }])
+    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4000)
   }, [])
 
   const viewing = useCallback((href: string) => {
@@ -222,8 +230,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         if (yes) void Notification.requestPermission()
       },
       viewing,
+      flash,
     }),
-    [loadState, error, me, bots, groups, runs, conn, reload, refreshMe, refreshBots, refreshGroups, on, dialog, toasts, notifyAsk, viewing],
+    [loadState, error, me, bots, groups, runs, conn, reload, refreshMe, refreshBots, refreshGroups, on, dialog, toasts, notifyAsk, viewing, flash],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

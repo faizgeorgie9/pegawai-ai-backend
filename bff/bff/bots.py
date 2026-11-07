@@ -1,4 +1,4 @@
-"""Bots (stage 4): list, create (Hermes profile + SOUL + key + hardening) and delete."""
+"""Bots (stage 4): list, create (Hermes profile + SOUL + key + hardening), edit and delete."""
 import asyncio
 import re
 import secrets
@@ -42,7 +42,7 @@ def _about(b: dict) -> str:
 
 def view(b: dict) -> dict:
     return {"id": b["id"], "name": b["name"], "role": b["role"], "team": b["team"], "color": b["color"],
-            "builtin": b["builtin"], "about": _about(b), **engine.bot_state(b["id"])}
+            "builtin": b["builtin"], "about": _about(b), "created_at": b.get("created_at"), **engine.bot_state(b["id"])}
 
 
 async def list_bots(user_id: str) -> list[dict]:
@@ -56,6 +56,13 @@ async def get_bot(user_id: str, bot_id: str) -> dict:
     if not b:
         raise ApiError(404, "Bot tidak ditemukan")
     return b
+
+
+async def get_bot_view(user_id: str, bot_id: str) -> dict:
+    """One bot for the detail and edit pages: the list view plus the full persona text and the template id."""
+    b = await get_bot(user_id, bot_id)
+    persona = (b.get("persona") or "").strip() or TEMPLATES.get(b.get("template") or "", "")
+    return {**view(b), "persona": persona, "template": b.get("template")}
 
 
 async def templates() -> list[dict]:
@@ -187,6 +194,59 @@ async def _wait_served(slug: str) -> float:
             pass
         await asyncio.sleep(2)
     raise ApiError(504, "Bot dibuat tetapi belum aktif di gateway. Coba lagi sebentar.")
+
+
+# ---------- edit ----------
+
+EDITABLE = ("name", "role", "team", "color", "persona")
+
+
+def validate_edit(body: dict, builtin: bool) -> dict:
+    """Check a PATCH body and return only the fields to change (same rules as create). Pure: no I/O.
+    Builtin bots: their SOUL.md is hand-written and the name/role are inside it, so only the colour (database only) may change."""
+    unknown = sorted(set(body) - set(EDITABLE))
+    if unknown:
+        raise ApiError(400, "Kolom tidak dikenal: " + ", ".join(unknown))
+    if not body:
+        raise ApiError(400, "Tidak ada yang diubah")
+    if builtin and set(body) != {"color"}:
+        raise ApiError(403, "Bot bawaan hanya bisa diubah warnanya")
+    out: dict = {}
+    if "name" in body:
+        out["name"] = _line(body["name"], "Nama")
+        if not make_slug(out["name"]):
+            raise ApiError(400, "Nama harus memuat huruf atau angka")
+    if "role" in body:
+        out["role"] = _line(body["role"], "Peran")
+    if "team" in body:
+        out["team"] = _line(body["team"], "Tim")
+    if "color" in body:
+        if body["color"] not in COLORS:
+            raise ApiError(400, "Warna tidak dikenal")
+        out["color"] = body["color"]
+    if "persona" in body:
+        p = body["persona"]
+        if not isinstance(p, str) or not p.strip() or len(p) > 2000:
+            raise ApiError(400, "Persona wajib diisi (maksimal 2000 karakter)")
+        out["persona"] = p.strip()
+    return out
+
+
+async def update_bot(user_id: str, bot_id: str, body: dict) -> dict:
+    b = await get_bot(user_id, bot_id)
+    ch = validate_edit(body, b["builtin"])
+    new = {**b, **ch}
+    if "persona" in ch:
+        new["template"] = None  # a custom persona replaces the template text
+    if not b["builtin"] and set(ch) & {"name", "role", "team", "persona"}:
+        try:
+            soul = _soul(new["name"], new["role"], new["team"], new["template"], new["persona"])
+            await asyncio.to_thread((hermes.profile_dir(bot_id) / "SOUL.md").write_text, soul, "utf-8")
+        except OSError:
+            raise ApiError(500, "Gagal menyimpan persona bot")
+    await db.ex("update bots set name = %s, role = %s, team = %s, color = %s, template = %s, persona = %s where id = %s",
+                new["name"], new["role"], new["team"], new["color"], new["template"], new["persona"], bot_id)
+    return await get_bot_view(user_id, bot_id)
 
 
 # ---------- adopt old sessions ----------

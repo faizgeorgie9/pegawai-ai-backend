@@ -5,6 +5,7 @@ import { ApiError, api, asStr, errText, isAbort, newKey, subscribe, usageOf } fr
 import type { Bot, ChatMessage, Raw, Session, SseState, ToolChip } from './bff'
 import { useData } from './data'
 import { go, botPath } from './router'
+import { statusText } from './ui-extra'
 import { PanelButtons, SidePanel, Split } from './Panel'
 import { BotAvatar, CLOSE, Icon, ThinkingBlock, nf } from './ui'
 
@@ -311,10 +312,13 @@ export default function Chat({ bot, sid, sessions, onSessions }: { bot: Bot; sid
         <div className="convo-title">
           <h1>{bot.name}</h1>
           <p>
-            {bot.role}
+            {bot.role} · {statusText(bot)}
             {active?.model && active.messageCount !== -1 ? ` · ${active.model}` : ''}
           </p>
         </div>
+        <button className="btn soft convo-new" title="Mulai percakapan baru, riwayat lama tetap ada" onClick={() => go(botPath(bot.id))}>
+          Topik baru
+        </button>
         <button className="switch" role="switch" aria-checked={showThink} onClick={toggleThink}>
           <span className="knob" aria-hidden="true" />
           Proses berpikir
