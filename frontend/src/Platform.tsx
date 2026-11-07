@@ -1,9 +1,10 @@
 import { useCallback } from 'react'
 import { api } from './bff'
 import { ErrorLine } from './ui'
-import { BlockedBanner, CapChip, Empty, Loading, PageHead, SampleBadge, useLoad } from './ui-extra'
+import { BlockedBanner, CapChip, Empty, Loading, OFF_WHY, PageHead, SampleBadge, useLoad } from './ui-extra'
+import { go } from './router'
+import type { Route } from './router'
 
-const DENY_REASON = 'dimatikan demi keamanan prototipe'
 const clean = (s: string) => s.replace(/^[^\p{L}\p{N}]+/u, '').trim()
 
 // ---------- Tools / Plugins ----------
@@ -27,8 +28,7 @@ export function Tools() {
   const list = [...rows.values()].sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name))
 
   return (
-    <section className="page">
-      <PageHead title="Tools / Plugins" sub="Toolset yang dilayani Hermes untuk setiap agen, dibaca langsung saat halaman dibuka." />
+    <div className="tab-body">
       <p className="note-box">Pengaturan per agen: perlu disepakati dengan backend. Halaman ini hanya untuk melihat.</p>
       {t.state === 'loading' && <Loading text="Memuat toolset dari Hermes..." />}
       {t.state === 'error' && <ErrorLine text={t.error} onRetry={t.retry} />}
@@ -60,40 +60,39 @@ export function Tools() {
             <tbody>
               {list.map((r) => (
                 <tr key={r.name}>
-                  <td>
+                  <td data-label="Toolset" className="rich">
                     <b>{r.label}</b>
                     <div className="quiet small">{r.name}</div>
                   </td>
-                  <td><div className="clamp2" title={r.description}>{r.description || '–'}</div></td>
-                  <td className="st-col">
+                  <td data-label="Isi"><div className="clamp2" title={r.description}>{r.description || '–'}</div></td>
+                  <td className="st-col rich" data-label="Status">
                     {r.users.length ? (
                       <CapChip cap="ok" label="Aktif" />
                     ) : deny.has(r.name) ? (
                       <>
-                        <CapChip cap="blocked" label="Diblokir" />
-                        <div className="quiet small">{DENY_REASON}</div>
+                        <CapChip cap="blocked" />
+                        <div className="quiet small">{OFF_WHY}</div>
                       </>
                     ) : (
-                      <CapChip cap="none" label="Nonaktif" />
+                      <CapChip cap="none" label="Tidak dipakai" />
                     )}
                   </td>
-                  <td>{!r.users.length ? '–' : r.users.length === answered.length && answered.length > 1 ? `Semua agen (${answered.length})` : r.users.join(', ')}</td>
+                  <td data-label="Dipakai agen">{!r.users.length ? '–' : r.users.length === answered.length && answered.length > 1 ? `Semua agen (${answered.length})` : r.users.join(', ')}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
-    </section>
+    </div>
   )
 }
 
 // ---------- Computer Use ----------
 export function ComputerUse() {
   return (
-    <section className="page">
-      <PageHead title="Computer Use" sub="Tugas komputer untuk agen: tugas, status, dan aktivitas." />
-      <BlockedBanner title="Computer Use belum dibuka" reason="Toolset computer_use dimatikan demi keamanan prototipe. Backend yang memutuskan kapan dibuka. Sampai itu, tidak ada tugas yang bisa dijalankan." />
+    <div className="tab-body">
+      <BlockedBanner title="Computer Use belum dibuka" reason="Sampai dibuka, tidak ada tugas Computer Use yang bisa dijalankan." />
       <div className="cbox">
         <h2>Yang akan tampil di sini</h2>
         <ul className="plain">
@@ -106,7 +105,7 @@ export function ComputerUse() {
         <header>
           <h2>Daftar tugas</h2>
         </header>
-        <Empty title="Belum ada tugas">Tidak ada tugas Computer Use selama fitur ini diblokir.</Empty>
+        <Empty title="Belum ada tugas">Tidak ada tugas Computer Use selama fitur ini nonaktif.</Empty>
       </div>
       <div className="sample-box">
         <header>
@@ -125,29 +124,28 @@ export function ComputerUse() {
             </thead>
             <tbody>
               <tr>
-                <td>Buka halaman produk dan catat harganya</td>
-                <td>Selesai</td>
-                <td>Mencatat 3 harga</td>
+                <td data-label="Tugas">Buka halaman produk dan catat harganya</td>
+                <td data-label="Status">Selesai</td>
+                <td data-label="Aktivitas terakhir">Mencatat 3 harga</td>
               </tr>
               <tr>
-                <td>Bandingkan dua daftar harga</td>
-                <td>Berjalan</td>
-                <td>Membuka daftar kedua</td>
+                <td data-label="Tugas">Bandingkan dua daftar harga</td>
+                <td data-label="Status">Berjalan</td>
+                <td data-label="Aktivitas terakhir">Membuka daftar kedua</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
-    </section>
+    </div>
   )
 }
 
 // ---------- Scheduler ----------
 export function Scheduler() {
   return (
-    <section className="page">
-      <PageHead title="Scheduler" sub="Job terjadwal untuk agen." />
-      <BlockedBanner title="Scheduler belum dibuka" reason="Toolset cronjob dimatikan demi keamanan prototipe, supaya tidak ada job yang terus berjalan setelah dihentikan. Backend yang memutuskan kapan dibuka." />
+    <div className="tab-body">
+      <BlockedBanner title="Scheduler belum dibuka" reason="Sampai dibuka, tidak ada job terjadwal yang bisa dijalankan." />
       <div className="cbox">
         <h2>Yang akan tampil di sini</h2>
         <ul className="plain">
@@ -159,7 +157,7 @@ export function Scheduler() {
         <header>
           <h2>Daftar job</h2>
         </header>
-        <Empty title="Belum ada job">Tidak ada job terjadwal selama fitur ini diblokir.</Empty>
+        <Empty title="Belum ada job">Tidak ada job terjadwal selama fitur ini nonaktif.</Empty>
       </div>
       <div className="sample-box">
         <header>
@@ -178,18 +176,55 @@ export function Scheduler() {
             </thead>
             <tbody>
               <tr>
-                <td>Rangkuman harian tim</td>
-                <td>Setiap hari, 08.00</td>
-                <td>Aktif</td>
+                <td data-label="Job">Rangkuman harian tim</td>
+                <td data-label="Jadwal">Setiap hari, 08.00</td>
+                <td data-label="Status">Aktif</td>
               </tr>
               <tr>
-                <td>Cek draf mingguan</td>
-                <td>Setiap Senin, 09.00</td>
-                <td>Dijeda</td>
+                <td data-label="Job">Cek draf mingguan</td>
+                <td data-label="Jadwal">Setiap Senin, 09.00</td>
+                <td data-label="Status">Dijeda</td>
               </tr>
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------- Kemampuan: one page, three tabs ----------
+const TABS = [
+  { name: 'tools', label: 'Tools', path: '/tools' },
+  { name: 'computer-use', label: 'Computer Use', path: '/computer-use' },
+  { name: 'scheduler', label: 'Scheduler', path: '/scheduler' },
+] as const
+
+export function Kemampuan({ tab }: { tab: Extract<Route['name'], 'tools' | 'computer-use' | 'scheduler'> }) {
+  const i = TABS.findIndex((t) => t.name === tab)
+  function onKey(e: React.KeyboardEvent) {
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
+    if (!d) return
+    e.preventDefault()
+    const n = TABS[(i + d + TABS.length) % TABS.length]
+    go(n.path, true)
+    document.getElementById('tab-' + n.name)?.focus()
+  }
+  return (
+    <section className="page">
+      <PageHead title="Kemampuan" sub="Apa yang bisa dan belum bisa dipakai agen." />
+      <div className="tabs" role="tablist" aria-label="Kemampuan" onKeyDown={onKey}>
+        {TABS.map((t) => (
+          <a key={t.name} id={'tab-' + t.name} role="tab" href={'#' + t.path} aria-selected={t.name === tab} aria-controls="tabpanel" tabIndex={t.name === tab ? 0 : -1}>
+            {t.label}
+            {t.name !== 'tools' && <span className="tab-tag">Nonaktif</span>}
+          </a>
+        ))}
+      </div>
+      <div id="tabpanel" role="tabpanel" aria-labelledby={'tab-' + tab}>
+        {tab === 'tools' && <Tools />}
+        {tab === 'computer-use' && <ComputerUse />}
+        {tab === 'scheduler' && <Scheduler />}
       </div>
     </section>
   )

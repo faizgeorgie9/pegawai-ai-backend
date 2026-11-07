@@ -4,7 +4,7 @@ import type { Bot, BotDetail } from './bff'
 import { useData } from './data'
 import { agenPath, botPath, go } from './router'
 import { BotAvatar, COLORS, ErrorLine, botColor, nf, stamp, teamLabel } from './ui'
-import { CapChip, Empty, Loading, PageHead, statusText, useLoad } from './ui-extra'
+import { CapChip, Empty, Loading, PageHead, Req, statusText, useLoad } from './ui-extra'
 
 // ---------- Daftar ----------
 export function AgentList() {
@@ -59,17 +59,17 @@ export function AgentList() {
             <tbody>
               {shown.map((b) => (
                 <tr key={b.id}>
-                  <td>
+                  <td data-label="Agen">
                     <a className="row" href={'#' + agenPath(b.id)} style={{ ['--bot' as string]: botColor(b), padding: 0 }}>
                       <BotAvatar bot={b} size={28} />
                       <b>{b.name}</b>
                       {b.builtin && <span className="pill plain">Bawaan</span>}
                     </a>
                   </td>
-                  <td>{b.role}</td>
-                  <td>{teamLabel(b.team)}</td>
-                  <td>{statusText(b)}</td>
-                  <td>
+                  <td data-label="Peran">{b.role}</td>
+                  <td data-label="Tim">{teamLabel(b.team)}</td>
+                  <td data-label="Status">{statusText(b)}</td>
+                  <td data-label="Aksi">
                     <span className="head-actions">
                       <a className="btn link" href={'#' + botPath(b.id)}>
                         Chat
@@ -240,9 +240,9 @@ export function AgentDetail({ id }: { id: string }) {
                   <tbody>
                     {runs.map((r) => (
                       <tr key={r.id}>
-                        <td className="num">{stamp(r.started_at)}</td>
-                        <td>{r.input || '–'}</td>
-                        <td>
+                        <td className="num" data-label="Waktu">{stamp(r.started_at)}</td>
+                        <td data-label="Tugas">{r.input || '–'}</td>
+                        <td data-label="Status">
                           <span className={`pill ${r.status === 'completed' ? 'ok' : r.status === 'failed' ? 'bad' : ''}`}>{RUN_STATUS[r.status] ?? r.status}</span>
                         </td>
                       </tr>
@@ -340,17 +340,17 @@ export function AgentEdit({ id }: { id: string }) {
         {ro && <p className="note-box">Agen bawaan: nama, peran, tim, dan persona dikelola tim backend. Hanya warna yang bisa diubah.</p>}
         <fieldset disabled={busy} className="form-page">
           <label className="field">
-            <span>Nama</span>
+            <span>Nama {!ro && <Req />}</span>
             <input value={f.name} maxLength={40} disabled={ro} aria-invalid={!!fe('name')} onChange={(e) => set('name', e.target.value)} />
-            {fe('name') && <small className="err">{errs.name}</small>}
+            {fe('name') && <small className="err" role="alert">{errs.name}</small>}
           </label>
           <label className="field">
-            <span>Peran</span>
+            <span>Peran {!ro && <Req />}</span>
             <input value={f.role} maxLength={40} disabled={ro} aria-invalid={!!fe('role')} onChange={(e) => set('role', e.target.value)} />
-            {fe('role') && <small className="err">{errs.role}</small>}
+            {fe('role') && <small className="err" role="alert">{errs.role}</small>}
           </label>
           <label className="field">
-            <span>Tim</span>
+            <span>Tim {!ro && <Req />}</span>
             <select
               value={newTeam ? '__new' : f.team}
               disabled={ro}
@@ -364,7 +364,7 @@ export function AgentEdit({ id }: { id: string }) {
               <option value="__new">Tim baru…</option>
             </select>
             {newTeam && <input value={f.team} maxLength={40} placeholder="Nama tim baru" aria-label="Nama tim baru" aria-invalid={!!fe('team')} onChange={(e) => set('team', e.target.value)} />}
-            {fe('team') && <small className="err">{errs.team}</small>}
+            {fe('team') && <small className="err" role="alert">{errs.team}</small>}
           </label>
           <div className="field">
             <span id="clr">Warna</span>
@@ -375,10 +375,10 @@ export function AgentEdit({ id }: { id: string }) {
             </div>
           </div>
           <label className="field">
-            <span>Persona</span>
+            <span>Persona {!ro && <Req />}</span>
             <textarea value={f.persona} rows={8} maxLength={2000} disabled={ro} aria-invalid={!!fe('persona')} onChange={(e) => set('persona', e.target.value)} />
             <small className="counter num">{f.persona.length} / 2.000</small>
-            {fe('persona') && <small className="err">{errs.persona}</small>}
+            {fe('persona') && <small className="err" role="alert">{errs.persona}</small>}
             {!ro && d.template && <small className="quiet">Agen ini dibuat dari template. Menyimpan persona baru menggantikan teks template.</small>}
           </label>
         </fieldset>

@@ -1,11 +1,13 @@
 import { useMemo, useSyncExternalStore } from 'react'
 
 // Hash router. The hash is the state, so refresh and back work.
-// #/ dashboard, #/chat/<id>/<sesi?> (old #/bot/... still read), #/grup/<id>, #/agen, #/agen/baru, #/agen/<id>, #/agen/<id>/ubah,
+// #/ beranda, #/chat (agent list), #/grup (group list), #/chat/<id>/<sesi?> (old #/bot/... still read), #/grup/<id>, #/agen, #/agen/baru, #/agen/<id>, #/agen/<id>/ubah,
 // #/tools, #/computer-use, #/scheduler, #/marketing, #/cs, #/uji, #/aktivitas
 export type Route =
   | { name: 'home' }
   | { name: 'bot'; id: string; sid?: string }
+  | { name: 'chat' }
+  | { name: 'grup-list' }
   | { name: 'grup'; id: string }
   | { name: 'aktivitas' }
   | { name: 'agen' }
@@ -22,7 +24,8 @@ export type Route =
 export function parse(hash: string): Route {
   const p = hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent)
   if ((p[0] === 'chat' || p[0] === 'bot') && p[1]) return { name: 'bot', id: p[1], sid: p[2] }
-  if (p[0] === 'grup' && p[1]) return { name: 'grup', id: p[1] }
+  if (p[0] === 'chat') return { name: 'chat' }
+  if (p[0] === 'grup') return p[1] ? { name: 'grup', id: p[1] } : { name: 'grup-list' }
   if (p[0] === 'agen') {
     if (p[1] === 'baru') return { name: 'agen-baru' }
     if (p[1] && p[2] === 'ubah') return { name: 'agen-ubah', id: p[1] }

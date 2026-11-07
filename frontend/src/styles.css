@@ -13,8 +13,12 @@
   --hue-blue-bg: #e1e9fb; --hue-blue-ink: #1b3a86;
   --hue-sky-bg: #d9eefa; --hue-sky-ink: #0a4565;
   --hue-plain-bg: #efe9ec; --hue-plain-ink: #3d343a;
+  /* taste-skill system: one spacing scale (4 8 12 16 24 32 48), one radius pair, one type scale (12 13 14 16 20 24), one motion set */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px;
   --radius-card: 12px; --radius-control: 8px;
-  --gap: 24px; --pad: 24px; --gutter: 24px;
+  --gap: 24px; --pad: 24px; --gutter: 24px; --pad-card: 16px; --pad-panel: 24px;
+  --t-small: 13px; --t-body: 14px; --t-lead: 16px; --t-title: 24px;
+  --m-in: 140ms; --m-out: 200ms; --m-panel: 200ms; --lift: -2px;
   --font: "DM Sans", system-ui, sans-serif;
   --ease: cubic-bezier(.2, .7, .2, 1);
 }
@@ -46,8 +50,9 @@ button, textarea { font: inherit; color: inherit; }
 .muted { color: var(--muted); }
 .small { font-size: 13px; }
 
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 18px; border: 1px solid transparent; border-radius: var(--radius-control); background: transparent; font-weight: 600; cursor: pointer; transition: background-color .15s, transform .12s var(--ease); }
-.btn:active { transform: translateY(1px) scale(.99); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 18px; border: 1px solid transparent; border-radius: var(--radius-control); background: transparent; font-weight: 600; cursor: pointer; transition: background-color var(--m-in) var(--ease), border-color var(--m-in) var(--ease), transform var(--m-in) var(--ease); }
+@media (hover: hover) { .btn:hover:not(:disabled) { transform: translateY(-1px); } }
+.btn:active:not(:disabled) { transform: translateY(1px) scale(.985); }
 .btn.primary { background: var(--accent); color: var(--on-accent); }
 .btn.primary:hover { background: color-mix(in srgb, var(--accent) 88%, black); }
 .btn.big { height: 52px; padding: 0 28px; font-size: 16px; }
@@ -75,7 +80,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px
 
 @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
 @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
-@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }

@@ -6,7 +6,7 @@ import { AnswerDetails, CsCard, PlainAnswer } from './ResultCards'
 import { instructionsFor, parseCs, stripBlock } from './results'
 import type { CsResult, Parsed } from './results'
 import { useRun } from './useRun'
-import { Empty, Loading, PageHead } from './ui-extra'
+import { DataLegend, Empty, Loading, PageHead } from './ui-extra'
 import { AgentSelect, ConfirmSwitch, OpenInChat, RunBar, Switch, hhmm, teamBots } from './ws-common'
 
 interface Turn {
@@ -38,11 +38,13 @@ export default function CS() {
   return (
     <section className="page ws">
       <PageHead
-        title="Workspace CS"
-        sub="Pertanyaan pelanggan sampai rekomendasi eskalasi. Tidak ada pesan yang dikirim ke pelanggan."
+        title="Customer Service"
+        sub="Simulasikan pertanyaan pelanggan dan lihat draf jawaban terstruktur."
+        hint={<>Untuk tanya bebas, pakai <a href="#/chat">Chat</a>.</>}
         actions={<AgentSelect label="Agen" bots={team} value={cur?.id ?? ''} onChange={(id) => (id === cur?.id ? null : dirty.current ? setPending(id) : setAgent(id))} />}
       />
       <p className="note-box">Requirement CS (Mansi) belum final — struktur bisa berubah.</p>
+      <DataLegend />
       {!cur ? <Loading text="Memuat agen CS..." /> : <Desk key={cur.id + ':' + gen} bot={cur} onDirty={(v) => (dirty.current = v)} onNew={() => { dirty.current = false; setGen((g) => g + 1) }} />}
       {pending && (
         <ConfirmSwitch

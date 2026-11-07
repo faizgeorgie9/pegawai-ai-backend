@@ -1,5 +1,6 @@
 """Bots (stage 4): list, create (Hermes profile + SOUL + key + hardening), edit and delete."""
 import asyncio
+import logging
 import re
 import secrets
 import subprocess
@@ -8,6 +9,8 @@ import unicodedata
 
 from . import config, db, engine, groups, harden, hermes
 from .errors import ApiError
+
+log = logging.getLogger(__name__)
 
 COLORS = {"amber", "teal", "indigo", "sky", "rose", "green", "red", "slate", "plain"}  # same names as the frontend swatches
 TEMPLATES = {
@@ -42,7 +45,8 @@ def _about(b: dict) -> str:
 
 def view(b: dict) -> dict:
     return {"id": b["id"], "name": b["name"], "role": b["role"], "team": b["team"], "color": b["color"],
-            "builtin": b["builtin"], "about": _about(b), "created_at": b.get("created_at"), **engine.bot_state(b["id"])}
+            "builtin": b["builtin"], "about": _about(b), "created_at": b.get("created_at"), "delete_error": b.get("delete_error"),
+            **engine.bot_state(b["id"])}
 
 
 async def list_bots(user_id: str) -> list[dict]:
@@ -270,14 +274,32 @@ async def adopt_sessions() -> None:
 
 # ---------- delete ----------
 
+_BG: set[asyncio.Task] = set()  # strong references: the loop only keeps weak ones to running tasks
+
+
 async def delete_bot(user_id: str, bot_id: str) -> None:
+    """Soft delete: the bot disappears for the user at once; the slow Hermes profile removal (about 10 s) runs in the background.
+    A failed removal is logged and puts the bot back with `delete_error`, so the user sees it on the bot and can delete again."""
     b = await get_bot(user_id, bot_id)
     if b["builtin"]:
         raise ApiError(403, "Bot bawaan tidak bisa dihapus")
     busy = await db.q1("select 1 as x from runs where bot_id = %s and status = any(%s) limit 1", bot_id, list(engine.ACTIVE))
     if busy or any(lv.bot == bot_id for lv in engine.LIVE.values()):
         raise ApiError(409, "Bot sedang bekerja. Hentikan tugasnya dulu.")
-    await asyncio.to_thread(_hermes_cli, "profile", "delete", bot_id, "-y", timeout=60)
     await groups.remove_bot_from_groups(bot_id)
     await db.ex("delete from chat_sessions where bot_id = %s", bot_id)
-    await db.ex("update bots set deleted_at = now() where id = %s", bot_id)
+    await db.ex("update bots set deleted_at = now(), delete_error = null where id = %s", bot_id)
+    # shortcut: if the BFF stops before this task ends, the profile stays on disk (the slug stays reserved); clean it by hand
+    t = asyncio.create_task(_remove_profile(bot_id))
+    _BG.add(t)
+    t.add_done_callback(_BG.discard)
+
+
+async def _remove_profile(bot_id: str) -> None:
+    try:
+        await asyncio.to_thread(_hermes_cli, "profile", "delete", bot_id, "-y", timeout=60)
+    except Exception as e:  # ApiError from the CLI, or anything unexpected: never let the task die silently
+        msg = e.message if isinstance(e, ApiError) else repr(e)
+        log.error("profil %s gagal dihapus di Hermes: %s", bot_id, msg)
+        await db.ex("update bots set deleted_at = null, delete_error = %s where id = %s",
+                    "Profil gagal dihapus di Hermes. Coba hapus lagi.", bot_id)

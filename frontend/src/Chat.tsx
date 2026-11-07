@@ -343,6 +343,16 @@ export default function Chat({ bot, sid, sessions, onSessions }: { bot: Bot; sid
               <p>
                 {bot.role}. Tulis pesan di bawah; {bot.name} melanjutkan topik yang sama sampai Anda memilih Topik baru.
               </p>
+              {bot.team === 'marketing' && (
+                <a className="empty-link" href="#/marketing">
+                  Butuh alur brief → konten? Buka Marketing
+                </a>
+              )}
+              {bot.team === 'customer_support' && (
+                <a className="empty-link" href="#/cs">
+                  Butuh simulasi pelanggan? Buka Customer Service
+                </a>
+              )}
             </div>
           )}
           {messages.map((m, i) => (

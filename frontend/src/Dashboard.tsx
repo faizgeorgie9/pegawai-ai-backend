@@ -1,11 +1,75 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { api } from './bff'
 import type { Bot } from './bff'
 import { useData } from './data'
 import { botPath } from './router'
-import { BotAvatar, ErrorLine, ago, botColor, nf, stamp, teamLabel } from './ui'
-import { CapChip, Empty, Loading, PageHead, statusText, useLoad } from './ui-extra'
+import { AgentCard } from './Lists'
+import { ErrorLine, I, Icon, ago, nf, stamp, teamLabel } from './ui'
+import { CapChip, Empty, Loading, PageHead, useLoad } from './ui-extra'
 import type { Cap } from './ui-extra'
+
+const START_KEY = 'pa.start.dismissed'
+const wasDismissed = () => {
+  try {
+    return localStorage.getItem(START_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+// "Mulai dari sini": three steps, one button each. Dismissal is remembered when storage works.
+function StartCard() {
+  const [open, setOpen] = useState(() => !wasDismissed())
+  if (!open) return null
+  const hide = () => {
+    setOpen(false)
+    try {
+      localStorage.setItem(START_KEY, '1')
+    } catch {
+      /* storage blocked: the card simply returns on the next visit */
+    }
+  }
+  const steps = [
+    { icon: I.chat, title: 'Ngobrol dengan agen', text: 'Tanya bebas ke satu agen.', href: '#/chat', cta: 'Buka Chat' },
+    { icon: I.marketing, title: 'Jalankan alur kerja', text: 'Marketing atau Customer Service, langkah demi langkah.', href: '#/marketing', cta: 'Buka Marketing', more: { href: '#/cs', label: 'atau Customer Service' } },
+    { icon: I.test, title: 'Uji dan nilai hasil', text: 'Jalankan kasus uji dan beri nilai 1–5.', href: '#/uji', cta: 'Buka Uji & nilai' },
+  ]
+  return (
+    <section className="start card" aria-labelledby="start-h">
+      <header>
+        <h2 id="start-h">Mulai dari sini</h2>
+        <button className="icon-btn" aria-label="Tutup Mulai dari sini" onClick={hide}>
+          <Icon d="M6 6l12 12M18 6L6 18" />
+        </button>
+      </header>
+      <ol>
+        {steps.map((st, n) => (
+          <li key={st.title}>
+            <span className="step-ic" aria-hidden="true">
+              <Icon d={st.icon} size={20} />
+            </span>
+            <div>
+              <b>
+                {n + 1}. {st.title}
+              </b>
+              <p className="quiet">{st.text}</p>
+            </div>
+            <span className="start-cta">
+              <a className="btn outline" href={st.href}>
+                {st.cta}
+              </a>
+              {st.more && (
+                <a className="btn link" href={st.more.href}>
+                  {st.more.label}
+                </a>
+              )}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
 
 const startOfToday = () => new Date().setHours(0, 0, 0, 0) / 1000
 
@@ -18,7 +82,7 @@ export default function Dashboard() {
   const act = useLoad(actFn)
   const tools = useLoad(toolsFn)
 
-  if (loadState === 'loading') return <section className="page"><Loading text="Memuat dashboard..." /></section>
+  if (loadState === 'loading') return <section className="page"><Loading text="Memuat beranda..." /></section>
   if (loadState === 'error') return <section className="page"><ErrorLine text={error} onRetry={reload} /></section>
 
   const day = startOfToday()
@@ -33,7 +97,7 @@ export default function Dashboard() {
   return (
     <section className="page">
       <PageHead
-        title="Dashboard"
+        title="Beranda"
         sub="Siapa sedang mengerjakan apa."
         actions={
           <>
@@ -49,6 +113,8 @@ export default function Dashboard() {
           </>
         }
       />
+
+      <StartCard />
 
       <div className="counters">
         <div className="counter-card">
@@ -86,23 +152,7 @@ export default function Dashboard() {
               <h3 className="team-title">{teamLabel(team)}</h3>
               <div className="agent-grid">
                 {list.map((b) => (
-                  <a key={b.id} className="agent-card" href={'#' + botPath(b.id)} style={{ ['--bot' as string]: botColor(b) }}>
-                    <span className="who">
-                      <BotAvatar bot={b} size={36} />
-                      <span className="bot-text">
-                        <b>{b.name}</b>
-                        <small>{b.role}</small>
-                      </span>
-                    </span>
-                    <span className="st-line">
-                      <span className="status-dot" data-s={b.status} aria-hidden="true" />
-                      {statusText(b)}
-                    </span>
-                    <dl>
-                      <dt>Terakhir aktif</dt>
-                      <dd>{recent.state === 'loading' ? 'Memuat...' : lastActive.get(b.id) ? ago(lastActive.get(b.id)!) : 'Belum ada tugas'}</dd>
-                    </dl>
-                  </a>
+                  <AgentCard key={b.id} b={b} last={recent.state === 'loading' ? 'Memuat...' : lastActive.get(b.id) ? ago(lastActive.get(b.id)!) : 'Belum ada tugas'} />
                 ))}
               </div>
             </div>
@@ -148,14 +198,14 @@ export default function Dashboard() {
 
       <div className="block">
         <header>
-          <h2>Status kapabilitas</h2>
+          <h2>Status kemampuan</h2>
         </header>
         <div className="cap-grid">
           <a className="cap-item" href="#/agen">
             Agen: daftar, buat, ubah, hapus <CapChip cap="ok" />
           </a>
           <a className="cap-item" href="#/tools">
-            Tools / Plugins {tools.state === 'loading' ? <CapChip cap="unknown" label="Memuat..." /> : <CapChip cap={toolsCap} label={toolsCap === 'ok' ? `${activeToolsets} toolset aktif` : undefined} />}
+            Tools {tools.state === 'loading' ? <CapChip cap="unknown" label="Memuat..." /> : <CapChip cap={toolsCap} label={toolsCap === 'ok' ? `${activeToolsets} toolset aktif` : undefined} />}
           </a>
           <a className="cap-item" href="#/computer-use">
             Computer Use <CapChip cap="blocked" />
@@ -164,10 +214,10 @@ export default function Dashboard() {
             Scheduler <CapChip cap="blocked" />
           </a>
           <a className="cap-item" href="#/marketing">
-            Workspace Marketing <CapChip cap="mock" label="Eksperimen, data contoh" />
+            Marketing <CapChip cap="mock" label="Eksperimen, data contoh" />
           </a>
           <a className="cap-item" href="#/cs">
-            Workspace CS <CapChip cap="mock" label="Eksperimen, requirement belum final" />
+            Customer Service <CapChip cap="mock" label="Eksperimen, requirement belum final" />
           </a>
         </div>
       </div>

@@ -8,12 +8,12 @@ import { RUBRIC } from './results'
 import { SCENARIOS } from './scenarios'
 import type { Scenario } from './scenarios'
 import { ErrorLine } from './ui'
-import { Empty, Loading, PageHead, useLoad } from './ui-extra'
+import { Empty, Loading, PageHead, Req, useLoad } from './ui-extra'
 import { useRun } from './useRun'
 import { OpenInChat, RunBar } from './ws-common'
 
 const ROUTE = 'UI → BFF → Hermes'
-const VERDICT_LABEL = { pass: 'Lulus', fail: 'Gagal', blocked: 'Diblokir' } as const
+const VERDICT_LABEL = { pass: 'Lulus', fail: 'Gagal', blocked: 'Nonaktif' } as const
 type Verdict = keyof typeof VERDICT_LABEL
 type Sc = { v: string; reason: string } // v: '' | '1'..'5' | 'na'
 const today = () => new Date().toISOString().slice(0, 10)
@@ -68,7 +68,7 @@ export default function Uji() {
 
   return (
     <section className="page ws">
-      <PageHead title="Skenario uji & evaluasi" sub="Jalankan skenario ke agen, nilai hasilnya dengan rubrik, dan simpan ke log eksperimen." />
+      <PageHead title="Uji & nilai" sub="Jalankan kasus uji dan beri nilai 1–5." />
       <p className="note-box">Kasus Marketing TC-01 sampai TC-11 mengikuti test matrix requirement v1.1; kalimat prompt disusun frontend dari contoh E-01 sampai E-05, produk contoh berlabel dummy. Kasus CS berlabel draf sampai requirement Mansi final.</p>
 
       <div className="toolbar">
@@ -96,14 +96,14 @@ export default function Uji() {
           <tbody>
             {shownRows.map((s) => (
               <tr key={s.id} data-on={sc?.id === s.id || undefined}>
-                <td className="num"><b>{s.id}</b></td>
-                <td>
+                <td className="num" data-label="Kasus"><b>{s.id}</b></td>
+                <td data-label="Skenario" className="rich">
                   <b>{s.title}</b>
                   <div className="quiet small">{s.capability}</div>
                   <span className={`pill ${s.group === 'cs' ? 'warn' : 'sample'}`}>{s.tag}</span>
                 </td>
-                <td><div className="clamp2" title={s.prompt}>{s.prompt}</div></td>
-                <td>
+                <td data-label="Prompt"><div className="clamp2" title={s.prompt}>{s.prompt}</div></td>
+                <td className="act-cell">
                   <button className="btn primary" disabled={run.busy} onClick={() => void start(s)} aria-label={`Jalankan ${s.id}`}>Jalankan</button>
                 </td>
               </tr>
@@ -121,7 +121,7 @@ export default function Uji() {
               <span className="quiet small">Agen: {bots.find((b) => b.id === botId)?.name ?? botId} · {ROUTE}</span>
               <OpenInChat botId={botId} sid={sid} />
             </header>
-            <RunBar busy={run.busy} text="Agen sedang bekerja..." onStop={run.stop} status={run.status} error={run.error} onRetry={() => void start(sc)} stoppedNote="Dihentikan. Anda masih bisa menyimpan evaluasi dengan hasil Diblokir." />
+            <RunBar busy={run.busy} text="Agen sedang bekerja..." onStop={run.stop} status={run.status} error={run.error} onRetry={() => void start(sc)} stoppedNote="Dihentikan. Anda masih bisa menyimpan evaluasi dengan hasil Nonaktif." />
             {run.busy && run.text && <article className="rcard live"><div className="rbody"><p className="draft-text">{run.text}</p></div></article>}
             {runSnap && runSnap.status === 'done' && (
               <article className="rcard">
@@ -166,7 +166,7 @@ function EvalForm({ sc, botId, sid, snap, onSaved }: { sc: Scenario; botId: stri
     if (!s.v) bad[d.key] = 'Pilih skor 1 sampai 5 atau N/A.'
     else if (s.v === 'na' && !s.reason.trim()) bad[d.key] = 'N/A wajib diberi alasan.'
   }
-  const missing = [...(verdict ? [] : ['Pilih hasil: Lulus, Gagal, atau Diblokir.']), ...(reviewer.trim() ? [] : ['Nama reviewer wajib diisi.']), ...(Object.keys(bad).length ? [`${Object.keys(bad).length} dimensi rubrik belum lengkap.`] : [])]
+  const missing = [...(verdict ? [] : ['Pilih hasil: Lulus, Gagal, atau Nonaktif.']), ...(reviewer.trim() ? [] : ['Nama reviewer wajib diisi.']), ...(Object.keys(bad).length ? [`${Object.keys(bad).length} dimensi rubrik belum lengkap.`] : [])]
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
@@ -247,7 +247,7 @@ function EvalForm({ sc, botId, sid, snap, onSaved }: { sc: Scenario; botId: stri
       <label className="field"><span>Error dan kekurangan</span><textarea rows={2} value={errors} onChange={(e) => setErrors(e.target.value)} /></label>
       <label className="field"><span>Saran perbaikan</span><textarea rows={2} value={improve} onChange={(e) => setImprove(e.target.value)} /></label>
       <div className="fgrid">
-        <label className="field"><span>Nama reviewer *</span><input value={reviewer} maxLength={80} onChange={(e) => setReviewer(e.target.value)} aria-invalid={tried && !reviewer.trim()} /></label>
+        <label className="field"><span>Nama reviewer <Req /></span><input value={reviewer} maxLength={80} onChange={(e) => setReviewer(e.target.value)} aria-invalid={tried && !reviewer.trim()} />{tried && !reviewer.trim() && <small className="err" role="alert">Nama reviewer wajib diisi.</small>}</label>
         <label className="field"><span>Tanggal</span><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
       </div>
       {tried && missing.length > 0 && <ul className="field-err" role="alert">{missing.map((m) => <li key={m}>{m}</li>)}</ul>}
@@ -317,13 +317,13 @@ function LogTable({ rows }: { rows: Evaluation[] }) {
           <tbody>
             {list.map((e) => (
               <tr key={e.id}>
-                <td className="num"><b>{e.case_id}</b></td>
-                <td>{name(e.bot_id)}</td>
-                <td className="num">{new Date(e.created_at * 1000).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
-                <td><span className={`pill ${e.verdict === 'pass' ? 'ok' : e.verdict === 'fail' ? 'bad' : 'warn'}`}>{VERDICT_LABEL[e.verdict]}</span></td>
-                <td className="num">{avgOf(e)?.toFixed(1) ?? '–'}</td>
-                <td>{ROUTE}</td>
-                <td>{e.reviewer || '–'}</td>
+                <td className="num" data-label="Kasus"><b>{e.case_id}</b></td>
+                <td data-label="Agen">{name(e.bot_id)}</td>
+                <td className="num" data-label="Tanggal">{new Date(e.created_at * 1000).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                <td data-label="Status"><span className={`pill ${e.verdict === 'pass' ? 'ok' : e.verdict === 'fail' ? 'bad' : 'warn'}`}>{VERDICT_LABEL[e.verdict]}</span></td>
+                <td className="num" data-label="Skor rata-rata">{avgOf(e)?.toFixed(1) ?? '–'}</td>
+                <td data-label="Rute">{ROUTE}</td>
+                <td data-label="Reviewer">{e.reviewer || '–'}</td>
               </tr>
             ))}
             {list.length === 0 && <tr><td colSpan={7} className="quiet">Tidak ada baris yang cocok dengan filter.</td></tr>}

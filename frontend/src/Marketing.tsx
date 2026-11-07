@@ -6,7 +6,7 @@ import { AnswerDetails, MarketingCard, PlainAnswer } from './ResultCards'
 import { instructionsFor, parseMarketing, stripBlock } from './results'
 import type { MarketingKind, MarketingResult, Parsed } from './results'
 import { useRun } from './useRun'
-import { Empty, Loading, PageHead } from './ui-extra'
+import { DataLegend, Empty, Loading, PageHead, Req } from './ui-extra'
 import { AgentSelect, ConfirmSwitch, OpenInChat, RunBar, Switch, hhmm, teamBots } from './ws-common'
 
 const STAGES = ['Brief', 'Rencana', 'Konten', 'Review', 'Revisi'] as const
@@ -90,10 +90,12 @@ export default function Marketing() {
   return (
     <section className="page ws">
       <PageHead
-        title="Workspace Marketing"
-        sub="Lima tahap kerja dalam satu sesi: brief, rencana, konten, review, revisi."
+        title="Marketing"
+        sub="Alur langkah demi langkah: brief → rencana → konten → review → revisi."
+        hint={<>Untuk tanya bebas, pakai <a href="#/chat">Chat</a>.</>}
         actions={<AgentSelect label="Agen" bots={team} value={cur?.id ?? ''} onChange={(id) => (id === cur?.id ? null : dirty.current ? setPending(id) : setAgent(id))} />}
       />
+      <DataLegend />
       {!cur ? <Loading text="Memuat agen Marketing..." /> : <Workspace key={cur.id} bot={cur} onDirty={(v) => (dirty.current = v)} />}
       {pending && (
         <ConfirmSwitch
@@ -358,7 +360,7 @@ function OutputView({ o, meta }: { o: Output; meta: string }) {
 function Field({ label, err, children }: { label: string; err?: string; children: React.ReactNode }) {
   return (
     <label className="field">
-      <span>{label}</span>
+      <span>{label.endsWith(' *') ? <>{label.slice(0, -2)} <Req /></> : label}</span>
       {children}
       {err && <small className="err" role="alert">{err}</small>}
     </label>

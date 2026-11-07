@@ -103,7 +103,7 @@ export function MarketingCard({ r, origin, meta }: { r: MarketingResult; origin:
             <div className="table-wrap flat">
               <table className="plain">
                 <thead><tr><th>Tanggal</th><th>Kanal</th><th>Tipe</th><th>Ide</th><th>Pesan</th><th>CTA</th></tr></thead>
-                <tbody>{r.calendar.map((c, n) => <tr key={n}><td className="num">{c.date}</td><td>{c.channel}</td><td>{c.type}</td><td>{c.idea}</td><td>{c.message}</td><td>{c.cta}</td></tr>)}</tbody>
+                <tbody>{r.calendar.map((c, n) => <tr key={n}><td className="num" data-label="Tanggal">{c.date}</td><td data-label="Kanal">{c.channel}</td><td data-label="Tipe">{c.type}</td><td data-label="Ide">{c.idea}</td><td data-label="Pesan">{c.message}</td><td data-label="CTA">{c.cta}</td></tr>)}</tbody>
               </table>
             </div>
           </Block>

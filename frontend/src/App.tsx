@@ -8,13 +8,14 @@ import Dashboard from './Dashboard'
 import { DataProvider, useData } from './data'
 import { Dialogs } from './Dialogs'
 import GroupChat from './Group'
-import { ComputerUse, Scheduler, Tools } from './Platform'
+import { Kemampuan } from './Platform'
+import { ChatHome, GroupList } from './Lists'
 import CS from './CS'
 import Marketing from './Marketing'
 import Uji from './Uji'
 import { botPath, go, groupPath, useRoute } from './router'
 import type { Route } from './router'
-import { BotAvatar, CLOSE, DOTS, ErrorLine, Icon, MENU, PENCIL, PLUS, TRASH, ago, botColor, elapsed, teamLabel } from './ui'
+import { BotAvatar, CLOSE, DOTS, ErrorLine, I, Icon, MENU, PENCIL, PLUS, TRASH, ago, botColor, elapsed, teamLabel } from './ui'
 import { statusText } from './ui-extra'
 
 export default function App() {
@@ -119,9 +120,9 @@ function Shell() {
         {route.name === 'agen-baru' && <AgentNew />}
         {route.name === 'agen-detail' && <AgentDetail key={route.id} id={route.id} />}
         {route.name === 'agen-ubah' && <AgentEdit key={route.id} id={route.id} />}
-        {route.name === 'tools' && <Tools />}
-        {route.name === 'computer-use' && <ComputerUse />}
-        {route.name === 'scheduler' && <Scheduler />}
+        {(route.name === 'tools' || route.name === 'computer-use' || route.name === 'scheduler') && <Kemampuan tab={route.name} />}
+        {route.name === 'chat' && <ChatHome />}
+        {route.name === 'grup-list' && <GroupList />}
         {route.name === 'marketing' && <Marketing />}
         {route.name === 'cs' && <CS />}
         {route.name === 'uji' && <Uji />}
@@ -202,134 +203,118 @@ function Sidebar({ route, hist, bot, onClose }: { route: Route; hist: Hist; bot?
       </div>
 
       <div className="side-scroll">
-        <nav className="side-sec nav-list" aria-label="Dashboard">
-          <a className="nav-link" href="#/" aria-current={route.name === 'home' ? 'page' : undefined}>
-            Dashboard
-          </a>
-        </nav>
-        <section className="side-sec" aria-labelledby="sb">
-          <div className="sec-head">
-            <h2 id="sb">Chat</h2>
-            <button className="btn new" onClick={() => go('/agen/baru')}>
-              <Icon d={PLUS} />
-              Agen baru
-            </button>
+        <NavGroup label="Kerja">
+          <NavItem href="#/" icon={I.home} current={route.name === 'home'}>
+            Beranda
+          </NavItem>
+          <NavItem href="#/chat" icon={I.chat} current={route.name === 'chat' || route.name === 'bot'} add="Agen baru" onAdd={() => go('/agen/baru')}>
+            Chat
+          </NavItem>
+          <div className="nest">
+            {loadState === 'loading' && <p className="quiet pad">Memuat agen...</p>}
+            {loadState === 'error' && bots.length === 0 && <ErrorLine text={error} onRetry={reload} />}
+            {loadState === 'ok' && bots.length === 0 && <p className="quiet pad">Belum ada agen.</p>}
+            {Object.entries(teams).map(([team, list]) => (
+              <div key={team} className="bot-group">
+                <h3>{teamLabel(team)}</h3>
+                <ul>
+                  {list.map((b) => (
+                    <li key={b.id} className="bot-li">
+                      <a
+                        className="row"
+                        href={'#' + botPath(b.id)}
+                        aria-current={route.name === 'bot' && route.id === b.id ? 'page' : undefined}
+                        title={b.role}
+                        style={{ ['--bot' as string]: botColor(b) }}
+                      >
+                        <BotAvatar bot={b} size={28} />
+                        <span className="bot-text">
+                          <b>{b.name}</b>
+                          <small className="st">{statusText(b)}</small>
+                        </span>
+                        <span className="status-dot" data-s={b.status} role="img" aria-label={b.status === 'idle' ? 'Siap' : b.status === 'working' ? 'Bekerja' : 'Berdiskusi'} />
+                      </a>
+                      {!b.builtin && (
+                        <span className="row-menu">
+                          <button
+                            className="icon-btn"
+                            aria-label={`Menu ${b.name}`}
+                            aria-expanded={menu === b.id}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setMenu(menu === b.id ? null : b.id)
+                            }}
+                          >
+                            <Icon d={DOTS} />
+                          </button>
+                          {menu === b.id && (
+                            <div className="popmenu" role="menu">
+                              <button role="menuitem" onClick={() => setDialog({ kind: 'delete', bot: b })}>
+                                <Icon d={TRASH} />
+                                Hapus agen
+                              </button>
+                            </div>
+                          )}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+            {bot && <History bot={bot} hist={hist} sid={route.name === 'bot' ? route.sid : undefined} />}
           </div>
-          {loadState === 'loading' && <p className="quiet pad">Memuat agen...</p>}
-          {loadState === 'error' && bots.length === 0 && <ErrorLine text={error} onRetry={reload} />}
-          {loadState === 'ok' && bots.length === 0 && <p className="quiet pad">Belum ada agen.</p>}
-          {Object.entries(teams).map(([team, list]) => (
-            <div key={team} className="bot-group">
-              <h3>{teamLabel(team)}</h3>
-              <ul>
-                {list.map((b) => (
-                  <li key={b.id} className="bot-li">
-                    <a
-                      className="row"
-                      href={'#' + botPath(b.id)}
-                      aria-current={route.name === 'bot' && route.id === b.id ? 'page' : undefined}
-                      title={statusText(b)}
-                      style={{ ['--bot' as string]: botColor(b) }}
-                    >
-                      <BotAvatar bot={b} size={32} />
+          <NavItem href="#/grup" icon={I.group} current={route.name === 'grup-list' || route.name === 'grup'} add="Grup baru" onAdd={() => setDialog({ kind: 'group' })}>
+            Grup
+          </NavItem>
+          {groups.length > 0 && (
+            <ul className="nest">
+              {groups.map((g) => {
+                const ms = g.members.map((m) => bots.find((b) => b.id === m)).filter((b): b is Bot => !!b)
+                return (
+                  <li key={g.id}>
+                    <a className="row" href={'#' + groupPath(g.id)} aria-current={route.name === 'grup' && route.id === g.id ? 'page' : undefined}>
+                      <span className="avatar-stack" aria-hidden="true">
+                        {ms.slice(0, 3).map((b) => (
+                          <BotAvatar key={b.id} bot={b} size={24} />
+                        ))}
+                      </span>
                       <span className="bot-text">
-                        <b>{b.name}</b>
-                        <small>{b.role}</small>
-                        <small className="st">{statusText(b)}</small>
+                        <b>{g.name}</b>
+                        <small className="st">{g.running ? 'Diskusi berjalan' : `${g.members.length} anggota`}</small>
                       </span>
-                      <span className="status-dot" data-s={b.status} role="img" aria-label={b.status === 'idle' ? 'Siap' : b.status === 'working' ? 'Bekerja' : 'Berdiskusi'} />
+                      {g.running && <span className="live-dot" role="img" aria-label="Diskusi berjalan" />}
                     </a>
-                    {!b.builtin && (
-                      <span className="row-menu">
-                        <button
-                          className="icon-btn"
-                          aria-label={`Menu ${b.name}`}
-                          aria-expanded={menu === b.id}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setMenu(menu === b.id ? null : b.id)
-                          }}
-                        >
-                          <Icon d={DOTS} />
-                        </button>
-                        {menu === b.id && (
-                          <div className="popmenu" role="menu">
-                            <button role="menuitem" onClick={() => setDialog({ kind: 'delete', bot: b })}>
-                              <Icon d={TRASH} />
-                              Hapus agen
-                            </button>
-                          </div>
-                        )}
-                      </span>
-                    )}
                   </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </section>
+                )
+              })}
+            </ul>
+          )}
+          <NavItem href="#/marketing" icon={I.marketing} current={route.name === 'marketing'}>
+            Marketing
+          </NavItem>
+          <NavItem href="#/cs" icon={I.support} current={route.name === 'cs'}>
+            Customer Service
+          </NavItem>
+        </NavGroup>
 
-        {bot && <History bot={bot} hist={hist} sid={route.name === 'bot' ? route.sid : undefined} />}
-        <section className="side-sec" aria-labelledby="sg">
-          <div className="sec-head">
-            <h2 id="sg">Grup</h2>
-            <button className="btn new" onClick={() => setDialog({ kind: 'group' })}>
-              <Icon d={PLUS} />
-              Grup baru
-            </button>
-          </div>
-          {loadState === 'loading' && <p className="quiet pad">Memuat grup...</p>}
-          {loadState === 'error' && groups.length === 0 && <ErrorLine text={error} onRetry={reload} />}
-          {loadState === 'ok' && groups.length === 0 && <p className="quiet pad">Belum ada grup. Gabungkan 2 sampai 6 agen.</p>}
-          <ul>
-            {groups.map((g) => {
-              const ms = g.members.map((m) => bots.find((b) => b.id === m)).filter((b): b is Bot => !!b)
-              return (
-                <li key={g.id}>
-                  <a className="row" href={'#' + groupPath(g.id)} aria-current={route.name === 'grup' && route.id === g.id ? 'page' : undefined}>
-                    <span className="avatar-stack" aria-hidden="true">
-                      {ms.slice(0, 3).map((b) => (
-                        <BotAvatar key={b.id} bot={b} size={24} />
-                      ))}
-                    </span>
-                    <span className="bot-text">
-                      <b>{g.name}</b>
-                      <small>{g.running ? 'Diskusi berjalan' : `${g.members.length} anggota`}</small>
-                    </span>
-                    {g.running && <span className="live-dot" role="img" aria-label="Diskusi berjalan" />}
-                  </a>
-                </li>
-              )
-            })}
-          </ul>
-        </section>
+        <NavGroup label="Uji">
+          <NavItem href="#/uji" icon={I.test} current={route.name === 'uji'}>
+            Uji &amp; nilai
+          </NavItem>
+          <NavItem href="#/aktivitas" icon={I.log} current={route.name === 'aktivitas'}>
+            Log aktivitas
+          </NavItem>
+        </NavGroup>
 
-        <nav className="side-sec nav-list" aria-label="Halaman">
-          <a className="nav-link" href="#/agen" aria-current={route.name.startsWith('agen') ? 'page' : undefined}>
+        <NavGroup label="Pengaturan" storeKey="pa.side.pengaturan">
+          <NavItem href="#/agen" icon={I.agent} current={route.name.startsWith('agen')}>
             Agen
-          </a>
-          <a className="nav-link" href="#/tools" aria-current={route.name === 'tools' ? 'page' : undefined}>
-            Tools / Plugins
-          </a>
-          <a className="nav-link" href="#/computer-use" aria-current={route.name === 'computer-use' ? 'page' : undefined}>
-            Computer Use <span className="nav-tag">Diblokir</span>
-          </a>
-          <a className="nav-link" href="#/scheduler" aria-current={route.name === 'scheduler' ? 'page' : undefined}>
-            Scheduler <span className="nav-tag">Diblokir</span>
-          </a>
-          <a className="nav-link" href="#/marketing" aria-current={route.name === 'marketing' ? 'page' : undefined}>
-            Workspace Marketing
-          </a>
-          <a className="nav-link" href="#/cs" aria-current={route.name === 'cs' ? 'page' : undefined}>
-            Workspace CS
-          </a>
-          <a className="nav-link" href="#/uji" aria-current={route.name === 'uji' ? 'page' : undefined}>
-            Skenario uji &amp; evaluasi
-          </a>
-          <a className="nav-link" href="#/aktivitas" aria-current={route.name === 'aktivitas' ? 'page' : undefined}>
-            Aktivitas
-          </a>
-        </nav>
+          </NavItem>
+          <NavItem href="#/tools" icon={I.skills} current={route.name === 'tools' || route.name === 'computer-use' || route.name === 'scheduler'}>
+            Kemampuan
+          </NavItem>
+        </NavGroup>
       </div>
 
       <footer className="side-foot">
@@ -338,6 +323,62 @@ function Sidebar({ route, hist, bot, onClose }: { route: Route; hist: Hist; bot?
         </div>
       </footer>
     </aside>
+  )
+}
+
+function NavItem({ href, icon, current, children, add, onAdd }: { href: string; icon: string; current: boolean; children: React.ReactNode; add?: string; onAdd?: () => void }) {
+  return (
+    <div className="nav-row">
+      <a className="nav-link" href={href} aria-current={current ? 'page' : undefined}>
+        <Icon d={icon} size={20} />
+        {children}
+      </a>
+      {add && (
+        <button className="icon-btn nav-add" aria-label={add} title={add} onClick={onAdd}>
+          <Icon d={PLUS} />
+        </button>
+      )}
+    </div>
+  )
+}
+
+// A titled group of menu items. With `storeKey` it can be collapsed and the choice is remembered (storage may be blocked).
+function NavGroup({ label, storeKey, children }: { label: string; storeKey?: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(() => {
+    try {
+      return !storeKey || localStorage.getItem(storeKey) !== 'closed'
+    } catch {
+      return true
+    }
+  })
+  const id = 'ng-' + label.toLowerCase()
+  function toggle() {
+    const v = !open
+    setOpen(v)
+    try {
+      if (storeKey) localStorage.setItem(storeKey, v ? 'open' : 'closed')
+    } catch {
+      /* not remembered */
+    }
+  }
+  return (
+    <section className="side-sec nav-group" aria-labelledby={id}>
+      {storeKey ? (
+        <h2 id={id}>
+          <button className="group-toggle" aria-expanded={open} aria-controls={id + '-body'} onClick={toggle}>
+            {label}
+            <span className="group-chev" aria-hidden="true">
+              <Icon d={I.down} size={16} />
+            </span>
+          </button>
+        </h2>
+      ) : (
+        <h2 id={id}>{label}</h2>
+      )}
+      <div id={id + '-body'} className="group-body" hidden={!open}>
+        {children}
+      </div>
+    </section>
   )
 }
 
@@ -370,7 +411,7 @@ function History({ bot, hist, sid }: { bot: Bot; hist: Hist; sid?: string }) {
   return (
     <section className="side-sec history" aria-label={`Riwayat chat ${bot.name}`}>
       <div className="sec-head">
-        <h2>Riwayat {bot.name}</h2>
+        <h3>Riwayat {bot.name}</h3>
         <button className="btn new" title="Mulai percakapan baru, riwayat lama tetap ada" onClick={() => go(botPath(bot.id))}>
           <Icon d={PLUS} />
           Topik baru

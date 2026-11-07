@@ -52,10 +52,24 @@ export function BotAvatar({ bot, size = 32 }: { bot?: Pick<Bot, 'name' | 'color'
 }
 
 export const Icon = ({ d, size = 16 }: { d: string; size?: number }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d={d} />
   </svg>
 )
+// One line-icon set (24 grid, stroke 1.75, round caps), after Lucide (ISC). Sizes: 16 in rows and buttons, 20 in the menu.
+export const I = {
+  home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
+  chat: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z',
+  group: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
+  marketing: 'm3 11 18-5v12L3 14zM11.6 16.8a3 3 0 1 1-5.8-1.6',
+  support: 'M3 14v-2a9 9 0 0 1 18 0v2M21 19a2 2 0 0 1-2 2h-1v-7h3zM3 19a2 2 0 0 0 2 2h1v-7H3z',
+  test: 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 3h6v4H9zM9 14l2 2 4-4',
+  log: 'M22 12h-4l-3 9L9 3l-3 9H2',
+  agent: 'M12 8V4H8M4 8h16v12H4zM2 14h2M20 14h2M15 13v2M9 13v2',
+  skills: 'm12 2 10 5-10 5L2 7zM2 17l10 5 10-5M2 12l10 5 10-5',
+  down: 'M6 9l6 6 6-6',
+  check: 'M20 6 9 17l-5-5',
+}
 export const PENCIL = 'M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4'
 export const TRASH = 'M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13'
 export const PLUS = 'M12 5v14M5 12h14'

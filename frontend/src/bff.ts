@@ -85,6 +85,7 @@ export interface Bot {
   activity: string
   about: string
   createdAt: number // epoch seconds, 0 when unknown
+  deleteError: string // set when the background removal of the profile failed, else ''
 }
 export interface BotDetail extends Bot {
   persona: string
@@ -275,6 +276,7 @@ const toBot = (r: Raw): Bot => ({
   activity: asStr(r.activity),
   about: asStr(r.about),
   createdAt: epoch(r.created_at),
+  deleteError: asStr(r.delete_error),
 })
 const toLimits = (r: Raw = {}): Limits => ({
   monthly_tokens: r.monthly_tokens == null ? null : asNum(r.monthly_tokens),

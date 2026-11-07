@@ -4,6 +4,7 @@ import type { Bot, Plan, Template } from './bff'
 import { useData } from './data'
 import { botPath, groupPath, go, parse } from './router'
 import { BotAvatar, COLORS, Dialog, ErrorLine, botColor, nf, teamLabel } from './ui'
+import { Req } from './ui-extra'
 
 type Problem = { text: string; upgrade: boolean } | null
 const problemOf = (e: unknown): Problem => ({ text: errText(e), upgrade: e instanceof ApiError && e.upgrade })
@@ -44,6 +45,7 @@ function BotDialog({ onClose }: { onClose: () => void }) {
   const [persona, setPersona] = useState('')
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<Problem>(null)
+  const [tried, setTried] = useState(false)
   const teams = [...new Set(bots.map((b) => b.team))]
   const NEW = '__new'
 
@@ -74,8 +76,8 @@ function BotDialog({ onClose }: { onClose: () => void }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     const body = { name: name.trim(), role: role.trim(), team: team.trim(), color: tab === 'custom' ? color : undefined }
-    if (!body.name || !body.role || !body.team) return setProblem({ text: 'Nama, peran, dan tim wajib diisi.', upgrade: false })
-    if (tab === 'custom' && !persona.trim()) return setProblem({ text: 'Tulis persona agen, supaya agen tahu cara bekerja.', upgrade: false })
+    setTried(true)
+    if (Object.keys(errs).length) return
     setBusy(true)
     setProblem(null)
     try {
@@ -92,19 +94,27 @@ function BotDialog({ onClose }: { onClose: () => void }) {
   }
 
   const selected = tpls.find((t) => t.id === tpl)
+  const errs: Record<string, string> = {}
+  if (!name.trim()) errs.name = 'Nama wajib diisi.'
+  if (!role.trim()) errs.role = 'Peran wajib diisi.'
+  if (!team.trim()) errs.team = newTeam ? 'Nama tim wajib diisi.' : 'Pilih tim.'
+  if (tab === 'custom' && !persona.trim()) errs.persona = 'Persona wajib diisi, supaya agen tahu cara bekerja.'
+  const err = (k: string) => tried && errs[k] && <small className="err" role="alert">{errs[k]}</small>
   const form = (
     <div className="fields">
       <label className="field">
-        <span>Nama</span>
-        <input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} placeholder="Nama agen baru" required />
+        <span>Nama <Req /></span>
+        <input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} placeholder="Nama agen baru" aria-invalid={tried && !!errs.name} />
+        {err('name')}
       </label>
       <label className="field">
-        <span>Peran</span>
-        <input value={role} maxLength={40} onChange={(e) => setRole(e.target.value)} placeholder="Contoh: Analis data" required />
+        <span>Peran <Req /></span>
+        <input value={role} maxLength={40} onChange={(e) => setRole(e.target.value)} placeholder="Contoh: Analis data" aria-invalid={tried && !!errs.role} />
+        {err('role')}
       </label>
       <label className="field">
-        <span>Tim</span>
-        <select value={newTeam ? NEW : team} onChange={(e) => (e.target.value === NEW ? (setNewTeam(true), setTeam('')) : (setNewTeam(false), setTeam(e.target.value)))} required>
+        <span>Tim <Req /></span>
+        <select aria-invalid={tried && !!errs.team} value={newTeam ? NEW : team} onChange={(e) => (e.target.value === NEW ? (setNewTeam(true), setTeam('')) : (setNewTeam(false), setTeam(e.target.value)))}>
           <option value="" disabled>
             Pilih tim
           </option>
@@ -115,14 +125,15 @@ function BotDialog({ onClose }: { onClose: () => void }) {
           ))}
           <option value={NEW}>Tim baru…</option>
         </select>
-        {newTeam && <input value={team} maxLength={40} onChange={(e) => setTeam(e.target.value)} placeholder="Nama tim baru" aria-label="Nama tim baru" required />}
+        {newTeam && <input value={team} maxLength={40} onChange={(e) => setTeam(e.target.value)} placeholder="Nama tim baru" aria-label="Nama tim baru" aria-invalid={tried && !!errs.team} />}
+        {err('team')}
       </label>
     </div>
   )
 
   return (
     <Dialog title="Agen baru" onClose={onClose} wide>
-      <form onSubmit={(e) => void submit(e)} className="dlg-body">
+      <form onSubmit={(e) => void submit(e)} className="dlg-body" noValidate>
         <div className="seg" role="tablist" aria-label="Cara membuat agen">
           {(['template', 'custom'] as const).map((t) => (
             <button key={t} type="button" role="tab" aria-selected={tab === t} disabled={busy} onClick={() => { setTab(t); setProblem(null) }}>
@@ -162,9 +173,10 @@ function BotDialog({ onClose }: { onClose: () => void }) {
               </div>
             </div>
             <label className="field">
-              <span>Persona</span>
-              <textarea value={persona} maxLength={2000} rows={6} onChange={(e) => setPersona(e.target.value)} placeholder="Jelaskan cara bot bekerja, gaya bahasanya, dan batasannya." />
+              <span>Persona <Req /></span>
+              <textarea value={persona} maxLength={2000} rows={6} onChange={(e) => setPersona(e.target.value)} placeholder="Jelaskan cara agen bekerja, gaya bahasanya, dan batasannya." aria-invalid={tried && !!errs.persona} />
               <small className="counter num">{persona.length} / 2.000</small>
+              {err('persona')}
             </label>
           </fieldset>
         )}
@@ -197,6 +209,7 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
   const [picked, setPicked] = useState<string[]>(existing?.members ?? [])
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<Problem>(null)
+  const [tried, setTried] = useState(false)
   const byTeam = bots.reduce<Record<string, Bot[]>>((acc, b) => ((acc[b.team] ??= []).push(b), acc), {})
   const teamsPicked = new Set(bots.filter((b) => picked.includes(b.id)).map((b) => b.team))
   const ok = name.trim().length > 0 && picked.length >= 2 && picked.length <= 6
@@ -205,6 +218,7 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
+    setTried(true)
     if (!ok) return
     setBusy(true)
     setProblem(null)
@@ -222,15 +236,16 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
 
   return (
     <Dialog title={id ? 'Atur anggota' : 'Grup baru'} onClose={onClose}>
-      <form onSubmit={(e) => void submit(e)} className="dlg-body">
+      <form onSubmit={(e) => void submit(e)} className="dlg-body" noValidate>
         <fieldset disabled={busy}>
           <label className="field">
-            <span>Nama grup</span>
-            <input value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="Contoh: Kampanye Desember" required />
+            <span>Nama grup <Req /></span>
+            <input value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="Contoh: Kampanye Desember" aria-invalid={tried && !name.trim()} />
+            {tried && !name.trim() && <small className="err" role="alert">Nama grup wajib diisi.</small>}
           </label>
           <div className="field">
             <span className="field-row">
-              Anggota
+              <span>Anggota <Req /></span>
               <small className="counter num" aria-live="polite">
                 {picked.length} / 6 dipilih, minimal 2
               </small>
@@ -256,6 +271,7 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
                 </div>
               ))}
             </div>
+            {tried && picked.length < 2 && <small className="err" role="alert">Pilih minimal 2 anggota.</small>}
             {teamsPicked.size > 1 && <p className="note-line">Grup lintas tim</p>}
           </div>
         </fieldset>
@@ -264,7 +280,7 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
           <button type="button" className="btn quiet-btn" onClick={onClose} disabled={busy}>
             Batal
           </button>
-          <button type="submit" className="btn primary" disabled={busy || !ok}>
+          <button type="submit" className="btn primary" disabled={busy}>
             {busy ? 'Menyimpan...' : id ? 'Simpan' : 'Buat grup'}
           </button>
         </footer>
