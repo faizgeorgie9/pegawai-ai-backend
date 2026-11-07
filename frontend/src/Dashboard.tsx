@@ -164,10 +164,10 @@ export default function Dashboard() {
             Scheduler <CapChip cap="blocked" />
           </a>
           <a className="cap-item" href="#/marketing">
-            Workspace Marketing <CapChip cap="none" label="Sedang dibangun" />
+            Workspace Marketing <CapChip cap="mock" label="Eksperimen, data contoh" />
           </a>
           <a className="cap-item" href="#/cs">
-            Workspace CS <CapChip cap="none" label="Sedang dibangun" />
+            Workspace CS <CapChip cap="mock" label="Eksperimen, requirement belum final" />
           </a>
         </div>
       </div>

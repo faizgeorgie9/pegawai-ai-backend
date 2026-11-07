@@ -335,6 +335,7 @@ textarea ~ .counter { align-self: flex-end; }
   .act td { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; border: 0; text-align: right; }
   .act td::before { content: attr(data-label); color: var(--muted); font-size: 12px; text-align: left; flex: none; }
   .act td.sum { max-width: none; min-width: 0; }
+  .act td.sum .sum-btn { min-width: 0; flex: 1; overflow: hidden; }
   .act .r { text-align: right; }
   .sum-btn { text-align: right; }
 }
