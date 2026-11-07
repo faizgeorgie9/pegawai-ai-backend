@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import type { ReactNode } from 'react'
 import Activity from './Activity'
 import { api, errText } from './bff'
-import type { Bot, Group, Scope, Thought, Usage } from './bff'
+import type { Bot, Group, Scope, Usage } from './bff'
 import { useData } from './data'
 import { go } from './router'
 import { BotAvatar, CLOSE, DOTS, ErrorLine, Icon, botColor, clock, nf, teamLabel } from './ui'
@@ -10,7 +10,7 @@ import './panel.css'
 
 // Side panel of a conversation (spec-panel-samping): Berpikir, Token, Aktivitas, Info. The open tab and the width
 // live in a tiny module store (shared by bot chat and group chat) and are remembered in localStorage.
-export type Tab = 'berpikir' | 'token' | 'aktivitas' | 'info'
+export type Tab = 'token' | 'aktivitas' | 'info'
 const KEY = 'pegawai.panel'
 const MIN_W = 300
 const MAX_W = 560
@@ -25,7 +25,7 @@ function load(): PS {
   const base: PS = { tab: null, width: 360, focus: null }
   try {
     const j = JSON.parse(localStorage.getItem(KEY) ?? '{}') as { tab?: unknown; width?: unknown }
-    if (j.tab === 'berpikir' || j.tab === 'token' || j.tab === 'aktivitas' || j.tab === 'info') base.tab = j.tab
+    // the panel always starts closed; only the width is remembered
     if (typeof j.width === 'number') base.width = clampW(j.width)
   } catch {
     /* private mode or bad JSON: defaults */
@@ -46,17 +46,15 @@ function patch(p: Partial<PS>) {
 const subscribe = (f: () => void) => (subs.add(f), () => void subs.delete(f))
 export const usePanel = () => useSyncExternalStore(subscribe, () => state)
 export const closePanel = () => patch({ tab: null })
-export const openThinking = (run: string) => patch({ tab: 'berpikir', focus: { run, n: (state.focus?.n ?? 0) + 1 } })
 
 const ICONS: Record<Tab, string> = {
-  berpikir: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM19 16l.7 1.8 1.8.7-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7z',
   token: 'M4.5 17a8 8 0 0115 0M12 17l3.5-5',
   aktivitas: 'M3 12h4l3-8 4 16 3-8h4',
   info: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 8h.01',
 }
 const GROUP_INFO = 'M16 20v-1a4 4 0 00-4-4H8a4 4 0 00-4 4v1M10 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM20 20v-1a3.5 3.5 0 00-2.5-3.4M15.5 4.3a3.5 3.5 0 010 6.4'
-const LABEL: Record<Tab, string> = { berpikir: 'Berpikir', token: 'Token', aktivitas: 'Aktivitas', info: 'Info' }
-const TABS: Tab[] = ['berpikir', 'token', 'aktivitas', 'info']
+const LABEL: Record<Tab, string> = { token: 'Token', aktivitas: 'Aktivitas', info: 'Info' }
+const TABS: Tab[] = ['token', 'aktivitas', 'info']
 
 // Toolbar in the conversation header: the active icon is highlighted, clicking it again closes the panel.
 export function PanelButtons({ group }: { group?: boolean }) {
@@ -239,7 +237,6 @@ export function SidePanel(p: PanelProps) {
       </header>
       <div className="p-body">
         {tab !== 'info' && !p.scope && <p className="quiet pad">Belum ada percakapan. Kirim pesan dulu, lalu datanya muncul di sini.</p>}
-        {tab === 'berpikir' && p.scope && <Thinking {...p} scope={p.scope} />}
         {tab === 'token' && p.scope && <Tokens {...p} scope={p.scope} />}
         {tab === 'aktivitas' && p.scope && <Activity scope={p.scope} version={p.version} />}
         {tab === 'info' && (p.group ? <GroupInfo group={p.group} members={p.members ?? []} /> : p.bot ? <BotInfo bot={p.bot} /> : null)}
@@ -252,95 +249,6 @@ const scopeKey = (s: Scope) => (s.group_id ? `g:${s.group_id}` : `s:${s.session_
 
 // ---------- Berpikir ----------
 type Scoped = PanelProps & { scope: Scope }
-function Thinking({ scope, version, bot, members }: Scoped) {
-  const { bots } = useData()
-  const { focus } = usePanel()
-  const { data, error, loading, retry } = useRemote<Thought[]>(() => api.thinking(scope), scopeKey(scope), version)
-  const [closed, setClosed] = useState<Set<string>>(new Set())
-  const scroller = useRef<HTMLDivElement>(null)
-  const stick = useRef(true)
-  const lookup = (id: string) => members?.find((b) => b.id === id) ?? (bot && bot.id === id ? bot : undefined) ?? bots.find((b) => b.id === id)
-
-  useEffect(() => {
-    const el = scroller.current
-    if (el && stick.current && !focus) el.scrollTop = el.scrollHeight
-  }, [data, focus])
-  useEffect(() => {
-    if (!focus || !data) return
-    setClosed((c) => {
-      const n = new Set(c)
-      n.delete(focus.run)
-      return n
-    })
-    window.setTimeout(() => {
-      const el = scroller.current?.querySelector(`[data-run="${CSS.escape(focus.run)}"]`)
-      el?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-      if (el) el.setAttribute('data-flash', '')
-      window.setTimeout(() => el?.removeAttribute('data-flash'), 1600)
-    }, 60)
-    // only when a new "Lihat proses berpikir" click arrives (focus.n) or the first data lands
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focus?.n, !!data])
-
-  if (loading) return <p className="quiet pad">Memuat proses berpikir...</p>
-  if (error && !data) return <ErrorLine text={error} onRetry={retry} />
-  if (!data || data.length === 0)
-    return (
-      <div className="p-empty">
-        <h3>Belum ada proses berpikir</h3>
-        <p className="quiet">Saat bot menjawab, langkah berpikirnya muncul di sini. Bot yang tidak menulis proses berpikir tidak menampilkan apa pun.</p>
-      </div>
-    )
-  return (
-    <div
-      className="p-scroll"
-      ref={scroller}
-      onScroll={(e) => {
-        const el = e.currentTarget
-        stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60
-      }}
-    >
-      <ol className="turns" aria-live="polite">
-        {data.map((t) => {
-          const b = lookup(t.bot_id)
-          const name = b?.name ?? t.bot_id
-          const running = t.status === 'queued' || t.status === 'running'
-          return (
-            <li key={t.run_id} data-run={t.run_id} className="turn" style={{ ['--bot' as string]: botColor(b) }}>
-              <details
-                open={!closed.has(t.run_id)}
-                onToggle={(e) => {
-                  const open = e.currentTarget.open
-                  setClosed((c) => {
-                    if (open === !c.has(t.run_id)) return c
-                    const n = new Set(c)
-                    if (open) n.delete(t.run_id)
-                    else n.add(t.run_id)
-                    return n
-                  })
-                }}
-              >
-                <summary>
-                  <BotAvatar bot={b ?? { name, color: '' }} size={24} />
-                  <b>{name}</b>
-                  <span className="quiet num">{clock(t.created_at)}</span>
-                  {running && <span className="dots" aria-hidden="true" />}
-                </summary>
-                {t.reasoning ? (
-                  <p className="think-text">{t.reasoning}</p>
-                ) : (
-                  <p className="quiet">{running ? `${name} sedang berpikir…` : 'Tidak ada proses berpikir untuk giliran ini.'}</p>
-                )}
-                {running && t.reasoning && <p className="quiet small">{name} sedang berpikir…</p>}
-              </details>
-            </li>
-          )
-        })}
-      </ol>
-    </div>
-  )
-}
-
 // ---------- Token ----------
 const dash = (n: number) => nf.format(n)
 function Bar({ ratio, color }: { ratio: number; color: string }) {
