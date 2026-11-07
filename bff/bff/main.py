@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bots, config, db, engine, groups, harden, hermes, usage
+from . import bots, config, db, engine, evaluations, groups, harden, hermes, usage
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -271,7 +271,11 @@ async def create_run(bot_id: str, request: Request):
     else:
         sid = f"web-{uuid.uuid4().hex[:12]}"
         await db.ex("insert into chat_sessions (session_id, user_id, bot_id) values (%s, %s, %s)", sid, uid, bot_id)
-    run = await engine.start_run(uid, bot_id, sid, text.strip(), "chat")
+    ins = b.get("instructions")  # optional per-run instructions (the frontend's experimental structured mode)
+    if ins is not None and (not isinstance(ins, str) or len(ins) > 6000):
+        raise ApiError(400, "Instruksi harus berupa teks (maksimal 6000 karakter)")
+    run = await engine.start_run(uid, bot_id, sid, text.strip(), "chat",
+                                 instructions=ins.strip() if isinstance(ins, str) and ins.strip() else None)
     return {"run": engine.run_view(run), "session_id": sid}
 
 
@@ -477,6 +481,23 @@ async def office():
                           "where group_id = %s order by id desc limit 5) t order by id", g["id"])
         gs.append({**g, "messages": msgs})
     return {"bots": await bots.list_bots(uid), "groups": gs}
+
+
+# ---------- evaluations ----------
+
+@api.get("/evaluations")
+async def list_evaluations():
+    return await evaluations.list_all(current_user())
+
+
+@api.post("/evaluations", status_code=201)
+async def create_evaluation(request: Request):
+    return await evaluations.create(current_user(), await body_of(request))
+
+
+@api.patch("/evaluations/{eid}")
+async def update_evaluation(eid: str, request: Request):
+    return await evaluations.update(current_user(), eid, await body_of(request))
 
 
 app.include_router(public)

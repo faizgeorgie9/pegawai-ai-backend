@@ -226,6 +226,43 @@ export interface ActivityRow {
   where: string
 }
 
+export interface EvalScore {
+  score: number | null
+  reason: string
+}
+export interface EvalInput {
+  case_id: string
+  bot_id: string
+  session_id: string | null
+  run_id: string | null
+  prompt: string
+  expected: string
+  actual: string
+  scores: Record<string, EvalScore>
+  verdict: 'pass' | 'fail' | 'blocked'
+  notes: { errors: string; improvements: string; critical: boolean; reviewed_on: string }
+  reviewer: string
+}
+export interface Evaluation extends EvalInput {
+  id: string
+  created_at: number
+}
+const toEval = (r: Raw): Evaluation => ({
+  id: asStr(r.id),
+  case_id: asStr(r.case_id),
+  bot_id: asStr(r.bot_id),
+  session_id: r.session_id ?? null,
+  run_id: r.run_id ?? null,
+  prompt: asStr(r.prompt),
+  expected: asStr(r.expected),
+  actual: asStr(r.actual),
+  scores: (r.scores ?? {}) as Record<string, EvalScore>,
+  verdict: r.verdict === 'pass' || r.verdict === 'blocked' ? r.verdict : 'fail',
+  notes: { errors: asStr(r.notes?.errors), improvements: asStr(r.notes?.improvements), critical: r.notes?.critical === true, reviewed_on: asStr(r.notes?.reviewed_on) },
+  reviewer: asStr(r.reviewer),
+  created_at: epoch(r.created_at),
+})
+
 // ---- normalisers ----
 const toBot = (r: Raw): Bot => ({
   id: asStr(r.id),
@@ -408,8 +445,8 @@ export const api = {
     foldMessages(list(await call('GET', `/bots/${enc(botId)}/sessions/${enc(sid)}/messages`, undefined, signal))),
   renameSession: (botId: string, sid: string, title: string) => call<void>('PATCH', `/bots/${enc(botId)}/sessions/${enc(sid)}`, { title }),
   deleteSession: (botId: string, sid: string) => call<void>('DELETE', `/bots/${enc(botId)}/sessions/${enc(sid)}`),
-  startRun: async (botId: string, input: string, session_id?: string) => {
-    const r = await call<Raw>('POST', `/bots/${enc(botId)}/runs`, session_id ? { input, session_id } : { input })
+  startRun: async (botId: string, input: string, session_id?: string, instructions?: string) => {
+    const r = await call<Raw>('POST', `/bots/${enc(botId)}/runs`, { input, ...(session_id ? { session_id } : {}), ...(instructions ? { instructions } : {}) })
     return { run: toRun(r.run ?? r), session_id: asStr(r.session_id ?? r.run?.session_id) }
   },
   runs: async (status: 'active' | 'recent', limit?: number, bot?: string) => list(await call('GET', `/runs${q({ status, limit, bot })}`)).map(toRun),
@@ -444,6 +481,8 @@ export const api = {
       seconds: typeof r.seconds === 'number' ? r.seconds : undefined,
       reasoning: asStr(r.reasoning),
     })),
+  evaluations: async (): Promise<Evaluation[]> => list(await call('GET', '/evaluations')).map(toEval),
+  saveEvaluation: async (b: EvalInput, id?: string) => toEval(await call<Raw>(id ? 'PATCH' : 'POST', id ? `/evaluations/${enc(id)}` : '/evaluations', b)),
   activity: async (f: { bot?: string; status?: string; before?: string; session_id?: string; group_id?: string; limit?: number }) => list(await call('GET', `/activity${q({ limit: 100, ...f })}`)).map(toActivity),
 }
 

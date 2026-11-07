@@ -194,13 +194,3 @@ export function Scheduler() {
     </section>
   )
 }
-
-// ---------- Workspace (routes only; built next) ----------
-export function Building({ title }: { title: string }) {
-  return (
-    <section className="page">
-      <PageHead title={title} />
-      <Empty title="Sedang dibangun">Halaman ini belum tersedia.</Empty>
-    </section>
-  )
-}

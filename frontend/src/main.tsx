@@ -7,6 +7,7 @@ import '@fontsource/dm-sans/700.css'
 import './styles.css'
 import './chat.css'
 import './pages.css'
+import './workspace.css'
 import App from './App'
 
 createRoot(document.getElementById('root')!).render(

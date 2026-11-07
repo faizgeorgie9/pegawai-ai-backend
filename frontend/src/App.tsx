@@ -8,7 +8,10 @@ import Dashboard from './Dashboard'
 import { DataProvider, useData } from './data'
 import { Dialogs } from './Dialogs'
 import GroupChat from './Group'
-import { Building, ComputerUse, Scheduler, Tools } from './Platform'
+import { ComputerUse, Scheduler, Tools } from './Platform'
+import CS from './CS'
+import Marketing from './Marketing'
+import Uji from './Uji'
 import { botPath, go, groupPath, useRoute } from './router'
 import type { Route } from './router'
 import { BotAvatar, CLOSE, DOTS, ErrorLine, Icon, MENU, PENCIL, PLUS, TRASH, ago, botColor, elapsed, teamLabel } from './ui'
@@ -119,8 +122,9 @@ function Shell() {
         {route.name === 'tools' && <Tools />}
         {route.name === 'computer-use' && <ComputerUse />}
         {route.name === 'scheduler' && <Scheduler />}
-        {route.name === 'marketing' && <Building title="Workspace Marketing" />}
-        {route.name === 'cs' && <Building title="Workspace CS" />}
+        {route.name === 'marketing' && <Marketing />}
+        {route.name === 'cs' && <CS />}
+        {route.name === 'uji' && <Uji />}
       </main>
 
       <div className="toasts" aria-live="polite">
@@ -318,6 +322,9 @@ function Sidebar({ route, hist, bot, onClose }: { route: Route; hist: Hist; bot?
           </a>
           <a className="nav-link" href="#/cs" aria-current={route.name === 'cs' ? 'page' : undefined}>
             Workspace CS
+          </a>
+          <a className="nav-link" href="#/uji" aria-current={route.name === 'uji' ? 'page' : undefined}>
+            Skenario uji &amp; evaluasi
           </a>
           <a className="nav-link" href="#/aktivitas" aria-current={route.name === 'aktivitas' ? 'page' : undefined}>
             Aktivitas
