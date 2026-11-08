@@ -117,3 +117,4 @@ Endpoints telah aktif pada port 8080:
 * **10 November (Day 4):**
   * Integrasi antarmuka final (*Full UI Integration*) pada antarmuka web dashboard React/Vite.
   * Validasi demonstrasi menyeluruh (*End-to-End Demo Sign-Off*).
+

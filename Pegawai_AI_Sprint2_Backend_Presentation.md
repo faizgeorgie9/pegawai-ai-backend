@@ -120,3 +120,4 @@
 * **Limitasi 2 (Isolasi Tenant Sintetis):** ID pelanggan dan otentikasi token masih statis; database multi-tenant ditangguhkan.
 * **Rencana Sprint 3 (`S3-02C`):** Implementasi Retry Mechanism & Circuit Breaker untuk menangani kegagalan jaringan secara mandiri.
 * **Rencana Sprint 3 (`S3-01D`):** Tracking biaya token mendalam dan integrasi streaming Server-Sent Events (SSE) pada UI.
+

@@ -123,7 +123,8 @@ class KnowledgeRetriever:
             "apakah", "bisa", "yang", "dan", "di", "ke", "dari", "ini", "itu", "untuk",
             "pada", "saya", "kak", "min", "mau", "atau", "adakah", "dong", "ya", "nih",
             "tuh", "colorbox", "delami", "delamibrands", "produk", "toko", "store",
-            "menerima", "ada", "punya", "jual", "beli", "kami", "anda", "ingin", "sudah", "belum"
+            "menerima", "ada", "punya", "jual", "beli", "kami", "anda", "ingin", "sudah", "belum",
+            "layanan", "service", "informasi", "info", "tanya", "halo", "selamat", "customer", "tolong", "mohon"
         }
         raw_tokens = re.findall(r"\w+", query_lower)
         tokens = [t for t in raw_tokens if len(t) > 2 and t not in stop_words]

@@ -48,3 +48,4 @@
 ## 5. Data Dummy & Fixture Pengujian Simulasi
 * **[DUMMY_SIMULATION] Contoh Pesanan Valid:** Nomor `#CBX-2026-9812` (Item: Casual Linen Shirt Pastel Green Size M, Store: Pondok Indah Mall, Status: Selesai).
 * **[DUMMY_SIMULATION] Contoh Pesanan Kendala Kurir:** Nomor `#CBX-2026-4401` (Resi: `JNE-CBX-88129031`, Status: Dalam Perjalanan 6 Hari).
+

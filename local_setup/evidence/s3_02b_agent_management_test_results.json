@@ -46,8 +46,8 @@
     "knowledge_sources": [
       "shared_brand_knowledge_v1.md"
     ],
-    "created_at": "2026-11-08T18:20:22Z",
-    "updated_at": "2026-11-08T18:20:22Z"
+    "created_at": "2026-11-08T19:01:22Z",
+    "updated_at": "2026-11-08T19:01:22Z"
   },
   "sample_updated_agent": {
     "id": "ag_cbx_ambassador_01",
@@ -67,8 +67,8 @@
     "knowledge_sources": [
       "shared_brand_knowledge_v1.md"
     ],
-    "created_at": "2026-11-08T18:20:22Z",
-    "updated_at": "2026-11-08T18:20:22Z"
+    "created_at": "2026-11-08T19:01:22Z",
+    "updated_at": "2026-11-08T19:01:22Z"
   },
   "sample_error_unknown": "Agent with identifier 'ag_unknown_999' was not found in prototype registry.",
   "sample_error_invalid_dept": "Invalid department 'space_exploration'. Allowed: ['marketing', 'customer_service', 'sales', 'general']"

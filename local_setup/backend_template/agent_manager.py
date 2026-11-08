@@ -196,3 +196,4 @@ class AgentManager:
 
 # Global singleton instance
 agent_registry = AgentManager()
+

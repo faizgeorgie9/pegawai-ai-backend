@@ -337,3 +337,4 @@ Alur pengerjaan teknis dibagi secara bertahap agar pengujian bisnis tidak terham
 - [x] **Business Workflow Fields:** Skema luaran Marketing (5 tahap) dan CS (5 tahap) didefinisikan lengkap dengan perilaku saat data/knowledge hilang.
 - [x] **API Contract v1 Agreement:** Kontrak endpoint, format header, request/response JSON, dan semantik error disepakati bersama Frontend.
 - [x] **Implementation Sequencing:** Jadwal rilis bertahap (Core 6 Nov, Business Test 9 Nov, Final UI 10 Nov) terdokumentasi jelas.
+

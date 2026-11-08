@@ -33,3 +33,4 @@
 * **[VERIFIED_FACT] Zero Misleading Claims:** Dilarang mencantumkan klaim medis, klaim efek melangsingkan tubuh secara drastis, atau janji diskon tanpa dasar data riil.
 * **[VERIFIED_FACT] Penghormatan Privasi:** Tidak pernah meminta nomor PIN kartu, password akun belanja, atau data perbankan sensitif kepada pelanggan.
 * **[ASSUMED_POLICY] Human Oversight:** Segala materi naskah iklan eksternal wajib melalui review sebelum dipublikasikan oleh tim marketing.
+

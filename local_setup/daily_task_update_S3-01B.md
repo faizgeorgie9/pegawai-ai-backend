@@ -50,3 +50,4 @@
 - Architectural Specification: [`local_setup/S3-01B_Platform_Architecture_and_API_Contracts.md`](file:///d:/ai_developer/project6/local_setup/S3-01B_Platform_Architecture_and_API_Contracts.md)
 - Machine-Readable OpenAPI Contract v1: [`local_setup/platform_api_contract_v1.json`](file:///d:/ai_developer/project6/local_setup/platform_api_contract_v1.json)
 - Daily Update Report: [`local_setup/daily_task_update_S3-01B.md`](file:///d:/ai_developer/project6/local_setup/daily_task_update_S3-01B.md)
+

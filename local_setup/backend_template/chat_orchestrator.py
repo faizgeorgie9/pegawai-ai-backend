@@ -194,7 +194,7 @@ class ChatOrchestrator:
             f"ALASAN_ESKALASI: [{'Komplain berisiko tinggi / di luar SOP' if is_critical else 'N/A'}]"
         )
 
-        raw_output, tokens = self._invoke_hermes(prompt, timeout_sec=120)
+        raw_output, tokens = self._invoke_hermes(prompt, timeout_sec=120, is_critical=is_critical)
         parsed_cs = self._parse_cs_output(raw_output, message, lookup, is_critical)
         elapsed = round(time.time() - start_t, 2)
 
@@ -221,7 +221,7 @@ class ChatOrchestrator:
             "ticket_management": parsed_cs["ticket_management"]
         }
 
-    def _invoke_hermes(self, prompt: str, timeout_sec: int = 180) -> Tuple[str, Dict[str, Any]]:
+    def _invoke_hermes(self, prompt: str, timeout_sec: int = 180, is_critical: bool = False) -> Tuple[str, Dict[str, Any]]:
         """Invokes Hermes Agent CLI or provides deterministic contract-aligned output."""
         has_hermes = os.path.exists(HERMES_BIN)
         has_key = bool(os.environ.get("OPENCODE_ZEN_API_KEY") or os.environ.get("OPENCODE_API_KEY") or os.environ.get("DEEPSEEK_API_KEY"))
@@ -253,9 +253,9 @@ class ChatOrchestrator:
                 print(f"[ChatOrchestrator] Hermes execution error/timeout: {e}")
 
         # Deterministic contract-aligned simulation (Preserves exact schema for test verification)
-        return self._generate_contract_fallback(prompt), {"prompt_tokens": 580, "completion_tokens": 920, "total_tokens": 1500}
+        return self._generate_contract_fallback(prompt, is_critical=is_critical), {"prompt_tokens": 580, "completion_tokens": 920, "total_tokens": 1500}
 
-    def _generate_contract_fallback(self, prompt: str) -> str:
+    def _generate_contract_fallback(self, prompt: str, is_critical: bool = False) -> str:
         """Deterministic contract-conforming fallback generator."""
         if "===TAHAP_1_PLANNING===" in prompt:
             return (
@@ -279,7 +279,7 @@ class ChatOrchestrator:
                 "PROMPT_DALL_E: High fashion lookbook photography, cheerful young Asian girl wearing sage green linen shirt, pastel background, warm natural lighting, 4k"
             )
         else:
-            is_crit = "CRITICAL" in prompt
+            is_crit = is_critical
             return (
                 f"===KLASIFIKASI===\n"
                 f"INTENT: {'DEFECTIVE_PRODUCT' if is_crit else 'SIZE_EXCHANGE'}\n"

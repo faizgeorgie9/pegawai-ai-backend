@@ -51,3 +51,4 @@
 - Comprehensive Foundation Review & Architecture Document: [`local_setup/S3-01A_Hermes_Foundation_Review_Colorbox.md`](file:///d:/ai_developer/project6/local_setup/S3-01A_Hermes_Foundation_Review_Colorbox.md)
 - Machine-readable API Contract v1: [`local_setup/colorbox_api_contract_v1.json`](file:///d:/ai_developer/project6/local_setup/colorbox_api_contract_v1.json)
 - Daily Update: [`local_setup/daily_task_update_S3-01A.md`](file:///d:/ai_developer/project6/local_setup/daily_task_update_S3-01A.md)
+

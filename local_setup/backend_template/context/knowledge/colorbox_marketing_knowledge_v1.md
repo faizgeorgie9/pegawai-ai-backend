@@ -33,3 +33,4 @@
   * Pastel Shades: Soft Pink (`#FFD1DC`), Sage Green (`#B2C9AB`), Lavender Lilac (`#C8A2C8`), Soft Butter Yellow (`#FFF1B5`).
   * Neutrals: Warm Beige (`#E8D8C8`), Crisp White (`#FFFFFF`), Soft Charcoal (`#333333`).
 * **[ASSUMED_POLICY] Mood Fotografi:** Pencahayaan alami luar ruangan (*natural daylight*) atau studio berlatar minimalis pastel dengan model tersenyum santai dan energik.
+
