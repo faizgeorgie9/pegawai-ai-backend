@@ -205,7 +205,7 @@ export default function Uji() {
           <tbody>
             {shownRows.map((s) => (
               <tr key={s.id} data-on={sc?.id === s.id || undefined}>
-                <td className="num" data-label="Kasus"><b>{s.id}</b></td>
+                <td className="num" data-label="Kasus" style={{ whiteSpace: 'nowrap' }}><b>{s.id}</b></td>
                 <td data-label="Skenario" className="rich">
                   <b>{s.title}</b>
                   <div className="quiet small">{s.capability}</div>
