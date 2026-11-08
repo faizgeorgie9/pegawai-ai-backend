@@ -38,6 +38,15 @@ except ImportError:
     except Exception:
         agent_registry = None
 
+# Colorbox Chat Execution, Context & Structured Outputs (Sprint 3)
+try:
+    from chat_orchestrator import chat_orchestrator
+except ImportError:
+    try:
+        from local_setup.backend_template.chat_orchestrator import chat_orchestrator
+    except Exception:
+        chat_orchestrator = None
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -645,6 +654,128 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
                 "knowledge_sources": knowledge_sources,
                 "timeout_sec": routed_agent.get("timeout_sec", 180)
             })
+            return
+
+        elif path == "/api/v1/chat/message":
+            if not chat_orchestrator:
+                self._send_json_response(500, {"error": "Chat orchestrator not initialized"})
+                return
+
+            session_id = payload.get("session_id")
+            message = payload.get("message")
+            agent_id = payload.get("agent_id", "ag_cbx_cs_01")
+            customer_name = payload.get("customer_name", "Pelanggan")
+            channel = payload.get("channel", "whatsapp_simulation")
+
+            if not session_id:
+                self._send_json_response(400, {
+                    "status": "error",
+                    "error_code": "ERR_VALIDATION_MISSING_SESSION",
+                    "message": "Field 'session_id' is mandatory."
+                })
+                return
+
+            if not message or not str(message).strip():
+                self._send_json_response(400, {
+                    "status": "error",
+                    "error_code": "ERR_VALIDATION_MISSING_MESSAGE",
+                    "message": "Field 'message' is mandatory and cannot be empty."
+                })
+                return
+
+            # Verify agent exists
+            if agent_registry:
+                agent, err = agent_registry.get_agent(agent_id)
+                if err:
+                    self._send_json_response(404, {
+                        "status": "error",
+                        "error_code": "ERR_UNKNOWN_AGENT",
+                        "message": err
+                    })
+                    return
+
+            # If agent is marketing, run marketing pipeline, else run CS interactive chat
+            if "marketing" in agent_id.lower():
+                result = chat_orchestrator.execute_marketing_workflow(
+                    brief=message,
+                    content_type=payload.get("content_type", "instagram_carousel"),
+                    include_visual=payload.get("include_visual", True)
+                )
+            else:
+                result = chat_orchestrator.execute_cs_chat(
+                    session_id=session_id,
+                    message=message,
+                    customer_name=customer_name,
+                    channel=channel,
+                    agent_id=agent_id
+                )
+
+            self._send_json_response(200, result)
+            return
+
+        elif path.startswith("/api/v1/chat/sessions/") and path.endswith("/reset"):
+            if not chat_orchestrator:
+                self._send_json_response(500, {"error": "Chat orchestrator not initialized"})
+                return
+
+            parts = path.split("/")
+            sess_id = parts[5] if len(parts) >= 7 else payload.get("session_id", "")
+            if not sess_id:
+                sess_id = payload.get("session_id", "")
+
+            chat_orchestrator.sessions.reset_session(sess_id)
+            self._send_json_response(200, {
+                "status": "success",
+                "session_id": sess_id,
+                "action": "SESSION_CLEARED",
+                "message": f"Riwayat percakapan sesi '{sess_id}' telah direset."
+            })
+            return
+
+        elif path == "/api/v1/workflows/marketing/run":
+            if not chat_orchestrator:
+                self._send_json_response(500, {"error": "Chat orchestrator not initialized"})
+                return
+
+            brief = payload.get("campaign_brief") or payload.get("prompt")
+            if not brief:
+                self._send_json_response(400, {
+                    "status": "error",
+                    "error_code": "ERR_VALIDATION_MISSING_BRIEF",
+                    "message": "Field 'campaign_brief' is mandatory."
+                })
+                return
+
+            res = chat_orchestrator.execute_marketing_workflow(
+                brief=brief,
+                content_type=payload.get("content_type", "instagram_carousel"),
+                include_visual=payload.get("include_visual_concept", True)
+            )
+            self._send_json_response(200, res)
+            return
+
+        elif path == "/api/v1/workflows/cs/run":
+            if not chat_orchestrator:
+                self._send_json_response(500, {"error": "Chat orchestrator not initialized"})
+                return
+
+            inquiry = payload.get("customer_inquiry") or payload.get("prompt")
+            if not inquiry:
+                self._send_json_response(400, {
+                    "status": "error",
+                    "error_code": "ERR_VALIDATION_MISSING_INQUIRY",
+                    "message": "Field 'customer_inquiry' is mandatory."
+                })
+                return
+
+            sess_id = payload.get("session_id") or f"sess_wf_{int(time.time())}"
+            res = chat_orchestrator.execute_cs_chat(
+                session_id=sess_id,
+                message=inquiry,
+                customer_name=payload.get("customer_name", "Pelanggan"),
+                channel=payload.get("channel", "simulation")
+            )
+            self._send_json_response(200, res)
             return
 
         elif path == "/api/v1/agent/execute":
