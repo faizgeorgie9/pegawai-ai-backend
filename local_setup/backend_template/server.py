@@ -47,6 +47,31 @@ except ImportError:
     except Exception:
         chat_orchestrator = None
 
+# Colorbox Platform Capabilities & Adapters (Sprint 3)
+try:
+    from platform_adapters import (
+        tool_registry,
+        integration_monitor,
+        computer_use_inspector,
+        scheduler_service,
+        activity_tracker
+    )
+except ImportError:
+    try:
+        from local_setup.backend_template.platform_adapters import (
+            tool_registry,
+            integration_monitor,
+            computer_use_inspector,
+            scheduler_service,
+            activity_tracker
+        )
+    except Exception:
+        tool_registry = None
+        integration_monitor = None
+        computer_use_inspector = None
+        scheduler_service = None
+        activity_tracker = None
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -571,6 +596,51 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
             })
             return
 
+        elif path == "/api/v1/tools":
+            if not tool_registry:
+                self._send_json_response(500, {"error": "Tool registry not initialized"})
+                return
+            tools = tool_registry.list_tools()
+            self._send_json_response(200, {
+                "status": "success",
+                "count": len(tools),
+                "tools": tools
+            })
+            return
+
+        elif path == "/api/v1/integrations/status":
+            if not integration_monitor:
+                self._send_json_response(500, {"error": "Integration monitor not initialized"})
+                return
+            self._send_json_response(200, integration_monitor.get_status())
+            return
+
+        elif path == "/api/v1/capabilities/computer-use":
+            if not computer_use_inspector:
+                self._send_json_response(500, {"error": "Computer use capability inspector not initialized"})
+                return
+            self._send_json_response(200, computer_use_inspector.get_capability_report())
+            return
+
+        elif path == "/api/v1/scheduler/jobs":
+            if not scheduler_service:
+                self._send_json_response(500, {"error": "Scheduler service not initialized"})
+                return
+            jobs = scheduler_service.list_jobs()
+            self._send_json_response(200, {
+                "status": "success",
+                "count": len(jobs),
+                "jobs": jobs
+            })
+            return
+
+        elif path == "/api/v1/activity/status":
+            if not activity_tracker:
+                self._send_json_response(500, {"error": "Activity tracker not initialized"})
+                return
+            self._send_json_response(200, activity_tracker.get_activity_status())
+            return
+
         elif path.startswith("/api/v1/mocks/"):
             mock_name = os.path.basename(path)
             if not mock_name.endswith(".json"):
@@ -776,6 +846,47 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
                 channel=payload.get("channel", "simulation")
             )
             self._send_json_response(200, res)
+            return
+
+        elif path.startswith("/api/v1/agents/") and path.endswith("/tools"):
+            if not tool_registry:
+                self._send_json_response(500, {"error": "Tool registry not initialized"})
+                return
+            parts = path.strip("/").split("/")
+            agent_id = parts[3] if len(parts) >= 4 else ""
+            tool_id = payload.get("tool_id")
+            if not tool_id:
+                self._send_json_response(400, {
+                    "status": "error",
+                    "error_code": "ERR_VALIDATION_MISSING_TOOL",
+                    "message": "Field 'tool_id' is mandatory."
+                })
+                return
+            ok, msg = tool_registry.assign_tool(agent_id, tool_id)
+            status_code = 200 if ok else 400
+            self._send_json_response(status_code, {
+                "status": "success" if ok else "error",
+                "message": msg
+            })
+            return
+
+        elif path == "/api/v1/scheduler/jobs":
+            if not scheduler_service:
+                self._send_json_response(500, {"error": "Scheduler service not initialized"})
+                return
+            new_job, err = scheduler_service.create_job(payload)
+            if err:
+                self._send_json_response(400, {
+                    "status": "error",
+                    "error_code": "ERR_SCHEDULER_JOB_CREATION_FAILED",
+                    "message": err
+                })
+                return
+            self._send_json_response(201, {
+                "status": "success",
+                "message": f"Job '{new_job['name']}' successfully scheduled.",
+                "job": new_job
+            })
             return
 
         elif path == "/api/v1/agent/execute":
@@ -1057,6 +1168,35 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
                 "status": "success",
                 "message": f"Agent '{agent_id}' configuration successfully updated.",
                 "agent": updated_agent
+            })
+            return
+
+        elif path.startswith("/api/v1/scheduler/jobs/"):
+            if not scheduler_service:
+                self._send_json_response(500, {"error": "Scheduler service not initialized"})
+                return
+            job_id = path[len("/api/v1/scheduler/jobs/"):].strip()
+            new_status = payload.get("status")
+            if not new_status:
+                self._send_json_response(400, {
+                    "status": "error",
+                    "error_code": "ERR_VALIDATION_MISSING_STATUS",
+                    "message": "Field 'status' is mandatory (active, paused, disabled)."
+                })
+                return
+            updated_job, err = scheduler_service.update_job_status(job_id, new_status)
+            if err:
+                status_code = 404 if "not found" in err.lower() else 400
+                self._send_json_response(status_code, {
+                    "status": "error",
+                    "error_code": "ERR_SCHEDULER_UPDATE_FAILED",
+                    "message": err
+                })
+                return
+            self._send_json_response(200, {
+                "status": "success",
+                "message": f"Job '{job_id}' status updated to '{new_status}'.",
+                "job": updated_job
             })
             return
 

@@ -225,8 +225,9 @@ class ChatOrchestrator:
         """Invokes Hermes Agent CLI or provides deterministic contract-aligned output."""
         has_hermes = os.path.exists(HERMES_BIN)
         has_key = bool(os.environ.get("OPENCODE_ZEN_API_KEY") or os.environ.get("OPENCODE_API_KEY") or os.environ.get("DEEPSEEK_API_KEY"))
+        use_fast_test = bool(os.environ.get("FAST_CONTRACT_TEST"))
 
-        if has_hermes and has_key:
+        if has_hermes and has_key and not use_fast_test:
             usage_file = f"usage_temp_{uuid.uuid4().hex[:6]}.json"
             provider = "opencode" if os.environ.get("OPENCODE_ZEN_API_KEY") else "deepseek"
             cmd = [
@@ -387,3 +388,4 @@ class ChatOrchestrator:
 
 # Global singleton orchestrator
 chat_orchestrator = ChatOrchestrator()
+
