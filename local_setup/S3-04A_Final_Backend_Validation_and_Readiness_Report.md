@@ -111,3 +111,4 @@ Untuk evolusi sistem menuju skala produksi komersial (Sprint 4):
 2. **Durasi Eksekusi Inferensi:** Penalaran mendalam model cloud membutuhkan waktu 40–80 detik. Disarankan mengimplementasikan **Server-Sent Events (SSE) Streaming** agar pengguna di Frontend dapat melihat teks terketik secara progresif (*typewriter effect*).
 3. **Kanal WhatsApp & Email Resmi:** Mengintegrasikan **Official Meta WhatsApp Business Cloud API** dan layanan email transaksional (**Resend**) setelah verifikasi bisnis entitas selesai.
 4. **Prinsip Human-in-the-Loop:** Tetap mempertahankan persetujuan manusia sebelum publikasi konten eksternal atau pengiriman pesan otomatis ke pelanggan.
+

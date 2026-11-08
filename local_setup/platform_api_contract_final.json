@@ -1,0 +1,698 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Hermes Agent Management Platform API — Final Specification",
+    "version": "1.0.0-final",
+    "description": "Complete finalized API contract for Colorbox AI Employees (Marketing & Customer Service), Agent Management CRUD, Multi-turn Chat, Knowledge Grounding, Tools Registry, Integrations Monitor, Scheduler, and Activity Lifecycle.",
+    "contact": {
+      "name": "Intern 1 (Backend & Platform Lead)",
+      "email": "backend-lead@colorbox-rnd.internal"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8080",
+      "description": "Local Shared Hermes Backend Server"
+    }
+  ],
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "summary": "Health and provider connectivity check",
+        "description": "Verifies that the backend server is running and the Hermes CLI binary is detected on the host system.",
+        "responses": {
+          "200": {
+            "description": "System is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "ok" },
+                    "runtime": { "type": "string", "example": "Hermes Agent CLI v0.22.2" },
+                    "model": { "type": "string", "example": "deepseek-v4.1-flash" },
+                    "provider": { "type": "string", "example": "opencode" },
+                    "timestamp": { "type": "string", "example": "2026-11-10T08:00:00Z" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents": {
+      "get": {
+        "summary": "List all registered AI Employee personas",
+        "description": "Retrieves the roster of active agents including roles, departments, system prompts, assigned tools, and knowledge sources.",
+        "responses": {
+          "200": {
+            "description": "Roster of agents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "count": { "type": "integer", "example": 2 },
+                    "agents": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/AgentConfig" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Register a new AI Employee persona",
+        "description": "Creates a new agent configuration in the prototype registry.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "department", "role", "system_prompt"],
+                "properties": {
+                  "name": { "type": "string", "example": "Colorbox Influencer Specialist" },
+                  "department": { "type": "string", "enum": ["marketing", "customer_service", "operations"], "example": "marketing" },
+                  "role": { "type": "string", "example": "KOL & Endorsement Coordinator" },
+                  "tone": { "type": "string", "example": "trendy_enthusiastic" },
+                  "system_prompt": { "type": "string", "example": "You are a Colorbox KOL coordinator managing fashion influencer outreach." },
+                  "tools_assigned": { "type": "array", "items": { "type": "string" }, "example": ["tool_content_planner"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Agent successfully created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "agent": { "$ref": "#/components/schemas/AgentConfig" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required fields or invalid configuration",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{id}": {
+      "get": {
+        "summary": "View agent details by ID",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "example": "ag_cbx_marketing_01" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent details retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "agent": { "$ref": "#/components/schemas/AgentConfig" }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agent not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update agent configuration",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "example": "ag_cbx_marketing_01" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "temperature": { "type": "number", "example": 0.5 },
+                  "max_tokens": { "type": "integer", "example": 2800 },
+                  "role": { "type": "string", "example": "Senior Fashion Copywriter & Strategist" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "agent": { "$ref": "#/components/schemas/AgentConfig" }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agent not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{id}/tools": {
+      "post": {
+        "summary": "Assign tools to an agent with safe validation",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "example": "ag_cbx_marketing_01" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["tools"],
+                "properties": {
+                  "tools": { "type": "array", "items": { "type": "string" }, "example": ["tool_banner_generator", "tool_content_planner"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tools assigned successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "assigned_tools": { "type": "array", "items": { "type": "string" } }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Attempted to assign unsupported tool",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/message": {
+      "post": {
+        "summary": "Execute multi-turn interactive chat with an AI Employee",
+        "description": "Processes a customer message in conversation context, maintains turn history, retrieves relevant SOPs, and drafts replies.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["session_id", "agent_id", "message"],
+                "properties": {
+                  "session_id": { "type": "string", "example": "sess_cbx_demo_01" },
+                  "agent_id": { "type": "string", "example": "ag_cbx_cs_01" },
+                  "customer_name": { "type": "string", "example": "Nadia" },
+                  "message": { "type": "string", "example": "Nomor pesanan saya #CBX-2026-9812 baru dibeli kemarin di store PIM, struk dan tag masih ada." },
+                  "channel": { "type": "string", "example": "whatsapp_simulation" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Interactive chat reply with context tracking and grounded resolution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "session_id": { "type": "string", "example": "sess_cbx_demo_01" },
+                    "turn_number": { "type": "integer", "example": 2 },
+                    "agent_id": { "type": "string", "example": "ag_cbx_cs_01" },
+                    "classification": {
+                      "type": "object",
+                      "properties": {
+                        "intent": { "type": "string", "example": "SIZE_EXCHANGE" },
+                        "priority": { "type": "string", "example": "NORMAL" }
+                      }
+                    },
+                    "grounding": {
+                      "type": "object",
+                      "properties": {
+                        "sop_reference": { "type": "string", "example": "SOP-CBX-RET-01" },
+                        "sources": { "type": "array", "items": { "type": "string" }, "example": ["colorbox_cs_sop_v1.md [VERIFIED_FACT]"] },
+                        "data_authenticity": { "type": "string", "example": "DUMMY_SIMULATION" }
+                      }
+                    },
+                    "response_draft": { "type": "string" },
+                    "ticket_management": {
+                      "type": "object",
+                      "properties": {
+                        "ticket_summary": { "type": "string" },
+                        "requires_human_escalation": { "type": "boolean", "example": false },
+                        "escalation_reason": { "type": "string", "example": "N/A" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required fields in payload",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/sessions/{session_id}/reset": {
+      "post": {
+        "summary": "Reset session context memory",
+        "description": "Clears in-memory sliding window history for the session so subsequent turns begin as Turn 1.",
+        "parameters": [
+          { "name": "session_id", "in": "path", "required": true, "schema": { "type": "string" }, "example": "sess_cbx_demo_01" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session context successfully cleared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "session_id": { "type": "string", "example": "sess_cbx_demo_01" },
+                    "message": { "type": "string", "example": "Session context cleared successfully" },
+                    "history_length": { "type": "integer", "example": 0 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/marketing/run": {
+      "post": {
+        "summary": "Execute complete Colorbox Marketing 5-stage campaign pipeline",
+        "description": "Executes brief interpretation, strategic planning, AIDA copy generation, short-form alternatives, automated brand & claim audit, and visual concept palette.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["campaign_brief"],
+                "properties": {
+                  "client_id": { "type": "string", "example": "cbx_indonesia_retail" },
+                  "campaign_brief": { "type": "string", "example": "Summer Pastel Chic 2026" },
+                  "content_type": { "type": "string", "example": "instagram_carousel" },
+                  "target_channel": { "type": "string", "example": "instagram" },
+                  "include_visual_concept": { "type": "boolean", "default": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Full structured 5-stage marketing package",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "workflow": { "type": "string", "example": "marketing_campaign_pipeline" },
+                    "stage_1_planning": {
+                      "type": "object",
+                      "properties": {
+                        "theme": { "type": "string", "example": "Summer Pastel Chic 2026" },
+                        "content_pillar": { "type": "string", "example": "OOTD Inspiration & Mix-and-Match" },
+                        "suggested_posting_time": { "type": "string", "example": "Kamis, 18:30 WIB" }
+                      }
+                    },
+                    "stage_2_generation": {
+                      "type": "object",
+                      "properties": {
+                        "hook": { "type": "string" },
+                        "body_aida": { "type": "string" },
+                        "call_to_action": { "type": "string" },
+                        "hashtags": { "type": "array", "items": { "type": "string" } }
+                      }
+                    },
+                    "stage_3_alternatives": {
+                      "type": "object",
+                      "properties": {
+                        "tiktok_reels_script": { "type": "string" },
+                        "casual_short_caption": { "type": "string" }
+                      }
+                    },
+                    "stage_4_brand_review": {
+                      "type": "object",
+                      "properties": {
+                        "compliance_score": { "type": "integer", "example": 96 },
+                        "tone_audit": { "type": "string", "example": "PASSED (Ceria & Bersahabat)" },
+                        "claims_verification": { "type": "string", "example": "PASSED (Zero false claims)" }
+                      }
+                    },
+                    "stage_5_visual_concept": {
+                      "type": "object",
+                      "properties": {
+                        "color_palette": { "type": "array", "items": { "type": "string" } },
+                        "prompt_dall_e": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/cs/run": {
+      "post": {
+        "summary": "Execute Colorbox Customer Service 5-stage triage workflow",
+        "description": "Classifies customer issue, retrieves grounded SOP, checks dummy transaction fixture, and sets ticket escalation.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["customer_inquiry"],
+                "properties": {
+                  "customer_inquiry": { "type": "string", "example": "Saya mau tukar ukuran baju yang saya beli di store PIM" },
+                  "order_number": { "type": "string", "example": "#CBX-2026-9812" },
+                  "channel": { "type": "string", "example": "whatsapp_simulation" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Structured CS resolution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "classification": { "type": "object" },
+                    "grounding": { "type": "object" },
+                    "response_draft": { "type": "string" },
+                    "ticket_management": { "type": "object" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/knowledge/registry": {
+      "get": {
+        "summary": "List all ingested SOP and brand knowledge files",
+        "responses": {
+          "200": {
+            "description": "Registry of ingested markdown knowledge documents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "total_files": { "type": "integer", "example": 3 },
+                    "files": { "type": "array", "items": { "type": "object" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/knowledge/lookup": {
+      "get": {
+        "summary": "Perform grounded knowledge search by query and department",
+        "parameters": [
+          { "name": "q", "in": "query", "required": true, "schema": { "type": "string" }, "example": "retur ukuran" },
+          { "name": "dept", "in": "query", "required": false, "schema": { "type": "string" }, "example": "customer_service" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Relevant knowledge snippets with verified source labels",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "query": { "type": "string" },
+                    "results_count": { "type": "integer", "example": 1 },
+                    "results": { "type": "array", "items": { "type": "object" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tools": {
+      "get": {
+        "summary": "List registered platform tools and plugins",
+        "responses": {
+          "200": {
+            "description": "Catalog of platform tools with implementation status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "total_tools": { "type": "integer", "example": 6 },
+                    "tools": { "type": "array", "items": { "type": "object" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/status": {
+      "get": {
+        "summary": "Inspect realtime connection states across external integrations",
+        "responses": {
+          "200": {
+            "description": "Integration connectivity states",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "integrations": { "type": "object" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/capabilities/computer-use": {
+      "get": {
+        "summary": "Inspect OS desktop GUI automation capability status",
+        "responses": {
+          "200": {
+            "description": "Computer Use investigation report and safety boundaries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "capability": { "type": "string", "example": "computer_use_gui_automation" },
+                    "feasibility": { "type": "string", "example": "unsupported" },
+                    "business_necessity": { "type": "string", "example": "NOT_REQUIRED" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduler/jobs": {
+      "get": {
+        "summary": "List scheduled recurring jobs",
+        "responses": {
+          "200": {
+            "description": "Active and paused scheduled automation jobs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "total_jobs": { "type": "integer", "example": 2 },
+                    "jobs": { "type": "array", "items": { "type": "object" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Register a new scheduled background automation job",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["job_name", "cron_expression", "agent_id", "target_workflow"],
+                "properties": {
+                  "job_name": { "type": "string", "example": "Weekly Pastel Trend Audit" },
+                  "cron_expression": { "type": "string", "example": "0 9 * * 1" },
+                  "agent_id": { "type": "string", "example": "ag_cbx_marketing_01" },
+                  "target_workflow": { "type": "string", "example": "marketing_pipeline" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Job registered successfully"
+          }
+        }
+      }
+    },
+    "/api/v1/scheduler/jobs/{id}": {
+      "put": {
+        "summary": "Update job status (active / paused)",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "example": "job_marketing_weekly_01" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string", "enum": ["active", "paused"], "example": "paused" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Job status updated"
+          }
+        }
+      }
+    },
+    "/api/v1/activity/status": {
+      "get": {
+        "summary": "Retrieve recent execution activities, token usages, and latencies",
+        "responses": {
+          "200": {
+            "description": "Recent execution trace log",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "total_recorded_runs": { "type": "integer", "example": 26 },
+                    "activities": { "type": "array", "items": { "type": "object" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AgentConfig": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "ag_cbx_marketing_01" },
+          "name": { "type": "string", "example": "Colorbox Creative Content Strategist" },
+          "department": { "type": "string", "example": "marketing" },
+          "role": { "type": "string", "example": "Social Media & Campaign Strategist" },
+          "tone": { "type": "string", "example": "cheerful_genz" },
+          "status": { "type": "string", "example": "active" },
+          "tools_assigned": { "type": "array", "items": { "type": "string" } },
+          "knowledge_sources": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "example": "error" },
+          "code": { "type": "string", "example": "BAD_REQUEST" },
+          "error": { "type": "string", "example": "Missing required field 'name'" }
+        }
+      }
+    }
+  }
+}
