@@ -490,6 +490,11 @@ async def list_evaluations():
     return await evaluations.list_all(current_user())
 
 
+@api.get("/evaluations/summary")
+async def evaluations_summary():
+    return await evaluations.summary(current_user())
+
+
 @api.post("/evaluations", status_code=201)
 async def create_evaluation(request: Request):
     return await evaluations.create(current_user(), await body_of(request))

@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import httpx
 
-from . import db, hermes
+from . import db, hermes, versions
 from .errors import ApiError
 from .redact import redact
 
@@ -128,8 +128,10 @@ async def start_run(user_id: str, bot: str, session_id: str, input_: str, kind: 
                     group_id: str | None = None, instructions: str | None = None) -> dict:
     await check_quota(user_id)
     rid = str(uuid.uuid4())
-    await db.ex("insert into runs (id, user_id, bot_id, session_id, group_id, kind, status, input) "
-                "values (%s, %s, %s, %s, %s, %s, 'queued', %s)", rid, user_id, bot, session_id, group_id, kind, input_)
+    meta = await versions.snapshot(bot, instructions)  # version and config at the moment the run starts
+    await db.ex("insert into runs (id, user_id, bot_id, session_id, group_id, kind, status, input, meta) "
+                "values (%s, %s, %s, %s, %s, %s, 'queued', %s, %s)", rid, user_id, bot, session_id, group_id, kind, input_,
+                _json(meta))
     body = {"input": input_, "session_id": session_id}
     if instructions:
         body["instructions"] = instructions

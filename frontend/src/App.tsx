@@ -298,9 +298,9 @@ function Sidebar({ route, hist, bot, onClose }: { route: Route; hist: Hist; bot?
           </NavItem>
         </NavGroup>
 
-        <NavGroup label="Uji">
+        <NavGroup label="Pengujian">
           <NavItem href="#/uji" icon={I.test} current={route.name === 'uji'}>
-            Uji &amp; nilai
+            Evaluasi
           </NavItem>
           <NavItem href="#/aktivitas" icon={I.log} current={route.name === 'aktivitas'}>
             Log aktivitas

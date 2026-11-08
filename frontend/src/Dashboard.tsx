@@ -32,7 +32,7 @@ function StartCard() {
   const steps = [
     { icon: I.chat, title: 'Ngobrol dengan agen', text: 'Tanya bebas ke satu agen.', href: '#/chat', cta: 'Buka Chat' },
     { icon: I.marketing, title: 'Jalankan alur kerja', text: 'Marketing atau Customer Service, langkah demi langkah.', href: '#/marketing', cta: 'Buka Marketing', more: { href: '#/cs', label: 'atau Customer Service' } },
-    { icon: I.test, title: 'Uji dan nilai hasil', text: 'Jalankan kasus uji dan beri nilai 1–5.', href: '#/uji', cta: 'Buka Uji & nilai' },
+    { icon: I.test, title: 'Evaluasi hasil', text: 'Jalankan skenario uji dan beri nilai 1–5.', href: '#/uji', cta: 'Buka Evaluasi' },
   ]
   return (
     <section className="start card" aria-labelledby="start-h">

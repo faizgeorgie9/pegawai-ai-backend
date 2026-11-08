@@ -2,7 +2,7 @@ import { useMemo, useSyncExternalStore } from 'react'
 
 // Hash router. The hash is the state, so refresh and back work.
 // #/ beranda, #/chat (agent list), #/grup (group list), #/chat/<id>/<sesi?> (old #/bot/... still read), #/grup/<id>, #/agen, #/agen/baru, #/agen/<id>, #/agen/<id>/ubah,
-// #/tools, #/computer-use, #/scheduler, #/marketing, #/cs, #/uji, #/aktivitas
+// #/tools, #/computer-use, #/scheduler, #/marketing, #/cs, #/uji (alias #/evaluasi), #/aktivitas
 export type Route =
   | { name: 'home' }
   | { name: 'bot'; id: string; sid?: string }
@@ -38,7 +38,7 @@ export function parse(hash: string): Route {
   if (p[0] === 'scheduler') return { name: 'scheduler' }
   if (p[0] === 'marketing') return { name: 'marketing' }
   if (p[0] === 'cs') return { name: 'cs' }
-  if (p[0] === 'uji') return { name: 'uji' }
+  if (p[0] === 'uji' || p[0] === 'evaluasi') return { name: 'uji' }
   return { name: 'home' }
 }
 
