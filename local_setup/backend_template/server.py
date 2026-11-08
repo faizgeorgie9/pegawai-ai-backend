@@ -29,6 +29,15 @@ except ImportError:
     except Exception:
         knowledge_engine = None
 
+# Colorbox Agent Management, Configuration & Routing (Sprint 3)
+try:
+    from agent_manager import agent_registry
+except ImportError:
+    try:
+        from local_setup.backend_template.agent_manager import agent_registry
+    except Exception:
+        agent_registry = None
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -372,7 +381,7 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Pegawai-AI-Key, X-Department")
         self.end_headers()
         self.wfile.write(json.dumps(data, indent=2).encode("utf-8"))
@@ -380,7 +389,7 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Pegawai-AI-Key, X-Department")
         self.end_headers()
 
@@ -520,6 +529,39 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
             self._send_json_response(status_code, lookup_result)
             return
 
+        elif path == "/api/v1/agents":
+            if not agent_registry:
+                self._send_json_response(500, {"error": "Agent manager not initialized"})
+                return
+            query_params = parse_qs(parsed.query)
+            dept = query_params.get("department", [None])[0]
+            agents = agent_registry.list_agents(department=dept)
+            self._send_json_response(200, {
+                "status": "success",
+                "count": len(agents),
+                "agents": agents
+            })
+            return
+
+        elif path.startswith("/api/v1/agents/"):
+            if not agent_registry:
+                self._send_json_response(500, {"error": "Agent manager not initialized"})
+                return
+            agent_id = path[len("/api/v1/agents/"):].strip()
+            agent, err = agent_registry.get_agent(agent_id)
+            if err:
+                self._send_json_response(404, {
+                    "status": "error",
+                    "error_code": "ERR_AGENT_NOT_FOUND",
+                    "message": err
+                })
+                return
+            self._send_json_response(200, {
+                "status": "success",
+                "agent": agent
+            })
+            return
+
         elif path.startswith("/api/v1/mocks/"):
             mock_name = os.path.basename(path)
             if not mock_name.endswith(".json"):
@@ -546,18 +588,68 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
 
-        if path == "/api/v1/agent/execute":
+        content_len = int(self.headers.get("Content-Length", 0))
+        body_bytes = self.rfile.read(content_len) if content_len > 0 else b""
+        payload = {}
+        if body_bytes:
+            try:
+                payload = json.loads(body_bytes.decode("utf-8"))
+            except Exception as e:
+                self._send_json_response(400, {"status": "error", "error_code": "ERR_INVALID_JSON", "message": f"Invalid JSON body: {e}"})
+                return
+
+        if path == "/api/v1/agents":
+            if not agent_registry:
+                self._send_json_response(500, {"error": "Agent manager not initialized"})
+                return
+            new_agent, err = agent_registry.create_agent(payload)
+            if err:
+                self._send_json_response(400, {
+                    "status": "error",
+                    "error_code": "ERR_VALIDATION_FAILED",
+                    "message": err
+                })
+                return
+            self._send_json_response(201, {
+                "status": "success",
+                "message": f"Agent '{new_agent['name']}' successfully registered.",
+                "agent": new_agent
+            })
+            return
+
+        elif path == "/api/v1/agent/route":
+            if not agent_registry:
+                self._send_json_response(500, {"error": "Agent manager not initialized"})
+                return
+            agent_id = payload.get("agent_id")
+            department = payload.get("department")
+            routed_agent, err = agent_registry.route_request(agent_id=agent_id, department=department)
+            if err:
+                self._send_json_response(404, {
+                    "status": "error",
+                    "error_code": "ERR_ROUTING_FAILED",
+                    "message": err
+                })
+                return
+            
+            knowledge_sources = []
+            if knowledge_engine:
+                knowledge_sources = routed_agent.get("knowledge_sources", [])
+
+            self._send_json_response(200, {
+                "status": "success",
+                "routed_agent_id": routed_agent["id"],
+                "target_department": routed_agent["department"],
+                "role": routed_agent["role"],
+                "tone": routed_agent["tone"],
+                "knowledge_sources": knowledge_sources,
+                "timeout_sec": routed_agent.get("timeout_sec", 180)
+            })
+            return
+
+        elif path == "/api/v1/agent/execute":
             auth_header = self.headers.get("X-Pegawai-AI-Key", "demo-token")
             dept_header = self.headers.get("X-Department", "marketing")
-
-            content_len = int(self.headers.get("Content-Length", 0))
-            body_bytes = self.rfile.read(content_len)
-
-            try:
-                payload = json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
-            except Exception as e:
-                self._send_json_response(400, {"error": "Invalid JSON body", "detail": str(e)})
-                return
 
             prompt = payload.get("prompt")
             if not prompt:
@@ -801,6 +893,43 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
                 })
         else:
             self._send_json_response(404, {"error": "Not Found", "path": path})
+
+    def do_PUT(self):
+        parsed = urlparse(self.path)
+        path = parsed.path
+
+        content_len = int(self.headers.get("Content-Length", 0))
+        body_bytes = self.rfile.read(content_len) if content_len > 0 else b""
+        payload = {}
+        if body_bytes:
+            try:
+                payload = json.loads(body_bytes.decode("utf-8"))
+            except Exception as e:
+                self._send_json_response(400, {"status": "error", "error_code": "ERR_INVALID_JSON", "message": f"Invalid JSON body: {e}"})
+                return
+
+        if path.startswith("/api/v1/agents/"):
+            if not agent_registry:
+                self._send_json_response(500, {"error": "Agent manager not initialized"})
+                return
+            agent_id = path[len("/api/v1/agents/"):].strip()
+            updated_agent, err = agent_registry.update_agent(agent_id, payload)
+            if err:
+                status_code = 404 if "not found" in err.lower() else 400
+                self._send_json_response(status_code, {
+                    "status": "error",
+                    "error_code": "ERR_AGENT_UPDATE_FAILED",
+                    "message": err
+                })
+                return
+            self._send_json_response(200, {
+                "status": "success",
+                "message": f"Agent '{agent_id}' configuration successfully updated.",
+                "agent": updated_agent
+            })
+            return
+
+        self._send_json_response(404, {"error": "Not Found", "path": path})
 
 def run_server():
     server_address = ("", PORT)
