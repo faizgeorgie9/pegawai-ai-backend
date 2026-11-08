@@ -1,0 +1,64 @@
+{
+  "test_suite": "S3-02A Knowledge Loading and Retrieval",
+  "date": "2026-11-06",
+  "overall_status": "SUCCESS",
+  "tests": [
+    {
+      "name": "Versioned File Loading",
+      "passed": true
+    },
+    {
+      "name": "Grounded CS Retrieval (SOP-CBX-RET-01)",
+      "passed": true
+    },
+    {
+      "name": "Grounded Marketing Retrieval",
+      "passed": true
+    },
+    {
+      "name": "Truthful Missing Knowledge Fallback",
+      "passed": true
+    },
+    {
+      "name": "Department Knowledge Isolation",
+      "passed": true
+    }
+  ],
+  "sample_cs_retrieval": {
+    "status": "KNOWLEDGE_FOUND",
+    "grounded": true,
+    "query": "Kak, baju yang kemarin saya beli di Colorbox kekecilan, apakah bisa ditukar ukurannya?",
+    "department": "cs",
+    "match_count": 1,
+    "primary_source": "SOP-CBX-RET-01",
+    "results": [
+      {
+        "score": 1.5,
+        "file": "colorbox_cs_sop_v1.md",
+        "version": "1.0.0 (Released: 2026-11-06)",
+        "ref_code": "SOP-CBX-RET-01",
+        "title": "1. Kebijakan Penukaran Ukuran & Produk (Product Exchange Policy)",
+        "content": "* **[VERIFIED_FACT] [SOP-CBX-RET-01] Batas Waktu:** Penukaran ukuran (*size exchange*) hanya dapat dilakukan maksimal **7 (tujuh) hari kalender** terhitung sejak tanggal struk pembelian (toko fisik) atau tanggal barang diterima oleh kurir (pembelian daring).\n* **[VERIFIED_FACT] [SOP-CBX-RET-01] Syarat Mutlak Penukaran:**\n  1. Struk fisik asli atau nomor bukti pesanan online terverifikasi wajib dit...",
+        "labels": [
+          "VERIFIED_FACT"
+        ],
+        "sop_codes": [
+          "SOP-CBX-RET-01",
+          "SOP-CBX-RET-01",
+          "SOP-CBX-RET-01",
+          "SOP-CBX-RET-01"
+        ]
+      }
+    ]
+  },
+  "sample_missing_retrieval": {
+    "status": "KNOWLEDGE_ABSENT",
+    "grounded": false,
+    "query": "Apakah Colorbox menerima gadai emas murni atau jual ban mobil second?",
+    "department": "cs",
+    "message": "Informasi atau kebijakan spesifik terkait pertanyaan ini tidak ditemukan dalam SOP resmi Colorbox.",
+    "fallback_action": "ESCALATE_TO_SUPERVISOR",
+    "suggested_response": "Mohon maaf Kak, untuk pertanyaan atau permintaan khusus terkait hal ini, tim kami perlu melakukan konfirmasi langsung ke Customer Service Team Lead kami untuk memastikan informasi yang akurat. Kami telah membuatkan tiket tindak lanjut ya Kak.",
+    "results": []
+  }
+}

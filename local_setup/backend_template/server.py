@@ -20,6 +20,15 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from pathlib import Path
 
+# Colorbox Knowledge Loading & Simple Retrieval Engine (Sprint 3)
+try:
+    from knowledge_retriever import knowledge_engine
+except ImportError:
+    try:
+        from local_setup.backend_template.knowledge_retriever import knowledge_engine
+    except Exception:
+        knowledge_engine = None
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -469,6 +478,47 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
                     except Exception:
                         pass
             self._send_json_response(200, {"sops": sops_data})
+
+        elif path == "/api/v1/knowledge/registry":
+            if not knowledge_engine:
+                self._send_json_response(500, {"error": "Knowledge engine not initialized"})
+                return
+            reg_summary = {}
+            for k, v in knowledge_engine.registry.items():
+                reg_summary[k] = {
+                    "filename": v["filename"],
+                    "version": v["version"],
+                    "ref_code": v["ref_code"],
+                    "applicability": v["applicability"],
+                    "section_count": len(v["sections"])
+                }
+            self._send_json_response(200, {
+                "status": "success",
+                "knowledge_base": "Colorbox Retail & Brand Guidelines v1",
+                "registry": reg_summary
+            })
+            return
+
+        elif path == "/api/v1/knowledge/lookup":
+            if not knowledge_engine:
+                self._send_json_response(500, {"error": "Knowledge engine not initialized"})
+                return
+            query_params = parse_qs(parsed.query)
+            q = query_params.get("query", [""])[0]
+            dept = query_params.get("department", ["cs"])[0]
+
+            if not q.strip():
+                self._send_json_response(400, {
+                    "status": "error",
+                    "error_code": "ERR_VALIDATION_MISSING_QUERY",
+                    "message": "Query parameter 'query' is required."
+                })
+                return
+
+            lookup_result = knowledge_engine.retrieve(q, department=dept)
+            status_code = 200 if lookup_result.get("grounded") else 404
+            self._send_json_response(status_code, lookup_result)
+            return
 
         elif path.startswith("/api/v1/mocks/"):
             mock_name = os.path.basename(path)
