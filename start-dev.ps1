@@ -37,6 +37,16 @@ if (-not (Test-Path (Join-Path $frontendDir 'node_modules'))) {
     try { npm ci } finally { Pop-Location }
 }
 
+# Hermes Gateway (port 8642).
+$hermesUrl = 'http://127.0.0.1:8642/health'
+if (Test-Url $hermesUrl) {
+    Write-Host 'Hermes Gateway sudah berjalan di port 8642.' -ForegroundColor Green
+} else {
+    Write-Host 'Menyalakan Hermes Gateway di port 8642...' -ForegroundColor Cyan
+    Start-Process powershell -ArgumentList '-NoExit', '-Command', "`$host.UI.RawUI.WindowTitle='Hermes Gateway'; hermes gateway run"
+    if (-not (Wait-Url $hermesUrl 30)) { Write-Warning 'Hermes gateway belum menjawab di 8642. Pastikan API key dan profil terkonfigurasi.' }
+}
+
 # BFF. Reused if something already answers on 8090. The loop flag is needed on Windows: psycopg cannot use the default ProactorEventLoop.
 if (Test-Url $healthUrl) {
     Write-Host 'BFF sudah berjalan di port 8090.' -ForegroundColor Green
