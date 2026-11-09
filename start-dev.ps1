@@ -14,7 +14,7 @@ $frontendUrl = "http://localhost:$port/"
 $healthUrl = 'http://127.0.0.1:8090/api/health'
 
 function Test-Url($url) {
-    try { (Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200 } catch { $false }
+    try { (Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 5).StatusCode -eq 200 } catch { $false }
 }
 
 function Wait-Url($url, $seconds) {
