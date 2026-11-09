@@ -133,7 +133,7 @@
   "sample_traces": {
     "marketing": {
       "status": "success",
-      "run_id": "run_mkt_1794139396_227ae0",
+      "run_id": "run_mkt_1794196944_679bb8",
       "workflow": "colorbox_marketing_v1",
       "execution_duration_sec": 0.0,
       "usage": {
@@ -179,7 +179,7 @@
     },
     "cs_turn_1": {
       "status": "success",
-      "session_id": "sess_e2e_master_1794139396",
+      "session_id": "sess_e2e_master_1794196944",
       "agent_id": "ag_cbx_cs_01",
       "turn_number": 1,
       "execution_duration_sec": 0.0,
@@ -200,7 +200,7 @@
       },
       "response": "Halo Kak! Terima kasih sudah menghubungi Colorbox. Terkait keluhan Kakak, untuk penukaran ukuran pakaian dapat kami bantu maksimal 7 hari sejak tanggal pembelian ya Kak. Pastikan tag harga masih utuh dan struk pembelian disimpan. Boleh kami minta nomor pesanan atau foto struknya Kak?",
       "ticket_management": {
-        "ticket_id": "TKT-CBX-1B2B1",
+        "ticket_id": "TKT-CBX-46AD3",
         "priority": "MEDIUM",
         "status": "WAITING_CUSTOMER_INFO",
         "requires_human_escalation": false,
@@ -209,7 +209,7 @@
     },
     "cs_turn_2": {
       "status": "success",
-      "session_id": "sess_e2e_master_1794139396",
+      "session_id": "sess_e2e_master_1794196944",
       "agent_id": "ag_cbx_cs_01",
       "turn_number": 2,
       "execution_duration_sec": 0.0,
@@ -230,7 +230,7 @@
       },
       "response": "Halo Kak! Terima kasih sudah menghubungi Colorbox. Terkait keluhan Kakak, untuk penukaran ukuran pakaian dapat kami bantu maksimal 7 hari sejak tanggal pembelian ya Kak. Pastikan tag harga masih utuh dan struk pembelian disimpan. Boleh kami minta nomor pesanan atau foto struknya Kak?",
       "ticket_management": {
-        "ticket_id": "TKT-CBX-28B94",
+        "ticket_id": "TKT-CBX-965F5",
         "priority": "MEDIUM",
         "status": "WAITING_CUSTOMER_INFO",
         "requires_human_escalation": false,
@@ -239,7 +239,7 @@
     },
     "cs_critical_escalation": {
       "status": "success",
-      "session_id": "sess_crit_master_1794139396",
+      "session_id": "sess_crit_master_1794196944",
       "agent_id": "ag_cbx_cs_01",
       "turn_number": 1,
       "execution_duration_sec": 0.0,
@@ -260,7 +260,7 @@
       },
       "response": "Halo Kak! Terima kasih sudah menghubungi Colorbox. Terkait keluhan Kakak, untuk penukaran ukuran pakaian dapat kami bantu maksimal 7 hari sejak tanggal pembelian ya Kak. Pastikan tag harga masih utuh dan struk pembelian disimpan. Boleh kami minta nomor pesanan atau foto struknya Kak?",
       "ticket_management": {
-        "ticket_id": "TKT-CBX-FDC39",
+        "ticket_id": "TKT-CBX-ECD15",
         "priority": "CRITICAL",
         "status": "ESCALATED_TO_SUPERVISOR",
         "requires_human_escalation": true,
@@ -269,7 +269,7 @@
     },
     "integrations_status": {
       "status": "success",
-      "timestamp": "2026-11-08T19:03:16Z",
+      "timestamp": "2026-11-09T11:02:24Z",
       "summary": {
         "connected": 2,
         "mocked": 2,
