@@ -3,17 +3,19 @@ import type { ProxyOptions } from 'vite'
 import type { ServerResponse } from 'node:http'
 import react from '@vitejs/plugin-react'
 
-// The API key is read here, on the dev/preview server only. It has no VITE_ prefix and is never
-// passed to `define`, so it cannot reach browser code. The proxy adds it to every /api request.
+// The browser only talks to /bff/api/... (bff-spec section 9). This dev/preview proxy strips the /bff prefix, forwards to
+// the BFF on 127.0.0.1:8090 and adds the shared key. The key has no VITE_ prefix and is never passed to `define`,
+// so it cannot reach browser code. Hermes keys live in bff/.env and the browser never sees a Hermes URL.
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const key = env.FRONTEND_API_KEY
+  const key = env.BFF_API_KEY
   const proxy = {
-    '/api': {
-      target: 'http://127.0.0.1:8080',
+    '/bff': {
+      target: 'http://127.0.0.1:8090',
       changeOrigin: true,
-      timeout: 330_000, // above the 300 s run limit
-      proxyTimeout: 330_000,
+      timeout: 0, // SSE streams stay open
+      proxyTimeout: 0,
+      rewrite: (path: string) => path.replace(/^\/bff/, ''),
       configure(p) {
         p.on('proxyReq', (req) => {
           if (key) req.setHeader('X-Pegawai-AI-Key', key)
@@ -21,15 +23,9 @@ export default defineConfig(({ mode }) => {
         p.on('error', (_err, _req, res) => {
           const r = res as ServerResponse
           if (!r.headersSent) r.writeHead(502, { 'Content-Type': 'application/json' })
-          r.end(JSON.stringify({ error: 'Backend tidak terjangkau' }))
+          r.end(JSON.stringify({ error: 'Server belum terjangkau. Pastikan BFF menyala, lalu coba lagi.' }))
         })
       },
-    } satisfies ProxyOptions,
-    // Budi's banner comes back as image_url "/banner_promo_kreatif.png", served by the backend itself.
-    // Public static file, so no key is added; only image paths at the root are forwarded.
-    '^/[\\w.-]+\\.(png|jpe?g|webp)$': {
-      target: 'http://127.0.0.1:8080',
-      changeOrigin: true,
     } satisfies ProxyOptions,
   }
   return { base: './', plugins: [react()], server: { proxy }, preview: { proxy } }
