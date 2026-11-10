@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bots, config, db, engine, evaluations, groups, harden, hermes, usage
+from . import bots, catalog, config, db, engine, evaluations, groups, harden, hermes, knowledge, usage
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -18,6 +18,7 @@ from .errors import ApiError
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await db.open_pool()
+    await catalog.sync()
     hermes.start_client()
     await engine.recover()
     await groups.recover()
@@ -261,7 +262,7 @@ async def delete_session(bot_id: str, sid: str):
 @api.post("/bots/{bot_id}/runs", status_code=202)
 async def create_run(bot_id: str, request: Request):
     uid = current_user()
-    await bots.get_bot(uid, bot_id)
+    bot = await bots.get_bot(uid, bot_id)
     b = await body_of(request)
     text, sid = b.get("input"), b.get("session_id")
     if not isinstance(text, str) or not 1 <= len(text.strip()) <= 20000:
@@ -274,9 +275,34 @@ async def create_run(bot_id: str, request: Request):
     ins = b.get("instructions")  # optional per-run instructions (the frontend's experimental structured mode)
     if ins is not None and (not isinstance(ins, str) or len(ins) > 6000):
         raise ApiError(400, "Instruksi harus berupa teks (maksimal 6000 karakter)")
-    run = await engine.start_run(uid, bot_id, sid, text.strip(), "chat",
-                                 instructions=ins.strip() if isinstance(ins, str) and ins.strip() else None)
+    ins = ins.strip() if isinstance(ins, str) and ins.strip() else None
+    workflow, stage, test_mode = b.get("workflow"), b.get("stage"), b.get("test_mode", False)
+    if workflow not in (None, "cs", "marketing"):
+        raise ApiError(400, "Workflow harus cs atau marketing")
+    if stage is not None and (not isinstance(stage, str) or not 1 <= len(stage.strip()) <= 60):
+        raise ApiError(400, "Stage harus berupa teks (maksimal 60 karakter)")
+    if not isinstance(test_mode, bool):
+        raise ApiError(400, "test_mode harus true atau false")
+    context = None
+    if workflow:
+        # The BFF retrieves before the run: knowledge bundle of the bot's team plus up to 5 catalog products.
+        products = await catalog.search_products(text, limit=5)
+        ins, refs, meta = knowledge.build_context(bot["team"], workflow, ins, products, test_mode and workflow == "cs")
+        context = {**meta, "stage": stage.strip() if stage else None, "test_mode": test_mode, "context_refs": refs}
+    run = await engine.start_run(uid, bot_id, sid, text.strip(), "chat", instructions=ins, context=context)
     return {"run": engine.run_view(run), "session_id": sid}
+
+
+@api.get("/products/search")
+async def products_search(q: str | None = None, category: str | None = None, max_price: int | None = None,
+                          color: str | None = None, size: str | None = None, limit: int = 5):
+    """Catalog search: Postgres text search on q plus structured filters. At least one of them is required."""
+    if not any((q and q.strip(), category, max_price is not None, color, size)):
+        raise ApiError(400, "Isi q atau salah satu filter (category, max_price, color, size)")
+    if any(v is not None and len(v) > 200 for v in (q, category, color, size)):
+        raise ApiError(400, "Parameter pencarian terlalu panjang")
+    rows = await catalog.search_products(q, category, max_price, color, size, limit)
+    return {"data": rows, "count": len(rows)}
 
 
 @api.get("/runs")
@@ -327,7 +353,8 @@ async def run_stream(rid: str):
             first.append(("done", {"status": row["status"], "output": row["output"], "reasoning": row["reasoning"],
                                    "error": row["error"], "usage": {"input_tokens": row["input_tokens"],
                                                                     "output_tokens": row["output_tokens"],
-                                                                    "total_tokens": row["total_tokens"]}}))
+                                                                    "total_tokens": row["total_tokens"]},
+                                   **engine.done_extra(row["meta"])}))
             hub.unsubscribe(rid, q)
             return sse_response(_one_shot(first))
     except BaseException:
