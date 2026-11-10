@@ -10,14 +10,14 @@ export function ClassBadge({ c }: { c?: Cls }) {
   return c ? <span className={`pill cls cls-${c}`}>{CLS_LABEL[c]}</span> : null
 }
 
-function Frame({ title, meta, origin, originLabel, flags, children }: { title: string; meta?: string; origin: Origin; originLabel?: string; flags?: ReactNode; children: ReactNode }) {
+function Frame({ title, meta, origin, flags, children }: { title: string; meta?: string; origin: Origin; flags?: ReactNode; children: ReactNode }) {
   return (
     <article className="rcard" data-origin={origin}>
       <header>
         <b>{title}</b>
         {meta && <span className="quiet small">{meta}</span>}
         <span className="rflags">
-          {origin === 'sample' ? <span className="pill sample">Contoh data</span> : <span className="pill origin">{originLabel ?? 'Hasil agen · belum divalidasi backend'}</span>}
+          {origin === 'sample' && <span className="pill sample" title="Isi buatan frontend untuk menunjukkan bentuk hasil. Bukan hasil agen.">Contoh data</span>}
           {flags}
         </span>
       </header>
@@ -191,8 +191,9 @@ export function ValidationBadge({ v }: { v: Validation | null }) {
   return <span className={`pill ${v.status === 'valid' ? 'ok' : v.status === 'invalid' ? 'bad' : 'warn'}`} title={v.errors.join('\n') || undefined}>{VALID_LABEL[v.status]}</span>
 }
 
-// CS v2.1 result, validated by the BFF. The escalation is a recommendation only: nothing is routed to anyone.
-export function Cs21Card({ r, validation, origin, meta }: { r: Cs21; validation: Validation | null; origin: Origin; meta?: string }) {
+// CS v2.1 result, validated by the BFF. Ordered by what the reader needs first: the reply draft, intent and priority, the escalation
+// recommendation (a recommendation only: nothing is routed to anyone), the ticket summary, the sources, then the technical details, folded.
+export function Cs21Card({ r, validation, origin, meta, raw, refs }: { r: Cs21; validation: Validation | null; origin: Origin; meta?: string; raw?: string; refs?: ContextRef[] }) {
   const s = r.summary
   const prio = { P0: 'Kritis', P1: 'Tinggi', P2: 'Sedang', P3: 'Rendah' }[r.priority]
   return (
@@ -200,22 +201,22 @@ export function Cs21Card({ r, validation, origin, meta }: { r: Cs21; validation:
       title="Hasil CS"
       meta={meta}
       origin={origin}
-      originLabel="Hasil agen · divalidasi BFF"
-      flags={<>{r.simulation.simulated && <span className="pill sim">Simulasi{r.simulation.ids.length ? ` · ${r.simulation.ids.join(', ')}` : ''}</span>}<ValidationBadge v={validation} /></>}
+      flags={<>{r.simulation.simulated && <span className="pill sim" title="Tidak ada pesan yang dikirim ke pelanggan. Semuanya latihan.">Simulasi{r.simulation.ids.length ? ` · ${r.simulation.ids.join(', ')}` : ''}</span>}{validation && validation.status !== 'valid' && <ValidationBadge v={validation} />}</>}
     >
-      <div className="cs-top">
-        <span className="pill cls-class" title={r.primary_intent}>{INTENT_LABEL[r.primary_intent] ?? r.primary_intent}</span>
-        <span className="pill plain num">Keyakinan {Math.round(r.confidence * 100)}%</span>
-        <span className={`pill prio-${r.priority}`}>{r.priority} · {prio}</span>
-      </div>
-      {r.secondary_intents.length > 0 && <p className="quiet small">Intent tambahan: {r.secondary_intents.map((i) => INTENT_LABEL[i] ?? i).join(', ')}</p>}
-      <Block label="Draf balasan pelanggan" badge={<span className="pill warn">Draf — perlu review manusia</span>}>
+      <Block label="Draf balasan pelanggan" badge={<span className="pill warn">Draf internal, perlu tinjauan manusia</span>}>
         <p className="draft-text">{r.reply}</p>
+        {r.clarifying && <p className="quiet small">Pertanyaan klarifikasi: {r.clarifying}</p>}
       </Block>
-      {r.clarifying && <Block label="Pertanyaan klarifikasi"><p>{r.clarifying}</p></Block>}
-      <Block label="Rekomendasi eskalasi · perlu tinjauan manusia" badge={<span className={`pill ${r.escalation.recommended ? 'bad' : 'ok'}`}>{r.escalation.recommended ? 'Direkomendasikan' : 'Tidak direkomendasikan'}</span>}>
+      <Block label="Intent dan prioritas">
+        <div className="cs-top">
+          <span className="pill cls-class" title={r.primary_intent}>{INTENT_LABEL[r.primary_intent] ?? r.primary_intent}</span>
+          <span className={`pill prio-${r.priority}`}>{r.priority} · {prio}</span>
+        </div>
+        {r.secondary_intents.length > 0 && <p className="quiet small">Intent tambahan: {r.secondary_intents.map((i) => INTENT_LABEL[i] ?? i).join(', ')}</p>}
+      </Block>
+      <Block label="Rekomendasi eskalasi" badge={<span className={`pill ${r.escalation.recommended ? 'bad' : 'ok'}`}>{r.escalation.recommended ? 'Direkomendasikan' : 'Tidak direkomendasikan'}</span>}>
         <p>{r.escalation.reason || (r.escalation.recommended ? 'Tidak ada alasan ditulis.' : 'Tidak ada alasan eskalasi. Draf tetap perlu ditinjau manusia.')}</p>
-        <p className="quiet small">Ini hanya rekomendasi. Tidak ada yang dikirim ke siapa pun.</p>
+        <p className="quiet small">Hanya rekomendasi. Tidak ada yang dikirim ke siapa pun.</p>
       </Block>
       <Block label="Ringkasan tiket">
         {s.issue && <p>{s.issue}</p>}
@@ -226,7 +227,7 @@ export function Cs21Card({ r, validation, origin, meta }: { r: Cs21; validation:
         {s.outcome && <><h4>Hasil yang diminta</h4><p>{s.outcome}</p></>}
         <SubList label="Konteks yang dipertahankan" items={s.context} />
       </Block>
-      <Block label="Referensi knowledge yang dipakai jawaban">
+      <Block label="Sumber">
         {r.refs.length ? (
           <ul className="rlist">
             {r.refs.map((k, i) => (
@@ -240,7 +241,25 @@ export function Cs21Card({ r, validation, origin, meta }: { r: Cs21; validation:
         ) : (
           <p className="quiet">Tidak ada referensi knowledge disebut.</p>
         )}
+        {refs && <Provenance refs={refs} workflow="cs" />}
       </Block>
+      <details className="tech">
+        <summary>Detail teknis</summary>
+        <dl className="kv2">
+          <dt>Keyakinan</dt>
+          <dd className="num">{Math.round(r.confidence * 100)}%</dd>
+          <dt>Validasi</dt>
+          <dd>{validation ? <ValidationBadge v={validation} /> : 'Tidak diperiksa'}</dd>
+          <dt>Intent utama</dt>
+          <dd>{r.primary_intent}</dd>
+        </dl>
+        {raw && (
+          <>
+            <h4>Jawaban mentah agen</h4>
+            <pre className="raw">{raw}</pre>
+          </>
+        )}
+      </details>
     </Frame>
   )
 }
@@ -252,7 +271,7 @@ export function Provenance({ refs, workflow }: { refs: ContextRef[]; workflow: '
   if (!refs.length) return null
   const reg = workflow === 'cs' ? 'daftar sumber CS' : 'daftar sumber Hub'
   return (
-    <details className="prov" open>
+    <details className="prov">
       <summary>Sumber jawaban <span className="quiet small">({refs.length})</span></summary>
       <p className="quiet small">Konteks yang diberikan ke agen untuk run ini, belum tentu semuanya dikutip di jawaban. ID SRC-xx hanya berlaku di {reg}.</p>
       {(['knowledge', 'product', 'fixture'] as const).map((t) => {

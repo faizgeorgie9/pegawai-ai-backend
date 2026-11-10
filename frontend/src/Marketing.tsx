@@ -6,7 +6,8 @@ import { AnswerDetails, MarketingCard, PlainAnswer, Provenance } from './ResultC
 import { instructionsFor, parseMarketing, stripBlock } from './results'
 import type { ContextRef, MarketingKind, MarketingResult, Parsed } from './results'
 import { useRun } from './useRun'
-import { DataLegend, Empty, Loading, PageHead, Req } from './ui-extra'
+import { I, Icon } from './ui'
+import { Empty, Loading, PageHead, Req } from './ui-extra'
 import { AgentSelect, ConfirmSwitch, OpenInChat, RunBar, Switch, hhmm, teamBots } from './ws-common'
 
 const STAGES = ['Brief', 'Rencana', 'Konten', 'Review', 'Revisi'] as const
@@ -92,11 +93,9 @@ export default function Marketing() {
     <section className="page ws">
       <PageHead
         title="Marketing"
-        sub="Alur langkah demi langkah: brief → rencana → konten → review → revisi."
-        hint={<>Untuk tanya bebas, pakai <a href="#/chat">Chat</a>.</>}
+        sub="Satu alur, lima tahap: brief, rencana, konten, review, revisi."
         actions={<AgentSelect label="Agen" bots={team} value={cur?.id ?? ''} onChange={(id) => (id === cur?.id ? null : dirty.current ? setPending(id) : setAgent(id))} />}
       />
-      <DataLegend />
       {!cur ? <Loading text="Memuat agen Marketing..." /> : <Workspace key={cur.id} bot={cur} onDirty={(v) => (dirty.current = v)} />}
       {pending && (
         <ConfirmSwitch
@@ -198,26 +197,25 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
 
   return (
     <>
-      <div className="ws-bar">
-        <Switch checked={structured} onChange={setStructured} label="Mode terstruktur (eksperimen)" hint="Agen diminta menambahkan satu blok JSON untuk kartu hasil. Format ini usulan frontend dan belum divalidasi backend." />
-        <Switch checked={sample} onChange={setSample} label="Lihat contoh" />
-        <OpenInChat botId={bot.id} sid={sid} />
-        <span className="quiet small ws-sess">{sid ? 'Sesi aktif: semua tahap memakai percakapan yang sama.' : 'Sesi dimulai saat brief dikirim.'}</span>
-      </div>
-      {structured && <p className="quiet small">Mode terstruktur: agen diminta menutup jawaban dengan blok JSON. Skema ini usulan frontend; backend belum memvalidasi. Jika blok tidak terbaca, jawaban teks tetap ditampilkan.</p>}
+      {sid && (
+        <div className="ws-bar">
+          <OpenInChat botId={bot.id} sid={sid} />
+          <span className="quiet small ws-sess">Semua tahap memakai percakapan yang sama.</span>
+        </div>
+      )}
 
       <ol className="stepper" aria-label="Tahap kerja">
         {STAGES.map((s, i) => (
           <li key={s}>
             <button type="button" aria-current={stage === i ? 'step' : undefined} onClick={() => setStage(i)} data-done={stageDone(i) || undefined}>
-              <span className="step-n" aria-hidden="true">{stageDone(i) ? '✓' : i + 1}</span>
+              <span className="step-n" aria-hidden="true">{stageDone(i) ? <Icon d={I.check} size={14} /> : i + 1}</span>
               {s}
             </button>
           </li>
         ))}
       </ol>
 
-      <div className="ws-grid">
+      <div className="ws-grid" data-solo={outs.length === 0 || undefined}>
         <div className="ws-main">
           {stage === 0 && (
             <form className="ws-form" onSubmit={submitBrief} noValidate>
@@ -249,12 +247,17 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
                 <Field label="Jumlah output *" err={tried ? errs.count : ''}>
                   <input inputMode="numeric" value={form.count} onChange={(e) => setForm({ ...form, count: e.target.value })} aria-invalid={tried && !!errs.count} />
                 </Field>
-                {FIELDS.map(([k, l]) => (
-                  <Field key={k} label={l}>
-                    <input value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
-                  </Field>
-                ))}
               </div>
+              <details className="opts" open={FIELDS.some(([k]) => form[k].trim() !== '') || undefined}>
+                <summary>Tambahan (opsional)</summary>
+                <div className="fgrid opts-body">
+                  {FIELDS.map(([k, l]) => (
+                    <Field key={k} label={l}>
+                      <input value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
+                    </Field>
+                  ))}
+                </div>
+              </details>
               {tried && Object.keys(errs).length > 0 && <p className="field-err" role="alert">Lengkapi {Object.keys(errs).length} kolom wajib di atas.</p>}
               <div className="form-actions">
                 <button className="btn primary" type="submit" disabled={run.busy}>
@@ -324,11 +327,9 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
           )}
         </div>
 
+        {outs.length > 0 && (
         <aside className="ws-hist" aria-label="Riwayat hasil">
           <h2>Riwayat hasil</h2>
-          {outs.length === 0 ? (
-            <p className="quiet small">Belum ada. Setiap versi per tahap tersimpan di sini selama sesi ini terbuka.</p>
-          ) : (
             <ul>
               {[...outs].reverse().map((o) => (
                 <li key={o.id}>
@@ -339,10 +340,18 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
                 </li>
               ))}
             </ul>
-          )}
-          <p className="quiet small">Riwayat ini hanya di layar. Percakapan lengkap ada di riwayat chat agen.</p>
         </aside>
+        )}
       </div>
+
+      <details className="opts">
+        <summary>Opsi lanjutan</summary>
+        <div className="opts-body">
+          <Switch checked={structured} onChange={setStructured} label="Hasil terstruktur (eksperimen)" hint="Agen diminta menutup jawaban dengan satu blok JSON untuk kartu hasil. Skema ini usulan frontend dan belum divalidasi backend." />
+          <p className="quiet small">Jika blok tidak terbaca, jawaban teks tetap ditampilkan.</p>
+          <Switch checked={sample} onChange={setSample} label="Tampilkan contoh hasil" hint="Contoh bentuk kartu dari requirement. Bukan output agen." />
+        </div>
+      </details>
     </>
   )
 }

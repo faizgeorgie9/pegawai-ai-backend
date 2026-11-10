@@ -54,7 +54,8 @@ export default function Uji() {
   const [sid, setSid] = useState('')
   const [runSnap, setRunSnap] = useState<Snap | null>(null)
   const [runMeta, setRunMeta] = useState<Partial<RunMeta>>({})
-  const [compare, setCompare] = useState(false)
+  const [tab, setTab] = useState<'uji' | 'bandingkan' | 'ringkasan'>('uji')
+  const [pickId, setPickId] = useState('')
   const [kind, setKind] = useState<'repeat' | 'agents'>('repeat')
   const [times, setTimes] = useState<2 | 3>(2)
   const [botB, setBotB] = useState('')
@@ -72,6 +73,7 @@ export default function Uji() {
   const effective = (s: Scenario) => override || defaultBot(s)
   const run = useRun()
   const busy = run.busy || cmp?.status === 'running'
+  const compare = tab === 'bandingkan'
   const nameOf = (id: string) => bots.find((b) => b.id === id)?.name ?? id
   const teamOf = (id: string) => bots.find((b) => b.id === id)?.team
   const saved = () => {
@@ -163,142 +165,161 @@ export default function Uji() {
   }
 
   const shownRows = SCENARIOS.filter((s) => group === 'all' || s.group === group)
+  const chosen = shownRows.find((s) => s.id === pickId) ?? shownRows[0]
   const liveIdx = cmp ? Math.max(0, cmp.cols.findIndex((c) => c.status === 'running')) : 0
 
   return (
     <section className="page ws">
       <PageHead title="Evaluasi" sub="Jalankan skenario uji, bandingkan hasil, dan beri nilai 1–5." />
-      <p className="note-box">Marketing TC-01 sampai TC-11 mengikuti test matrix requirement v1.1, dengan produk katalog asli (Public Data · 9 Nov 2026); hanya promo di TC-05 yang DUMMY. Kasus CS: V01 sampai V06 dan demo A sampai C dari paket CS v2.1 (kasus bergiliran dijalankan berurutan dalam satu sesi), PH-01 sampai PH-05 preset Hub. Kasus CS dinilai dengan rubrik 6 kriteria.</p>
 
-      {summary.state === 'ok' && summary.data && <Summary data={summary.data} />}
-      {summary.state === 'error' && <ErrorLine text={summary.error} onRetry={summary.retry} />}
-
-      <div className="toolbar">
-        <div className="seg" role="tablist" aria-label="Kelompok skenario">
-          {(['all', 'marketing', 'cs'] as const).map((g) => (
-            <button key={g} role="tab" aria-selected={group === g} onClick={() => setGroup(g)}>
-              {g === 'all' ? 'Semua' : g === 'marketing' ? 'Marketing' : 'CS'}
-            </button>
-          ))}
-        </div>
-        <label className="field inline ws-agent">
-          <span>Agen</span>
-          <select value={override} disabled={busy} onChange={(e) => { setOverride(e.target.value); setBotB('') }}>
-            <option value="">Otomatis (Rian untuk Marketing, Siti untuk CS)</option>
-            {bots.map((b) => (
-              <option key={b.id} value={b.id}>{b.name} · {b.role}</option>
-            ))}
-          </select>
-        </label>
+      <div className="tabs" role="tablist" aria-label="Bagian Evaluasi">
+        {([['uji', 'Uji'], ['bandingkan', 'Bandingkan'], ['ringkasan', 'Ringkasan']] as const).map(([k, l]) => (
+          <button key={k} type="button" role="tab" aria-selected={tab === k} disabled={busy && tab !== k} onClick={() => setTab(k)}>
+            {l}
+          </button>
+        ))}
       </div>
 
-      <div className="cmp-opts">
-        <label className="ws-switch">
-          <input type="checkbox" checked={compare} disabled={busy} onChange={(e) => setCompare(e.target.checked)} />
-          <span>Mode Bandingkan</span>
-        </label>
-        {compare && (
-          <>
-            <div className="seg" role="tablist" aria-label="Cara membandingkan">
-              <button role="tab" aria-selected={kind === 'repeat'} disabled={busy} onClick={() => setKind('repeat')}>Ulang N kali</button>
-              <button role="tab" aria-selected={kind === 'agents'} disabled={busy} onClick={() => setKind('agents')}>Dua agen</button>
-            </div>
-            {kind === 'repeat' ? (
-              <label className="field inline">
-                <span>Jumlah run</span>
-                <select value={times} disabled={busy} onChange={(e) => setTimes(Number(e.target.value) === 3 ? 3 : 2)}>
-                  <option value={2}>2 kali</option>
-                  <option value={3}>3 kali</option>
-                </select>
-              </label>
-            ) : (
-              <label className="field inline">
-                <span>Agen kedua</span>
-                <select value={botB} disabled={busy} onChange={(e) => setBotB(e.target.value)}>
-                  <option value="">Pilih agen satu tim</option>
-                  {peerOpts.map((b) => <option key={b.id} value={b.id}>{b.name} · {b.role}</option>)}
-                </select>
-              </label>
-            )}
-            <span className="quiet small">Tiap run memakai sesi baru, dijalankan satu per satu.</span>
-          </>
-        )}
-      </div>
-      {problem && <ErrorLine text={problem} />}
+      {tab === 'ringkasan' && (
+        <>
+          {summary.state === 'ok' && summary.data && <Summary data={summary.data} />}
+          {summary.state === 'error' && <ErrorLine text={summary.error} onRetry={summary.retry} />}
+          <div className="block">
+            <header><h2>Log eksperimen</h2></header>
+            {log.state === 'loading' && <Loading />}
+            {log.state === 'error' && <ErrorLine text={log.error} onRetry={log.retry} />}
+            {log.state === 'ok' && <LogTable rows={log.data ?? []} />}
+          </div>
+        </>
+      )}
 
-      <div className="table-wrap">
-        <table className="plain sc-table">
-          <thead><tr><th>Kasus</th><th>Skenario</th><th>Prompt</th><th></th></tr></thead>
-          <tbody>
-            {shownRows.map((s) => (
-              <tr key={s.id} data-on={sc?.id === s.id || undefined}>
-                <td className="num" data-label="Kasus" style={{ whiteSpace: 'nowrap' }}><b>{s.id}</b></td>
-                <td data-label="Skenario" className="rich">
-                  <b>{s.title}</b>
-                  <div className="quiet small">{s.capability}</div>
-                  <span className={`pill ${s.tagKind === 'dummy' ? 'sample' : s.tagKind === 'hub' ? 'plain' : 'origin'}`}>{s.tag}</span>
-                  {s.turns.length > 1 && <span className="pill plain tag">{s.turns.length} giliran</span>}
-                  {s.simulate && <span className="pill sim tag">Simulasi</span>}
-                </td>
-                <td data-label="Prompt"><div className="clamp2" title={s.prompt}>{s.prompt}</div></td>
-                <td className="act-cell">
-                  <button className="btn primary" disabled={busy} onClick={() => void start(s)} aria-label={`${compare ? 'Bandingkan' : 'Jalankan'} ${s.id}`}>{compare ? 'Bandingkan' : 'Jalankan'}</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {tab !== 'ringkasan' && (
+        <>
+          <div className="uji-pick">
+            <section className="pick-list" aria-labelledby="cases-h">
+              <header className="pick-head">
+                <h2 id="cases-h">Kasus uji</h2>
+                <div className="seg" role="tablist" aria-label="Kelompok skenario">
+                  {(['all', 'marketing', 'cs'] as const).map((g) => (
+                    <button key={g} role="tab" aria-selected={group === g} onClick={() => setGroup(g)}>
+                      {g === 'all' ? 'Semua' : g === 'marketing' ? 'Marketing' : 'CS'}
+                    </button>
+                  ))}
+                </div>
+              </header>
+              <ul className="cases">
+                {shownRows.map((s) => (
+                  <li key={s.id}>
+                    <button type="button" className="case" aria-pressed={chosen?.id === s.id} onClick={() => setPickId(s.id)}>
+                      <span className="case-id num">{s.id}</span>
+                      <span className="case-main">
+                        <b>{s.title}</b>
+                        <small title={s.tag}>{s.tag}{s.turns.length > 1 ? ` · ${s.turns.length} giliran` : ''}{s.simulate ? ' · simulasi' : ''}</small>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
 
-      <div ref={panel} className="uji-run">
-        {!sc && <Empty title="Belum ada yang dijalankan">Pilih skenario lalu tekan Jalankan. Setiap run memakai sesi baru.</Empty>}
-        {sc && (
-          <>
-            <header className="ws-form-head">
-              <h2>{sc.id}: {sc.title}</h2>
-              <span className="quiet small">
-                {cmp ? (cmp.kind === 'repeat' ? `Ulang ${cmp.cols.length} kali · ${nameOf(botId)}` : `Dua agen: ${cmp.cols.map((c) => c.botName).join(' dan ')}`) : `Agen: ${nameOf(botId)}`} · {ROUTE}
-              </span>
-              {!cmp && <OpenInChat botId={botId} sid={sid} />}
-            </header>
-            <RunBar
-              busy={busy}
-              text={(cmp ? `Run ${liveIdx + 1} dari ${cmp.cols.length}: ${cmp.cols[liveIdx].botName} sedang bekerja` : 'Agen sedang bekerja') + (sc.turns.length > 1 ? `, giliran ${turnNo} dari ${sc.turns.length}` : '') + '...'}
-              onStop={stop}
-              status={run.status}
-              error={run.error}
-              onRetry={() => void start(sc)}
-              stoppedNote={cmp ? 'Dihentikan. Perbandingan yang belum lengkap tidak bisa disimpan.' : 'Dihentikan. Anda masih bisa menyimpan evaluasi dengan hasil Nonaktif.'}
-            />
-            {cmp && <CompareColumns cols={cmp.cols} live={run.text} />}
-            {cmp?.status === 'incomplete' && <p className="note-box">Perbandingan belum lengkap, jadi belum bisa dinilai. Jalankan lagi.</p>}
-            {!cmp && run.busy && run.text && sc.group !== 'cs' && <article className="rcard live"><div className="rbody"><p className="draft-text">{run.text}</p></div></article>}
-            {!cmp && runSnap && runSnap.status === 'done' && runSnap.turns.map((t, i) => (
-              <div key={i}>
-                {sc.turns.length > 1 && <p className="quiet small">Giliran {i + 1}: {sc.turns[i]}</p>}
-                {t.result.structured ? (
-                  <Cs21Card r={t.result.structured} validation={t.result.validation} origin="agent" meta={sc.turns.length > 1 ? `Giliran ${i + 1}` : undefined} />
-                ) : (
-                  <article className="rcard">
-                    <header><b>Output aktual</b><span className="pill origin">Jawaban agen, teks asli</span>{t.result.validation?.status === 'invalid' && <span className="pill bad">Tidak lolos validasi v2.1</span>}</header>
-                    <div className="rbody md"><Markdown remarkPlugins={[remarkGfm]}>{t.text || '(kosong)'}</Markdown></div>
-                  </article>
+            {chosen && (
+              <section className="pick-detail" aria-labelledby="chosen-h">
+                <h2 id="chosen-h">{chosen.id}: {chosen.title}</h2>
+                <p className="quiet small">{chosen.capability}</p>
+                <div className="chip-row">
+                  <span className={`pill ${chosen.tagKind === 'dummy' ? 'sample' : 'plain'}`}>{chosen.tag}</span>
+                  {chosen.turns.length > 1 && <span className="pill plain">{chosen.turns.length} giliran</span>}
+                  {chosen.simulate && <span className="pill sim" title="Memakai data simulasi (SIM-*). Bukan data pelanggan nyata.">Simulasi</span>}
+                </div>
+                <div className="case-prompt" tabIndex={0} role="region" aria-label="Pesan yang dikirim ke agen">{chosen.prompt}</div>
+                <label className="field">
+                  <span>Agen</span>
+                  <select value={override} disabled={busy} onChange={(e) => { setOverride(e.target.value); setBotB('') }}>
+                    <option value="">Otomatis ({chosen.group === 'cs' ? 'Siti' : 'Rian'})</option>
+                    {bots.map((b) => (
+                      <option key={b.id} value={b.id}>{b.name} · {b.role}</option>
+                    ))}
+                  </select>
+                </label>
+                {compare && (
+                  <div className="cmp-opts">
+                    <div className="seg" role="tablist" aria-label="Cara membandingkan">
+                      <button role="tab" aria-selected={kind === 'repeat'} disabled={busy} onClick={() => setKind('repeat')}>Ulang N kali</button>
+                      <button role="tab" aria-selected={kind === 'agents'} disabled={busy} onClick={() => setKind('agents')}>Dua agen</button>
+                    </div>
+                    {kind === 'repeat' ? (
+                      <label className="field">
+                        <span>Jumlah run</span>
+                        <select value={times} disabled={busy} onChange={(e) => setTimes(Number(e.target.value) === 3 ? 3 : 2)}>
+                          <option value={2}>2 kali</option>
+                          <option value={3}>3 kali</option>
+                        </select>
+                      </label>
+                    ) : (
+                      <label className="field">
+                        <span>Agen kedua</span>
+                        <select value={botB} disabled={busy} onChange={(e) => setBotB(e.target.value)}>
+                          <option value="">Pilih agen satu tim</option>
+                          {peerOpts.map((b) => <option key={b.id} value={b.id}>{b.name} · {b.role}</option>)}
+                        </select>
+                      </label>
+                    )}
+                    <p className="quiet small">Tiap run memakai sesi baru, dijalankan satu per satu.</p>
+                  </div>
                 )}
-                <Provenance refs={t.result.refs} workflow={sc.group} />
-              </div>
-            ))}
-            {!cmp && runSnap && runSnap.status !== 'running' && <EvalForm key={runKey} sc={sc} botId={botId} sid={sid} snap={runSnap} meta={runMeta} onSaved={saved} />}
-            {cmp?.status === 'done' && <EvalForm key={runKey} sc={sc} botId={botId} sid={cmp.cols[0].sid} snap={{ text: '', runId: cmp.cols[0].runId, status: 'done', error: '', turns: [] }} meta={cmp.cols[0].meta} cmp={cmp} onSaved={saved} />}
-          </>
-        )}
-      </div>
+                {problem && <ErrorLine text={problem} />}
+                <button className="btn primary" disabled={busy} onClick={() => void start(chosen)} aria-label={`${compare ? 'Bandingkan' : 'Jalankan'} ${chosen.id}`}>
+                  {compare ? 'Bandingkan' : 'Jalankan'}
+                </button>
+              </section>
+            )}
+          </div>
 
-      <div className="block">
-        <header><h2>Log eksperimen</h2></header>
-        {log.state === 'loading' && <Loading />}
-        {log.state === 'error' && <ErrorLine text={log.error} onRetry={log.retry} />}
-        {log.state === 'ok' && <LogTable rows={log.data ?? []} />}
-      </div>
+          <div ref={panel} className="uji-run">
+            {sc && (
+              <>
+                <header className="ws-form-head">
+                  <h2>{sc.id}: {sc.title}</h2>
+                  <span className="quiet small">
+                    {cmp ? (cmp.kind === 'repeat' ? `Ulang ${cmp.cols.length} kali · ${nameOf(botId)}` : `Dua agen: ${cmp.cols.map((c) => c.botName).join(' dan ')}`) : `Agen: ${nameOf(botId)}`} · {ROUTE}
+                  </span>
+                  {!cmp && <OpenInChat botId={botId} sid={sid} />}
+                </header>
+                <RunBar
+                  busy={busy}
+                  text={(cmp ? `Run ${liveIdx + 1} dari ${cmp.cols.length}: ${cmp.cols[liveIdx].botName} sedang bekerja` : 'Agen sedang bekerja') + (sc.turns.length > 1 ? `, giliran ${turnNo} dari ${sc.turns.length}` : '') + '...'}
+                  onStop={stop}
+                  status={run.status}
+                  error={run.error}
+                  onRetry={() => void start(sc)}
+                  stoppedNote={cmp ? 'Dihentikan. Perbandingan yang belum lengkap tidak bisa disimpan.' : 'Dihentikan. Anda masih bisa menyimpan evaluasi dengan hasil Nonaktif.'}
+                />
+                {cmp && <CompareColumns cols={cmp.cols} live={run.text} />}
+                {cmp?.status === 'incomplete' && <p className="note-box">Perbandingan belum lengkap, jadi belum bisa dinilai. Jalankan lagi.</p>}
+                {!cmp && run.busy && run.text && sc.group !== 'cs' && <article className="rcard live"><div className="rbody"><p className="draft-text">{run.text}</p></div></article>}
+                {!cmp && runSnap && runSnap.status === 'done' && runSnap.turns.map((t, i) => (
+                  <div key={i}>
+                    {sc.turns.length > 1 && <p className="quiet small">Giliran {i + 1}: {sc.turns[i]}</p>}
+                    {t.result.structured ? (
+                      <Cs21Card r={t.result.structured} validation={t.result.validation} origin="agent" meta={sc.turns.length > 1 ? `Giliran ${i + 1}` : undefined} raw={t.text} refs={t.result.refs} />
+                    ) : (
+                      <>
+                        <article className="rcard">
+                          <header><b>Output aktual</b>{t.result.validation?.status === 'invalid' && <span className="pill bad">Tidak lolos validasi v2.1</span>}</header>
+                          <div className="rbody md"><Markdown remarkPlugins={[remarkGfm]}>{t.text || '(kosong)'}</Markdown></div>
+                        </article>
+                        <Provenance refs={t.result.refs} workflow={sc.group} />
+                      </>
+                    )}
+                  </div>
+                ))}
+                {!cmp && runSnap && runSnap.status !== 'running' && <EvalForm key={runKey} sc={sc} botId={botId} sid={sid} snap={runSnap} meta={runMeta} onSaved={saved} />}
+                {cmp?.status === 'done' && <EvalForm key={runKey} sc={sc} botId={botId} sid={cmp.cols[0].sid} snap={{ text: '', runId: cmp.cols[0].runId, status: 'done', error: '', turns: [] }} meta={cmp.cols[0].meta} cmp={cmp} onSaved={saved} />}
+              </>
+            )}
+          </div>
+        </>
+      )}
     </section>
   )
 }
@@ -508,7 +529,7 @@ function LogTable({ rows }: { rows: Evaluation[] }) {
       </div>
       <div className="table-wrap">
         <table className="plain">
-          <thead><tr><th>Kasus</th><th>Agen</th><th>Tanggal</th><th>Status</th><th>Skor rata-rata</th><th>Rute</th><th>Reviewer</th></tr></thead>
+          <thead><tr><th>Kasus</th><th>Agen</th><th>Tanggal</th><th>Status</th><th className="r">Skor rata-rata</th><th>Rute</th><th>Reviewer</th></tr></thead>
           <tbody>
             {list.map((e) => (
               <Fragment key={e.id}>
@@ -517,7 +538,7 @@ function LogTable({ rows }: { rows: Evaluation[] }) {
                 <td data-label="Agen">{name(e.bot_id)}</td>
                 <td className="num" data-label="Tanggal">{new Date(e.created_at * 1000).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
                 <td data-label="Status"><span className={`pill ${e.verdict === 'pass' ? 'ok' : e.verdict === 'fail' ? 'bad' : 'warn'}`}>{VERDICT_LABEL[e.verdict]}</span></td>
-                <td className="num" data-label="Skor rata-rata">{avgOf(e)?.toFixed(1) ?? '–'}</td>
+                <td className="num r" data-label="Skor rata-rata">{avgOf(e)?.toFixed(1) ?? '–'}</td>
                 <td data-label="Rute">{ROUTE}</td>
                 <td data-label="Reviewer">{e.reviewer || '–'}</td>
               </tr>
