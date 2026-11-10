@@ -161,15 +161,12 @@ td.st-col { min-width: 170px; }
 @media (prefers-reduced-motion: reduce) { .pline::after { width: 100%; } }
 .runbar { position: relative; overflow: hidden; }
 .runprog-row { display: inline-flex; align-items: center; gap: var(--s-2); }
-/* 2x2 waiting mark: 4px dots, 2px gap; the lit dot travels clockwise (grid order 1,2,4,3) */
-.spin4 { display: inline-grid; grid-template-columns: repeat(2, 4px); gap: 2px; flex: none; }
-.spin4 i { width: 4px; height: 4px; border-radius: 1px; background: var(--accent); opacity: .25; animation: spin4 1.2s steps(1) infinite; }
-.spin4 i:nth-child(1) { animation-delay: 0s; }
-.spin4 i:nth-child(2) { animation-delay: .3s; }
-.spin4 i:nth-child(4) { animation-delay: .6s; }
-.spin4 i:nth-child(3) { animation-delay: .9s; }
-@keyframes spin4 { 0% { opacity: 1; } 25% { opacity: .25; } }
-@media (prefers-reduced-motion: reduce) { .spin4 i { animation: none; opacity: .6; } }
+/* waiting mark: faint ring, one accent arc (about a quarter) turning linearly once per second */
+.spin-arc { flex: none; animation: spin-arc 1s linear infinite; }
+.spin-track { stroke: var(--accent-track); }
+.spin-head { stroke: var(--accent); }
+@keyframes spin-arc { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin-arc { animation: none; } }
 .msg-body > .runprog { gap: var(--s-1); font-size: var(--t-small); color: var(--muted); }
 
 /* copy button (icon + word) */

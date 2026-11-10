@@ -98,11 +98,12 @@ export function RunProgress({ detail }: { detail?: string }) {
   )
 }
 
-// Waiting mark: four dots in a 2x2 grid, one lit at a time going clockwise (opacity only, so nothing bounces).
+// Waiting mark: a thin ring with one accent arc turning at a steady speed (rotation only, nothing pulses or bounces).
 export const Spinner = () => (
-  <span className="spin4" aria-hidden="true">
-    <i /><i /><i /><i />
-  </span>
+  <svg className="spin-arc" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+    <circle cx="8" cy="8" r="6" fill="none" strokeWidth="2" className="spin-track" />
+    <circle cx="8" cy="8" r="6" fill="none" strokeWidth="2" strokeLinecap="round" strokeDasharray="10 28" className="spin-head" />
+  </svg>
 )
 
 const COPY = 'M9 9h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V10a1 1 0 0 1 1-1zM5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1'
