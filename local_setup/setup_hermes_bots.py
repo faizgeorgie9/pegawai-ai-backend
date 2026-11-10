@@ -1,3 +1,5 @@
+# LEGACY (superseded by the BFF on 10 Nov 2026, see local_setup/LEGACY.md).
+# DO NOT RUN: it overwrites the SOUL.md, API keys and toolset hardening of the Hermes profiles.
 """
 Setup Hermes profiles for the 5 builtin bots: rian, diana, budi, siti, hendra
 Configures API_SERVER_KEY, model (deepseek-v4.1-flash via opencode-zen), SOUL.md, and hardening.
