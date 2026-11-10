@@ -53,7 +53,7 @@ export function Tools() {
             <tr>
               <td data-label="Kemampuan platform" className="rich"><b>Pencarian katalog dan knowledge (BFF)</b></td>
               <td data-label="Isi"><div className="clamp2">BFF mencari 1.206 produk katalog dan knowledge Colorbox sebelum agen menjawab, lalu mencatat sumbernya per run.</div></td>
-              <td className="st-col" data-label="Status"><CapChip cap="ok" label="Working" /></td>
+              <td className="st-col" data-label="Status"><CapChip cap="ok" label="Berfungsi" /></td>
             </tr>
           </tbody>
         </table>
