@@ -88,6 +88,13 @@ def test_summary_uses_latest_per_case():
     assert s["dimensions"]["brand"] == {"avg": None, "n": 0}
 
 
+def test_cs_rubric_keys_accepted():
+    cs = {k: {"score": 4, "reason": ""} for k in ("accuracy", "relevance", "brand", "knowledge", "anti_hallucination", "escalation")}
+    assert set(clean({**OK, "scores": cs})["scores"]) == set(cs)
+    s = summarize([{"case_id": "V01", "verdict": "pass", "created_at": 1, "scores": cs}])
+    assert s["dimensions"]["escalation"] == {"avg": 4.0, "n": 1}
+
+
 def test_summary_empty():
     s = summarize([])
     assert s["cases"] == [] and s["latest_at"] is None and s["counts"] == {"pass": 0, "fail": 0, "blocked": 0}

@@ -1,4 +1,4 @@
-"""Evaluation log for test scenarios: validation plus CRUD. Scores: 9 rubric dimensions, each 1-5 or null with a reason."""
+"""Evaluation log for test scenarios: validation plus CRUD. Scores: the 9 Marketing dimensions or the 6 CS ones (Hub 4.1; they share accuracy, relevance, brand, knowledge), each 1-5 or null with a reason."""
 import json
 import uuid
 
@@ -6,7 +6,7 @@ from . import db
 from .errors import ApiError
 
 DIMENSIONS = ("accuracy", "relevance", "brand", "consistency", "knowledge", "instruction",
-              "completeness", "error_handling", "human_review")
+              "completeness", "error_handling", "human_review", "anti_hallucination", "escalation")
 VERDICTS = ("pass", "fail", "blocked")
 TEXT_LIMITS = {"case_id": 40, "bot_id": 60, "session_id": 80, "run_id": 80, "prompt": 20000,
                "expected": 20000, "actual": 40000, "reviewer": 80}
