@@ -2,12 +2,14 @@ import { Fragment, useCallback, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api, errText } from './bff'
-import type { EvalInput, Evaluation, EvalSummary, RunMeta } from './bff'
+import type { EvalInput, Evaluation, EvalSummary, RunCtx, RunMeta } from './bff'
 import { CompareColumns, Versions, metaValue } from './Compare'
 import type { Col } from './Compare'
 import Summary from './Summary'
 import { useData } from './data'
-import { RUBRIC } from './results'
+import { Cs21Card, Provenance } from './ResultCards'
+import { ALL_DIMENSIONS, CS_RUBRIC, RUBRIC } from './results'
+import type { RunResult } from './results'
 import { SCENARIOS } from './scenarios'
 import type { Scenario } from './scenarios'
 import { ErrorLine } from './ui'
@@ -22,7 +24,8 @@ type Sc = { v: string; reason: string } // v: '' | '1'..'5' | 'na'
 const VER_KEYS = ['hermes_version', 'model', 'provider', 'bot_id', 'soul_hash', 'toolsets', 'instructions_mode', 'bff_commit'] as const
 const VER_ROW = 'ev-row'
 const today = () => new Date().toISOString().slice(0, 10)
-const blankScores = (): Record<string, Sc> => Object.fromEntries(RUBRIC.map((d) => [d.key, { v: '', reason: '' }]))
+const dimsOf = (sc: Scenario): readonly { key: string; label: string }[] => (sc.group === 'cs' ? CS_RUBRIC : RUBRIC)
+const blankScores = (dims: readonly { key: string }[]): Record<string, Sc> => Object.fromEntries(dims.map((d) => [d.key, { v: '', reason: '' }]))
 
 export function suggest(scores: Record<string, Sc>, critical: boolean): { verdict: Verdict; why: string } {
   const rel = Object.values(scores).filter((s) => /^[1-5]$/.test(s.v))
@@ -36,7 +39,8 @@ export const avgOf = (e: Pick<Evaluation, 'scores'>): number | null => {
   return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null
 }
 
-type Snap = { text: string; runId: string; status: string; error: string }
+type TurnOut = { text: string; runId: string; result: RunResult }
+type Snap = { text: string; runId: string; status: string; error: string; turns: TurnOut[] }
 type CmpState = { kind: 'repeat' | 'agents'; cols: Col[]; status: 'running' | 'done' | 'incomplete' }
 const emptyCol = (botId: string, botName: string): Col => ({ botId, botName, runId: '', sid: '', status: 'pending', text: '', error: '', tokens: 0, seconds: null, startedAt: 0, meta: {} })
 
@@ -56,6 +60,7 @@ export default function Uji() {
   const [botB, setBotB] = useState('')
   const [cmp, setCmp] = useState<CmpState | null>(null)
   const [problem, setProblem] = useState('')
+  const [turnNo, setTurnNo] = useState(0)
   const cancelled = useRef(false)
   const fn = useCallback(() => api.evaluations(), [])
   const log = useLoad(fn)
@@ -76,6 +81,27 @@ export default function Uji() {
   // Agent B: another agent of the same team as agent A (when A is "Otomatis", it is checked when the scenario starts).
   const peerOpts = override ? bots.filter((b) => b.id !== override && b.team === teamOf(override)) : bots
 
+  // Workflow context: only when the agent's team fits the case (CS cases with a CS agent, Marketing with a Marketing agent).
+  const ctxOf = (s: Scenario, bid: string): RunCtx | undefined =>
+    teamOf(bid) === (s.group === 'cs' ? 'customer_support' : 'marketing') ? { workflow: s.group, stage: 'uji', ...(s.group === 'cs' && s.simulate ? { test_mode: true } : {}) } : undefined
+
+  // Multi-turn cases: the turns go in order, in one new session. Stops at the first turn that does not finish.
+  async function runTurns(s: Scenario, bid: string): Promise<Snap & { sid: string; superseded?: boolean }> {
+    let sid = ''
+    const turns: TurnOut[] = []
+    for (let i = 0; i < s.turns.length; i++) {
+      setTurnNo(i + 1)
+      const r = await run.send(s.turns[i], { botId: bid, sid: sid || undefined, ctx: ctxOf(s, bid) })
+      if (r.status === 'idle') return { text: '', runId: '', status: 'idle', error: '', turns, sid, superseded: true }
+      sid = r.sid || sid
+      turns.push({ text: r.text, runId: r.runId, result: r.result })
+      if (r.status !== 'done' || cancelled.current) return { text: r.text, runId: r.runId, status: r.status, error: r.error || (s.turns.length > 1 ? `Berhenti di giliran ${i + 1} dari ${s.turns.length}.` : ''), turns, sid }
+    }
+    const last = turns[turns.length - 1]
+    const text = s.turns.length > 1 ? turns.map((t, i) => `[Giliran ${i + 1}]\n${t.text}`).join('\n\n') : last.text
+    return { text, runId: last.runId, status: 'done', error: '', turns, sid }
+  }
+
   function begin(s: Scenario, bid: string) {
     setSc(s)
     setBotId(bid)
@@ -94,10 +120,11 @@ export default function Uji() {
     if (!bid) return
     if (compare) return void startCompare(s, bid)
     begin(s, bid)
-    const r = await run.send(s.prompt, { botId: bid })
-    if (r.status === 'idle') return
+    cancelled.current = false
+    const r = await runTurns(s, bid)
+    if (r.superseded) return
     setSid(r.sid)
-    setRunSnap({ text: r.text, runId: r.runId, status: r.status, error: r.error })
+    setRunSnap({ text: r.text, runId: r.runId, status: r.status, error: r.error, turns: r.turns })
     if (r.runId) void api.run(r.runId).then((d) => setRunMeta(d.meta), () => {})
   }
 
@@ -118,8 +145,8 @@ export default function Uji() {
     setCmp({ kind, cols, status: 'running' })
     for (let i = 0; i < ids.length; i++) {
       put(i, { status: 'running' })
-      const r = await run.send(s.prompt, { botId: ids[i] })
-      if (r.status === 'idle') return
+      const r = await runTurns(s, ids[i])
+      if (r.superseded) return
       const info = r.runId ? await api.run(r.runId).catch(() => null) : null
       const ok = r.status === 'done'
       put(i, { status: ok ? 'done' : r.status === 'stopped' ? 'stopped' : 'error', text: r.text, error: r.error, runId: r.runId, sid: r.sid, tokens: info?.tokens ?? 0, seconds: info?.seconds ?? null, startedAt: info?.started_at ?? 0, meta: info?.meta ?? {} })
@@ -141,7 +168,7 @@ export default function Uji() {
   return (
     <section className="page ws">
       <PageHead title="Evaluasi" sub="Jalankan skenario uji, bandingkan hasil, dan beri nilai 1–5." />
-      <p className="note-box">Kasus Marketing TC-01 sampai TC-11 mengikuti test matrix requirement v1.1; kalimat prompt disusun frontend dari contoh E-01 sampai E-05, produk contoh berlabel dummy. Kasus CS berlabel draf sampai requirement Mansi final.</p>
+      <p className="note-box">Marketing TC-01 sampai TC-11 mengikuti test matrix requirement v1.1, dengan produk katalog asli (Public Data · 9 Nov 2026); hanya promo di TC-05 yang DUMMY. Kasus CS: V01 sampai V06 dan demo A sampai C dari paket CS v2.1 (kasus bergiliran dijalankan berurutan dalam satu sesi), PH-01 sampai PH-05 preset Hub. Kasus CS dinilai dengan rubrik 6 kriteria.</p>
 
       {summary.state === 'ok' && summary.data && <Summary data={summary.data} />}
       {summary.state === 'error' && <ErrorLine text={summary.error} onRetry={summary.retry} />}
@@ -209,7 +236,9 @@ export default function Uji() {
                 <td data-label="Skenario" className="rich">
                   <b>{s.title}</b>
                   <div className="quiet small">{s.capability}</div>
-                  <span className={`pill ${s.group === 'cs' ? 'warn' : 'sample'}`}>{s.tag}</span>
+                  <span className={`pill ${s.tagKind === 'dummy' ? 'sample' : s.tagKind === 'hub' ? 'plain' : 'origin'}`}>{s.tag}</span>
+                  {s.turns.length > 1 && <span className="pill plain tag">{s.turns.length} giliran</span>}
+                  {s.simulate && <span className="pill sim tag">Simulasi</span>}
                 </td>
                 <td data-label="Prompt"><div className="clamp2" title={s.prompt}>{s.prompt}</div></td>
                 <td className="act-cell">
@@ -234,7 +263,7 @@ export default function Uji() {
             </header>
             <RunBar
               busy={busy}
-              text={cmp ? `Run ${liveIdx + 1} dari ${cmp.cols.length}: ${cmp.cols[liveIdx].botName} sedang bekerja...` : 'Agen sedang bekerja...'}
+              text={(cmp ? `Run ${liveIdx + 1} dari ${cmp.cols.length}: ${cmp.cols[liveIdx].botName} sedang bekerja` : 'Agen sedang bekerja') + (sc.turns.length > 1 ? `, giliran ${turnNo} dari ${sc.turns.length}` : '') + '...'}
               onStop={stop}
               status={run.status}
               error={run.error}
@@ -243,15 +272,23 @@ export default function Uji() {
             />
             {cmp && <CompareColumns cols={cmp.cols} live={run.text} />}
             {cmp?.status === 'incomplete' && <p className="note-box">Perbandingan belum lengkap, jadi belum bisa dinilai. Jalankan lagi.</p>}
-            {!cmp && run.busy && run.text && <article className="rcard live"><div className="rbody"><p className="draft-text">{run.text}</p></div></article>}
-            {!cmp && runSnap && runSnap.status === 'done' && (
-              <article className="rcard">
-                <header><b>Output aktual</b><span className="pill origin">Jawaban agen, teks asli</span></header>
-                <div className="rbody md"><Markdown remarkPlugins={[remarkGfm]}>{runSnap.text || '(kosong)'}</Markdown></div>
-              </article>
-            )}
+            {!cmp && run.busy && run.text && sc.group !== 'cs' && <article className="rcard live"><div className="rbody"><p className="draft-text">{run.text}</p></div></article>}
+            {!cmp && runSnap && runSnap.status === 'done' && runSnap.turns.map((t, i) => (
+              <div key={i}>
+                {sc.turns.length > 1 && <p className="quiet small">Giliran {i + 1}: {sc.turns[i]}</p>}
+                {t.result.structured ? (
+                  <Cs21Card r={t.result.structured} validation={t.result.validation} origin="agent" meta={sc.turns.length > 1 ? `Giliran ${i + 1}` : undefined} />
+                ) : (
+                  <article className="rcard">
+                    <header><b>Output aktual</b><span className="pill origin">Jawaban agen, teks asli</span>{t.result.validation?.status === 'invalid' && <span className="pill bad">Tidak lolos validasi v2.1</span>}</header>
+                    <div className="rbody md"><Markdown remarkPlugins={[remarkGfm]}>{t.text || '(kosong)'}</Markdown></div>
+                  </article>
+                )}
+                <Provenance refs={t.result.refs} workflow={sc.group} />
+              </div>
+            ))}
             {!cmp && runSnap && runSnap.status !== 'running' && <EvalForm key={runKey} sc={sc} botId={botId} sid={sid} snap={runSnap} meta={runMeta} onSaved={saved} />}
-            {cmp?.status === 'done' && <EvalForm key={runKey} sc={sc} botId={botId} sid={cmp.cols[0].sid} snap={{ text: '', runId: cmp.cols[0].runId, status: 'done', error: '' }} meta={cmp.cols[0].meta} cmp={cmp} onSaved={saved} />}
+            {cmp?.status === 'done' && <EvalForm key={runKey} sc={sc} botId={botId} sid={cmp.cols[0].sid} snap={{ text: '', runId: cmp.cols[0].runId, status: 'done', error: '', turns: [] }} meta={cmp.cols[0].meta} cmp={cmp} onSaved={saved} />}
           </>
         )}
       </div>
@@ -270,7 +307,8 @@ function EvalForm({ sc, botId, sid, snap, meta, cmp, onSaved }: { sc: Scenario; 
   const [consistency, setConsistency] = useState<'konsisten' | 'tidak_konsisten' | ''>('')
   const [consNote, setConsNote] = useState('')
   const [expected, setExpected] = useState(sc.expected)
-  const [scores, setScores] = useState<Record<string, Sc>>(blankScores)
+  const dims = dimsOf(sc)
+  const [scores, setScores] = useState<Record<string, Sc>>(() => blankScores(dimsOf(sc)))
   const [critical, setCritical] = useState(false)
   const [verdict, setVerdict] = useState<Verdict | ''>(snap.status === 'done' ? '' : 'blocked')
   const [errors, setErrors] = useState('')
@@ -287,7 +325,7 @@ function EvalForm({ sc, botId, sid, snap, meta, cmp, onSaved }: { sc: Scenario; 
   const sug = suggest(scores, critical)
 
   const bad: Record<string, string> = {}
-  for (const d of RUBRIC) {
+  for (const d of dims) {
     const s = scores[d.key]
     if (!s.v) bad[d.key] = 'Pilih skor 1 sampai 5 atau N/A.'
     else if (s.v === 'na' && !s.reason.trim()) bad[d.key] = 'N/A wajib diberi alasan.'
@@ -316,7 +354,7 @@ function EvalForm({ sc, botId, sid, snap, meta, cmp, onSaved }: { sc: Scenario; 
       prompt: sc.prompt,
       expected,
       actual,
-      scores: Object.fromEntries(RUBRIC.map((d) => [d.key, { score: scores[d.key].v === 'na' ? null : Number(scores[d.key].v), reason: scores[d.key].reason.trim() }])),
+      scores: Object.fromEntries(dims.map((d) => [d.key, { score: scores[d.key].v === 'na' ? null : Number(scores[d.key].v), reason: scores[d.key].reason.trim() }])),
       verdict,
       notes: { errors, improvements: improve, critical, reviewed_on: date },
       reviewer: reviewer.trim(),
@@ -363,8 +401,8 @@ function EvalForm({ sc, botId, sid, snap, meta, cmp, onSaved }: { sc: Scenario; 
       <Versions items={cmp ? cmp.cols.map((c, i) => ({ label: `Run ${i + 1} · ${c.botName}`, meta: c.meta })) : [{ label: 'Run', meta }]} />
       <p className="quiet small">Versi dicatat otomatis oleh BFF saat run dimulai.</p>
       <fieldset className="rubric">
-        <legend>Rubrik, skor 1 sampai 5</legend>
-        {RUBRIC.map((d) => {
+        <legend>{sc.group === 'cs' ? 'Rubrik CS (6 kriteria), skor 1 sampai 5' : 'Rubrik, skor 1 sampai 5'}</legend>
+        {dims.map((d) => {
           const s = scores[d.key]
           return (
             <div key={d.key} className="rub-row">
@@ -435,7 +473,7 @@ function LogTable({ rows }: { rows: Evaluation[] }) {
   const flat = (e: Evaluation) => ({
     case_id: e.case_id, agent: name(e.bot_id), date: new Date(e.created_at * 1000).toISOString(), status: VERDICT_LABEL[e.verdict], average_score: avgOf(e)?.toFixed(2) ?? '', route: ROUTE,
     run_id: e.run_id ?? '', session_id: e.session_id ?? '', reviewer: e.reviewer, critical_failure: e.notes.critical, errors: e.notes.errors, improvements: e.notes.improvements,
-    prompt: e.prompt, expected: e.expected, actual: e.actual, ...Object.fromEntries(RUBRIC.map((d) => [`score_${d.key}`, e.scores[d.key]?.score ?? 'N/A'])),
+    prompt: e.prompt, expected: e.expected, actual: e.actual, ...Object.fromEntries(ALL_DIMENSIONS.map((d) => [`score_${d.key}`, d.key in e.scores ? (e.scores[d.key].score ?? 'N/A') : ''])),
     comparison_mode: e.comparison ? (e.comparison.mode === 'repeat' ? 'Ulang N kali' : 'Dua agen') : '',
     comparison_run_ids: e.comparison ? e.comparison.runs.map((r) => r.run_id).join(' | ') : '',
     comparison_consistency: e.comparison ? (e.comparison.consistency === 'konsisten' ? 'Konsisten' : 'Tidak konsisten') : '',

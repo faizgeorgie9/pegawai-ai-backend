@@ -1,5 +1,5 @@
 import type { EvalSummary } from './bff'
-import { RUBRIC } from './results'
+import { ALL_DIMENSIONS } from './results'
 import { SCENARIOS } from './scenarios'
 import { Empty } from './ui-extra'
 
@@ -37,8 +37,9 @@ export default function Summary({ data }: { data: EvalSummary }) {
       <div className="sum-cols">
         <div className="card sum-panel">
           <h3>Rata-rata skor per dimensi</h3>
+          <p className="quiet small">Marketing (9 dimensi) dan CS (6 kriteria) digabung; Accuracy, Relevance, Brand, dan Knowledge dipakai keduanya.</p>
           <ul className="sbars">
-            {RUBRIC.map((d) => {
+            {ALL_DIMENSIONS.map((d) => {
               const v = data.dimensions[d.key]?.avg ?? null
               return (
                 <li key={d.key}>
