@@ -52,6 +52,12 @@ export const sendEnded = (status: unknown) => ENDED.includes(asStr(status).toLow
 const NOTIFY_KEY = 'pegawai.notifyAsked'
 const clip = (s: string, n = 60) => (s.length > n ? s.slice(0, n).trimEnd() + '…' : s)
 
+// CS runs answer in JSON: the toast shows the reply draft, never the raw JSON.
+const csPreview = (m: unknown): string | undefined => {
+  const x = (m as { workflow?: string; structured?: { customer_reply_draft?: unknown } } | undefined)
+  return typeof x?.structured?.customer_reply_draft === 'string' ? x.structured.customer_reply_draft : x?.workflow === 'cs' ? 'draf balasan belum terstruktur' : undefined
+}
+
 export function DataProvider({ children }: { children: ReactNode }) {
   const [loadState, setLoadState] = useState<Data['loadState']>('loading')
   const [error, setError] = useState('')
@@ -155,7 +161,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       notified.current.add(id)
       const botName = botsRef.current.find((b) => b.id === asStr(d.bot_id))?.name ?? 'Bot'
       void api.run(id).then(
-        (r) => toast(status === 'failed' ? `${botName} gagal` : `${botName} selesai: ${clip(r.output || r.input)}`, botPath(r.bot_id || asStr(d.bot_id), r.session_id)),
+        (r) => toast(status === 'failed' ? `${botName} gagal` : `${botName} selesai: ${clip(csPreview(r.meta) ?? (r.output || r.input))}`, botPath(r.bot_id || asStr(d.bot_id), r.session_id)),
         () => toast(`${botName} selesai`, botPath(asStr(d.bot_id))),
       )
     }
