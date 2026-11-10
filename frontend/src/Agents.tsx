@@ -19,7 +19,7 @@ export function AgentList() {
     <section className="page">
       <PageHead
         title="Agen"
-        sub="Semua agen AI Top Trends."
+        sub="Semua agen, dengan konteks Colorbox."
         actions={
           <a className="btn primary" href="#/agen/baru">
             Agen baru

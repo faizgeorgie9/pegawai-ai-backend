@@ -194,7 +194,7 @@ function Sidebar({ route, hist, bot, onClose }: { route: Route; hist: Hist; bot?
           <Mark />
           <span className="brand-text">
             Pegawai AI
-            <small>AI Top Trends</small>
+            <small>Konteks Colorbox</small>
           </span>
         </span>
         <button className="icon-btn close-drawer" aria-label="Tutup menu" onClick={onClose}>
