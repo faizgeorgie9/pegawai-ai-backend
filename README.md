@@ -73,7 +73,7 @@ Prasyarat: Python 3.12+, [uv](https://docs.astral.sh/uv/), PostgreSQL, dan gatew
    - `BFF_API_KEY`: buat dengan `python -c "import secrets; print(secrets.token_urlsafe(32))"`
 3. **Samakan key di frontend**: tulis `BFF_API_KEY=<nilai yang sama>` di `frontend/.env.local`. Proxy Vite mengirimnya sebagai header `X-Pegawai-AI-Key`.
 4. **Batasi alat bot** (sekali, aman diulang): `cd bff; uv run python -m bff.harden`. Perintah ini mematikan terminal, file, eksekusi kode, browser, dan computer use pada API server lima bot bawaan, dan memasang approval manual. Hermes Desktop tidak terpengaruh.
-5. **Jalankan**: `.\start-dev.ps1` dari folder ini (atau klik dua kali `start-dev.bat`). Perintah BFF-nya: `cd bff; uv run uvicorn bff.main:app --host 127.0.0.1 --port 8090 --loop asyncio:SelectorEventLoop` (flag `--loop` wajib di Windows karena psycopg tidak bisa memakai loop bawaan).
+5. **Jalankan**: `.\start-dev.ps1` dari folder ini (atau klik dua kali `start-dev.bat`). Hermes gateway, BFF, dan frontend berjalan tersembunyi dengan log di `.dev-logs\`; hanya satu jendela "Pegawai AI" yang terbuka. Tekan Enter di jendela itu untuk menghentikan semuanya, atau jalankan `.\stop-dev.ps1` (misalnya bila jendela ditutup dengan X). Perintah BFF-nya: `cd bff; uv run uvicorn bff.main:app --host 127.0.0.1 --port 8090 --loop asyncio:SelectorEventLoop` (flag `--loop` wajib di Windows karena psycopg tidak bisa memakai loop bawaan).
 6. **Cek**: `http://127.0.0.1:8090/api/health` harus menjawab `{"ok":true,"db":true,"hermes":true}`.
 
 Tes: `cd bff; uv run pytest`.
