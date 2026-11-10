@@ -236,3 +236,77 @@ const SHAPES: Record<MarketingKind, string> = {
   revision: '{"kind":"revision","before":"","after":"","feedback_applied":[""],"change_log":[""],"open_issues":[""]}\nbefore adalah draf lama, after adalah draf baru lengkap.',
 }
 export const instructionsFor = (k: MarketingKind) => HEAD + SHAPES[k]
+
+// ---- partial CS reply while the JSON is still streaming ----
+// Start of the last JSON object in a stream: skips leading text and a ```json fence. After a complete object, a later "{" is a new
+// attempt (the automatic repair retry), so the failed first attempt is dropped.
+function lastObjectStart(t: string): number {
+  let i = t.indexOf('{')
+  if (i < 0) return -1
+  for (;;) {
+    let depth = 0
+    let str = false
+    let esc = false
+    let end = -1
+    for (let j = i; j < t.length && end < 0; j++) {
+      const c = t[j]
+      if (str) {
+        if (esc) esc = false
+        else if (c === '\\') esc = true
+        else if (c === '"') str = false
+      } else if (c === '"') str = true
+      else if (c === '{') depth++
+      else if (c === '}' && --depth === 0) end = j
+    }
+    const next = end < 0 ? -1 : t.indexOf('{', end + 1)
+    if (next < 0) return i
+    i = next
+  }
+}
+
+const ESC: Record<string, string> = { '"': '"', '\\': '\\', '/': '/', n: '\n', r: '\r', t: '\t', b: '\b', f: '\f' }
+// Reads a JSON string body starting after its opening quote. `closed` is false when the text ends inside the string.
+function readString(t: string, from: number): { value: string; end: number; closed: boolean } {
+  let out = ''
+  for (let i = from; i < t.length; i++) {
+    const c = t[i]
+    if (c === '"') return { value: out, end: i, closed: true }
+    if (c !== '\\') {
+      out += c
+      continue
+    }
+    const n = t[i + 1]
+    if (n === undefined) break // lone backslash at the end: wait for the next chunk
+    if (n === 'u') {
+      const hex = t.slice(i + 2, i + 6)
+      if (!/^[0-9a-fA-F]{4}$/.test(hex)) break
+      out += String.fromCharCode(parseInt(hex, 16))
+      i += 5
+    } else {
+      out += ESC[n] ?? n
+      i++
+    }
+  }
+  return { value: out.replace(/[\uD800-\uDBFF]$/, ''), end: t.length, closed: false } // never show half a surrogate pair
+}
+
+// The growing value of "customer_reply_draft" (top-level key) from incomplete CS JSON. null = key not seen yet (or not a string).
+export function partialReplyDraft(text: string): string | null {
+  const start = lastObjectStart(text)
+  if (start < 0) return null
+  let depth = 0
+  for (let i = start; i < text.length; i++) {
+    const c = text[i]
+    if (c === '{' || c === '[') depth++
+    else if (c === '}' || c === ']') depth--
+    else if (c === '"') {
+      const s = readString(text, i + 1)
+      if (!s.closed) return null
+      i = s.end
+      if (depth !== 1 || s.value !== 'customer_reply_draft') continue
+      const m = /^\s*:\s*"/.exec(text.slice(i + 1))
+      return m ? readString(text, i + 1 + m[0].length).value : null
+    }
+  }
+  return null
+}

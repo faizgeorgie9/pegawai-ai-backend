@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useData } from './data'
 import type { Bot } from './bff'
 import { Cs21Card, CsCard, PlainAnswer, Provenance, ValidationBadge } from './ResultCards'
-import { parseCs } from './results'
+import { parseCs, partialReplyDraft } from './results'
+import { LiveDraft } from './LiveSteps'
 import type { ContextRef, Cs21, CsResult, Validation } from './results'
 import { SCENARIOS } from './scenarios'
 import { useRun } from './useRun'
@@ -111,6 +112,7 @@ function Desk({ bot, agentSelect, onDirty, onNew }: { bot: Bot; agentSelect: Rea
     } else setScn(null)
   }
 
+  const streamDraft = run.busy ? partialReplyDraft(run.text) : null // the reply draft as it is being written, from the still-open JSON
   const shown = turns.find((t) => t.id === sel) ?? turns[turns.length - 1]
   const total = scn ? (EXAMPLES[scn.id]?.turns.length ?? 0) : 0
 
@@ -170,7 +172,7 @@ function Desk({ bot, agentSelect, onDirty, onNew }: { bot: Bot; agentSelect: Rea
               Kirim
             </button>
           </form>
-          <RunBar busy={run.busy} onStop={run.stop} status={run.status} error={run.error} onRetry={last ?? undefined} />
+          <RunBar busy={run.busy} tools={run.tools} writing={!!run.text} since={run.startedAt} onStop={run.stop} status={run.status} error={run.error} onRetry={last ?? undefined} />
           {(turns.length > 0 || pendingQ) && (
             <section className="turns" aria-live="polite" aria-label="Percakapan">
               <h2>Percakapan</h2>
@@ -187,7 +189,7 @@ function Desk({ bot, agentSelect, onDirty, onNew }: { bot: Bot; agentSelect: Rea
               {pendingQ && (
                 <div className="turn-pair">
                   <p className="q">{pendingQ}</p>
-                  <div className="a live"><span className="quiet">{run.text ? 'Menyusun hasil terstruktur' : 'Menunggu jawaban'}</span></div>
+                  <div className="a live">{streamDraft ? <LiveDraft text={streamDraft} label="Draf balasan · sedang ditulis" /> : <span className="quiet">{run.text ? 'Menyusun hasil terstruktur' : 'Menunggu jawaban'}</span>}</div>
                 </div>
               )}
             </section>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, asStr, errText, subscribe } from './bff'
-import type { RunCtx } from './bff'
+import type { RunCtx, ToolChip } from './bff'
+import { applyTool, settle, toolsFrom } from './steps'
 import { toRunResult } from './results'
 import type { RunResult } from './results'
 
@@ -23,6 +24,8 @@ export function useRun(botId = '') {
   const [text, setText] = useState('')
   const [error, setError] = useState('')
   const [runId, setRunId] = useState('')
+  const [tools, setTools] = useState<ToolChip[]>([]) // live steps: one per tool event, kept after the run for the folded line
+  const [startedAt, setStartedAt] = useState(0)
   const ticket = useRef(0)
   const unstream = useRef<(() => void) | null>(null)
   const runRef = useRef('')
@@ -41,6 +44,7 @@ export function useRun(botId = '') {
     setText('')
     setError('')
     setRunId('')
+    setTools([])
   }, [drop])
 
   const send = useCallback(
@@ -51,6 +55,8 @@ export function useRun(botId = '') {
       setText('')
       setError('')
       setRunId('')
+      setTools([])
+      setStartedAt(Date.now())
       const fail = (e: string): RunEnd => ({ status: 'error', text: '', error: e, runId: runRef.current, sid: opt.sid ?? '', result: NONE })
       return new Promise<RunEnd>((resolve) => {
         const end = (r: RunEnd) => {
@@ -58,6 +64,7 @@ export function useRun(botId = '') {
           drop()
           setStatus(r.status)
           setError(r.error)
+          setTools(settle)
           if (r.text) setText(r.text)
           resolve(r)
         }
@@ -71,7 +78,13 @@ export function useRun(botId = '') {
             unstream.current = subscribe(`/runs/${encodeURIComponent(r.run.id)}/stream`, {
               snapshot: (d) => {
                 acc = asStr(d.output) || acc
-                if (mine === ticket.current) setText(acc)
+                if (mine !== ticket.current) return
+                setText(acc)
+                const t = toolsFrom(d.tools ?? d.tool_events ?? d.events)
+                if (t) setTools(t)
+              },
+              tool: (d) => {
+                if (mine === ticket.current) setTools((cur) => applyTool(cur, d))
               },
               delta: (d) => {
                 acc += asStr(d.text)
@@ -97,5 +110,5 @@ export function useRun(botId = '') {
     if (runRef.current) void api.stopRun(runRef.current).catch(() => {})
   }, [])
 
-  return { status, text, error, runId, send, stop, reset, busy: status === 'running' }
+  return { status, text, error, runId, tools, startedAt, send, stop, reset, busy: status === 'running' }
 }

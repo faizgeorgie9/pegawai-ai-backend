@@ -4,6 +4,8 @@ import { botPath } from './router'
 import { Dialog, ErrorLine } from './ui'
 import type { RunStatus } from './useRun'
 import { RunProgress } from './ui-extra'
+import { LiveSteps } from './LiveSteps'
+import type { ToolChip } from './bff'
 
 // Pieces shared by the Marketing and CS workspaces and the test page.
 
@@ -59,7 +61,7 @@ export function ConfirmSwitch({ onYes, onNo }: { onYes: () => void; onNo: () => 
   )
 }
 
-export function RunBar({ busy, detail, onStop, status, error, onRetry, stoppedNote }: { busy: boolean; detail?: string; onStop: () => void; status: RunStatus; error: string; onRetry?: () => void; stoppedNote?: string }) {
+export function RunBar({ busy, detail, onStop, status, error, onRetry, stoppedNote, tools, writing, since }: { busy: boolean; detail?: string; onStop: () => void; status: RunStatus; error: string; onRetry?: () => void; stoppedNote?: string; tools?: ToolChip[]; writing?: boolean; since?: number }) {
   return (
     <>
       {busy && (
@@ -70,6 +72,7 @@ export function RunBar({ busy, detail, onStop, status, error, onRetry, stoppedNo
           </button>
         </div>
       )}
+      {tools && <LiveSteps key={since} tools={tools} running={busy} writing={!!writing} since={since} />}
       {status === 'error' && error && <ErrorLine text={error} onRetry={onRetry} />}
       {status === 'stopped' && <p className="note-box">{stoppedNote ?? 'Dihentikan. Tidak ada hasil yang disimpan.'}</p>}
     </>

@@ -2,10 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ApiError, api, asStr, errText, isAbort, newKey, subscribe, usageOf } from './bff'
-import type { Bot, ChatMessage, Raw, Session, SseState, ToolChip } from './bff'
+import type { Bot, ChatMessage, Session, SseState } from './bff'
 import { useData } from './data'
 import { Cs21Card } from './ResultCards'
-import { toCs21 } from './results'
+import { partialReplyDraft, toCs21 } from './results'
+import { applyTool, settle, toolsFrom } from './steps'
+import { LiveDraft, LiveSteps } from './LiveSteps'
+import { useSmoothText } from './useSmoothText'
 import type { Cs21 } from './results'
 import { go, botPath } from './router'
 import { CopyButton, RunProgress, statusText } from './ui-extra'
@@ -20,25 +23,6 @@ function readThink(): boolean {
     return false
   }
 }
-
-const isEnd = (ev: string) => /complet|finish|done|end|result|error|fail/.test(ev)
-function applyTool(tools: ToolChip[], d: Raw): ToolChip[] {
-  const tool = asStr(d.tool, 'tool')
-  const ev = asStr(d.event).toLowerCase()
-  const bad = Boolean(d.error) || /error|fail/.test(ev)
-  const preview = asStr(d.preview) || undefined
-  if (!isEnd(ev)) return [...tools, { id: newKey('t'), tool, preview, status: 'run' }]
-  const i = tools.map((t) => t.tool === tool && t.status === 'run').lastIndexOf(true)
-  const status = bad ? 'bad' : 'done'
-  if (i < 0) return [...tools, { id: newKey('t'), tool, preview, status }]
-  return tools.map((t, n) => (n === i ? { ...t, status, preview: preview ?? t.preview } : t))
-}
-const toolsFrom = (x: unknown): ToolChip[] | undefined =>
-  Array.isArray(x)
-    ? (x as Raw[])
-        .filter((r) => !r.type || String(r.type).startsWith('tool.')) // stored rows: {type, payload}; live ones are already flat
-        .reduce<ToolChip[]>((acc, r) => applyTool(acc, r.type ? { ...(r.payload as Raw), event: r.type } : r), [])
-    : undefined
 
 type Problem = { text: string; upgrade?: boolean } | null
 
@@ -141,7 +125,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
             reasoning: asStr(d.reasoning) || m.reasoning,
             tokens: usage,
             approval: undefined,
-            tools: m.tools.map((t) => (t.status === 'run' ? { ...t, status: 'done' } : t)),
+            tools: settle(m.tools),
             stopped: /stop|cancel|interrupt/.test(status) || undefined,
             error: /fail|error/.test(status) ? asStr(d.error) || 'Bot belum berhasil menyelesaikan tugas ini.' : undefined,
           }))
@@ -446,6 +430,8 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
   )
 }
 
+const JSON_START = /^\s*(```(?:json)?\s*)?\{/i
+
 // A CS agent answers in JSON (CS v2.1). The chat shows the reply draft; the card with everything else opens from "Lihat detail".
 function csFromText(text: string): Cs21 | null {
   const t = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '')
@@ -466,9 +452,9 @@ const mdComponents = {
   img: () => null, // no remote images from model output
 }
 
-export function Md({ text }: { text: string }) {
+export function Md({ text, caret }: { text: string; caret?: boolean }) {
   return (
-    <div className="md">
+    <div className="md" data-caret={caret || undefined}>
       <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>
         {text}
       </Markdown>
@@ -487,6 +473,8 @@ function Message(p: {
 }) {
   const { m, bot, live } = p
   const cs = useMemo(() => (m.role === 'assistant' ? csFromText(m.content) : null), [m.role, m.content])
+  const draft = useMemo(() => (live && m.role === 'assistant' ? partialReplyDraft(m.content) : null), [live, m.role, m.content]) // CS reply while its JSON is still open
+  const sm = useSmoothText(m.content, live && m.role === 'assistant')
   if (m.role === 'user') {
     return (
       <div className="msg user">
@@ -500,17 +488,8 @@ function Message(p: {
       <BotAvatar bot={bot} size={28} />
       <div className="msg-body">
         {live && !m.approval && <RunProgress />}
-        {m.tools.length > 0 && (
-          <ul className="chips" aria-label="Aktivitas">
-            {m.tools.map((t) => (
-              <li key={t.id} className="chip" data-status={t.status} title={t.preview}>
-                <span className="dot" aria-hidden="true" />
-                {t.tool}
-              </li>
-            ))}
-          </ul>
-        )}
-        <ThinkingBlock text={m.reasoning} running={waiting && !m.tools.length} seconds={m.seconds} defaultOpen={p.showThink} />
+        <LiveSteps tools={m.tools} running={live && !m.approval} writing={!!m.content} seconds={m.seconds} />
+        <ThinkingBlock text={m.reasoning} running={waiting} seconds={m.seconds} defaultOpen={p.showThink} />
         {cs ? (
           <div className="cs-msg">
             <p className="quiet small">Draf balasan pelanggan · draf internal, perlu tinjauan manusia</p>
@@ -520,10 +499,12 @@ function Message(p: {
               <Cs21Card r={cs} validation={null} origin="agent" raw={m.content} />
             </details>
           </div>
-        ) : live && m.content.trimStart().startsWith('{') ? (
+        ) : draft ? (
+          <LiveDraft text={draft} label="Draf balasan · sedang ditulis" />
+        ) : live && JSON_START.test(m.content) ? (
           <p className="quiet">Menyusun draf balasan…</p>
         ) : m.content ? (
-          <Md text={m.content} />
+          <Md text={sm.text} caret={sm.caret} />
         ) : null}
         {!live && (cs?.reply || m.content) && (
           <div className="msg-tools">

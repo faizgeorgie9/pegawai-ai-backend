@@ -4,6 +4,7 @@ import type { Bot } from './bff'
 import { MARKETING_EXAMPLES } from './fixtures'
 import { AnswerDetails, MarketingCard, PlainAnswer, Provenance } from './ResultCards'
 import { instructionsFor, parseMarketing, stripBlock } from './results'
+import { LiveDraft } from './LiveSteps'
 import type { ContextRef, MarketingKind, MarketingResult, Parsed } from './results'
 import { useRun } from './useRun'
 import { I, Icon } from './ui'
@@ -313,8 +314,8 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
             </form>
           )}
 
-          <RunBar busy={run.busy} onStop={run.stop} status={run.status} error={run.error} onRetry={last ?? undefined} />
-          {run.busy && run.text && <article className="rcard live"><div className="rbody"><p className="draft-text">{stripBlock(run.text)}</p></div></article>}
+          <RunBar busy={run.busy} tools={run.tools} writing={!!run.text} since={run.startedAt} onStop={run.stop} status={run.status} error={run.error} onRetry={last ?? undefined} />
+          {run.busy && run.text && <article className="rcard live"><div className="rbody"><LiveDraft text={stripBlock(run.text)} /></div></article>}
 
           {sample ? (
             <div className="sample-box">
