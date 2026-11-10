@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from './bff'
 import { ErrorLine } from './ui'
 import { BlockedBanner, CapChip, Empty, Loading, OFF_WHY, PageHead, SampleBadge, useLoad } from './ui-extra'
@@ -11,6 +11,12 @@ const clean = (s: string) => s.replace(/^[^\p{L}\p{N}]+/u, '').trim()
 export function Tools() {
   const fn = useCallback(() => api.tools(), [])
   const t = useLoad(fn)
+  const [slow, setSlow] = useState(false) // Hermes can be slow: after a while say so instead of loading for ever
+  useEffect(() => {
+    if (t.state !== 'loading') return setSlow(false)
+    const id = window.setTimeout(() => setSlow(true), 8000)
+    return () => window.clearTimeout(id)
+  }, [t.state])
 
   type Row = { name: string; label: string; description: string; users: string[]; seen: number }
   const rows = new Map<string, Row>()
@@ -30,7 +36,8 @@ export function Tools() {
   return (
     <div className="tab-body">
       <p className="note-box">Pengaturan per agen: perlu disepakati dengan backend. Halaman ini hanya untuk melihat.</p>
-      {t.state === 'loading' && <Loading text="Memuat toolset dari Hermes..." />}
+      {t.state === 'loading' && !slow && <Loading text="Memuat toolset dari Hermes..." />}
+      {t.state === 'loading' && slow && <ErrorLine text="Hermes belum menjawab. Toolset belum bisa ditampilkan." onRetry={t.retry} />}
       {t.state === 'error' && <ErrorLine text={t.error} onRetry={t.retry} />}
       {t.state === 'ok' && failed.length > 0 && (
         <div className="state error" role="alert">

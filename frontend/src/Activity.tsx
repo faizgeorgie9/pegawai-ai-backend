@@ -65,8 +65,8 @@ export default function Activity({ scope, version }: { scope?: Scope; version?: 
       {!scope && (
       <header className="page-head">
         <div>
-          <h1 id="act-h">Aktivitas</h1>
-          <p className="quiet">Bot tidak memiliki akses terminal. Data sensitif disensor otomatis.</p>
+          <h1 id="act-h">Log aktivitas</h1>
+          <p className="quiet">Alat yang dipakai agen, dari yang terbaru. Data sensitif disensor otomatis.</p>
         </div>
         <div className="filters">
           <label className="field inline">
@@ -124,7 +124,7 @@ export default function Activity({ scope, version }: { scope?: Scope; version?: 
                     <td data-label="Status">
                       <span className={`pill ${r.status === 'ok' ? 'ok' : 'bad'}`}>{r.status === 'ok' ? 'Berhasil' : 'Gagal'}</span>
                     </td>
-                    {(!scope || r.duration > 0) && <td data-label="Durasi" className="r num">{dur(r.duration)}</td>}
+                    {(!scope || r.duration > 0) && <td data-label="Durasi" className={r.duration > 0 ? 'r num' : 'r num none'}>{dur(r.duration)}</td>}
                     <td data-label="Ringkasan" className="sum">
                       {r.preview ? (
                         <button className="sum-btn" aria-expanded={open === r.id} onClick={() => setOpen(open === r.id ? null : r.id)}>
@@ -135,7 +135,7 @@ export default function Activity({ scope, version }: { scope?: Scope; version?: 
                       )}
                     </td>
                     {!scope && (
-                      <td data-label="Buka">
+                      <td data-label="Buka" className={r.link ? undefined : 'none'}>
                         {r.link ? (
                           <a className="btn link" href={'#' + r.link}>
                             {r.where || 'Buka'}
