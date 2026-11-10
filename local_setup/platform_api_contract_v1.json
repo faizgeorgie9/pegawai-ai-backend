@@ -1,0 +1,140 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Hermes Agent Management Platform API",
+    "version": "1.0.0",
+    "description": "Unified API contract for Colorbox AI Employees (Marketing & CS) with multi-turn chat, agent configuration, and workflow automation.",
+    "contact": {
+      "name": "Intern 1 (Backend & Platform Lead)"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8080",
+      "description": "Local Shared Backend Server"
+    }
+  ],
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "summary": "Health and provider connectivity check",
+        "responses": {
+          "200": {
+            "description": "System is healthy and Hermes binary is detected"
+          }
+        }
+      }
+    },
+    "/api/v1/agents": {
+      "get": {
+        "summary": "List all active AI Employee personas",
+        "responses": {
+          "200": {
+            "description": "Array of registered agent personas"
+          }
+        }
+      }
+    },
+    "/api/v1/chat/message": {
+      "post": {
+        "summary": "Send interactive multi-turn message to an AI Employee",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["session_id", "agent_id", "message"],
+                "properties": {
+                  "session_id": { "type": "string", "example": "sess_cbx_08912" },
+                  "agent_id": { "type": "string", "example": "ag_colorbox_cs" },
+                  "customer_name": { "type": "string", "example": "Salsa" },
+                  "message": { "type": "string", "example": "Halo min, pesanan nomor #CBX-2026-9812 belum tiba" },
+                  "channel": { "type": "string", "example": "whatsapp_simulation" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Generated conversational response with classification and intent"
+          }
+        }
+      }
+    },
+    "/api/v1/chat/sessions/{session_id}/reset": {
+      "post": {
+        "summary": "Reset session memory for a given conversation",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session context cleared"
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/marketing/run": {
+      "post": {
+        "summary": "Execute 5-step Colorbox Marketing Campaign Workflow",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["campaign_brief"],
+                "properties": {
+                  "client_id": { "type": "string", "example": "cbx_indonesia_retail" },
+                  "campaign_brief": { "type": "string", "example": "Summer Pastel Chic 2026" },
+                  "content_type": { "type": "string", "example": "instagram_carousel" },
+                  "target_channel": { "type": "string", "example": "instagram" },
+                  "include_visual_concept": { "type": "boolean", "default": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Structured marketing results including planning, copy, review, and visual prompt"
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/cs/run": {
+      "post": {
+        "summary": "Execute 5-step Colorbox Customer Service Complaint Workflow",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["customer_inquiry"],
+                "properties": {
+                  "customer_inquiry": { "type": "string", "example": "Saya mau tukar ukuran baju yang saya beli di PIM" },
+                  "order_number": { "type": "string", "example": "#CBX-2026-9812" },
+                  "channel": { "type": "string", "example": "whatsapp_simulation" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Structured CS response with intent, SOP retrieval, and ticket escalation status"
+          }
+        }
+      }
+    }
+  }
+}
+

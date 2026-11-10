@@ -1,0 +1,187 @@
+{
+  "test_suite": "S3-03A Supported Platform Capabilities and Frontend API Handoffs",
+  "date": "2026-11-09",
+  "overall_status": "SUCCESS",
+  "tests": [
+    {
+      "name": "Tools/Plugins Registry & Safe Assignment",
+      "passed": true
+    },
+    {
+      "name": "Integration Connection States Classification",
+      "passed": true
+    },
+    {
+      "name": "Computer Use Investigation & Safe Boundary",
+      "passed": true
+    },
+    {
+      "name": "Scheduler Job Listing, Creation & Status Management",
+      "passed": true
+    },
+    {
+      "name": "Activity Status & Execution Lifecycle Tracking",
+      "passed": true
+    },
+    {
+      "name": "Core Business Workflows Focused Regression",
+      "passed": true
+    }
+  ],
+  "tools_summary": [
+    {
+      "id": "tool_banner_generator",
+      "name": "Local Banner & Image Generator",
+      "category": "creative",
+      "status": "working",
+      "type": "local_python_pillow",
+      "description": "Generates 1200x630 promotional banner graphics locally using Pillow.",
+      "safe_mode": true,
+      "version": "1.0.0"
+    },
+    {
+      "id": "tool_knowledge_retriever",
+      "name": "Colorbox Knowledge & SOP Retriever",
+      "category": "knowledge",
+      "status": "working",
+      "type": "local_file_index",
+      "description": "Searches versioned Colorbox brand guidelines and CS SOPs with source citations.",
+      "safe_mode": true,
+      "version": "1.0.0"
+    },
+    {
+      "id": "tool_content_planner",
+      "name": "AIDA Content & Calendar Planner",
+      "category": "marketing",
+      "status": "working",
+      "type": "prompt_template",
+      "description": "Structures campaign briefs into AIDA marketing copy and publication calendars.",
+      "safe_mode": true,
+      "version": "1.0.0"
+    },
+    {
+      "id": "plugin_meta_whatsapp",
+      "name": "Meta WhatsApp Business Cloud API",
+      "category": "channel_messaging",
+      "status": "mocked",
+      "type": "external_webhook",
+      "description": "Two-way WhatsApp messaging. In simulation sandbox; live Meta credentials omitted.",
+      "safe_mode": true,
+      "version": "0.9.0-sandbox"
+    },
+    {
+      "id": "plugin_shopee_mall_erp",
+      "name": "Shopee Mall Order & Inventory Sync",
+      "category": "ecommerce",
+      "status": "unsupported",
+      "type": "external_api",
+      "description": "Direct ERP integration to live marketplace inventory. Out of prototype scope.",
+      "safe_mode": false,
+      "version": "N/A"
+    },
+    {
+      "id": "plugin_instagram_graph",
+      "name": "Instagram Graph API Auto-Publish",
+      "category": "social_publishing",
+      "status": "unsupported",
+      "type": "external_oauth",
+      "description": "Automatic posting to Instagram account. Prohibited by Human-in-the-Loop policy.",
+      "safe_mode": false,
+      "version": "N/A"
+    }
+  ],
+  "integrations_status": {
+    "status": "success",
+    "timestamp": "2026-11-08T18:55:49Z",
+    "summary": {
+      "connected": 2,
+      "mocked": 2,
+      "unsupported": 2,
+      "blocked": 0
+    },
+    "integrations": {
+      "hermes_agent_cli": {
+        "name": "Hermes Agent Local Binary",
+        "status": "connected",
+        "version": "v0.22.2+3291.gbf0203a",
+        "verified": true,
+        "detail": "C:\\Users\\LOQ\\AppData\\Local\\hermes\\bin\\hermes.exe"
+      },
+      "deepseek_v4_1_flash": {
+        "name": "DeepSeek V4.1 Flash (Inference Provider)",
+        "status": "connected",
+        "provider": "opencode",
+        "verified": true,
+        "detail": "Opencode Zen API Key Active"
+      },
+      "whatsapp_business_simulation": {
+        "name": "WhatsApp Simulation Gateway",
+        "status": "mocked",
+        "verified": false,
+        "detail": "Synthetic customer messages routed locally without live Meta charges."
+      },
+      "email_outbound_simulation": {
+        "name": "Email Proposal Outbound Gateway",
+        "status": "mocked",
+        "verified": false,
+        "detail": "Draft proposal preview generated locally without live SMTP relay."
+      },
+      "shopee_mall_erp": {
+        "name": "Shopee Mall Order/Inventory Live Access",
+        "status": "unsupported",
+        "verified": false,
+        "detail": "Strict boundary: Live ERP/Order DB connections are disabled for safety."
+      },
+      "instagram_graph_api": {
+        "name": "Instagram Direct Auto-Publishing",
+        "status": "unsupported",
+        "verified": false,
+        "detail": "Strict boundary: All marketing outputs require Human-in-the-Loop review."
+      }
+    }
+  },
+  "computer_use_investigation": {
+    "status": "unsupported",
+    "supported": false,
+    "capability": "os_desktop_computer_use",
+    "platform_runtime": "Hermes Agent CLI v0.22.2 on Windows x64",
+    "investigation_findings": {
+      "is_available_in_cli": false,
+      "reason": "Hermes Agent CLI operates as a text-first subprocess engine without native OS mouse/keyboard coordinate interaction drivers on Windows.",
+      "business_relevance": "NOT_REQUIRED. Colorbox Fashion AI Employees operate strictly on marketing copywriting, graphic banner asset generation, and CS text inquiries.",
+      "security_boundary": "Prevented unapproved OS-level desktop automation to maintain sandboxed execution controls."
+    },
+    "safe_prototype_action": "EXCLUDED_FROM_PRODUCTION_GATE"
+  },
+  "activity_status": {
+    "status": "success",
+    "server_status": "healthy",
+    "total_runs": 2,
+    "successful_runs": 2,
+    "failed_runs": 0,
+    "total_tokens_consumed": 3230,
+    "average_latency_sec": 30.48,
+    "recent_runs": [
+      {
+        "run_id": "run_test_109569",
+        "agent_id": "ag_cbx_cs_01",
+        "workflow": "colorbox_cs_v1",
+        "duration_sec": 22.5,
+        "tokens": 1420,
+        "status": "completed",
+        "error": null,
+        "timestamp": "2026-11-08T18:55:49Z"
+      },
+      {
+        "run_id": "run_cbx_seed_001",
+        "agent_id": "ag_cbx_marketing_01",
+        "workflow": "colorbox_marketing_v1",
+        "duration_sec": 38.45,
+        "tokens": 1810,
+        "status": "completed",
+        "error": null,
+        "timestamp": "2026-11-08T18:55:49Z"
+      }
+    ]
+  }
+}

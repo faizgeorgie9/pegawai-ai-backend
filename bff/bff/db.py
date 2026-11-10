@@ -13,6 +13,7 @@ pool: AsyncConnectionPool | None = None
 async def open_pool() -> None:
     global pool
     pool = AsyncConnectionPool(config.DATABASE_URL, min_size=1, max_size=10, open=False,
+                               check=AsyncConnectionPool.check_connection, max_idle=300,
                                kwargs={"row_factory": dict_row, "autocommit": True})
     await pool.open(wait=True, timeout=10)
     await migrate()
@@ -53,7 +54,7 @@ async def ex(sql: str, *params) -> None:
 
 async def ping() -> bool:
     try:
-        await asyncio.wait_for(q("select 1"), 3)
+        await asyncio.wait_for(q("select 1"), 10)
         return True
     except Exception:
         return False

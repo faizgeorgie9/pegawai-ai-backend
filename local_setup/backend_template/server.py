@@ -20,6 +20,58 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from pathlib import Path
 
+# Colorbox Knowledge Loading & Simple Retrieval Engine (Sprint 3)
+try:
+    from knowledge_retriever import knowledge_engine
+except ImportError:
+    try:
+        from local_setup.backend_template.knowledge_retriever import knowledge_engine
+    except Exception:
+        knowledge_engine = None
+
+# Colorbox Agent Management, Configuration & Routing (Sprint 3)
+try:
+    from agent_manager import agent_registry
+except ImportError:
+    try:
+        from local_setup.backend_template.agent_manager import agent_registry
+    except Exception:
+        agent_registry = None
+
+# Colorbox Chat Execution, Context & Structured Outputs (Sprint 3)
+try:
+    from chat_orchestrator import chat_orchestrator
+except ImportError:
+    try:
+        from local_setup.backend_template.chat_orchestrator import chat_orchestrator
+    except Exception:
+        chat_orchestrator = None
+
+# Colorbox Platform Capabilities & Adapters (Sprint 3)
+try:
+    from platform_adapters import (
+        tool_registry,
+        integration_monitor,
+        computer_use_inspector,
+        scheduler_service,
+        activity_tracker
+    )
+except ImportError:
+    try:
+        from local_setup.backend_template.platform_adapters import (
+            tool_registry,
+            integration_monitor,
+            computer_use_inspector,
+            scheduler_service,
+            activity_tracker
+        )
+    except Exception:
+        tool_registry = None
+        integration_monitor = None
+        computer_use_inspector = None
+        scheduler_service = None
+        activity_tracker = None
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -363,7 +415,7 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Pegawai-AI-Key, X-Department")
         self.end_headers()
         self.wfile.write(json.dumps(data, indent=2).encode("utf-8"))
@@ -371,7 +423,7 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Pegawai-AI-Key, X-Department")
         self.end_headers()
 
@@ -470,6 +522,125 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
                         pass
             self._send_json_response(200, {"sops": sops_data})
 
+        elif path == "/api/v1/knowledge/registry":
+            if not knowledge_engine:
+                self._send_json_response(500, {"error": "Knowledge engine not initialized"})
+                return
+            reg_summary = {}
+            for k, v in knowledge_engine.registry.items():
+                reg_summary[k] = {
+                    "filename": v["filename"],
+                    "version": v["version"],
+                    "ref_code": v["ref_code"],
+                    "applicability": v["applicability"],
+                    "section_count": len(v["sections"])
+                }
+            self._send_json_response(200, {
+                "status": "success",
+                "knowledge_base": "Colorbox Retail & Brand Guidelines v1",
+                "registry": reg_summary
+            })
+            return
+
+        elif path == "/api/v1/knowledge/lookup":
+            if not knowledge_engine:
+                self._send_json_response(500, {"error": "Knowledge engine not initialized"})
+                return
+            query_params = parse_qs(parsed.query)
+            q = query_params.get("query", [""])[0]
+            dept = query_params.get("department", ["cs"])[0]
+
+            if not q.strip():
+                self._send_json_response(400, {
+                    "status": "error",
+                    "error_code": "ERR_VALIDATION_MISSING_QUERY",
+                    "message": "Query parameter 'query' is required."
+                })
+                return
+
+            lookup_result = knowledge_engine.retrieve(q, department=dept)
+            status_code = 200 if lookup_result.get("grounded") else 404
+            self._send_json_response(status_code, lookup_result)
+            return
+
+        elif path == "/api/v1/agents":
+            if not agent_registry:
+                self._send_json_response(500, {"error": "Agent manager not initialized"})
+                return
+            query_params = parse_qs(parsed.query)
+            dept = query_params.get("department", [None])[0]
+            agents = agent_registry.list_agents(department=dept)
+            self._send_json_response(200, {
+                "status": "success",
+                "count": len(agents),
+                "agents": agents
+            })
+            return
+
+        elif path.startswith("/api/v1/agents/"):
+            if not agent_registry:
+                self._send_json_response(500, {"error": "Agent manager not initialized"})
+                return
+            agent_id = path[len("/api/v1/agents/"):].strip()
+            agent, err = agent_registry.get_agent(agent_id)
+            if err:
+                self._send_json_response(404, {
+                    "status": "error",
+                    "error_code": "ERR_AGENT_NOT_FOUND",
+                    "message": err
+                })
+                return
+            self._send_json_response(200, {
+                "status": "success",
+                "agent": agent
+            })
+            return
+
+        elif path == "/api/v1/tools":
+            if not tool_registry:
+                self._send_json_response(500, {"error": "Tool registry not initialized"})
+                return
+            tools = tool_registry.list_tools()
+            self._send_json_response(200, {
+                "status": "success",
+                "count": len(tools),
+                "tools": tools
+            })
+            return
+
+        elif path == "/api/v1/integrations/status":
+            if not integration_monitor:
+                self._send_json_response(500, {"error": "Integration monitor not initialized"})
+                return
+            self._send_json_response(200, integration_monitor.get_status())
+            return
+
+        elif path == "/api/v1/capabilities/computer-use":
+            if not computer_use_inspector:
+                self._send_json_response(500, {"error": "Computer use capability inspector not initialized"})
+                return
+            self._send_json_response(200, computer_use_inspector.get_capability_report())
+            return
+
+        elif path == "/api/v1/scheduler/jobs":
+            if not scheduler_service:
+                self._send_json_response(500, {"error": "Scheduler service not initialized"})
+                return
+            jobs = scheduler_service.list_jobs()
+            self._send_json_response(200, {
+                "status": "success",
+                "count": len(jobs),
+                "jobs": jobs
+            })
+            return
+
+        elif path == "/api/v1/activity/status":
+            if not activity_tracker:
+                self._send_json_response(500, {"error": "Activity tracker not initialized"})
+                return
+            self._send_json_response(200, activity_tracker.get_activity_status())
+            return
+
         elif path.startswith("/api/v1/mocks/"):
             mock_name = os.path.basename(path)
             if not mock_name.endswith(".json"):
@@ -496,18 +667,231 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
 
-        if path == "/api/v1/agent/execute":
+        content_len = int(self.headers.get("Content-Length", 0))
+        body_bytes = self.rfile.read(content_len) if content_len > 0 else b""
+        payload = {}
+        if body_bytes:
+            try:
+                payload = json.loads(body_bytes.decode("utf-8"))
+            except Exception as e:
+                self._send_json_response(400, {"status": "error", "error_code": "ERR_INVALID_JSON", "message": f"Invalid JSON body: {e}"})
+                return
+
+        if path == "/api/v1/agents":
+            if not agent_registry:
+                self._send_json_response(500, {"error": "Agent manager not initialized"})
+                return
+            new_agent, err = agent_registry.create_agent(payload)
+            if err:
+                self._send_json_response(400, {
+                    "status": "error",
+                    "error_code": "ERR_VALIDATION_FAILED",
+                    "message": err
+                })
+                return
+            self._send_json_response(201, {
+                "status": "success",
+                "message": f"Agent '{new_agent['name']}' successfully registered.",
+                "agent": new_agent
+            })
+            return
+
+        elif path == "/api/v1/agent/route":
+            if not agent_registry:
+                self._send_json_response(500, {"error": "Agent manager not initialized"})
+                return
+            agent_id = payload.get("agent_id")
+            department = payload.get("department")
+            routed_agent, err = agent_registry.route_request(agent_id=agent_id, department=department)
+            if err:
+                self._send_json_response(404, {
+                    "status": "error",
+                    "error_code": "ERR_ROUTING_FAILED",
+                    "message": err
+                })
+                return
+            
+            knowledge_sources = []
+            if knowledge_engine:
+                knowledge_sources = routed_agent.get("knowledge_sources", [])
+
+            self._send_json_response(200, {
+                "status": "success",
+                "routed_agent_id": routed_agent["id"],
+                "target_department": routed_agent["department"],
+                "role": routed_agent["role"],
+                "tone": routed_agent["tone"],
+                "knowledge_sources": knowledge_sources,
+                "timeout_sec": routed_agent.get("timeout_sec", 180)
+            })
+            return
+
+        elif path == "/api/v1/chat/message":
+            if not chat_orchestrator:
+                self._send_json_response(500, {"error": "Chat orchestrator not initialized"})
+                return
+
+            session_id = payload.get("session_id")
+            message = payload.get("message")
+            agent_id = payload.get("agent_id", "ag_cbx_cs_01")
+            customer_name = payload.get("customer_name", "Pelanggan")
+            channel = payload.get("channel", "whatsapp_simulation")
+
+            if not session_id:
+                self._send_json_response(400, {
+                    "status": "error",
+                    "error_code": "ERR_VALIDATION_MISSING_SESSION",
+                    "message": "Field 'session_id' is mandatory."
+                })
+                return
+
+            if not message or not str(message).strip():
+                self._send_json_response(400, {
+                    "status": "error",
+                    "error_code": "ERR_VALIDATION_MISSING_MESSAGE",
+                    "message": "Field 'message' is mandatory and cannot be empty."
+                })
+                return
+
+            # Verify agent exists
+            if agent_registry:
+                agent, err = agent_registry.get_agent(agent_id)
+                if err:
+                    self._send_json_response(404, {
+                        "status": "error",
+                        "error_code": "ERR_UNKNOWN_AGENT",
+                        "message": err
+                    })
+                    return
+
+            # If agent is marketing, run marketing pipeline, else run CS interactive chat
+            if "marketing" in agent_id.lower():
+                result = chat_orchestrator.execute_marketing_workflow(
+                    brief=message,
+                    content_type=payload.get("content_type", "instagram_carousel"),
+                    include_visual=payload.get("include_visual", True)
+                )
+            else:
+                result = chat_orchestrator.execute_cs_chat(
+                    session_id=session_id,
+                    message=message,
+                    customer_name=customer_name,
+                    channel=channel,
+                    agent_id=agent_id
+                )
+
+            self._send_json_response(200, result)
+            return
+
+        elif path.startswith("/api/v1/chat/sessions/") and path.endswith("/reset"):
+            if not chat_orchestrator:
+                self._send_json_response(500, {"error": "Chat orchestrator not initialized"})
+                return
+
+            parts = path.split("/")
+            sess_id = parts[5] if len(parts) >= 7 else payload.get("session_id", "")
+            if not sess_id:
+                sess_id = payload.get("session_id", "")
+
+            chat_orchestrator.sessions.reset_session(sess_id)
+            self._send_json_response(200, {
+                "status": "success",
+                "session_id": sess_id,
+                "action": "SESSION_CLEARED",
+                "message": f"Riwayat percakapan sesi '{sess_id}' telah direset."
+            })
+            return
+
+        elif path == "/api/v1/workflows/marketing/run":
+            if not chat_orchestrator:
+                self._send_json_response(500, {"error": "Chat orchestrator not initialized"})
+                return
+
+            brief = payload.get("campaign_brief") or payload.get("prompt")
+            if not brief:
+                self._send_json_response(400, {
+                    "status": "error",
+                    "error_code": "ERR_VALIDATION_MISSING_BRIEF",
+                    "message": "Field 'campaign_brief' is mandatory."
+                })
+                return
+
+            res = chat_orchestrator.execute_marketing_workflow(
+                brief=brief,
+                content_type=payload.get("content_type", "instagram_carousel"),
+                include_visual=payload.get("include_visual_concept", True)
+            )
+            self._send_json_response(200, res)
+            return
+
+        elif path == "/api/v1/workflows/cs/run":
+            if not chat_orchestrator:
+                self._send_json_response(500, {"error": "Chat orchestrator not initialized"})
+                return
+
+            inquiry = payload.get("customer_inquiry") or payload.get("prompt")
+            if not inquiry:
+                self._send_json_response(400, {
+                    "status": "error",
+                    "error_code": "ERR_VALIDATION_MISSING_INQUIRY",
+                    "message": "Field 'customer_inquiry' is mandatory."
+                })
+                return
+
+            sess_id = payload.get("session_id") or f"sess_wf_{int(time.time())}"
+            res = chat_orchestrator.execute_cs_chat(
+                session_id=sess_id,
+                message=inquiry,
+                customer_name=payload.get("customer_name", "Pelanggan"),
+                channel=payload.get("channel", "simulation")
+            )
+            self._send_json_response(200, res)
+            return
+
+        elif path.startswith("/api/v1/agents/") and path.endswith("/tools"):
+            if not tool_registry:
+                self._send_json_response(500, {"error": "Tool registry not initialized"})
+                return
+            parts = path.strip("/").split("/")
+            agent_id = parts[3] if len(parts) >= 4 else ""
+            tool_id = payload.get("tool_id")
+            if not tool_id:
+                self._send_json_response(400, {
+                    "status": "error",
+                    "error_code": "ERR_VALIDATION_MISSING_TOOL",
+                    "message": "Field 'tool_id' is mandatory."
+                })
+                return
+            ok, msg = tool_registry.assign_tool(agent_id, tool_id)
+            status_code = 200 if ok else 400
+            self._send_json_response(status_code, {
+                "status": "success" if ok else "error",
+                "message": msg
+            })
+            return
+
+        elif path == "/api/v1/scheduler/jobs":
+            if not scheduler_service:
+                self._send_json_response(500, {"error": "Scheduler service not initialized"})
+                return
+            new_job, err = scheduler_service.create_job(payload)
+            if err:
+                self._send_json_response(400, {
+                    "status": "error",
+                    "error_code": "ERR_SCHEDULER_JOB_CREATION_FAILED",
+                    "message": err
+                })
+                return
+            self._send_json_response(201, {
+                "status": "success",
+                "message": f"Job '{new_job['name']}' successfully scheduled.",
+                "job": new_job
+            })
+            return
+
+        elif path == "/api/v1/agent/execute":
             auth_header = self.headers.get("X-Pegawai-AI-Key", "demo-token")
             dept_header = self.headers.get("X-Department", "marketing")
-
-            content_len = int(self.headers.get("Content-Length", 0))
-            body_bytes = self.rfile.read(content_len)
-
-            try:
-                payload = json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
-            except Exception as e:
-                self._send_json_response(400, {"error": "Invalid JSON body", "detail": str(e)})
-                return
 
             prompt = payload.get("prompt")
             if not prompt:
@@ -751,6 +1135,72 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
                 })
         else:
             self._send_json_response(404, {"error": "Not Found", "path": path})
+
+    def do_PUT(self):
+        parsed = urlparse(self.path)
+        path = parsed.path
+
+        content_len = int(self.headers.get("Content-Length", 0))
+        body_bytes = self.rfile.read(content_len) if content_len > 0 else b""
+        payload = {}
+        if body_bytes:
+            try:
+                payload = json.loads(body_bytes.decode("utf-8"))
+            except Exception as e:
+                self._send_json_response(400, {"status": "error", "error_code": "ERR_INVALID_JSON", "message": f"Invalid JSON body: {e}"})
+                return
+
+        if path.startswith("/api/v1/agents/"):
+            if not agent_registry:
+                self._send_json_response(500, {"error": "Agent manager not initialized"})
+                return
+            agent_id = path[len("/api/v1/agents/"):].strip()
+            updated_agent, err = agent_registry.update_agent(agent_id, payload)
+            if err:
+                status_code = 404 if "not found" in err.lower() else 400
+                self._send_json_response(status_code, {
+                    "status": "error",
+                    "error_code": "ERR_AGENT_UPDATE_FAILED",
+                    "message": err
+                })
+                return
+            self._send_json_response(200, {
+                "status": "success",
+                "message": f"Agent '{agent_id}' configuration successfully updated.",
+                "agent": updated_agent
+            })
+            return
+
+        elif path.startswith("/api/v1/scheduler/jobs/"):
+            if not scheduler_service:
+                self._send_json_response(500, {"error": "Scheduler service not initialized"})
+                return
+            job_id = path[len("/api/v1/scheduler/jobs/"):].strip()
+            new_status = payload.get("status")
+            if not new_status:
+                self._send_json_response(400, {
+                    "status": "error",
+                    "error_code": "ERR_VALIDATION_MISSING_STATUS",
+                    "message": "Field 'status' is mandatory (active, paused, disabled)."
+                })
+                return
+            updated_job, err = scheduler_service.update_job_status(job_id, new_status)
+            if err:
+                status_code = 404 if "not found" in err.lower() else 400
+                self._send_json_response(status_code, {
+                    "status": "error",
+                    "error_code": "ERR_SCHEDULER_UPDATE_FAILED",
+                    "message": err
+                })
+                return
+            self._send_json_response(200, {
+                "status": "success",
+                "message": f"Job '{job_id}' status updated to '{new_status}'.",
+                "job": updated_job
+            })
+            return
+
+        self._send_json_response(404, {"error": "Not Found", "path": path})
 
 def run_server():
     server_address = ("", PORT)

@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Colorbox AI Employees API Contract v1",
+  "version": "1.0.0",
+  "date": "2026-11-05",
+  "author": "Intern 1 (Backend & Platform Lead)",
+  "linked_task": "https://app.clickup.com/t/z8xxqwefqm",
+  "brand": {
+    "name": "Colorbox",
+    "industry": "Fast Fashion Retail",
+    "target_audience": "Teens and young women (Gen-Z)",
+    "tone_of_voice": "Trendy, energetic, friendly, approachable, accessible"
+  },
+  "endpoints": {
+    "marketing_generate": {
+      "path": "/api/v1/colorbox/marketing/generate",
+      "method": "POST",
+      "description": "Trigger Colorbox Marketing 5-step employee pipeline (Brief -> Planning -> Copywriting -> Brand Review -> Revision)",
+      "request_example": {
+        "client_id": "colorbox_retail_id",
+        "campaign_brief": "Promo Koleksi Casual Linen untuk Remaja Menghadapi Liburan Semester",
+        "content_type": "instagram_carousel",
+        "target_channel": "instagram",
+        "include_visual_concept": true
+      },
+      "response_example": {
+        "status": "success",
+        "workflow": "colorbox_marketing_v1",
+        "data": {
+          "planning": {
+            "campaign_theme": "Casual Linen Summer Vibes",
+            "content_pillar": "Product Styling & Tips",
+            "recommended_publish_time": "Kamis, 19:00 WIB"
+          },
+          "generation": {
+            "primary_copy": "Libur semester tinggal hitungan hari, outfit kamu udah siap belum? ✨ Kenalin Casual Linen Series dari Colorbox! Adem, jatuh di badan, dan pastinya bikin OOTD kamu auto-aesthetic tanpa ribet. Geser ke kanan buat intip 3 style favorit minggu ini 👉",
+            "call_to_action": "Beli di Colorbox terdekat atau klik link di bio sekarang!",
+            "hashtags": ["#ColorboxBabes", "#OOTDColorbox", "#CasualLinenStyle", "#FashionRemaja"],
+            "copy_alternative": "Anti-gerah club! Saatnya upgrade gaya liburan kamu dengan koleksi Linen Colorbox. Stylish, nyaman, dan ramah di kantong!"
+          },
+          "brand_review": {
+            "compliance_score": 96,
+            "tone_audit": "PASSED (Cheerful, approachable, Gen-Z friendly)",
+            "claim_verification": "PASSED (Zero false promises, harga & bahan realistis)",
+            "recommendations": "Pertahankan penggunaan emoji yang ceria namun tidak berlebihan."
+          },
+          "visual_concept": {
+            "layout_mood": "Warm daylight, natural pastel tone (sage green & soft beige), flatlay & model on-street",
+            "color_palette": ["#B2C9AB", "#E8D8C8", "#FFFFFF"],
+            "image_prompt_en": "Professional clean lookbook fashion photography, young Asian woman smiling wearing light sage green linen shirt, soft natural lighting, high fashion minimal composition, 4k"
+          },
+          "status": "DRAFT_AWAITING_HUMAN_APPROVAL"
+        }
+      }
+    },
+    "cs_chat": {
+      "path": "/api/v1/colorbox/cs/chat",
+      "method": "POST",
+      "description": "Process multi-turn Customer Service inquiries and complaint simulations against Colorbox public SOPs",
+      "request_example": {
+        "session_id": "sess_cbx_cust_88219",
+        "customer_name": "Nadia",
+        "customer_message": "Kak, baju yang kemarin saya beli di Colorbox PIM kekecilan, apakah bisa ditukar ukurannya?",
+        "channel": "whatsapp_simulation"
+      },
+      "response_example": {
+        "status": "success",
+        "session_id": "sess_cbx_cust_88219",
+        "turn_count": 1,
+        "classification": {
+          "intent": "SIZE_EXCHANGE",
+          "sentiment": "NEUTRAL",
+          "urgency": "NORMAL",
+          "detected_entities": {
+            "product_type": "pakaian",
+            "store_location": "Colorbox Pondok Indah Mall (PIM)",
+            "issue": "ukuran_kekecilan"
+          }
+        },
+        "knowledge_applied": {
+          "sop_source": "SOP-CBX-RET-01 (Kebijakan Tukar Produk Retail)",
+          "max_exchange_days": 7,
+          "mandatory_conditions": [
+            "Struk/bukti pembayaran asli tersedia",
+            "Tag harga (price tag) masih utuh terpasang",
+            "Produk belum pernah dicuci atau dipakai",
+            "Stok ukuran yang dituju tersedia di toko terkait"
+          ]
+        },
+        "response_draft": "Halo Kak Nadia! Tentu bisa banget ditukar ya Kak. Untuk penukaran ukuran di store Colorbox, batas maksimalnya adalah 7 hari kalender sejak tanggal pembelian. Pastikan tag harga masih utuh terpasang, struk pembelian dibawa, dan baju belum dicuci ya Kak. Boleh dibantu tanggal berapa Kakak melakukan transaksi pembelian tersebut?",
+        "ticket_management": {
+          "ticket_id": "TKT-CBX-90124",
+          "priority": "MEDIUM",
+          "status": "AWAITING_CUSTOMER_REPLY",
+          "requires_human_escalation": false,
+          "escalation_reason": null
+        }
+      }
+    },
+    "cs_reset_session": {
+      "path": "/api/v1/colorbox/cs/reset-session",
+      "method": "POST",
+      "description": "Clear dialogue context for a specific customer session",
+      "request_example": {
+        "session_id": "sess_cbx_cust_88219"
+      },
+      "response_example": {
+        "status": "success",
+        "session_id": "sess_cbx_cust_88219",
+        "action": "SESSION_CLEARED",
+        "message": "Riwayat percakapan sesi telah direset ke status awal."
+      }
+    }
+  },
+  "error_semantics": {
+    "ERR_KNOWLEDGE_NOT_FOUND": {
+      "code": 404,
+      "behavior": "Auto-escalate to human supervisor ticket",
+      "fallback_response": "Mohon maaf atas ketidaknyamanannya Kak. Terkait pertanyaan spesifik ini, pesan Kakak telah kami teruskan ke Customer Service Team Leader kami untuk penanganan langsung."
+    },
+    "ERR_MODEL_TIMEOUT": {
+      "code": 504,
+      "behavior": "Retry with backoff or return graceful degradation notification"
+    }
+  }
+}
+

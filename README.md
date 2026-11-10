@@ -151,3 +151,4 @@ project6/
 - Kunci API asli **TIDAK PERNAH** dikomit ke repository Git.
 - File `.env` sudah masuk ke `.gitignore`.
 - Selalu gunakan `.env.example` saat mendistribusikan konfigurasi ke anggota tim baru.
+

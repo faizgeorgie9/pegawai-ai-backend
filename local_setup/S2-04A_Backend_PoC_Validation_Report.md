@@ -158,3 +158,4 @@ All requirements for **S2-04A** are verified and supported by physical evidence:
 * [x] Usable response with dynamic QA scoring (91/100) and strict word count (162 words) generated.
 * [x] Zero critical blockers remaining; technical findings and limitations documented.
 * [x] Physical evidence logged in `local_setup/evidence/s2_04a_validation_*.json`.
+
