@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ApiError, api, asStr, errText, isAbort, newKey, subscribe, usageOf } from './bff'
 import type { Bot, ChatMessage, Raw, Session, SseState, ToolChip } from './bff'
 import { useData } from './data'
+import { Cs21Card } from './ResultCards'
+import { toCs21 } from './results'
+import type { Cs21 } from './results'
 import { go, botPath } from './router'
 import { statusText } from './ui-extra'
 import { PanelButtons, SidePanel, Split } from './Panel'
@@ -39,7 +42,7 @@ const toolsFrom = (x: unknown): ToolChip[] | undefined =>
 
 type Problem = { text: string; upgrade?: boolean } | null
 
-export default function Chat({ bot, sid, sessions, onSessions }: { bot: Bot; sid?: string; sessions: Session[]; onSessions: () => void }) {
+export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: Bot; sid?: string; sessions: Session[]; onSessions: () => void; onRail: () => void }) {
   const [pv, setPv] = useState(0) // bumped whenever the side panel's data may have changed
   const bump = () => setPv((n) => n + 1)
   const { setDialog, askNotify, refreshMe, viewing } = useData()
@@ -308,6 +311,9 @@ export default function Chat({ bot, sid, sessions, onSessions }: { bot: Bot; sid
     <Split panel={<SidePanel scope={sid ? { session_id: sid } : null} version={pv} bot={bot} />}>
     <section className="convo" aria-label={`Percakapan dengan ${bot.name}`}>
       <header className="convo-head">
+        <button className="btn soft sm rail-open" onClick={onRail}>
+          Riwayat
+        </button>
         <BotAvatar bot={bot} size={36} />
         <div className="convo-title">
           <h1>{bot.name}</h1>
@@ -316,7 +322,7 @@ export default function Chat({ bot, sid, sessions, onSessions }: { bot: Bot; sid
             {active?.model && active.messageCount !== -1 ? ` · ${active.model}` : ''}
           </p>
         </div>
-        <button className="btn soft convo-new" title="Mulai percakapan baru, riwayat lama tetap ada" onClick={() => go(botPath(bot.id))}>
+        <button className="btn soft sm convo-new" title="Mulai percakapan baru, riwayat lama tetap ada" onClick={() => go(botPath(bot.id))}>
           Topik baru
         </button>
         <button className="switch" role="switch" aria-checked={showThink} onClick={toggleThink}>
@@ -440,6 +446,17 @@ export default function Chat({ bot, sid, sessions, onSessions }: { bot: Bot; sid
   )
 }
 
+// A CS agent answers in JSON (CS v2.1). The chat shows the reply draft; the card with everything else opens from "Lihat detail".
+function csFromText(text: string): Cs21 | null {
+  const t = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '')
+  if (!t.startsWith('{')) return null
+  try {
+    return toCs21(JSON.parse(t))
+  } catch {
+    return null
+  }
+}
+
 const mdComponents = {
   a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
     <a href={href} target="_blank" rel="noopener noreferrer">
@@ -469,6 +486,7 @@ function Message(p: {
   onApprove: (deny: boolean) => void
 }) {
   const { m, bot, live } = p
+  const cs = useMemo(() => (m.role === 'assistant' ? csFromText(m.content) : null), [m.role, m.content])
   if (m.role === 'user') {
     return (
       <div className="msg user">
@@ -492,7 +510,21 @@ function Message(p: {
           </ul>
         )}
         <ThinkingBlock text={m.reasoning} running={waiting && !m.tools.length} seconds={m.seconds} defaultOpen={p.showThink} />
-        {m.content ? (
+        {cs ? (
+          <div className="cs-msg">
+            <p className="quiet small">Draf balasan pelanggan · draf internal, perlu tinjauan manusia</p>
+            <p className="draft-text">{cs.reply}</p>
+            <details className="cs-detail">
+              <summary>Lihat detail</summary>
+              <Cs21Card r={cs} validation={null} origin="agent" raw={m.content} />
+            </details>
+          </div>
+        ) : live && m.content.trimStart().startsWith('{') ? (
+          <p className="quiet working">
+            <span className="dots" aria-hidden="true" />
+            Menyusun draf balasan…
+          </p>
+        ) : m.content ? (
           <Md text={m.content} />
         ) : waiting && m.tools.length > 0 ? (
           <p className="quiet working">

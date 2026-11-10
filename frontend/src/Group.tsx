@@ -10,7 +10,7 @@ import { BotAvatar, ErrorLine, PENCIL, Icon, ThinkingBlock, botColor, clock, tea
 const sameId = (a: string, b: string) => a === b
 type Problem = { text: string; upgrade?: boolean } | null
 
-export default function GroupChat({ id }: { id: string }) {
+export default function GroupChat({ id, onRail }: { id: string; onRail: () => void }) {
   const { groups, bots, loadState, on, setDialog, setGroup, askNotify, viewing, reload } = useData()
   const group = groups.find((g) => g.id === id)
   const members = (group?.members ?? []).map((m) => bots.find((b) => b.id === m)).filter((b): b is Bot => !!b)
@@ -223,6 +223,9 @@ export default function GroupChat({ id }: { id: string }) {
     <Split panel={<SidePanel scope={{ group_id: id }} version={pv} group={group} members={members} />}>
     <section className="convo" aria-label={`Grup ${group.name}`}>
       <header className="convo-head">
+        <button className="btn soft sm rail-open" onClick={onRail}>
+          Daftar grup
+        </button>
         <div className="convo-title">
           {renaming !== null ? (
             <input
@@ -256,10 +259,10 @@ export default function GroupChat({ id }: { id: string }) {
             <BotAvatar key={b.id} bot={b} size={28} />
           ))}
         </span>
-        <button className="btn soft" onClick={() => setDialog({ kind: 'group', id })}>
+        <button className="btn soft sm" onClick={() => setDialog({ kind: 'group', id })}>
           Atur anggota
         </button>
-        <PanelButtons group />
+        <PanelButtons />
       </header>
 
       <div

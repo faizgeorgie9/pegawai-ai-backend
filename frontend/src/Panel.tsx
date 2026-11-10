@@ -5,7 +5,7 @@ import { api, errText } from './bff'
 import type { Bot, Group, Scope, Usage } from './bff'
 import { useData } from './data'
 import { go } from './router'
-import { BotAvatar, CLOSE, DOTS, ErrorLine, Icon, botColor, clock, nf, teamLabel } from './ui'
+import { BotAvatar, CLOSE, ErrorLine, Icon, botColor, clock, nf, teamLabel } from './ui'
 import './panel.css'
 
 // Side panel of a conversation (spec-panel-samping): Berpikir, Token, Aktivitas, Info. The open tab and the width
@@ -52,70 +52,17 @@ const ICONS: Record<Tab, string> = {
   aktivitas: 'M3 12h4l3-8 4 16 3-8h4',
   info: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 8h.01',
 }
-const GROUP_INFO = 'M16 20v-1a4 4 0 00-4-4H8a4 4 0 00-4 4v1M10 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM20 20v-1a3.5 3.5 0 00-2.5-3.4M15.5 4.3a3.5 3.5 0 010 6.4'
 const LABEL: Record<Tab, string> = { token: 'Token', aktivitas: 'Aktivitas', info: 'Info' }
-const TABS: Tab[] = ['token', 'aktivitas', 'info']
+const TABS: Tab[] = ['info', 'token', 'aktivitas']
 
-// Toolbar in the conversation header: the active icon is highlighted, clicking it again closes the panel.
-export function PanelButtons({ group }: { group?: boolean }) {
+// One button in the conversation header opens the panel; its Info, Token and Aktivitas tabs are inside the panel.
+export function PanelButtons() {
   const { tab } = usePanel()
-  const [menu, setMenu] = useState(false)
-  const box = useRef<HTMLSpanElement>(null)
-  useEffect(() => {
-    if (!menu) return
-    const away = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setMenu(false)
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setMenu(false)
-    document.addEventListener('mousedown', away)
-    document.addEventListener('keydown', esc)
-    return () => {
-      document.removeEventListener('mousedown', away)
-      document.removeEventListener('keydown', esc)
-    }
-  }, [menu])
   return (
-    <div className="ptools" role="toolbar" aria-label="Panel samping">
-      {TABS.map((t) => (
-        <button
-          key={t}
-          className="icon-btn ptool"
-          data-tip={LABEL[t]}
-          data-on={tab === t || undefined}
-          aria-label={LABEL[t]}
-          aria-pressed={tab === t}
-          onClick={() => patch({ tab: tab === t ? null : t })}
-        >
-          <Icon d={t === 'info' && group ? GROUP_INFO : ICONS[t]} size={18} />
-        </button>
-      ))}
-      <span className="ptool-menu" ref={box}>
-        <button className="icon-btn ptool" data-tip="Lainnya" aria-label="Lainnya" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
-          <Icon d={DOTS} size={18} />
-        </button>
-        {menu && (
-          <div className="popmenu" role="menu">
-            <button
-              role="menuitem"
-              disabled={!tab}
-              onClick={() => {
-                setMenu(false)
-                closePanel()
-              }}
-            >
-              Tutup panel
-            </button>
-            <button
-              role="menuitem"
-              onClick={() => {
-                setMenu(false)
-                go('/aktivitas')
-              }}
-            >
-              Buka halaman Aktivitas
-            </button>
-          </div>
-        )}
-      </span>
-    </div>
+    <button className="btn soft sm" aria-pressed={!!tab} onClick={() => patch({ tab: tab ? null : 'info' })}>
+      <Icon d={ICONS.info} size={16} />
+      Detail
+    </button>
   )
 }
 
@@ -223,18 +170,18 @@ export function SidePanel(p: PanelProps) {
         }}
       />
       <header className="p-head">
-        <h2>{LABEL[tab]}</h2>
-        <div className="p-tabs" role="tablist" aria-label="Tab panel">
-          {TABS.map((t) => (
-            <button key={t} role="tab" className="icon-btn ptool" data-on={tab === t || undefined} aria-selected={tab === t} aria-label={LABEL[t]} onClick={() => patch({ tab: t })}>
-              <Icon d={t === 'info' && p.group ? GROUP_INFO : ICONS[t]} size={18} />
-            </button>
-          ))}
-        </div>
+        <h2>{p.group ? p.group.name : p.bot?.name ?? 'Detail'}</h2>
         <button className="icon-btn" aria-label="Tutup panel" onClick={closePanel}>
           <Icon d={CLOSE} />
         </button>
       </header>
+      <div className="p-tabs" role="tablist" aria-label="Isi panel">
+        {TABS.map((t) => (
+          <button key={t} role="tab" className="p-tab" aria-selected={tab === t} onClick={() => patch({ tab: t })}>
+            {LABEL[t]}
+          </button>
+        ))}
+      </div>
       <div className="p-body">
         {tab !== 'info' && !p.scope && <p className="quiet pad">Belum ada percakapan. Kirim pesan dulu, lalu datanya muncul di sini.</p>}
         {tab === 'token' && p.scope && <Tokens {...p} scope={p.scope} />}
@@ -304,7 +251,6 @@ function Tokens({ scope, version, bot, members, group }: Scoped) {
             <h4>Per agen</h4>
             <ul className="bars">
               {u.data.by_bot.map((b) => {
-                const bb = lookup(b.bot_id)
                 return (
                   <li key={b.bot_id}>
                     <span className="bar-top">
@@ -313,7 +259,7 @@ function Tokens({ scope, version, bot, members, group }: Scoped) {
                         {dash(b.total)} <small className="quiet">· {b.runs} giliran</small>
                       </span>
                     </span>
-                    <Bar ratio={b.total / Math.max(1, u.data!.by_bot[0].total)} color={botColor(bb)} />
+                    <Bar ratio={b.total / Math.max(1, u.data!.by_bot[0].total)} color="var(--accent)" />
                     <small className="quiet num">
                       {dash(b.input)} masuk, {dash(b.output)} keluar
                     </small>
@@ -356,7 +302,7 @@ function Tokens({ scope, version, bot, members, group }: Scoped) {
                   <span>{b.name}</span>
                   <span className="num">{dash(b.total)}</span>
                 </span>
-                <Bar ratio={b.total / Math.max(1, month.data![0].total)} color={botColor(lookup(b.bot_id))} />
+                <Bar ratio={b.total / Math.max(1, month.data![0].total)} color="var(--accent)" />
               </li>
             ))}
           </ul>
