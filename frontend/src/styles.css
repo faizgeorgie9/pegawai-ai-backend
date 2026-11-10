@@ -74,7 +74,7 @@ input::placeholder, textarea::placeholder { color: var(--faint); opacity: 1; }
 input:hover, select:hover, textarea:hover { border-color: var(--faint); }
 input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
 
-@keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } } /* opacity only: the old scale(.7) read as bouncing */
 @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
