@@ -89,12 +89,21 @@ export function RunProgress({ detail }: { detail?: string }) {
   const s = Math.floor((now - t0) / 1000)
   return (
     <span className="runprog">
-      <span className="pline" aria-hidden="true" />
       <span className="sr" role="status">Bekerja{detail ? `, ${detail}` : ''}</span>
-      <span className="num" aria-hidden="true">Bekerja · {detail ? `${detail} · ` : ''}{s} dtk</span>
+      <span className="runprog-row" aria-hidden="true">
+        <Spinner />
+        <span className="num">Bekerja · {detail ? `${detail} · ` : ''}{s} dtk</span>
+      </span>
     </span>
   )
 }
+
+// Waiting mark: four dots in a 2x2 grid, one lit at a time going clockwise (opacity only, so nothing bounces).
+export const Spinner = () => (
+  <span className="spin4" aria-hidden="true">
+    <i /><i /><i /><i />
+  </span>
+)
 
 const COPY = 'M9 9h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V10a1 1 0 0 1 1-1zM5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1'
 // Copy to clipboard; the icon turns into a check and the label into "Disalin" for 1.5 s. No clipboard (or refused): "Gagal menyalin".
