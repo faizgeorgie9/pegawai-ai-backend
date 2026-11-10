@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useData } from './data'
 import type { Bot } from './bff'
 import { MARKETING_EXAMPLES } from './fixtures'
-import { AnswerDetails, MarketingCard, PlainAnswer } from './ResultCards'
+import { AnswerDetails, MarketingCard, PlainAnswer, Provenance } from './ResultCards'
 import { instructionsFor, parseMarketing, stripBlock } from './results'
-import type { MarketingKind, MarketingResult, Parsed } from './results'
+import type { ContextRef, MarketingKind, MarketingResult, Parsed } from './results'
 import { useRun } from './useRun'
 import { DataLegend, Empty, Loading, PageHead, Req } from './ui-extra'
 import { AgentSelect, ConfirmSwitch, OpenInChat, RunBar, Switch, hhmm, teamBots } from './ws-common'
@@ -21,6 +21,7 @@ interface Output {
   label: string
   parsed: Parsed<MarketingResult>
   structured: boolean
+  refs: ContextRef[]
   runId: string
   at: Date
 }
@@ -28,7 +29,7 @@ const blankForm = { objective: '', product: '', channel: '', contentType: '', co
 type Form = typeof blankForm
 const DUMMY: Form = {
   objective: 'Memperkenalkan kaos grafis baru ke pengikut Instagram',
-  product: 'Colorbox Regular Fit Short Sleeve Graphic T-Shirt (data DUMMY untuk uji, bukan data resmi)',
+  product: 'Colorbox Regular Fit Short Sleeve Graphic T-Shirt (Public Data · 9 Nov 2026)',
   channel: 'Instagram',
   contentType: 'Caption Instagram',
   count: '3',
@@ -66,7 +67,7 @@ function validate(f: Form): Partial<Record<keyof Form, string>> {
 function briefPrompt(f: Form): string {
   const row = (k: string, v: string) => (v.trim() ? `${k}: ${v.trim()}\n` : '')
   return (
-    'Ini brief dari saya untuk konten Colorbox. Data produk di bawah adalah contoh (dummy), bukan data resmi.\n\n' +
+    'Ini brief dari saya untuk konten Colorbox.\n\n' +
     row('Tujuan', f.objective) + row('Produk/topik', f.product) + row('Kanal', f.channel) + row('Tipe konten', f.contentType) + row('Jumlah output', f.count) +
     FIELDS.map(([k, l]) => row(l, f[k])).join('') +
     '\nTolong rapikan menjadi brief terstruktur. Tulis asumsi, pertanyaan yang masih terbuka, dan nyatakan siap atau belum siap dikerjakan. Jangan menulis konten dulu.'
@@ -145,7 +146,7 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
     setLast(() => () => void go(st, prompt, label))
     setSample(false)
     const kind = KIND[st]
-    const r = await run.send(prompt, { sid: sidRef.current || undefined, instructions: structured ? instructionsFor(kind) : undefined })
+    const r = await run.send(prompt, { sid: sidRef.current || undefined, instructions: structured ? instructionsFor(kind) : undefined, ctx: { workflow: 'marketing', stage: STAGES[st].toLowerCase() } })
     if (r.status === 'idle') return // superseded or reset: ignore
     if (r.sid) {
       sidRef.current = r.sid
@@ -154,7 +155,7 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
     if (r.status !== 'done') return
     const parsed: Parsed<MarketingResult> = structured ? parseMarketing(r.text, kind) : { text: r.text.trim(), result: null, state: 'none', raw: '' }
     const n = (counts.current[st] = (counts.current[st] ?? 0) + 1)
-    const o: Output = { id: `${st}-${n}`, stage: st, n, label, parsed, structured, runId: r.runId, at: new Date() }
+    const o: Output = { id: `${st}-${n}`, stage: st, n, label, parsed, structured, refs: r.result.refs, runId: r.runId, at: new Date() }
     setOuts((cur) => [...cur, o])
     setView(o.id)
     setStage(st)
@@ -223,7 +224,7 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
               <div className="ws-form-head">
                 <h2>Brief</h2>
                 <button type="button" className="btn soft" onClick={() => setForm(DUMMY)}>
-                  Isi contoh Colorbox (dummy)
+                  Isi contoh Colorbox
                 </button>
               </div>
               <div className="fgrid">
@@ -352,9 +353,15 @@ function OutputView({ o, meta }: { o: Output; meta: string }) {
       <>
         <MarketingCard r={o.parsed.result} origin="agent" meta={meta} />
         <AnswerDetails text={o.parsed.text} />
+        <Provenance refs={o.refs} workflow="marketing" />
       </>
     )
-  return <PlainAnswer text={o.parsed.text} note={o.structured ? 'Format terstruktur tidak terbaca' : undefined} />
+  return (
+    <>
+      <PlainAnswer text={o.parsed.text} note={o.structured ? 'Format terstruktur tidak terbaca' : undefined} />
+      <Provenance refs={o.refs} workflow="marketing" />
+    </>
+  )
 }
 
 function Field({ label, err, children }: { label: string; err?: string; children: React.ReactNode }) {

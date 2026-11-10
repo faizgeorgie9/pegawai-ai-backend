@@ -1,11 +1,13 @@
-// Structured results (frontend proposal, to be agreed with backend: docs/sprint3/kebutuhan-api-frontend.md, section
-// "Skema hasil terstruktur"). The agent appends one fenced block ```pegawai-result + JSON to its normal answer; we parse it,
-// check it with the guards below and draw cards. Nothing here is validated by the backend. On any failure the caller shows
-// the plain answer, never invented cards.
+// Structured results. Marketing: the agent appends one fenced block ```pegawai-result + JSON to its normal answer; we parse it
+// and check it with the guards below (not validated by the backend). CS (v2.1): the BFF validates the JSON and sends it in the
+// run's `done` event (docs/sprint3/kontrak-api-bff.md, sections 5 and 6); `toCs21` only normalises it. The old `kind:"cs"`
+// block still parses (`toCs`). On any failure the caller shows the plain answer, never invented cards.
 
 export type Cls = 'public_data' | 'research_findings' | 'assumptions' | 'dummy'
 export const CLS_LABEL: Record<Cls, string> = { public_data: 'Public Data', research_findings: 'Research Findings', assumptions: 'Assumptions', dummy: 'Dummy/Simulated' }
 
+// Marketing rubric (9 dimensions) and CS rubric (6 criteria, Hub 4.1). Evaluations store scores by key; the two sets share
+// accuracy, relevance, brand and knowledge.
 export const RUBRIC = [
   { key: 'accuracy', label: 'Akurasi dan keandalan fakta' },
   { key: 'relevance', label: 'Relevansi dan kecocokan audiens' },
@@ -18,6 +20,15 @@ export const RUBRIC = [
   { key: 'human_review', label: 'Kebutuhan review manusia' },
 ] as const
 export type RubricKey = (typeof RUBRIC)[number]['key']
+export const CS_RUBRIC = [
+  { key: 'accuracy', label: 'Accuracy: fakta sesuai sumber' },
+  { key: 'relevance', label: 'Relevance: menjawab pertanyaan' },
+  { key: 'brand', label: 'Brand Alignment: nada dan gaya Colorbox' },
+  { key: 'knowledge', label: 'Knowledge Utilization: memakai knowledge yang benar' },
+  { key: 'anti_hallucination', label: 'Anti-Hallucination: tidak mengarang' },
+  { key: 'escalation', label: 'Escalation: rekomendasi eskalasi tepat' },
+] as const
+export const ALL_DIMENSIONS: { key: string; label: string }[] = [...RUBRIC, ...CS_RUBRIC.filter((c) => !RUBRIC.some((r) => r.key === c.key))]
 
 export interface Idea { title: string; reason: string; classification?: Cls }
 export interface CalRow { date: string; channel: string; type: string; idea: string; message: string; cta: string }
@@ -45,6 +56,31 @@ export interface CsResult {
   simulated: boolean
 }
 export type Result = MarketingResult | CsResult
+
+// ---- CS v2.1 (BFF-validated) ----
+export const INTENT_LABEL: Record<string, string> = {
+  PRODUCT_INFO: 'Info produk', PRODUCT_AVAILABILITY: 'Ketersediaan produk', SIZE_FIT: 'Ukuran dan fit', SHIPPING_DELIVERY: 'Pengiriman', CLICK_COLLECT: 'Click & Collect',
+  ORDER_PROCESS: 'Proses pesanan', ORDER_STATUS: 'Status pesanan', COMPLAINT_DAMAGED: 'Keluhan: barang rusak', COMPLAINT_WRONG_ITEM: 'Keluhan: barang salah',
+  COMPLAINT_LATE_MISSING: 'Keluhan: terlambat atau hilang', RETURN_REFUND: 'Retur dan refund', PAYMENT: 'Pembayaran', WEBSITE_TECHNICAL: 'Masalah website', OTHER: 'Lainnya', AMBIGUOUS: 'Ambigu',
+}
+export type P = 'P0' | 'P1' | 'P2' | 'P3'
+export interface KnowledgeRef { knowledge_id: string; source_ids: string[]; source_url: string; accessed_date: string; used_for: string }
+export interface Cs21 {
+  primary_intent: string
+  secondary_intents: string[]
+  confidence: number
+  priority: P
+  reply: string
+  summary: { issue: string; reported: string[]; verified: string[]; unknowns: string[]; references: string[]; outcome: string; context: string[] }
+  refs: KnowledgeRef[]
+  clarifying: string
+  escalation: { recommended: boolean; reason: string }
+  simulation: { simulated: boolean; ids: string[] }
+}
+export interface Validation { status: 'valid' | 'repaired' | 'invalid' | 'not_applicable'; errors: string[]; attempts?: number }
+export interface ContextRef { type: 'knowledge' | 'product' | 'fixture'; id: string; title: string; classification: string; source_id: string; url: string; accessed_date: string }
+// What the BFF returns with a run that had a workflow (SSE `done` or run meta).
+export interface RunResult { structured: Cs21 | null; validation: Validation | null; refs: ContextRef[] }
 export type MarketingKind = MarketingResult['kind']
 
 // ---- guards (they also normalise: a model may send a string where we want a list) ----
@@ -130,6 +166,39 @@ export function toCs(x: unknown): CsResult | null {
   }
 }
 
+export function toCs21(x: unknown): Cs21 | null {
+  if (!isObj(x) || !str(x.primary_intent) || !str(x.priority) || !str(x.customer_reply_draft)) return null
+  const pr = str(x.priority).toUpperCase()
+  if (pr !== 'P0' && pr !== 'P1' && pr !== 'P2' && pr !== 'P3') return null
+  const ts = isObj(x.ticket_summary) ? x.ticket_summary : {}
+  const es = isObj(x.escalation) ? x.escalation : {}
+  const sim = isObj(x.simulation) ? x.simulation : {}
+  const nz = (v: unknown) => (v === null || v === undefined ? '' : str(v))
+  return {
+    primary_intent: str(x.primary_intent),
+    secondary_intents: strs(x.secondary_intents),
+    confidence: Number.isFinite(Number(x.classification_confidence)) ? Number(x.classification_confidence) : 0,
+    priority: pr,
+    reply: str(x.customer_reply_draft),
+    summary: { issue: str(ts.issue), reported: strs(ts.customer_reported_facts), verified: strs(ts.publicly_verified_facts), unknowns: strs(ts.unknowns), references: strs(ts.customer_provided_references), outcome: nz(ts.requested_outcome), context: strs(ts.context_retained) },
+    refs: arr(x.knowledge_refs).map((k) => ({ knowledge_id: str(k.knowledge_id), source_ids: strs(k.source_ids), source_url: nz(k.source_url), accessed_date: nz(k.accessed_date), used_for: str(k.used_for) })),
+    clarifying: nz(x.clarifying_question),
+    escalation: { recommended: es.recommended === true, reason: nz(es.reason) },
+    simulation: { simulated: sim.is_simulated === true, ids: strs(sim.scenario_ids) },
+  }
+}
+export function toValidation(x: unknown): Validation | null {
+  if (!isObj(x)) return null
+  const s = str(x.status)
+  if (s !== 'valid' && s !== 'repaired' && s !== 'invalid' && s !== 'not_applicable') return null
+  const a = Number(x.attempts)
+  return { status: s, errors: strs(x.errors), attempts: x.attempts !== undefined && Number.isFinite(a) ? a : undefined }
+}
+export const toRefs = (x: unknown): ContextRef[] =>
+  arr(x).map((r) => ({ type: r.type === 'product' || r.type === 'fixture' ? r.type : 'knowledge', id: str(r.id), title: str(r.title), classification: str(r.classification), source_id: str(r.source_id), url: str(r.url), accessed_date: str(r.accessed_date) }))
+// The `done` frame (structured, validation, context_refs) and the run detail (same keys inside `meta`) have the same shape.
+export const toRunResult = (d: unknown): RunResult => (isObj(d) ? { structured: toCs21(d.structured), validation: toValidation(d.validation), refs: toRefs(d.context_refs) } : { structured: null, validation: null, refs: [] })
+
 export const isMarketingResult = (x: unknown): x is MarketingResult => toMarketing(x) !== null
 export const isCsResult = (x: unknown): x is CsResult => toCs(x) !== null
 
@@ -157,14 +226,13 @@ export const parseCs = (a: string): Parsed<CsResult> => extract(a, toCs)
 // While streaming: hide the block (even half-written) from the visible answer.
 export const stripBlock = (a: string) => a.replace(/```pegawai-result[\s\S]*$/, '').replace(/```pegawai-result[\s\S]*?```/g, '').trim()
 
-// ---- instructions sent with the run (BFF -> Hermes /v1/runs `instructions`) ----
+// ---- instructions sent with the run (Marketing only; the BFF builds the CS v2.1 instructions) ----
 const HEAD = 'Jawab seperti biasa dalam bahasa Indonesia. Di akhir jawaban, tambahkan tepat satu blok kode berpagar dengan label pegawai-result berisi JSON valid (tanpa komentar, tanpa koma sisa) dengan bentuk ini. Isi semua teks dalam bahasa Indonesia. Kolom classification salah satu dari public_data, research_findings, assumptions, dummy. Jangan menaruh teks apa pun setelah blok itu.\n'
-const SHAPES: Record<MarketingKind | 'cs', string> = {
+const SHAPES: Record<MarketingKind, string> = {
   brief: '{"kind":"brief","fields":{"tujuan":"","produk":"","kanal":"","tipe_konten":"","jumlah_output":"","audiens":"","nada":"","pesan_kunci":"","cta":""},"assumptions":[""],"questions":[""],"ready":true}\n"ready" true hanya jika brief cukup untuk dikerjakan; jika tidak, isi questions.',
   plan: '{"kind":"plan","creative_brief":"","ideas":[{"title":"","reason":"","classification":"assumptions"}],"calendar":[{"date":"","channel":"","type":"","idea":"","message":"","cta":""}]}',
   content: '{"kind":"content","type":"caption","items":[{"text":"","alt_angle":"","classification":"assumptions"}],"sources":[""],"assumptions":[""],"warnings":[""]}\nSatu item per opsi. sources memuat sumber klaim; kosongkan jika tidak ada dan tulis di warnings.',
   review: '{"kind":"review","findings":[""],"evidence":[""],"recommendations":[""],"scores":{"accuracy":1,"relevance":1,"brand":1,"consistency":1,"knowledge":1,"instruction":1,"completeness":1,"error_handling":1,"human_review":1}}\nSkor bilangan bulat 1 sampai 5 untuk setiap dimensi.',
   revision: '{"kind":"revision","before":"","after":"","feedback_applied":[""],"change_log":[""],"open_issues":[""]}\nbefore adalah draf lama, after adalah draf baru lengkap.',
-  cs: '{"kind":"cs","inquiry":"","classification":"","sources":[{"ref":"","excerpt":""}],"draft":"","context_notes":"","summary":"","priority":"sedang","escalate":false,"escalation_reason":"","simulated":false}\nclassification (tingkat atas): jenis pertanyaan, mis. ukuran, harga, stok, keluhan, retur; bukan kategori data. priority: rendah, sedang, atau tinggi. draft: balasan untuk pelanggan, hanya dari sumber yang ada. simulated true untuk pesanan, retur, dan refund (data simulasi). Jika info tidak ada, katakan tidak tahu dan sarankan eskalasi.',
 }
-export const instructionsFor = (k: MarketingKind | 'cs') => HEAD + SHAPES[k]
+export const instructionsFor = (k: MarketingKind) => HEAD + SHAPES[k]

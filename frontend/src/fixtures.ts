@@ -1,4 +1,4 @@
-import type { CsResult, MarketingResult } from './results'
+import type { Cs21, MarketingResult } from './results'
 
 // Requirement examples E-01 to E-05 (Marketing) are designs, not real agent output. Shown only behind "Lihat contoh",
 // always with the badge "Contoh data", never mixed with real results. Product: Colorbox graphic tee (dummy).
@@ -68,16 +68,16 @@ export const MARKETING_EXAMPLES: { id: string; title: string; result: MarketingR
   },
 ]
 
-export const CS_EXAMPLE: CsResult = {
-  kind: 'cs',
-  inquiry: 'Kak, kaos ini ada ukuran XL? (contoh)',
-  classification: 'Pertanyaan ukuran',
-  sources: [{ ref: 'Katalog produk (contoh)', excerpt: 'Ukuran tersedia: S, M, L, XL', classification: 'dummy' }],
-  draft: 'Halo Kak! Kaos ini tersedia di ukuran S sampai XL. Mau dibantu cek panduan ukurannya? [draf contoh]',
-  context_notes: 'Giliran pertama, belum ada konteks sebelumnya.',
-  summary: 'Pelanggan menanyakan ketersediaan ukuran XL.',
-  priority: 'rendah',
-  escalate: false,
-  escalation_reason: '',
-  simulated: false,
+// Shape example of a CS v2.1 card (not agent output). Product facts are the public values of 7 Nov 2026 from the demo file.
+export const CS_EXAMPLE: Cs21 = {
+  primary_intent: 'PRODUCT_AVAILABILITY',
+  secondary_intents: ['PRODUCT_INFO', 'SIZE_FIT'],
+  confidence: 0.9,
+  priority: 'P2',
+  reply: 'Halo, terima kasih sudah menghubungi Colorbox. Harga yang tampil pada tanggal peninjauan adalah contoh. Stok ukuran M tidak dapat kami pastikan dari sini, silakan cek halaman produk atau kanal resmi. [draf contoh]',
+  summary: { issue: 'Harga dan stok ukuran M (contoh)', reported: ['Pelanggan biasa memakai ukuran M'], verified: ['Harga tampil di halaman utama pada tanggal tinjauan'], unknowns: ['Stok ukuran M', 'Ketebalan bahan'], references: [], outcome: 'Mengetahui harga dan ketersediaan', context: [] },
+  refs: [{ knowledge_id: 'CB-PRODUCT-001', source_ids: ['SRC-01'], source_url: 'https://colorbox.co.id/', accessed_date: '2026-11-07', used_for: 'Harga produk pada tanggal tinjauan (contoh)' }],
+  clarifying: '',
+  escalation: { recommended: true, reason: 'Stok langsung tidak bisa dicek (contoh).' },
+  simulation: { simulated: false, ids: [] },
 }

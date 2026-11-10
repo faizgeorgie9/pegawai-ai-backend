@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { CLS_LABEL, RUBRIC } from './results'
-import type { Cls, CsResult, MarketingResult } from './results'
+import { CLS_LABEL, INTENT_LABEL, RUBRIC } from './results'
+import type { Cls, ContextRef, Cs21, CsResult, MarketingResult, Validation } from './results'
 
 export type Origin = 'agent' | 'sample'
 
@@ -10,14 +10,14 @@ export function ClassBadge({ c }: { c?: Cls }) {
   return c ? <span className={`pill cls cls-${c}`}>{CLS_LABEL[c]}</span> : null
 }
 
-function Frame({ title, meta, origin, flags, children }: { title: string; meta?: string; origin: Origin; flags?: ReactNode; children: ReactNode }) {
+function Frame({ title, meta, origin, originLabel, flags, children }: { title: string; meta?: string; origin: Origin; originLabel?: string; flags?: ReactNode; children: ReactNode }) {
   return (
     <article className="rcard" data-origin={origin}>
       <header>
         <b>{title}</b>
         {meta && <span className="quiet small">{meta}</span>}
         <span className="rflags">
-          {origin === 'sample' ? <span className="pill sample">Contoh data</span> : <span className="pill origin">Hasil agen · belum divalidasi backend</span>}
+          {origin === 'sample' ? <span className="pill sample">Contoh data</span> : <span className="pill origin">{originLabel ?? 'Hasil agen · belum divalidasi backend'}</span>}
           {flags}
         </span>
       </header>
@@ -178,6 +178,105 @@ export function CsCard({ r, origin, meta }: { r: CsResult; origin: Origin; meta?
       {r.context_notes && <Block label="Konteks percakapan"><p>{r.context_notes}</p></Block>}
       {r.escalate && <Block label="Alasan eskalasi"><p>{r.escalation_reason || 'Tidak ada alasan ditulis.'}</p></Block>}
     </Frame>
+  )
+}
+
+const http = (u: string) => /^https?:\/\//i.test(u)
+const Link = ({ url }: { url: string }) => (http(url) ? <a href={url} target="_blank" rel="noopener noreferrer">{url.replace(/^https?:\/\//, '')}</a> : null)
+const SubList = ({ label, items }: { label: string; items: string[] }) => (items.length ? <><h4>{label}</h4><List items={items} /></> : null)
+
+const VALID_LABEL: Record<Validation['status'], string> = { valid: 'Valid (skema v2.1)', repaired: 'Diperbaiki otomatis (skema v2.1)', invalid: 'Tidak valid', not_applicable: 'Tidak diperiksa' }
+export function ValidationBadge({ v }: { v: Validation | null }) {
+  if (!v) return null
+  return <span className={`pill ${v.status === 'valid' ? 'ok' : v.status === 'invalid' ? 'bad' : 'warn'}`} title={v.errors.join('\n') || undefined}>{VALID_LABEL[v.status]}</span>
+}
+
+// CS v2.1 result, validated by the BFF. The escalation is a recommendation only: nothing is routed to anyone.
+export function Cs21Card({ r, validation, origin, meta }: { r: Cs21; validation: Validation | null; origin: Origin; meta?: string }) {
+  const s = r.summary
+  const prio = { P0: 'Kritis', P1: 'Tinggi', P2: 'Sedang', P3: 'Rendah' }[r.priority]
+  return (
+    <Frame
+      title="Hasil CS"
+      meta={meta}
+      origin={origin}
+      originLabel="Hasil agen · divalidasi BFF"
+      flags={<>{r.simulation.simulated && <span className="pill sim">Simulasi{r.simulation.ids.length ? ` · ${r.simulation.ids.join(', ')}` : ''}</span>}<ValidationBadge v={validation} /></>}
+    >
+      <div className="cs-top">
+        <span className="pill cls-class" title={r.primary_intent}>{INTENT_LABEL[r.primary_intent] ?? r.primary_intent}</span>
+        <span className="pill plain num">Keyakinan {Math.round(r.confidence * 100)}%</span>
+        <span className={`pill prio-${r.priority}`}>{r.priority} · {prio}</span>
+      </div>
+      {r.secondary_intents.length > 0 && <p className="quiet small">Intent tambahan: {r.secondary_intents.map((i) => INTENT_LABEL[i] ?? i).join(', ')}</p>}
+      <Block label="Draf balasan pelanggan" badge={<span className="pill warn">Draf — perlu review manusia</span>}>
+        <p className="draft-text">{r.reply}</p>
+      </Block>
+      {r.clarifying && <Block label="Pertanyaan klarifikasi"><p>{r.clarifying}</p></Block>}
+      <Block label="Rekomendasi eskalasi · perlu tinjauan manusia" badge={<span className={`pill ${r.escalation.recommended ? 'bad' : 'ok'}`}>{r.escalation.recommended ? 'Direkomendasikan' : 'Tidak direkomendasikan'}</span>}>
+        <p>{r.escalation.reason || (r.escalation.recommended ? 'Tidak ada alasan ditulis.' : 'Tidak ada alasan eskalasi. Draf tetap perlu ditinjau manusia.')}</p>
+        <p className="quiet small">Ini hanya rekomendasi. Tidak ada yang dikirim ke siapa pun.</p>
+      </Block>
+      <Block label="Ringkasan tiket">
+        {s.issue && <p>{s.issue}</p>}
+        <SubList label="Dilaporkan pelanggan" items={s.reported} />
+        <SubList label="Terverifikasi dari sumber publik" items={s.verified} />
+        <SubList label="Belum diketahui" items={s.unknowns} />
+        <SubList label="Referensi dari pelanggan" items={s.references} />
+        {s.outcome && <><h4>Hasil yang diminta</h4><p>{s.outcome}</p></>}
+        <SubList label="Konteks yang dipertahankan" items={s.context} />
+      </Block>
+      <Block label="Referensi knowledge yang dipakai jawaban">
+        {r.refs.length ? (
+          <ul className="rlist">
+            {r.refs.map((k, i) => (
+              <li key={i}>
+                <b>{k.knowledge_id}</b> {k.source_ids.length > 0 && <span className="quiet">· {k.source_ids.join(', ')} (daftar sumber CS)</span>}
+                {k.used_for && <div>{k.used_for}</div>}
+                <div className="quiet small"><Link url={k.source_url} /> {k.accessed_date && <span className="num">· dicek {k.accessed_date}</span>}</div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="quiet">Tidak ada referensi knowledge disebut.</p>
+        )}
+      </Block>
+    </Frame>
+  )
+}
+
+// "Sumber jawaban": what the BFF put into the agent's context (not necessarily what the answer cites).
+const REF_TYPE = { knowledge: 'Knowledge', product: 'Produk katalog', fixture: 'Fixture simulasi' } as const
+const refCls = (c: string): Cls | undefined => (/^public/i.test(c) ? 'public_data' : /^research/i.test(c) ? 'research_findings' : /^assum/i.test(c) ? 'assumptions' : /^dummy|^simul/i.test(c) ? 'dummy' : undefined)
+export function Provenance({ refs, workflow }: { refs: ContextRef[]; workflow: 'cs' | 'marketing' }) {
+  if (!refs.length) return null
+  const reg = workflow === 'cs' ? 'daftar sumber CS' : 'daftar sumber Hub'
+  return (
+    <details className="prov" open>
+      <summary>Sumber jawaban <span className="quiet small">({refs.length})</span></summary>
+      <p className="quiet small">Konteks yang diberikan ke agen untuk run ini, belum tentu semuanya dikutip di jawaban. ID SRC-xx hanya berlaku di {reg}.</p>
+      {(['knowledge', 'product', 'fixture'] as const).map((t) => {
+        const list = refs.filter((x) => x.type === t)
+        if (!list.length) return null
+        return (
+          <section key={t} className="rblock">
+            <h3>{REF_TYPE[t]} <span className="quiet small">({list.length})</span></h3>
+            <ul className="rlist prov-list">
+              {list.map((x, i) => (
+                <li key={i}>
+                  <b>{x.title || x.id}</b> {x.title && x.title !== x.id && <span className="quiet">· {x.id}</span>}{' '}
+                  {refCls(x.classification) ? <ClassBadge c={refCls(x.classification)} /> : x.classification && <span className="pill plain cls">{x.classification}</span>}
+                  <div className="quiet small">
+                    {x.source_id && <span>{x.source_id} · {t === 'product' ? 'katalog' : reg} </span>}
+                    <Link url={x.url} /> {x.accessed_date && <span className="num">· {x.accessed_date}</span>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )
+      })}
+    </details>
   )
 }
 

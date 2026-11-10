@@ -242,6 +242,12 @@ export interface RunMeta {
   instructions_mode: string
   bff_commit?: string
 }
+// Optional workflow context of a run (contract section 2): the BFF builds instructions and retrieves knowledge.
+export interface RunCtx {
+  workflow?: 'cs' | 'marketing'
+  stage?: string
+  test_mode?: boolean
+}
 export interface CompareRun {
   run_id: string
   session_id: string | null
@@ -484,8 +490,8 @@ export const api = {
     foldMessages(list(await call('GET', `/bots/${enc(botId)}/sessions/${enc(sid)}/messages`, undefined, signal))),
   renameSession: (botId: string, sid: string, title: string) => call<void>('PATCH', `/bots/${enc(botId)}/sessions/${enc(sid)}`, { title }),
   deleteSession: (botId: string, sid: string) => call<void>('DELETE', `/bots/${enc(botId)}/sessions/${enc(sid)}`),
-  startRun: async (botId: string, input: string, session_id?: string, instructions?: string) => {
-    const r = await call<Raw>('POST', `/bots/${enc(botId)}/runs`, { input, ...(session_id ? { session_id } : {}), ...(instructions ? { instructions } : {}) })
+  startRun: async (botId: string, input: string, session_id?: string, instructions?: string, ctx?: RunCtx) => {
+    const r = await call<Raw>('POST', `/bots/${enc(botId)}/runs`, { input, ...(session_id ? { session_id } : {}), ...(instructions ? { instructions } : {}), ...(ctx?.workflow ? { workflow: ctx.workflow, ...(ctx.stage ? { stage: ctx.stage } : {}), ...(ctx.test_mode ? { test_mode: true } : {}) } : {}) })
     return { run: toRun(r.run ?? r), session_id: asStr(r.session_id ?? r.run?.session_id) }
   },
   runs: async (status: 'active' | 'recent', limit?: number, bot?: string) => list(await call('GET', `/runs${q({ status, limit, bot })}`)).map(toRun),

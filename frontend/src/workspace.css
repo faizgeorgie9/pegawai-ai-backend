@@ -55,7 +55,9 @@
 .pill.cls-class { background: var(--hue-blue-bg); color: var(--hue-blue-ink); }
 .pill.prio-rendah { background: var(--ok-bg); color: var(--ok-ink); }
 .pill.prio-sedang { background: var(--warn-bg); color: var(--warn-ink); box-shadow: inset 0 0 0 1px var(--warn-line); }
-.pill.prio-tinggi { background: var(--bad-bg); color: var(--bad-ink); }
+.pill.prio-tinggi, .pill.prio-P0, .pill.prio-P1 { background: var(--bad-bg); color: var(--bad-ink); }
+.pill.prio-P2 { background: var(--warn-bg); color: var(--warn-ink); box-shadow: inset 0 0 0 1px var(--warn-line); }
+.pill.prio-P3 { background: var(--ok-bg); color: var(--ok-ink); }
 .rblock { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .rblock h3 { font-size: 13px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .rlist { display: flex; flex-direction: column; gap: 4px; padding-left: 18px; list-style: disc; }
@@ -150,3 +152,8 @@
 .sbars b { text-align: right; }
 .ids { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 @media (max-width: 760px) { .sum-cols { grid-template-columns: minmax(0, 1fr); } .sbars li { grid-template-columns: minmax(0, 1fr) 32px; } .sbars li .sbar { grid-column: 1 / -1; grid-row: 2; } .sbars li b { grid-row: 1; grid-column: 2; } }
+
+.rblock h4 { margin: var(--s-3) 0 var(--s-1); font-size: 13px; color: var(--muted); font-weight: 600; }
+.prov { margin-top: var(--s-4); padding: var(--s-3) var(--s-4); border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.prov summary { cursor: pointer; font-weight: 600; }
+.prov a, .rlist a { overflow-wrap: anywhere; }
