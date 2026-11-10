@@ -1,8 +1,8 @@
-import { Fragment, useCallback, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api, errText } from './bff'
-import type { EvalInput, Evaluation, EvalSummary, RunCtx, RunMeta } from './bff'
+import type { EvalInput, Evaluation, EvalSummary, RunCtx, RunMeta, Sequence } from './bff'
 import { CompareColumns, Versions, metaValue } from './Compare'
 import type { Col } from './Compare'
 import Summary from './Summary'
@@ -14,7 +14,9 @@ import { SCENARIOS } from './scenarios'
 import type { Scenario } from './scenarios'
 import { ErrorLine } from './ui'
 import { Empty, Loading, PageHead, Opt, useLoad } from './ui-extra'
-import { useRun } from './useRun'
+import { go, useRoute } from './router'
+import { useFollow, useRun } from './useRun'
+import type { RunStatus } from './useRun'
 import { OpenInChat, RunBar } from './ws-common'
 
 const ROUTE = 'UI → BFF → Hermes'
@@ -41,6 +43,15 @@ export const avgOf = (e: Pick<Evaluation, 'scores'>): number | null => {
 
 type TurnOut = { text: string; runId: string; result: RunResult }
 type Snap = { text: string; runId: string; status: string; error: string; turns: TurnOut[] }
+// The result of a finished server-side sequence, in the shape the evaluation form and the result cards read.
+function snapOf(q: Sequence): Snap {
+  const last = q.turns[q.turns.length - 1]
+  const turns = q.turns.filter((t) => t.status === 'completed').map((t) => ({ text: t.output, runId: t.run_id, result: t.result }))
+  const text = q.status === 'completed' && q.of > 1 ? turns.map((t, i) => `[Giliran ${i + 1}]\n${t.text}`).join('\n\n') : last?.output ?? ''
+  return { text, runId: last?.run_id ?? '', status: q.status === 'completed' ? 'done' : q.status === 'stopped' ? 'stopped' : 'error', error: q.error, turns }
+}
+const isActive = (q: Sequence | null) => !!q && (q.status === 'queued' || q.status === 'running')
+
 type CmpState = { kind: 'repeat' | 'agents'; cols: Col[]; status: 'running' | 'done' | 'incomplete' }
 const emptyCol = (botId: string, botName: string): Col => ({ botId, botName, runId: '', sid: '', status: 'pending', text: '', error: '', tokens: 0, seconds: null, startedAt: 0, meta: {} })
 
@@ -51,8 +62,8 @@ export default function Uji() {
   const [override, setOverride] = useState('')
   const [botId, setBotId] = useState('')
   const [runKey, setRunKey] = useState(0) // new evaluation form per run
-  const [sid, setSid] = useState('')
-  const [runSnap, setRunSnap] = useState<Snap | null>(null)
+  const [seq, setSeq] = useState<Sequence | null>(null) // the server-side run of the shown case (single or multi-turn)
+  const [starting, setStarting] = useState(false)
   const [runMeta, setRunMeta] = useState<Partial<RunMeta>>({})
   const [tab, setTab] = useState<'uji' | 'bandingkan' | 'ringkasan'>('uji')
   const [pickId, setPickId] = useState('')
@@ -61,8 +72,11 @@ export default function Uji() {
   const [botB, setBotB] = useState('')
   const [cmp, setCmp] = useState<CmpState | null>(null)
   const [problem, setProblem] = useState('')
-  const [turnNo, setTurnNo] = useState(0)
+  const [turnNo, setTurnNo] = useState(0) // compare mode only: it still runs its turns here
   const cancelled = useRef(false)
+  const gen = useRef(0) // bumped when a run starts, so a late restore never replaces it
+  const seqRef = useRef<Sequence | null>(null)
+  const cmpRef = useRef<CmpState | null>(null)
   const fn = useCallback(() => api.evaluations(), [])
   const log = useLoad(fn)
   const sumFn = useCallback((): Promise<EvalSummary> => api.evaluationSummary(), [])
@@ -72,7 +86,15 @@ export default function Uji() {
   const defaultBot = (s: Scenario) => bots.find((b) => b.id === (s.group === 'cs' ? 'siti' : 'rian'))?.id ?? bots[0]?.id ?? ''
   const effective = (s: Scenario) => override || defaultBot(s)
   const run = useRun()
-  const busy = run.busy || cmp?.status === 'running'
+  const seqActive = isActive(seq)
+  const busy = run.busy || cmp?.status === 'running' || seqActive || starting
+  const runSnap = useMemo(() => (seq && !seqActive ? snapOf(seq) : null), [seq, seqActive])
+  const liveRun = seqActive ? seq?.turns.find((t) => t.status === 'running')?.run_id ?? '' : ''
+  const live = useFollow(liveRun)
+  seqRef.current = seq
+  cmpRef.current = cmp
+  const route = useRoute()
+  const wanted = route.name === 'uji' ? route.case : undefined
   const compare = tab === 'bandingkan'
   const nameOf = (id: string) => bots.find((b) => b.id === id)?.name ?? id
   const teamOf = (id: string) => bots.find((b) => b.id === id)?.team
@@ -87,7 +109,7 @@ export default function Uji() {
   const ctxOf = (s: Scenario, bid: string): RunCtx | undefined =>
     teamOf(bid) === (s.group === 'cs' ? 'customer_support' : 'marketing') ? { workflow: s.group, stage: 'uji', ...(s.group === 'cs' && s.simulate ? { test_mode: true } : {}) } : undefined
 
-  // Multi-turn cases: the turns go in order, in one new session. Stops at the first turn that does not finish.
+  // Compare mode only: it still runs the turns here, in order, in one new session. Normal runs use a server-side sequence.
   async function runTurns(s: Scenario, bid: string): Promise<Snap & { sid: string; superseded?: boolean }> {
     let sid = ''
     const turns: TurnOut[] = []
@@ -107,10 +129,10 @@ export default function Uji() {
   function begin(s: Scenario, bid: string) {
     setSc(s)
     setBotId(bid)
-    setRunSnap(null)
+    gen.current++
+    setSeq(null)
     setRunMeta({})
     setCmp(null)
-    setSid('')
     setProblem('')
     setRunKey((k) => k + 1)
     window.setTimeout(() => panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
@@ -122,12 +144,28 @@ export default function Uji() {
     if (!bid) return
     if (compare) return void startCompare(s, bid)
     begin(s, bid)
-    cancelled.current = false
-    const r = await runTurns(s, bid)
-    if (r.superseded) return
-    setSid(r.sid)
-    setRunSnap({ text: r.text, runId: r.runId, status: r.status, error: r.error, turns: r.turns })
-    if (r.runId) void api.run(r.runId).then((d) => setRunMeta(d.meta), () => {})
+    setStarting(true)
+    try {
+      setSeq(await api.startSequence(bid, s.turns, s.id, ctxOf(s, bid)))
+    } catch (e) {
+      setProblem(errText(e))
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  // Show a sequence started earlier (this page or another visit): progress while it runs, the results when it is done.
+  function restore(q: Sequence) {
+    const s = SCENARIOS.find((x) => x.id === q.case_id)
+    if (!s) return
+    gen.current++
+    setSc(s)
+    setBotId(q.bot_id)
+    setCmp(null)
+    setProblem('')
+    setRunMeta({})
+    setSeq(q)
+    setRunKey((k) => k + 1)
   }
 
   // Each run goes in its own new session (no session id) and runs one after the other, so the concurrency cap is never hit.
@@ -160,12 +198,54 @@ export default function Uji() {
     setCmp({ kind, cols, status: 'done' })
   }
   const stop = () => {
+    if (seq && seqActive) return void api.stopSequence(seq.id).catch(() => {})
     cancelled.current = true
     run.stop()
   }
 
+  // Poll the sequence while it runs (the server keeps going when this page is closed).
+  const seqId = seq?.id
+  useEffect(() => {
+    if (!seqId || !seqActive) return
+    const t = window.setInterval(() => void api.sequence(seqId).then((q) => setSeq((cur) => (cur?.id === seqId ? q : cur)), () => {}), 1500)
+    return () => window.clearInterval(t)
+  }, [seqId, seqActive])
+
+  const lastRun = seq && !seqActive ? seq.run_ids[seq.run_ids.length - 1] ?? '' : ''
+  useEffect(() => {
+    if (!lastRun) return
+    let dead = false
+    void api.run(lastRun).then((d) => !dead && setRunMeta(d.meta), () => {})
+    return () => {
+      dead = true
+    }
+  }, [lastRun])
+
+  // #/uji?case=V02 (the "Sedang dikerjakan" link) selects that case.
+  useEffect(() => {
+    if (!wanted || !SCENARIOS.some((x) => x.id === wanted)) return
+    setGroup('all')
+    setPickId(wanted)
+    setTab('uji')
+  }, [wanted])
+
+  // On opening a case, restore its latest sequence (unless this view already shows one for it, or compare results are shown).
+  const caseId = pickId || SCENARIOS.find((x) => group === 'all' || x.group === group)?.id || ''
+  const normalTab = tab === 'uji'
+  useEffect(() => {
+    if (!caseId || !normalTab || seqRef.current?.case_id === caseId || cmpRef.current) return
+    const mine = gen.current
+    let dead = false
+    void api.latestSequence(caseId).then((q) => { if (!dead && q && gen.current === mine) restore(q) }, () => {})
+    return () => {
+      dead = true
+    }
+    // restore only reads setters and the scenario list
+  }, [caseId, normalTab])
+
   const shownRows = SCENARIOS.filter((s) => group === 'all' || s.group === group)
   const chosen = shownRows.find((s) => s.id === pickId) ?? shownRows[0]
+  const seqStatus: RunStatus = !seq ? 'idle' : seqActive ? 'running' : seq.status === 'completed' ? 'done' : seq.status === 'stopped' ? 'stopped' : 'error'
   const liveIdx = cmp ? Math.max(0, cmp.cols.findIndex((c) => c.status === 'running')) : 0
 
   return (
@@ -210,7 +290,7 @@ export default function Uji() {
               <ul className="cases">
                 {shownRows.map((s) => (
                   <li key={s.id}>
-                    <button type="button" className="case" aria-pressed={chosen?.id === s.id} onClick={() => setPickId(s.id)}>
+                    <button type="button" className="case" aria-pressed={chosen?.id === s.id} onClick={() => { setPickId(s.id); if (wanted) go('/uji', true) }}>
                       <span className="case-id num">{s.id}</span>
                       <span className="case-main">
                         <b>{s.title}</b>
@@ -283,20 +363,20 @@ export default function Uji() {
                   <span className="quiet small">
                     {cmp ? (cmp.kind === 'repeat' ? `Ulang ${cmp.cols.length} kali · ${nameOf(botId)}` : `Dua agen: ${cmp.cols.map((c) => c.botName).join(' dan ')}`) : `Agen: ${nameOf(botId)}`} · {ROUTE}
                   </span>
-                  {!cmp && <OpenInChat botId={botId} sid={sid} />}
+                  {!cmp && <OpenInChat botId={botId} sid={seq?.session_id ?? ''} />}
                 </header>
                 <RunBar
                   busy={busy}
-                  detail={[cmp ? `Run ${liveIdx + 1} dari ${cmp.cols.length}: ${cmp.cols[liveIdx].botName}` : '', sc.turns.length > 1 ? `giliran ${turnNo} dari ${sc.turns.length}` : ''].filter(Boolean).join(', ') || undefined}
+                  detail={[cmp ? `Run ${liveIdx + 1} dari ${cmp.cols.length}: ${cmp.cols[liveIdx].botName}` : '', sc.turns.length > 1 ? `giliran ${cmp ? turnNo : seq?.current_turn ?? 1} dari ${sc.turns.length}` : ''].filter(Boolean).join(', ') || undefined}
                   onStop={stop}
-                  status={run.status}
-                  error={run.error}
+                  status={cmp ? run.status : seqStatus}
+                  error={cmp ? run.error : seq?.error ?? ''}
                   onRetry={() => void start(sc)}
                   stoppedNote={cmp ? 'Dihentikan. Perbandingan yang belum lengkap tidak bisa disimpan.' : 'Dihentikan. Anda masih bisa menyimpan evaluasi dengan hasil Nonaktif.'}
                 />
                 {cmp && <CompareColumns cols={cmp.cols} live={run.text} />}
                 {cmp?.status === 'incomplete' && <p className="note-box">Perbandingan belum lengkap, jadi belum bisa dinilai. Jalankan lagi.</p>}
-                {!cmp && run.busy && run.text && sc.group !== 'cs' && <article className="rcard live"><div className="rbody"><p className="draft-text">{run.text}</p></div></article>}
+                {!cmp && seqActive && live && sc.group !== 'cs' && <article className="rcard live"><div className="rbody"><p className="draft-text">{live}</p></div></article>}
                 {!cmp && runSnap && runSnap.status === 'done' && runSnap.turns.map((t, i) => (
                   <div key={i}>
                     {sc.turns.length > 1 && <p className="quiet small">Giliran {i + 1}: {sc.turns[i]}</p>}
@@ -313,7 +393,7 @@ export default function Uji() {
                     )}
                   </div>
                 ))}
-                {!cmp && runSnap && runSnap.status !== 'running' && <EvalForm key={runKey} sc={sc} botId={botId} sid={sid} snap={runSnap} meta={runMeta} onSaved={saved} />}
+                {!cmp && runSnap && <EvalForm key={`${runKey}-${seq?.id}`} sc={sc} botId={botId} sid={seq?.session_id ?? ''} snap={runSnap} meta={runMeta} onSaved={saved} />}
                 {cmp?.status === 'done' && <EvalForm key={runKey} sc={sc} botId={botId} sid={cmp.cols[0].sid} snap={{ text: '', runId: cmp.cols[0].runId, status: 'done', error: '', turns: [] }} meta={cmp.cols[0].meta} cmp={cmp} onSaved={saved} />}
               </>
             )}

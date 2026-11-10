@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bots, catalog, config, db, engine, evaluations, groups, harden, hermes, knowledge, usage
+from . import bots, catalog, config, db, engine, evaluations, groups, harden, hermes, sequences, usage
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -22,6 +22,7 @@ async def lifespan(app: FastAPI):
     hermes.start_client()
     await engine.recover()
     await groups.recover()
+    await sequences.recover()
     await bots.adopt_sessions()
     cleaner = asyncio.create_task(db.cleanup_loop())
     yield
@@ -283,13 +284,11 @@ async def create_run(bot_id: str, request: Request):
         raise ApiError(400, "Stage harus berupa teks (maksimal 60 karakter)")
     if not isinstance(test_mode, bool):
         raise ApiError(400, "test_mode harus true atau false")
+    origin = engine.clean_origin(b.get("origin")) or engine.infer_origin(None, workflow)
     context = None
     if workflow:
-        # The BFF retrieves before the run: knowledge bundle of the bot's team plus up to 5 catalog products.
-        products = await catalog.search_products(text, limit=5)
-        ins, refs, meta = knowledge.build_context(bot["team"], workflow, ins, products, test_mode and workflow == "cs")
-        context = {**meta, "stage": stage.strip() if stage else None, "test_mode": test_mode, "context_refs": refs}
-    run = await engine.start_run(uid, bot_id, sid, text.strip(), "chat", instructions=ins, context=context)
+        ins, context = await engine.workflow_context(bot, workflow, stage, test_mode, text, ins)
+    run = await engine.start_run(uid, bot_id, sid, text.strip(), "chat", instructions=ins, context=context, origin=origin)
     return {"run": engine.run_view(run), "session_id": sid}
 
 
@@ -310,9 +309,13 @@ async def list_runs(status: str = "recent", limit: int = 30, bot: str | None = N
     limit = max(1, min(limit, 100))
     cond = "r.status = any(%s)" if status == "active" else "not (r.status = any(%s))"
     rows = await db.q(f"select r.id, r.bot_id, b.name as bot_name, r.kind, r.status, left(r.input, 120) as input, "
-                      f"r.group_id, r.session_id, r.total_tokens, r.created_at, r.finished_at from runs r "
-                      f"join bots b on b.id = r.bot_id where r.user_id = %s and {cond} and (%s::text is null or r.bot_id = %s) "
-                      f"order by r.created_at desc limit %s", current_user(), list(engine.ACTIVE), bot, bot, limit)
+                      f"r.group_id, r.session_id, r.total_tokens, r.created_at, r.finished_at, r.meta->'origin' as origin, r.meta->>'workflow' as wf "
+                      f"from runs r join bots b on b.id = r.bot_id where r.user_id = %s and {cond} "
+                      f"and (%s::text is null or r.bot_id = %s) order by r.created_at desc limit %s",
+                      current_user(), list(engine.ACTIVE), bot, bot, limit)
+    for r in rows:  # runs from before origin existed: infer it
+        r["origin"] = r["origin"] or engine.infer_origin(r["group_id"], r["wf"])
+        del r["wf"]
     return rows
 
 
@@ -386,6 +389,35 @@ async def steer_run(rid: str, request: Request):
 @api.post("/runs/{rid}/approval")
 async def approve_run(rid: str, request: Request):
     return await engine.approval(current_user(), rid, (await body_of(request)).get("choice"))
+
+
+# ---------- sequences (multi-turn runs that continue on the server) ----------
+
+@api.post("/bots/{bot_id}/sequences", status_code=202)
+async def create_sequence(bot_id: str, request: Request):
+    return await sequences.create(current_user(), bot_id, await body_of(request))
+
+
+@api.get("/sequences")
+async def list_sequences(case_id: str | None = None, limit: int = 1):
+    return await sequences.list_for(current_user(), case_id, limit)
+
+
+@api.get("/sequences/{sid}")
+async def get_sequence(sid: str):
+    return await sequences.get_view(current_user(), _seq_id(sid))
+
+
+@api.post("/sequences/{sid}/stop")
+async def stop_sequence(sid: str):
+    return await sequences.stop(current_user(), _seq_id(sid))
+
+
+def _seq_id(v: str) -> str:
+    try:
+        return str(uuid.UUID(v))
+    except ValueError:
+        raise ApiError(404, "Urutan tidak ditemukan")
 
 
 # ---------- groups ----------

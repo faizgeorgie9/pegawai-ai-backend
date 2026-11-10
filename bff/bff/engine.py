@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import httpx
 
-from . import cs_schema, db, hermes, knowledge, versions
+from . import catalog, cs_schema, db, hermes, knowledge, versions
 from .errors import ApiError
 from .redact import redact
 
@@ -131,8 +131,10 @@ async def check_quota(user_id: str) -> None:
 # ---------- start ----------
 
 async def start_run(user_id: str, bot: str, session_id: str, input_: str, kind: str,
-                    group_id: str | None = None, instructions: str | None = None, context: dict | None = None) -> dict:
-    """`context` (set when the run has a workflow): {workflow, stage, test_mode, context_refs, ...extra meta}."""
+                    group_id: str | None = None, instructions: str | None = None, context: dict | None = None,
+                    origin: dict | None = None) -> dict:
+    """`context` (set when the run has a workflow): {workflow, stage, test_mode, context_refs, ...extra meta}.
+    `origin` is stored in meta.origin: where the run came from (see clean_origin / infer_origin)."""
     await check_quota(user_id)
     rid = str(uuid.uuid4())
     meta = await versions.snapshot(bot, instructions)  # version and config at the moment the run starts
@@ -140,6 +142,8 @@ async def start_run(user_id: str, bot: str, session_id: str, input_: str, kind: 
         meta.update(context, prompt_hash=knowledge.prompt_hash(instructions, input_))
         if context.get("workflow") != "cs":
             meta["validation"] = {"status": "not_applicable", "errors": []}
+    if origin:
+        meta["origin"] = origin
     await db.ex("insert into runs (id, user_id, bot_id, session_id, group_id, kind, status, input, meta) "
                 "values (%s, %s, %s, %s, %s, %s, 'queued', %s, %s)", rid, user_id, bot, session_id, group_id, kind, input_,
                 _json(meta))
@@ -168,6 +172,34 @@ async def start_run(user_id: str, bot: str, session_id: str, input_: str, kind: 
     _publish_run(lv, "running")
     _publish_bot(bot)
     return row
+
+
+ORIGIN_TYPES = ("chat", "cs", "marketing", "evaluasi")
+
+
+def clean_origin(raw) -> dict | None:
+    """Validate the optional `origin` of a run request: {type, case_id?}. None when absent."""
+    if raw is None:
+        return None
+    if not isinstance(raw, dict) or raw.get("type") not in ORIGIN_TYPES:
+        raise ApiError(400, "Origin harus berisi type: chat, cs, marketing, atau evaluasi")
+    case_id = raw.get("case_id")
+    if case_id is not None and (not isinstance(case_id, str) or not 1 <= len(case_id.strip()) <= 40):
+        raise ApiError(400, "case_id harus berupa teks (maksimal 40 karakter)")
+    return {"type": raw["type"], **({"case_id": case_id.strip()} if case_id else {})}
+
+
+def infer_origin(group_id: str | None, workflow: str | None) -> dict:
+    return {"type": "group" if group_id else workflow or "chat"}
+
+
+async def workflow_context(bot: dict, workflow: str, stage: str | None, test_mode: bool, text: str,
+                           ins: str | None) -> tuple[str, dict]:
+    """The BFF retrieves before the run: knowledge bundle of the bot's team plus up to 5 catalog products.
+    Returns (instructions, context for start_run)."""
+    products = await catalog.search_products(text, limit=5)
+    ins, refs, meta = knowledge.build_context(bot["team"], workflow, ins, products, test_mode and workflow == "cs")
+    return ins, {**meta, "stage": stage.strip() if stage else None, "test_mode": test_mode, "context_refs": refs}
 
 
 async def _fail_early(rid: str, msg: str) -> None:

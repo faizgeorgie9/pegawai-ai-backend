@@ -266,12 +266,15 @@ function RunsPill() {
           <ul>
             {runs.map((r) => {
               const b = bots.find((x) => x.id === r.bot_id)
-              const href = r.group_id ? groupPath(r.group_id) : botPath(r.bot_id, r.session_id)
+              const o = r.origin
+              const href = r.group_id ? groupPath(r.group_id) : o.type === 'evaluasi' ? `/uji${o.case_id ? `?case=${encodeURIComponent(o.case_id)}` : ''}` : o.type === 'cs' ? '/cs' : o.type === 'marketing' ? '/marketing' : botPath(r.bot_id, r.session_id)
+              const where = o.type === 'evaluasi' ? ['Evaluasi', o.case_id, o.of > 1 ? `giliran ${o.turn} dari ${o.of}` : ''].filter(Boolean).join(' · ') : o.type === 'cs' ? 'Customer Service' : o.type === 'marketing' ? 'Marketing' : ''
               return (
                 <li key={r.id} className="run-row">
                   <BotAvatar bot={b ?? { name: r.bot_name || '?', color: '' }} size={28} />
                   <a className="run-text" href={'#' + href} onClick={() => setOpen(false)}>
                     <b>{r.bot_name || b?.name || r.bot_id}</b>
+                    {where && <small className="run-where">{where}</small>}
                     <small>{r.input || 'Tanpa keterangan'}</small>
                     <small className="num">{r.started_at ? elapsed(r.started_at, now) : ''}</small>
                   </a>

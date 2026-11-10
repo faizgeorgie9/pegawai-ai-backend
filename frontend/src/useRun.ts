@@ -112,3 +112,27 @@ export function useRun(botId = '') {
 
   return { status, text, error, runId, tools, startedAt, send, stop, reset, busy: status === 'running' }
 }
+
+// Follow a run that something else started (a server-side sequence): live text from its stream, nothing else.
+// An empty id follows nothing. The stream is dropped on its `done` and when the id changes or the page unmounts.
+export function useFollow(runId: string): string {
+  const [text, setText] = useState('')
+  useEffect(() => {
+    setText('')
+    if (!runId) return
+    let acc = ''
+    const off = subscribe(`/runs/${encodeURIComponent(runId)}/stream`, {
+      snapshot: (d) => {
+        acc = asStr(d.output) || acc
+        setText(acc)
+      },
+      delta: (d) => {
+        acc += asStr(d.text)
+        setText(acc)
+      },
+      done: () => off(),
+    })
+    return off
+  }, [runId])
+  return text
+}

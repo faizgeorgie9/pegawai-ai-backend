@@ -2,6 +2,9 @@
 // adds the shared key, so browser code never holds a key or a Hermes URL. Response shapes are read defensively
 // (the BFF is built in parallel): the normalisers below are the one place that knows about alternative field names.
 
+import { toRunResult } from './results'
+import type { RunResult } from './results'
+
 const BASE = '/bff/api'
 
 export class ApiError extends Error {
@@ -181,6 +184,35 @@ export interface RunInfo {
   session_id: string
   group_id: string
   started_at: number
+  origin: RunOrigin
+}
+// Where a run came from. `turn` and `of` are set for the turns of an Evaluasi sequence.
+export interface RunOrigin {
+  type: 'chat' | 'cs' | 'marketing' | 'evaluasi' | 'group'
+  case_id: string
+  turn: number
+  of: number
+}
+export interface SeqTurn {
+  turn: number
+  run_id: string
+  status: string
+  input: string
+  output: string
+  error: string
+  result: RunResult
+}
+export interface Sequence {
+  id: string
+  bot_id: string
+  session_id: string
+  case_id: string
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'stopped'
+  current_turn: number
+  of: number
+  run_ids: string[]
+  turns: SeqTurn[]
+  error: string
 }
 export interface Session {
   id: string
@@ -374,6 +406,27 @@ export const toRun = (r: Raw): RunInfo => ({
   session_id: asStr(r.session_id),
   group_id: asStr(r.group_id),
   started_at: epoch(r.started_at ?? r.created_at),
+  origin: toOrigin(r.origin),
+})
+const ORIGINS = ['chat', 'cs', 'marketing', 'evaluasi', 'group'] as const
+const toOrigin = (o: Raw | null | undefined): RunOrigin => ({
+  type: ORIGINS.find((t) => t === o?.type) ?? 'chat',
+  case_id: asStr(o?.case_id),
+  turn: asNum(o?.turn),
+  of: asNum(o?.of),
+})
+const SEQ_STATUS = ['queued', 'running', 'completed', 'failed', 'stopped'] as const
+const toSeq = (r: Raw): Sequence => ({
+  id: asStr(r.id),
+  bot_id: asStr(r.bot_id),
+  session_id: asStr(r.session_id),
+  case_id: asStr(r.origin?.case_id),
+  status: SEQ_STATUS.find((t) => t === r.status) ?? 'failed',
+  current_turn: asNum(r.current_turn),
+  of: asNum(r.of),
+  run_ids: list(r.run_ids).map((x) => asStr(x)),
+  turns: list(r.turns).map((t) => ({ turn: asNum(t.turn), run_id: asStr(t.run_id), status: asStr(t.status), input: asStr(t.input), output: asStr(t.output), error: asStr(t.error), result: toRunResult(t) })),
+  error: asStr(r.error),
 })
 const toSession = (s: Raw): Session => ({
   id: asStr(s.id),
@@ -508,6 +561,14 @@ export const api = {
       meta: (x.meta && typeof x.meta === 'object' ? x.meta : {}) as Partial<RunMeta>,
     }
   },
+  startSequence: async (botId: string, turns: string[], caseId: string, ctx?: RunCtx) =>
+    toSeq(await call<Raw>('POST', `/bots/${enc(botId)}/sequences`, { turns, origin: { type: 'evaluasi', case_id: caseId }, ...(ctx?.workflow ? { workflow: ctx.workflow, ...(ctx.stage ? { stage: ctx.stage } : {}), ...(ctx.test_mode ? { test_mode: true } : {}) } : {}) })),
+  sequence: async (id: string) => toSeq(await call<Raw>('GET', `/sequences/${enc(id)}`)),
+  latestSequence: async (caseId: string): Promise<Sequence | null> => {
+    const r = list(await call('GET', `/sequences${q({ case_id: caseId, limit: 1 })}`))
+    return r[0] ? toSeq(r[0]) : null
+  },
+  stopSequence: (id: string) => call<void>('POST', `/sequences/${enc(id)}/stop`),
   stopRun: (id: string) => call<void>('POST', `/runs/${enc(id)}/stop`),
   steerRun: (id: string, text: string) => call<void>('POST', `/runs/${enc(id)}/steer`, { text }),
   approve: (id: string, choice: string) => call<void>('POST', `/runs/${enc(id)}/approval`, { choice }),
