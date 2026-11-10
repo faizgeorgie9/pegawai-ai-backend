@@ -452,8 +452,11 @@ async def activity(bot: str | None = None, status: str | None = None, limit: int
         "coalesce(g.name, 'Chat') as source "
         "from run_events e join runs r on r.id = e.run_id join bots b on b.id = r.bot_id "
         "left join groups g on g.id = r.group_id "
-        "left join run_events s on s.run_id = e.run_id and s.type = 'tool.started' "
+        # lateral + limit 1: a run can store several tool.started events with the same tool_call_id, and a plain
+        # join then repeated the completed row (duplicate ids in the activity list)
+        "left join lateral (select s.payload from run_events s where s.run_id = e.run_id and s.type = 'tool.started' "
         "and s.payload->>'tool_call_id' = e.payload->>'tool_call_id' and e.payload ? 'tool_call_id' "
+        "order by s.id desc limit 1) s on true "
         "where e.type = 'tool.completed' and r.user_id = %s and (%s::text is null or r.bot_id = %s) "
         "and (%s::text is null or (case when e.payload->>'error' = 'true' then 'error' else 'ok' end) = %s) "
         "and (%s::bigint is null or e.id < %s) and (%s::text is null or r.session_id = %s) "
