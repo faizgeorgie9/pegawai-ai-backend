@@ -276,7 +276,8 @@ async def _stream_final(lv: Live) -> tuple[str, dict]:
         raise
     except Exception as e:  # never leave a run stuck in "running"
         final = ("failed", {"error": f"Kesalahan internal: {type(e).__name__}"})
-    poller.cancel()
+    finally:
+        poller.cancel()  # also when the run task itself is cancelled: the poll must not outlive the run
     return final
 
 
@@ -374,11 +375,14 @@ async def sync_steps(lv: Live) -> None:
             await _emit_reasoning(lv, t, i + 1)
 
 
+POLL_REASONING_S = 1
+
+
 async def poll_reasoning(lv: Live) -> None:
-    """Hermes /v1/runs streams no reasoning (bff-spec 'Verified'), so read it from the session every 2 s."""
+    """Hermes /v1/runs streams no reasoning (bff-spec 'Verified'), so read it from the session every 1 s (one small session read; the task ends with the run)."""
     try:
         while True:
-            await asyncio.sleep(2)
+            await asyncio.sleep(POLL_REASONING_S)
             await sync_steps(lv)
     except asyncio.CancelledError:
         raise
