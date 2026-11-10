@@ -8,7 +8,7 @@ import { Cs21Card } from './ResultCards'
 import { toCs21 } from './results'
 import type { Cs21 } from './results'
 import { go, botPath } from './router'
-import { statusText } from './ui-extra'
+import { CopyButton, RunProgress, statusText } from './ui-extra'
 import { PanelButtons, SidePanel, Split } from './Panel'
 import { BotAvatar, CLOSE, Icon, ThinkingBlock, nf } from './ui'
 
@@ -499,6 +499,7 @@ function Message(p: {
     <div className="msg bot">
       <BotAvatar bot={bot} size={28} />
       <div className="msg-body">
+        {live && !m.approval && <RunProgress />}
         {m.tools.length > 0 && (
           <ul className="chips" aria-label="Aktivitas">
             {m.tools.map((t) => (
@@ -520,18 +521,15 @@ function Message(p: {
             </details>
           </div>
         ) : live && m.content.trimStart().startsWith('{') ? (
-          <p className="quiet working">
-            <span className="dots" aria-hidden="true" />
-            Menyusun draf balasan…
-          </p>
+          <p className="quiet">Menyusun draf balasan…</p>
         ) : m.content ? (
           <Md text={m.content} />
-        ) : waiting && m.tools.length > 0 ? (
-          <p className="quiet working">
-            <span className="dots" aria-hidden="true" />
-            Bot sedang bekerja…
-          </p>
         ) : null}
+        {!live && (cs?.reply || m.content) && (
+          <div className="msg-tools">
+            <CopyButton text={cs ? cs.reply : m.content} what={cs ? 'draf balasan' : 'jawaban'} />
+          </div>
+        )}
         {m.approval && (
           <div className="approval" role="group" aria-label="Butuh izin">
             <p className="approval-title">Bot meminta izin</p>

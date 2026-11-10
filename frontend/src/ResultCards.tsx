@@ -3,6 +3,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { CLS_LABEL, INTENT_LABEL, RUBRIC } from './results'
 import type { Cls, ContextRef, Cs21, CsResult, MarketingResult, Validation } from './results'
+import { CopyButton } from './ui-extra'
 
 export type Origin = 'agent' | 'sample'
 
@@ -203,7 +204,7 @@ export function Cs21Card({ r, validation, origin, meta, raw, refs }: { r: Cs21; 
       origin={origin}
       flags={<>{r.simulation.simulated && <span className="pill sim" title="Tidak ada pesan yang dikirim ke pelanggan. Semuanya latihan.">Simulasi{r.simulation.ids.length ? ` · ${r.simulation.ids.join(', ')}` : ''}</span>}{validation && validation.status !== 'valid' && <ValidationBadge v={validation} />}</>}
     >
-      <Block label="Draf balasan pelanggan" badge={<span className="pill warn">Draf internal, perlu tinjauan manusia</span>}>
+      <Block label="Draf balasan pelanggan" badge={<><span className="pill warn">Draf internal, perlu tinjauan manusia</span> <CopyButton text={r.reply} what="draf balasan" /></>}>
         <p className="draft-text">{r.reply}</p>
         {r.clarifying && <p className="quiet small">Pertanyaan klarifikasi: {r.clarifying}</p>}
       </Block>

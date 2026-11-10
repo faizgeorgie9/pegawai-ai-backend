@@ -170,7 +170,7 @@ function Desk({ bot, agentSelect, onDirty, onNew }: { bot: Bot; agentSelect: Rea
               Kirim
             </button>
           </form>
-          <RunBar busy={run.busy} text={`${bot.name} sedang menjawab...`} onStop={run.stop} status={run.status} error={run.error} onRetry={last ?? undefined} />
+          <RunBar busy={run.busy} onStop={run.stop} status={run.status} error={run.error} onRetry={last ?? undefined} />
           {(turns.length > 0 || pendingQ) && (
             <section className="turns" aria-live="polite" aria-label="Percakapan">
               <h2>Percakapan</h2>
@@ -187,7 +187,7 @@ function Desk({ bot, agentSelect, onDirty, onNew }: { bot: Bot; agentSelect: Rea
               {pendingQ && (
                 <div className="turn-pair">
                   <p className="q">{pendingQ}</p>
-                  <div className="a live"><span className="quiet">{bot.name} {run.text ? 'sedang menyusun hasil terstruktur...' : 'sedang bekerja...'}</span></div>
+                  <div className="a live"><span className="quiet">{run.text ? 'Menyusun hasil terstruktur' : 'Menunggu jawaban'}</span></div>
                 </div>
               )}
             </section>

@@ -7,7 +7,7 @@ import { instructionsFor, parseMarketing, stripBlock } from './results'
 import type { ContextRef, MarketingKind, MarketingResult, Parsed } from './results'
 import { useRun } from './useRun'
 import { I, Icon } from './ui'
-import { Empty, Loading, PageHead, Req } from './ui-extra'
+import { Empty, Loading, Opt, PageHead } from './ui-extra'
 import { AgentSelect, ConfirmSwitch, OpenInChat, RunBar, Switch, hhmm, teamBots } from './ws-common'
 
 const STAGES = ['Brief', 'Rencana', 'Konten', 'Review', 'Revisi'] as const
@@ -206,10 +206,10 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
 
       <ol className="stepper" aria-label="Tahap kerja">
         {STAGES.map((s, i) => (
-          <li key={s}>
+          <li key={s} data-link={i > 0 && stageDone(i - 1) ? 'done' : undefined}>
             <button type="button" aria-current={stage === i ? 'step' : undefined} onClick={() => setStage(i)} data-done={stageDone(i) || undefined}>
               <span className="step-n" aria-hidden="true">{stageDone(i) ? <Icon d={I.check} size={14} /> : i + 1}</span>
-              {s}
+              <span>{s}{stageDone(i) && <span className="sr">, selesai</span>}</span>
             </button>
           </li>
         ))}
@@ -226,25 +226,25 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
                 </button>
               </div>
               <div className="fgrid">
-                <Field label="Tujuan *" err={tried ? errs.objective : ''}>
+                <Field label="Tujuan" err={tried ? errs.objective : ''}>
                   <input value={form.objective} onChange={(e) => setForm({ ...form, objective: e.target.value })} aria-invalid={tried && !!errs.objective} />
                 </Field>
-                <Field label="Produk atau topik *" err={tried ? errs.product : ''}>
+                <Field label="Produk atau topik" err={tried ? errs.product : ''}>
                   <input value={form.product} onChange={(e) => setForm({ ...form, product: e.target.value })} aria-invalid={tried && !!errs.product} />
                 </Field>
-                <Field label="Kanal *" err={tried ? errs.channel : ''}>
+                <Field label="Kanal" err={tried ? errs.channel : ''}>
                   <select value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })} aria-invalid={tried && !!errs.channel}>
                     <option value="">Pilih kanal</option>
                     {CHANNELS.map((c) => <option key={c}>{c}</option>)}
                   </select>
                 </Field>
-                <Field label="Tipe konten *" err={tried ? errs.contentType : ''}>
+                <Field label="Tipe konten" err={tried ? errs.contentType : ''}>
                   <select value={form.contentType} onChange={(e) => setForm({ ...form, contentType: e.target.value })} aria-invalid={tried && !!errs.contentType}>
                     <option value="">Pilih tipe</option>
                     {CONTENT_TYPES.map((c) => <option key={c}>{c}</option>)}
                   </select>
                 </Field>
-                <Field label="Jumlah output *" err={tried ? errs.count : ''}>
+                <Field label="Jumlah output" err={tried ? errs.count : ''}>
                   <input inputMode="numeric" value={form.count} onChange={(e) => setForm({ ...form, count: e.target.value })} aria-invalid={tried && !!errs.count} />
                 </Field>
               </div>
@@ -303,17 +303,17 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
               <p className="quiet">Tulis feedback, lalu minta revisi. Hasil dibandingkan dengan draf sebelumnya.</p>
               {needs(!!draft, 'Belum ada draf. Buat konten dulu di tahap Konten.')}
               {draft && <DraftPick drafts={drafts} value={draft.id} onChange={setDraftId} />}
-              <Field label="Feedback *" err={fbTried && !feedback.trim() ? 'Tulis feedback untuk revisi.' : ''}>
+              <Field label="Feedback" err={fbTried && !feedback.trim() ? 'Tulis feedback untuk revisi.' : ''}>
                 <textarea rows={3} value={feedback} onChange={(e) => setFeedback(e.target.value)} aria-invalid={fbTried && !feedback.trim()} />
               </Field>
-              <Field label="Bagian yang wajib dipertahankan">
+              <Field label="Bagian yang wajib dipertahankan" opt>
                 <textarea rows={2} value={keep} onChange={(e) => setKeep(e.target.value)} placeholder="Contoh: nama produk dan nada santai" />
               </Field>
               <button className="btn primary" type="submit" disabled={run.busy || !draft}>Minta revisi</button>
             </form>
           )}
 
-          <RunBar busy={run.busy} text={run.text ? 'Agen sedang menulis...' : `${bot.name} sedang bekerja...`} onStop={run.stop} status={run.status} error={run.error} onRetry={last ?? undefined} />
+          <RunBar busy={run.busy} onStop={run.stop} status={run.status} error={run.error} onRetry={last ?? undefined} />
           {run.busy && run.text && <article className="rcard live"><div className="rbody"><p className="draft-text">{stripBlock(run.text)}</p></div></article>}
 
           {sample ? (
@@ -373,10 +373,10 @@ function OutputView({ o, meta }: { o: Output; meta: string }) {
   )
 }
 
-function Field({ label, err, children }: { label: string; err?: string; children: React.ReactNode }) {
+function Field({ label, err, opt, children }: { label: string; err?: string; opt?: boolean; children: React.ReactNode }) {
   return (
     <label className="field">
-      <span>{label.endsWith(' *') ? <>{label.slice(0, -2)} <Req /></> : label}</span>
+      <span>{label}{opt && <> <Opt /></>}</span>
       {children}
       {err && <small className="err" role="alert">{err}</small>}
     </label>

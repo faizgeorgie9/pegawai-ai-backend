@@ -3,6 +3,7 @@ import { api, errText } from './bff'
 import type { ActivityRow, Scope } from './bff'
 import { useData } from './data'
 import { ErrorLine, stamp } from './ui'
+import { Loading } from './ui-extra'
 
 const PAGE = 100
 const dur = (s: number) => (s <= 0 ? '–' : s < 1 ? `${Math.round(s * 1000)} md` : `${s.toFixed(1).replace('.', ',')} dtk`)
@@ -92,7 +93,7 @@ export default function Activity({ scope, version }: { scope?: Scope; version?: 
       </header>
       )}
 
-      {state === 'loading' && <p className="quiet state">Memuat aktivitas...</p>}
+      {state === 'loading' && <Loading text="Memuat aktivitas..." shape="table" />}
       {state === 'error' && <ErrorLine text={error} onRetry={load} />}
       {state === 'ok' && rows.length === 0 && (
         <div className="state empty-box">

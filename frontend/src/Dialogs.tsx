@@ -4,7 +4,7 @@ import type { Bot, Plan, Template } from './bff'
 import { useData } from './data'
 import { botPath, groupPath, go, parse } from './router'
 import { BotAvatar, COLORS, Dialog, ErrorLine, botColor, nf, teamLabel } from './ui'
-import { Req } from './ui-extra'
+import { Opt } from './ui-extra'
 
 type Problem = { text: string; upgrade: boolean } | null
 const problemOf = (e: unknown): Problem => ({ text: errText(e), upgrade: e instanceof ApiError && e.upgrade })
@@ -103,17 +103,17 @@ function BotDialog({ onClose }: { onClose: () => void }) {
   const form = (
     <div className="fields">
       <label className="field">
-        <span>Nama <Req /></span>
+        <span>Nama</span>
         <input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} placeholder="Nama agen baru" aria-invalid={tried && !!errs.name} />
         {err('name')}
       </label>
       <label className="field">
-        <span>Peran <Req /></span>
+        <span>Peran</span>
         <input value={role} maxLength={40} onChange={(e) => setRole(e.target.value)} placeholder="Contoh: Analis data" aria-invalid={tried && !!errs.role} />
         {err('role')}
       </label>
       <label className="field">
-        <span>Tim <Req /></span>
+        <span>Tim</span>
         <select aria-invalid={tried && !!errs.team} value={newTeam ? NEW : team} onChange={(e) => (e.target.value === NEW ? (setNewTeam(true), setTeam('')) : (setNewTeam(false), setTeam(e.target.value)))}>
           <option value="" disabled>
             Pilih tim
@@ -165,7 +165,7 @@ function BotDialog({ onClose }: { onClose: () => void }) {
           <fieldset disabled={busy}>
             {form}
             <div className="field">
-              <span id="color-l">Warna</span>
+              <span id="color-l">Warna <Opt /></span>
               <div className="swatches" role="radiogroup" aria-labelledby="color-l">
                 {Object.entries(COLORS).map(([c, hex]) => (
                   <button key={c} type="button" role="radio" aria-checked={c === color} aria-label={`Warna ${c}`} className="swatch" style={{ background: hex }} onClick={() => setColor(c)} />
@@ -173,10 +173,10 @@ function BotDialog({ onClose }: { onClose: () => void }) {
               </div>
             </div>
             <label className="field">
-              <span>Persona <Req /></span>
+              <span>Persona</span>
               <textarea value={persona} maxLength={2000} rows={6} onChange={(e) => setPersona(e.target.value)} placeholder="Jelaskan cara agen bekerja, gaya bahasanya, dan batasannya." aria-invalid={tried && !!errs.persona} />
-              <small className="counter num">{persona.length} / 2.000</small>
               {err('persona')}
+              <small className="counter num">{persona.length} / 2.000</small>
             </label>
           </fieldset>
         )}
@@ -239,13 +239,13 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
       <form onSubmit={(e) => void submit(e)} className="dlg-body" noValidate>
         <fieldset disabled={busy}>
           <label className="field">
-            <span>Nama grup <Req /></span>
+            <span>Nama grup</span>
             <input value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="Contoh: Kampanye Desember" aria-invalid={tried && !name.trim()} />
             {tried && !name.trim() && <small className="err" role="alert">Nama grup wajib diisi.</small>}
           </label>
           <div className="field">
             <span className="field-row">
-              <span>Anggota <Req /></span>
+              <span>Anggota</span>
               <small className="counter num" aria-live="polite">
                 {picked.length} / 6 dipilih, minimal 2
               </small>

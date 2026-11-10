@@ -121,3 +121,56 @@ td.st-col { min-width: 170px; }
   table.plain td.act-cell .btn { width: 100%; }
   table.plain td[colspan] { display: block; text-align: left; }
 }
+
+/* four-figure strip (agent usage): same strip as Beranda, 4 columns, 2x2 on a phone */
+.kpis.k4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) { .kpis.k4 dd { font-size: 24px; } }
+@media (max-width: 640px) {
+  .kpis.k4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kpis.k4 > div { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 2px; padding: var(--s-3) var(--s-4); }
+  .kpis.k4 > div + div { border-top: 0; border-left: 1px solid var(--border); }
+  .kpis.k4 > div:nth-child(odd) { border-left: 0; }
+  .kpis.k4 > div:nth-child(n+3) { border-top: 1px solid var(--border); }
+}
+
+/* skeleton loader: flat blocks, one slow opacity pulse (stopped by the global reduced-motion rule) */
+@keyframes skel { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+.skel-body { display: flex; flex-direction: column; gap: var(--s-3); animation: skel 1.6s ease-in-out infinite; }
+.skel-bar, .skel-block { display: block; background: var(--accent-track); border-radius: var(--radius-control); }
+.skel-bar { height: 14px; }
+.skel-bar.thin { height: 12px; }
+.skel-bar.tall { height: 28px; }
+.skel-block { height: 120px; border-radius: var(--radius-card); }
+.w15 { width: 15%; } .w40 { width: 40%; } .w60 { width: 60%; } .w70 { width: 70%; }
+.skel-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); min-height: 48px; padding: var(--s-2) 0; border-bottom: 1px solid var(--rule); }
+.skel-row:last-child { border-bottom: 0; }
+.skel-main { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+.skel-main .w40 { width: 40%; } .skel-main .w70 { width: 70%; }
+.skel-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); }
+.skel-page .skel-block:first-of-type { height: 84px; }
+.skel-table, .skel-ledger { padding: 0 var(--s-3); }
+.panel-card > .skel { padding: 0; }
+.skel-ledger .skel-body, .skel-table .skel-body { gap: 0; }
+@media (max-width: 640px) { .hide-sm { display: none; } .skel-two { grid-template-columns: minmax(0, 1fr); } }
+
+/* indeterminate progress line (2px, accent) and "Bekerja · 12 dtk" */
+@keyframes pline { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+.pline { position: relative; display: block; height: 2px; overflow: hidden; background: var(--accent-track); border-radius: 2px; }
+.pline::after { content: ""; position: absolute; inset: 0 auto 0 0; width: 40%; background: var(--accent); animation: pline 1.4s ease-in-out infinite; }
+.runprog { display: flex; flex-direction: column; gap: var(--s-2); flex: 1; min-width: 0; font-weight: 500; }
+@media (prefers-reduced-motion: reduce) { .pline::after { width: 100%; } }
+.runbar { position: relative; overflow: hidden; }
+.runbar .runprog { flex-direction: column-reverse; }
+.runbar .pline { position: absolute; inset: 0 0 auto 0; border-radius: 0; }
+.msg-body > .runprog { gap: var(--s-1); font-size: var(--t-small); color: var(--muted); }
+
+/* copy button (icon + word) */
+.copy { display: inline-flex; vertical-align: middle; margin-left: var(--s-2); }
+.copy-btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 var(--s-2); border: 1px solid transparent; border-radius: var(--radius-control); background: transparent; color: var(--muted); font-size: 12px; font-weight: 500; cursor: pointer; transition: background-color var(--m-in) var(--ease), color var(--m-in) var(--ease); }
+.copy-btn:hover { background: var(--raised); color: var(--text); }
+.copy-btn[data-s="ok"] { color: var(--ok-ink); background: var(--ok-bg); }
+.copy-btn[data-s="fail"] { color: var(--bad-ink); background: var(--bad-bg); }
+.msg-tools { display: flex; margin: 0 calc(var(--s-2) * -1); }
+.msg-tools .copy { margin-left: 0; }
+.rblock h3 { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-2); }
+.rblock h3 .copy { margin-left: auto; }

@@ -3,6 +3,7 @@ import remarkGfm from 'remark-gfm'
 import { useMemo, useState } from 'react'
 import type { RunMeta } from './bff'
 import { diffWords } from './ResultCards'
+import { ProgressLine } from './ui-extra'
 
 // Pieces of the Evaluasi page: side-by-side run columns (with a word-level diff against the first column) and the
 // collapsible "Versi & konfigurasi" snapshot.
@@ -57,7 +58,7 @@ export function CompareColumns({ cols, live }: { cols: Col[]; live: string }) {
                 <dd className="num">{c.status === 'done' ? c.tokens.toLocaleString('id-ID') : '–'}</dd>
               </dl>
               {c.status === 'pending' && <p className="quiet">Menunggu giliran.</p>}
-              {c.status === 'running' && <p className="draft-text quiet">{live || 'Agen sedang bekerja...'}</p>}
+              {c.status === 'running' && <p className="draft-text quiet">{live || <ProgressLine label="Agen sedang bekerja" />}</p>}
               {c.status === 'done' &&
                 (diff && diffs[i] ? (
                   <p className="cmp-text">{diffs[i]!.map((x, j) => (x.k === 'ins' ? <mark key={j}>{x.t} </mark> : x.t + ' '))}</p>

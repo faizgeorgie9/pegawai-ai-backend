@@ -13,7 +13,7 @@ import type { RunResult } from './results'
 import { SCENARIOS } from './scenarios'
 import type { Scenario } from './scenarios'
 import { ErrorLine } from './ui'
-import { Empty, Loading, PageHead, Req, useLoad } from './ui-extra'
+import { Empty, Loading, PageHead, Opt, useLoad } from './ui-extra'
 import { useRun } from './useRun'
 import { OpenInChat, RunBar } from './ws-common'
 
@@ -186,7 +186,7 @@ export default function Uji() {
           {summary.state === 'error' && <ErrorLine text={summary.error} onRetry={summary.retry} />}
           <div className="block">
             <header><h2>Log eksperimen</h2></header>
-            {log.state === 'loading' && <Loading />}
+            {log.state === 'loading' && <Loading text="Memuat log eksperimen..." shape="table" />}
             {log.state === 'error' && <ErrorLine text={log.error} onRetry={log.retry} />}
             {log.state === 'ok' && <LogTable rows={log.data ?? []} />}
           </div>
@@ -287,7 +287,7 @@ export default function Uji() {
                 </header>
                 <RunBar
                   busy={busy}
-                  text={(cmp ? `Run ${liveIdx + 1} dari ${cmp.cols.length}: ${cmp.cols[liveIdx].botName} sedang bekerja` : 'Agen sedang bekerja') + (sc.turns.length > 1 ? `, giliran ${turnNo} dari ${sc.turns.length}` : '') + '...'}
+                  detail={[cmp ? `Run ${liveIdx + 1} dari ${cmp.cols.length}: ${cmp.cols[liveIdx].botName}` : '', sc.turns.length > 1 ? `giliran ${turnNo} dari ${sc.turns.length}` : ''].filter(Boolean).join(', ') || undefined}
                   onStop={stop}
                   status={run.status}
                   error={run.error}
@@ -403,7 +403,7 @@ function EvalForm({ sc, botId, sid, snap, meta, cmp, onSaved }: { sc: Scenario; 
       </label>
       {cmp ? (
         <fieldset className="verdicts">
-          <legend>Konsistensi antar run <Req /></legend>
+          <legend>Konsistensi antar run</legend>
           {([['konsisten', 'Konsisten'], ['tidak_konsisten', 'Tidak konsisten']] as const).map(([v, l]) => (
             <label key={v} className="ws-switch">
               <input type="radio" name="consistency" checked={consistency === v} onChange={() => setConsistency(v)} />
@@ -418,7 +418,7 @@ function EvalForm({ sc, botId, sid, snap, meta, cmp, onSaved }: { sc: Scenario; 
           <textarea rows={3} value={actual} readOnly />
         </label>
       )}
-      {cmp && <label className="field"><span>Catatan konsistensi</span><textarea rows={2} value={consNote} maxLength={2000} onChange={(e) => setConsNote(e.target.value)} /></label>}
+      {cmp && <label className="field"><span>Catatan konsistensi <Opt /></span><textarea rows={2} value={consNote} maxLength={2000} onChange={(e) => setConsNote(e.target.value)} /></label>}
       <Versions items={cmp ? cmp.cols.map((c, i) => ({ label: `Run ${i + 1} · ${c.botName}`, meta: c.meta })) : [{ label: 'Run', meta }]} />
       <p className="quiet small">Versi dicatat otomatis oleh BFF saat run dimulai.</p>
       <fieldset className="rubric">
@@ -455,10 +455,10 @@ function EvalForm({ sc, botId, sid, snap, meta, cmp, onSaved }: { sc: Scenario; 
           </label>
         ))}
       </fieldset>
-      <label className="field"><span>Error dan kekurangan</span><textarea rows={2} value={errors} onChange={(e) => setErrors(e.target.value)} /></label>
-      <label className="field"><span>Saran perbaikan</span><textarea rows={2} value={improve} onChange={(e) => setImprove(e.target.value)} /></label>
+      <label className="field"><span>Error dan kekurangan <Opt /></span><textarea rows={2} value={errors} onChange={(e) => setErrors(e.target.value)} /></label>
+      <label className="field"><span>Saran perbaikan <Opt /></span><textarea rows={2} value={improve} onChange={(e) => setImprove(e.target.value)} /></label>
       <div className="fgrid">
-        <label className="field"><span>Nama reviewer <Req /></span><input value={reviewer} maxLength={80} onChange={(e) => setReviewer(e.target.value)} aria-invalid={tried && !reviewer.trim()} />{tried && !reviewer.trim() && <small className="err" role="alert">Nama reviewer wajib diisi.</small>}</label>
+        <label className="field"><span>Nama reviewer</span><input value={reviewer} maxLength={80} onChange={(e) => setReviewer(e.target.value)} aria-invalid={tried && !reviewer.trim()} />{tried && !reviewer.trim() && <small className="err" role="alert">Nama reviewer wajib diisi.</small>}</label>
         <label className="field"><span>Tanggal</span><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
       </div>
       {tried && missing.length > 0 && <ul className="field-err" role="alert">{missing.map((m) => <li key={m}>{m}</li>)}</ul>}

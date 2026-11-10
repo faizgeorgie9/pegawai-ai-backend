@@ -28,7 +28,7 @@ export default function Dashboard() {
     return () => window.clearTimeout(t)
   }, [tools.state])
 
-  if (loadState === 'loading') return <section className="page"><Loading text="Memuat beranda..." /></section>
+  if (loadState === 'loading') return <section className="page"><Loading text="Memuat beranda..." shape="page" /></section>
   if (loadState === 'error') return <section className="page"><ErrorLine text={error} onRetry={reload} /></section>
 
   const day = startOfToday()
@@ -122,7 +122,7 @@ export default function Dashboard() {
 
         <section className="panel-card" aria-labelledby="act-h">
           <h2 id="act-h">Aktivitas terbaru</h2>
-          {act.state === 'loading' && <Loading text="Memuat aktivitas..." />}
+          {act.state === 'loading' && <Loading text="Memuat aktivitas..." shape="ledger" />}
           {act.state === 'error' && <ErrorLine text={act.error} onRetry={act.retry} />}
           {act.state === 'ok' && act.data!.length === 0 && <Empty title="Belum ada aktivitas">Saat agen memakai alat, catatannya muncul di sini.</Empty>}
           {act.state === 'ok' && act.data!.length > 0 && (

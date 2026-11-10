@@ -36,7 +36,7 @@ export function Tools() {
   return (
     <div className="tab-body">
       <p className="note-box">Pengaturan per agen: perlu disepakati dengan backend. Halaman ini hanya untuk melihat.</p>
-      {t.state === 'loading' && !slow && <Loading text="Memuat toolset dari Hermes..." />}
+      {t.state === 'loading' && !slow && <Loading text="Memuat toolset dari Hermes..." shape="ledger" />}
       {t.state === 'loading' && slow && <ErrorLine text="Hermes belum menjawab. Toolset belum bisa ditampilkan." onRetry={t.retry} />}
       {t.state === 'error' && <ErrorLine text={t.error} onRetry={t.retry} />}
       {t.state === 'ok' && failed.length > 0 && (
