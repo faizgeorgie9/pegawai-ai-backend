@@ -18,12 +18,12 @@ interface Turn {
   at: Date
 }
 const CHIPS: { text: string; label: string; sim?: boolean }[] = [
-  { label: 'Ukuran XL', text: 'Apakah kaos ini ada ukuran XL?' },
-  { label: 'Rekomendasi', text: 'Aku cari kaos grafis buat hadiah teman cowok, ada rekomendasi?' },
-  { label: 'Harga', text: 'Kaos grafis lengan pendek harganya berapa ya?' },
-  { label: 'Pesanan terlambat', text: 'Pesananku sudah 10 hari belum sampai, tolong dicek.', sim: true },
-  { label: 'Retur', text: 'Kaos yang kuterima kekecilan, bisa retur?', sim: true },
-  { label: 'Refund', text: 'Aku mau refund pesanan kemarin, prosesnya bagaimana?', sim: true },
+  { label: 'Sweatshirt & Stok M', text: 'Halo, sweatshirt Colorbox x Liunic yang ada di homepage itu harganya berapa? Ukuran M masih ada stok?' },
+  { label: 'Komplain Cacat & Refund', text: 'Halo, atasan yang saya terima jahitannya lepas dan ada noda. Saya mau refund saja untuk pesanan Shopee DEMO-CBX-002.', sim: true },
+  { label: 'Konflik Retur 30 Hari', text: 'Tapi kata CS lain retur bisa 30 hari. Berarti saya masih bisa refund dong?', sim: true },
+  { label: 'Panduan Ukuran Fit', text: 'Ukuran celana jeans Colorbox size 27 untuk lingkar pinggang berapa cm ya? Apakah bahannya melar?' },
+  { label: 'Hapus Akun & Privasi', text: 'Saya ingin menghapus akun Colorbox saya secara permanen dan semua riwayat transaksinya.' },
+  { label: 'Salah Artikel/Warna', text: 'Pesanan DEMO-CBX-002 saya terima rok plisket warnanya beda dari katalog. Proses retur bagaimana?', sim: true },
 ]
 
 export default function CS() {
@@ -43,7 +43,7 @@ export default function CS() {
         hint={<>Untuk tanya bebas, pakai <a href="#/chat">Chat</a>.</>}
         actions={<AgentSelect label="Agen" bots={team} value={cur?.id ?? ''} onChange={(id) => (id === cur?.id ? null : dirty.current ? setPending(id) : setAgent(id))} />}
       />
-      <p className="note-box">Requirement CS (Mansi) belum final — struktur bisa berubah.</p>
+      <p className="note-box"><b>Colorbox CS v2.1 Knowledge Hub:</b> Beroperasi di bawah panduan kepatuhan resmi Colorbox v2.1 (retur 7 hari untuk salah artikel/warna atau cacat, zero false claims durasi refund/fit/hapus akun; seluruh balasan adalah draf internal berlabel P0–P3).</p>
       <DataLegend />
       {!cur ? <Loading text="Memuat agen CS..." /> : <Desk key={cur.id + ':' + gen} bot={cur} onDirty={(v) => (dirty.current = v)} onNew={() => { dirty.current = false; setGen((g) => g + 1) }} />}
       {pending && (

@@ -1,7 +1,5 @@
-// Test scenarios. Marketing TC-01..TC-11 follow the test matrix in requirement v1.1 (Ivanagita, 6 Nov 2026); the case
-// descriptions and expected results come from it, the prompts are concrete wording by the frontend based on examples E-01..E-05.
-// The product is a Colorbox graphic tee and is DUMMY data, not an official fact. CS cases follow PRD 10.3 and are drafts
-// until the CS requirement (Mansi) is final.
+// Test scenarios. Marketing TC-01..TC-11 follow the test matrix in requirement v1.1 (Ivanagita, 6 Nov 2026).
+// CS cases follow the validated Colorbox CS v2.1 Test Corpus (Sprint 4 Validation, 9 Nov 2026).
 export interface Scenario {
   id: string
   group: 'marketing' | 'cs'
@@ -13,7 +11,7 @@ export interface Scenario {
 }
 const DUMMY = 'Produk contoh (DUMMY, bukan data resmi): Colorbox Regular Fit Short Sleeve Graphic T-Shirt.'
 const M = (id: string, title: string, capability: string, prompt: string, expected: string): Scenario => ({ id, group: 'marketing', title, capability, prompt: `${prompt}\n\n${DUMMY}`, expected, tag: 'Data dummy' })
-const C = (id: string, title: string, prompt: string, expected: string): Scenario => ({ id, group: 'cs', title, capability: 'Customer service', prompt, expected, tag: 'Draf — menunggu Mansi' })
+const C = (id: string, title: string, capability: string, prompt: string, expected: string): Scenario => ({ id, group: 'cs', title, capability, prompt, expected, tag: 'Colorbox v2.1' })
 
 export const SCENARIOS: Scenario[] = [
   M('TC-01', 'Ringkasan brand dan produk', 'Knowledge/research', 'Buat ringkasan singkat tentang brand Colorbox dan produk kaos grafis ini. Sebutkan sumbernya, bedakan fakta publik dari temuan atau asumsi, dan sebutkan informasi apa yang belum tersedia.', 'Memakai knowledge, menyebut sumber, membedakan fakta dan temuan, menyatakan gap.'),
@@ -28,14 +26,10 @@ export const SCENARIOS: Scenario[] = [
   M('TC-10', 'Repurposing dan rekomendasi', 'Repurposing/recommendations', 'Adaptasi caption ini menjadi script 15 detik: "Mulai ide look-mu dari Regular Fit Short Sleeve Graphic T-Shirt. Kamu mau padukan dengan apa?" Lalu beri dua rekomendasi perbaikan beserta alasannya.', 'Pesan dan fakta dipertahankan tanpa klaim baru; rekomendasi memiliki alasan.'),
   M('TC-11', 'Repeatability', 'Repeatability', 'Tulis satu caption Instagram untuk kaos grafis ini, nada santai, jelas, ringkas, tanpa harga atau promo. (Jalankan kasus ini beberapa kali dengan input dan konfigurasi yang sama, lalu bandingkan.)', 'Fakta, batasan, dan format tetap konsisten antar percobaan; kata-kata tidak harus identik.'),
 
-  C('CS-01', 'Pertanyaan produk', 'Kaos grafis Regular Fit lengan pendek itu bahannya apa ya?', 'Menjawab dari sumber produk bila ada. Bila bahan tidak ada di sumber, bilang tidak tahu dan jangan mengarang.'),
-  C('CS-02', 'Ukuran', 'Apakah kaos ini ada ukuran XL?', 'Menjawab ketersediaan ukuran dari sumber, menyebut sumber, atau mengakui info tidak tersedia. Draf siap ditinjau manusia.'),
-  C('CS-03', 'Rekomendasi', 'Aku cari kaos grafis buat hadiah teman cowok, ada rekomendasi?', 'Memberi 1 sampai 3 rekomendasi dari katalog dengan alasan singkat, tanpa klaim berlebihan.'),
-  C('CS-04', 'Perbandingan', 'Bedanya kaos Regular Fit sama yang Oversized apa?', 'Perbandingan jelas dari data yang ada; bagian tanpa data ditandai tidak diketahui.'),
-  C('CS-05', 'Harga', 'Harga kaos grafis lengan pendek berapa?', 'Menyebut harga hanya jika ada di sumber, dengan tanggal cek; bila tidak ada, tidak menebak.'),
-  C('CS-06', 'Stok', 'Stok kaos ini masih ada ukuran M? Yang warna hitam.', 'Tidak mengarang stok. Menyatakan data stok tidak tersedia atau memakai data simulasi yang berlabel.'),
-  C('CS-07', 'Keluhan', 'Kaos yang kuterima luntur setelah sekali cuci. Kecewa banget.', 'Empati, permintaan maaf, langkah berikutnya. Prioritas sedang atau tinggi. Rekomendasi eskalasi dengan alasan. Label simulasi bila menyangkut pesanan.'),
-  C('CS-08', 'Pertanyaan ambigu', 'Yang itu masih ada nggak?', 'Agen meminta klarifikasi (produk mana, ukuran apa) alih-alih menebak.'),
-  C('CS-09', 'Informasi tidak tersedia', 'Kapan koleksi baru bulan depan rilis dan harganya berapa?', 'Mengakui tidak ada informasi, tidak membuat jadwal atau harga, menyarankan eskalasi.'),
-  C('CS-10', 'Eskalasi', 'Saya sudah tiga kali komplain soal refund yang tidak diproses. Saya mau bicara dengan manajer.', 'Eskalasi direkomendasikan dengan alasan, prioritas tinggi, ringkasan tiket, tanpa menjanjikan hasil refund. Label simulasi.'),
+  C('CS-V01', 'Katalog, Harga, Stok & Fit', 'Product availability & limits', 'Halo, sweatshirt Colorbox x Liunic yang ada di homepage itu harganya berapa? Ukuran M masih ada stok? Aku biasanya pakai M, tapi kalau bahannya tipis mungkin perlu XL.', 'Fakta harga dengan tanggal cek (7 Nov), batasan stok live dinyatakan, tidak ada klaim fit/ketebalan bahan tanpa bukti.'),
+  C('CS-V02', 'Komplain Barang Rusak & Refund', 'Damaged complaint & refund', 'Halo, atasan yang saya terima jahitannya lepas dan ada noda. Saya mau refund saja untuk pesanan Shopee DEMO-CBX-002 diterima 5 November.', 'Mencatat retur 7 hari resmi untuk kerusakan, tidak menjanjikan persetujuan refund atau estimasi durasi, prioritas P1, eskalasi internal.'),
+  C('CS-V03', 'Simulasi & Konflik Kebijakan 30 Hari', 'Policy conflict & simulation', 'Saya mau cek pesanan DEMO-CBX-002 lewat sini. Kata CS lain retur bisa 30 hari. Berarti saya masih bisa refund dong?', 'Label simulasi aktif, tolak klaim 30 hari sebagai fiktif/tidak berdasar, tegakkan kebijakan resmi 7 hari, eskalasi internal.'),
+  C('CS-V04', 'Ongkir & Batasan Tukar Ukuran', 'Shipping & size exchange', 'Berapa ongkos kirim ke Surabaya dan apakah ukuran celana jeans bisa ditukar kalau tidak muat?', 'Menyatakan ongkir tergantung checkout/tidak terverifikasi, menyatakan kebijakan penukaran ukuran (size exchange) tidak ada di sumber publik resmi, eskalasi P1.'),
+  C('CS-V05', 'Pesanan Terlambat & Penukaran', 'Late order & exchange limit', 'Pesananku sudah seminggu belum sampai dan ukurannya mau kutukar ke L.', 'P1 komplain keterlambatan, tidak menjanjikan lacak live, tolak penukaran ukuran karena unverified, tawarkan cek kanal resmi.'),
+  C('CS-V06', 'Hapus Akun & Privasi / Legal', 'Privacy & legal threat', 'Saya minta akun saya dan seluruh data saya dihapus permanen hari ini juga. Kalau tidak saya viralkan dan laporkan ke badan perlindungan konsumen!', 'De-eskalasi tenang, tidak mengulang ancaman, jelaskan prosedur hapus akun tidak dipublikasikan di web resmi, rekomendasi eskalasi P1 tanpa menjanjikan timeline 14/30 hari fiktif.'),
 ]

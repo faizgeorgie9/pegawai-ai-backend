@@ -69,7 +69,7 @@ export default function Uji() {
   return (
     <section className="page ws">
       <PageHead title="Uji & nilai" sub="Jalankan kasus uji dan beri nilai 1–5." />
-      <p className="note-box">Kasus Marketing TC-01 sampai TC-11 mengikuti test matrix requirement v1.1; kalimat prompt disusun frontend dari contoh E-01 sampai E-05, produk contoh berlabel dummy. Kasus CS berlabel draf sampai requirement Mansi final.</p>
+      <p className="note-box">Kasus Marketing TC-01 sampai TC-11 mengikuti test matrix requirement v1.1. Kasus CS CS-V01 sampai CS-V06 mengikuti test corpus Colorbox CS v2.1 yang tervalidasi.</p>
 
       <div className="toolbar">
         <div className="seg" role="tablist" aria-label="Kelompok skenario">

@@ -70,14 +70,17 @@ export const MARKETING_EXAMPLES: { id: string; title: string; result: MarketingR
 
 export const CS_EXAMPLE: CsResult = {
   kind: 'cs',
-  inquiry: 'Kak, kaos ini ada ukuran XL? (contoh)',
-  classification: 'Pertanyaan ukuran',
-  sources: [{ ref: 'Katalog produk (contoh)', excerpt: 'Ukuran tersedia: S, M, L, XL', classification: 'dummy' }],
-  draft: 'Halo Kak! Kaos ini tersedia di ukuran S sampai XL. Mau dibantu cek panduan ukurannya? [draf contoh]',
-  context_notes: 'Giliran pertama, belum ada konteks sebelumnya.',
-  summary: 'Pelanggan menanyakan ketersediaan ukuran XL.',
-  priority: 'rendah',
-  escalate: false,
-  escalation_reason: '',
+  inquiry: 'Halo, sweatshirt Colorbox x Liunic yang ada di homepage itu harganya berapa? Ukuran M masih ada stok?',
+  classification: 'PRODUCT_AVAILABILITY',
+  sources: [
+    { ref: 'CB-PRODUCT-001 (https://colorbox.co.id/)', excerpt: 'Harga IDR 249.900 (promo IDR 239.900 dicek 7 Nov 2026); ukuran S, M, L, XL terdaftar di listing.', classification: 'public_data' },
+    { ref: 'CB-SIZE-UNKNOWN-001 (https://colorbox.co.id/pages/size-guide)', excerpt: 'Tabel ukuran hanya berupa gambar; nilai numerik belum diverifikasi.', classification: 'public_data' }
+  ],
+  draft: 'Halo Kak, terima kasih sudah menghubungi Colorbox. Untuk Colorbox x Liunic Oversized Sweatshirt, pada tanggal peninjauan (7 November 2026) halaman utama resmi menampilkan harga IDR 249.900 dengan harga promosi IDR 239.900 (harga dapat berubah sewaktu-waktu). Terkait ketersediaan stok ukuran M, kami tidak dapat memastikannya secara langsung karena membutuhkan pengecekan inventaris toko; daftar ukuran pada katalog tidak menjamin stok tersedia. Silakan cek langsung di situs resmi colorbox.co.id sebelum memesan.',
+  context_notes: 'Pertanyaan pertama seputar harga & ketersediaan stok ukuran M. Tidak ada klaim live stock atau fit.',
+  summary: 'Inquiry produk Colorbox x Liunic Sweatshirt: konfirmasi harga dan cek stok ukuran M.',
+  priority: 'sedang',
+  escalate: true,
+  escalation_reason: 'Keterbatasan akses inventaris langsung (live stock lookup tidak tersedia); memerlukan pengecekan manual tim bila stok meragukan.',
   simulated: false,
 }

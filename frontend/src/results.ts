@@ -112,21 +112,86 @@ export function toMarketing(x: unknown): MarketingResult | null {
 }
 
 export function toCs(x: unknown): CsResult | null {
-  if (!isObj(x) || x.kind !== 'cs' || !str(x.draft) || typeof x.escalate !== 'boolean') return null
-  const p = str(x.priority).toLowerCase()
-  if (p !== 'rendah' && p !== 'sedang' && p !== 'tinggi') return null
+  if (!isObj(x)) return null
+  
+  // Support both legacy kind: 'cs' and Colorbox CS v2.1 schema
+  const draft = str(x.customer_reply_draft || x.draft)
+  if (!draft) return null
+
+  // Priority mapping: support P0, P1, P2, P3 as well as rendah, sedang, tinggi
+  const rawPrio = str(x.priority).toUpperCase()
+  let p: Priority = 'sedang'
+  if (rawPrio === 'P0' || rawPrio === 'P1' || rawPrio.toLowerCase() === 'tinggi') {
+    p = 'tinggi'
+  } else if (rawPrio === 'P2' || rawPrio.toLowerCase() === 'sedang') {
+    p = 'sedang'
+  } else if (rawPrio === 'P3' || rawPrio.toLowerCase() === 'rendah') {
+    p = 'rendah'
+  }
+
+  // Escalation: support { recommended, reason } and { escalate, escalation_reason }
+  let escalate = false
+  let escalationReason = ''
+  if (typeof x.escalate === 'boolean') {
+    escalate = x.escalate
+    escalationReason = str(x.escalation_reason)
+  } else if (isObj(x.escalation)) {
+    escalate = Boolean(x.escalation.recommended)
+    escalationReason = str(x.escalation.reason)
+  }
+
+  // Classification / Primary Intent
+  const classification = str(x.primary_intent || x.classification || x.intent)
+
+  // Simulation
+  let simulated = false
+  if (x.simulated === true) {
+    simulated = true
+  } else if (isObj(x.simulation)) {
+    simulated = Boolean(x.simulation.is_simulated)
+  }
+
+  // Sources / Knowledge refs
+  let sources: Source[] = []
+  if (Array.isArray(x.sources)) {
+    sources = x.sources.map((s) => (isObj(s) ? { ref: str(s.ref ?? s.title ?? s.name), excerpt: str(s.excerpt), classification: cls(s.classification) } : { ref: str(s), excerpt: '' })).filter((s) => s.ref)
+  } else if (Array.isArray(x.knowledge_refs)) {
+    sources = x.knowledge_refs.map((k) => (isObj(k) ? { ref: str(k.knowledge_id || k.source_url), excerpt: str(k.used_for || k.source_url), classification: 'public_data' as Cls } : { ref: str(k), excerpt: '' })).filter((s) => s.ref)
+  }
+
+  // Summary & Context notes
+  let summary = str(x.summary)
+  let contextNotes = str(x.context_notes)
+  if (isObj(x.ticket_summary)) {
+    const ts = x.ticket_summary
+    if (!summary) summary = str(ts.issue || '')
+    if (!contextNotes) {
+      const parts: string[] = []
+      if (Array.isArray(ts.customer_reported_facts) && ts.customer_reported_facts.length) {
+        parts.push(`Pelanggan: ${ts.customer_reported_facts.join('; ')}`)
+      }
+      if (Array.isArray(ts.publicly_verified_facts) && ts.publicly_verified_facts.length) {
+        parts.push(`Verifikasi: ${ts.publicly_verified_facts.join('; ')}`)
+      }
+      if (Array.isArray(ts.unknowns) && ts.unknowns.length) {
+        parts.push(`Unknown: ${ts.unknowns.join('; ')}`)
+      }
+      contextNotes = parts.join('\n')
+    }
+  }
+
   return {
     kind: 'cs',
     inquiry: str(x.inquiry),
-    classification: str(x.classification ?? x.intent),
-    sources: Array.isArray(x.sources) ? x.sources.map((s) => (isObj(s) ? { ref: str(s.ref ?? s.title ?? s.name), excerpt: str(s.excerpt), classification: cls(s.classification) } : { ref: str(s), excerpt: '' })).filter((s) => s.ref) : [],
-    draft: str(x.draft),
-    context_notes: str(x.context_notes),
-    summary: str(x.summary),
+    classification,
+    sources,
+    draft,
+    context_notes: contextNotes,
+    summary,
     priority: p,
-    escalate: x.escalate,
-    escalation_reason: str(x.escalation_reason),
-    simulated: x.simulated === true,
+    escalate,
+    escalation_reason: escalationReason,
+    simulated,
   }
 }
 

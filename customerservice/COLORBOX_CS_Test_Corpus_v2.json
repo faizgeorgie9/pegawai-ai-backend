@@ -1,0 +1,835 @@
+{
+  "corpus_version": "2.0",
+  "prepared_at": "2026-11-09",
+  "status": "EXPECTED_BEHAVIOR_FIXTURES_NOT_MODEL_OUTPUT",
+  "instructions_version": "2.1",
+  "knowledge_version": "2.0",
+  "cases": [
+    {
+      "test_id": "CB-CS-V01",
+      "title": "Product price, live stock and fit question",
+      "coverage": [
+        "classification",
+        "product_info",
+        "availability",
+        "size_fit",
+        "grounded_draft",
+        "missing_live_inventory",
+        "citation"
+      ],
+      "turns": [
+        {
+          "turn_id": "T1",
+          "customer_input": "Halo, sweatshirt Colorbox x Liunic yang ada di homepage itu harganya berapa? Ukuran M masih ada stok? Aku biasanya pakai M, tapi kalau bahannya tipis mungkin perlu XL.",
+          "simulation_ids": [],
+          "expected": {
+            "accepted_primary_intents": [
+              "PRODUCT_AVAILABILITY"
+            ],
+            "required_secondary": [
+              "PRODUCT_INFO",
+              "SIZE_FIT"
+            ],
+            "priority": "P2",
+            "escalation_recommended": true,
+            "escalation_reason_terms": [
+              [
+                "stok",
+                "stock",
+                "inventaris",
+                "ketersediaan"
+              ]
+            ],
+            "must_include_any": [
+              [
+                "249.900",
+                "249,900"
+              ],
+              [
+                "239.900",
+                "239,900"
+              ],
+              [
+                "7 November 2026",
+                "2026-11-07",
+                "tanggal tinjauan",
+                "review date"
+              ],
+              [
+                "stok",
+                "ketersediaan",
+                "stock"
+              ],
+              [
+                "tidak dapat",
+                "belum dapat",
+                "tidak bisa",
+                "tidak memiliki akses",
+                "belum bisa",
+                "tidak tersedia"
+              ],
+              [
+                "ukuran",
+                "size"
+              ]
+            ],
+            "must_not_include": [
+              "M tersedia",
+              "stok M masih ada",
+              "cocok untuk",
+              "katun",
+              "dijamin",
+              "pasti tersedia"
+            ],
+            "expected_knowledge_ids": [
+              "CB-PRODUCT-001",
+              "CB-SIZE-UNKNOWN-001"
+            ],
+            "citation_required": true,
+            "simulation_required": false,
+            "clarifying_required": false,
+            "summary_terms": [
+              [
+                "harga"
+              ],
+              [
+                "stok",
+                "ketersediaan",
+                "ukuran"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "test_id": "CB-CS-V02",
+      "title": "Multi-turn damaged complaint, refund request, then corrected item",
+      "coverage": [
+        "multi_turn_context",
+        "complaint_damaged",
+        "return_policy_retrieval",
+        "changed_information",
+        "classification",
+        "priority",
+        "escalation",
+        "summary"
+      ],
+      "turns": [
+        {
+          "turn_id": "T1",
+          "customer_input": "Halo, atasan yang saya terima jahitannya lepas dan ada noda.",
+          "simulation_ids": [],
+          "expected": {
+            "accepted_primary_intents": [
+              "COMPLAINT_DAMAGED"
+            ],
+            "required_secondary": [],
+            "priority": "P1",
+            "escalation_recommended": true,
+            "escalation_reason_terms": [
+              [
+                "rusak",
+                "damaged",
+                "cacat",
+                "jahitan",
+                "noda"
+              ]
+            ],
+            "must_include_any": [
+              [
+                "atasan",
+                "jahitan"
+              ],
+              [
+                "noda",
+                "jahitan"
+              ]
+            ],
+            "must_not_include": [
+              "refund disetujui",
+              "pasti diganti",
+              "dijamin",
+              "sudah diproses"
+            ],
+            "expected_knowledge_ids": [],
+            "citation_required": false,
+            "simulation_required": false,
+            "clarifying_required": false,
+            "summary_terms": [
+              [
+                "atasan"
+              ],
+              [
+                "jahitan",
+                "noda"
+              ]
+            ]
+          }
+        },
+        {
+          "turn_id": "T2",
+          "customer_input": "Saya mau refund saja. Pesanan dari Shopee, nomor DEMO-CBX-002, diterima 5 November.",
+          "simulation_ids": [],
+          "expected": {
+            "accepted_primary_intents": [
+              "RETURN_REFUND"
+            ],
+            "required_secondary": [
+              "COMPLAINT_DAMAGED"
+            ],
+            "priority": "P1",
+            "escalation_recommended": true,
+            "escalation_reason_terms": [
+              [
+                "refund",
+                "retur",
+                "pengembalian"
+              ]
+            ],
+            "must_include_any": [
+              [
+                "7 hari",
+                "tujuh hari",
+                "7 (tujuh) hari"
+              ],
+              [
+                "verifikasi",
+                "manusia",
+                "human",
+                "tim Colorbox",
+                "pemeriksaan",
+                "tinjau",
+                "ditinjau",
+                "peninjauan",
+                "diperiksa",
+                "periksa",
+                "tim"
+              ],
+              [
+                "atasan",
+                "jahitan",
+                "noda"
+              ]
+            ],
+            "must_not_include": [
+              "refund disetujui",
+              "refund Anda akan diproses",
+              "dana kembali dalam",
+              "pasti kembali",
+              "dijamin",
+              "sudah kami proses"
+            ],
+            "expected_knowledge_ids": [
+              "CB-RETURNS-001",
+              "CB-REFUND-TIMING-UNKNOWN-001"
+            ],
+            "citation_required": true,
+            "simulation_required": false,
+            "clarifying_required": false,
+            "summary_terms": [
+              [
+                "DEMO-CBX-002"
+              ],
+              [
+                "5 November",
+                "2026-11-05"
+              ],
+              [
+                "refund"
+              ],
+              [
+                "atasan",
+                "jahitan",
+                "noda"
+              ]
+            ]
+          }
+        },
+        {
+          "turn_id": "T3",
+          "customer_input": "Eh maaf, yang rusak bukan atasan. Yang salah itu rok plisket, warnanya beda dari pesanan.",
+          "simulation_ids": [],
+          "expected": {
+            "accepted_primary_intents": [
+              "COMPLAINT_WRONG_ITEM",
+              "RETURN_REFUND"
+            ],
+            "required_secondary": [],
+            "priority": "P1",
+            "escalation_recommended": true,
+            "escalation_reason_terms": [
+              [
+                "warna",
+                "color",
+                "salah",
+                "retur",
+                "refund"
+              ]
+            ],
+            "must_include_any": [
+              [
+                "rok",
+                "plisket"
+              ],
+              [
+                "warna",
+                "color"
+              ],
+              [
+                "7 hari",
+                "tujuh hari"
+              ],
+              [
+                "verifikasi",
+                "manusia",
+                "human",
+                "pemeriksaan",
+                "tinjau",
+                "ditinjau",
+                "peninjauan",
+                "diperiksa",
+                "periksa",
+                "tim"
+              ]
+            ],
+            "must_not_include": [
+              "atasan rusak",
+              "atasan yang rusak",
+              "refund disetujui",
+              "pasti diganti",
+              "dijamin",
+              "sudah diproses"
+            ],
+            "expected_knowledge_ids": [
+              "CB-RETURNS-001"
+            ],
+            "citation_required": true,
+            "simulation_required": false,
+            "clarifying_required": false,
+            "summary_terms": [
+              [
+                "rok",
+                "plisket"
+              ],
+              [
+                "warna",
+                "color"
+              ],
+              [
+                "koreksi",
+                "bukan atasan",
+                "diperbarui",
+                "superseded",
+                "sebelumnya"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "test_id": "CB-CS-V03",
+      "title": "Simulated order/return status and fictional 30-day policy conflict",
+      "coverage": [
+        "simulated_order",
+        "simulated_return_refund",
+        "dummy_policy_isolation",
+        "unknown_refund_timing",
+        "classification",
+        "priority",
+        "escalation"
+      ],
+      "turns": [
+        {
+          "turn_id": "T1",
+          "customer_input": "Saya mau cek pesanan DEMO-CBX-002 lewat sini. Status pengiriman dan refund saya bagaimana? Sudah diproses belum?",
+          "simulation_ids": [
+            "SIM-ORDER-001",
+            "SIM-ORDER-002",
+            "SIM-RETURN-001",
+            "SIM-UNKNOWN-REFUND-TIME-001"
+          ],
+          "expected": {
+            "accepted_primary_intents": [
+              "RETURN_REFUND"
+            ],
+            "required_secondary": [
+              "ORDER_STATUS"
+            ],
+            "priority": "P1",
+            "escalation_recommended": true,
+            "escalation_reason_terms": [
+              [
+                "simulasi",
+                "simulation",
+                "fixture",
+                "refund",
+                "tidak dapat"
+              ]
+            ],
+            "must_include_any": [
+              [
+                "simulasi",
+                "simulation",
+                "fixture",
+                "data uji"
+              ],
+              [
+                "tidak dapat",
+                "belum dapat",
+                "tidak bisa",
+                "tidak memiliki akses",
+                "bukan pencarian",
+                "belum bisa"
+              ],
+              [
+                "belum diputuskan",
+                "belum diproses",
+                "tidak dapat dikonfirmasi",
+                "belum ada keputusan",
+                "not_decided"
+              ],
+              [
+                "DEMO-CBX-002"
+              ]
+            ],
+            "must_not_include": [
+              "refund disetujui",
+              "refund Anda akan",
+              "sedang dikirim ke alamat",
+              "paket Anda sedang dalam perjalanan",
+              "dijamin"
+            ],
+            "expected_knowledge_ids": [
+              "CB-TRACKING-LIMIT-001",
+              "CB-RETURNS-001",
+              "CB-REFUND-TIMING-UNKNOWN-001"
+            ],
+            "citation_required": true,
+            "simulation_required": true,
+            "clarifying_required": false,
+            "summary_terms": [
+              [
+                "DEMO-CBX-002"
+              ],
+              [
+                "refund"
+              ],
+              [
+                "simulasi",
+                "simulation",
+                "fixture"
+              ]
+            ]
+          }
+        },
+        {
+          "turn_id": "T2",
+          "customer_input": "Tapi kata CS lain retur bisa 30 hari. Berarti saya masih bisa refund dong?",
+          "simulation_ids": [
+            "SIM-RETURN-001",
+            "SIM-POLICY-001",
+            "SIM-UNKNOWN-REFUND-TIME-001"
+          ],
+          "expected": {
+            "accepted_primary_intents": [
+              "RETURN_REFUND"
+            ],
+            "required_secondary": [],
+            "priority": "P1",
+            "escalation_recommended": true,
+            "escalation_reason_terms": [
+              [
+                "konflik",
+                "conflict",
+                "kebijakan",
+                "policy",
+                "refund"
+              ]
+            ],
+            "must_include_any": [
+              [
+                "30 hari",
+                "30-day",
+                "tiga puluh hari"
+              ],
+              [
+                "fiksi",
+                "fiktif",
+                "fictional",
+                "tidak resmi",
+                "bukan kebijakan",
+                "bukan ketentuan"
+              ],
+              [
+                "7 hari",
+                "tujuh hari"
+              ],
+              [
+                "verifikasi",
+                "manusia",
+                "human",
+                "pemeriksaan",
+                "tinjau",
+                "ditinjau",
+                "peninjauan",
+                "diperiksa",
+                "periksa",
+                "tim"
+              ]
+            ],
+            "must_not_include": [
+              "benar, 30 hari",
+              "masih bisa refund",
+              "refund disetujui",
+              "dijamin",
+              "pasti bisa"
+            ],
+            "expected_knowledge_ids": [
+              "CB-RETURNS-001",
+              "CB-REFUND-TIMING-UNKNOWN-001"
+            ],
+            "citation_required": true,
+            "simulation_required": true,
+            "clarifying_required": false,
+            "summary_terms": [
+              [
+                "30 hari",
+                "30-day",
+                "thirty days"
+              ],
+              [
+                "konflik",
+                "bertentangan",
+                "tidak resmi",
+                "fiksi",
+                "conflict",
+                "fictional",
+                "unofficial"
+              ],
+              [
+                "7 hari",
+                "7-day",
+                "seven days"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "test_id": "CB-CS-V04",
+      "title": "Shipping fee/ETA unknown plus return-window and fit nuance",
+      "coverage": [
+        "shipping_delivery",
+        "unknown_policy",
+        "return_policy_retrieval",
+        "size_fit_boundary",
+        "classification",
+        "priority",
+        "escalation"
+      ],
+      "turns": [
+        {
+          "turn_id": "T1",
+          "customer_input": "Ongkir ke Surabaya berapa dan estimasinya berapa hari? Lalu kalau baju tidak muat, bisa retur dalam 7 hari?",
+          "simulation_ids": [],
+          "expected": {
+            "accepted_primary_intents": [
+              "RETURN_REFUND"
+            ],
+            "required_secondary": [
+              "SHIPPING_DELIVERY",
+              "SIZE_FIT"
+            ],
+            "priority": "P1",
+            "escalation_recommended": true,
+            "escalation_reason_terms": [
+              [
+                "ongkir",
+                "pengiriman",
+                "shipping",
+                "tarif",
+                "biaya",
+                "tidak dapat"
+              ]
+            ],
+            "must_include_any": [
+              [
+                "ongkir",
+                "pengiriman",
+                "shipping"
+              ],
+              [
+                "tidak dapat",
+                "belum dapat",
+                "tidak tersedia",
+                "tidak memiliki akses",
+                "tidak bisa dipastikan",
+                "belum bisa",
+                "tidak bisa"
+              ],
+              [
+                "7 hari",
+                "tujuh hari"
+              ],
+              [
+                "tidak muat",
+                "ukuran",
+                "fit"
+              ],
+              [
+                "tidak",
+                "belum"
+              ]
+            ],
+            "must_not_include": [
+              "gratis ongkir",
+              "free shipping",
+              "Rp0",
+              "Rp 0",
+              "1-2 hari",
+              "2-3 hari",
+              "3-5 hari",
+              "pasti sampai",
+              "dijamin",
+              "estimasi ongkir adalah"
+            ],
+            "expected_knowledge_ids": [
+              "CB-SHIPPING-UNKNOWN-001",
+              "CB-RETURNS-001",
+              "CB-EXCHANGE-UNKNOWN-001"
+            ],
+            "citation_required": true,
+            "simulation_required": false,
+            "clarifying_required": false,
+            "summary_terms": [
+              [
+                "ongkir",
+                "pengiriman",
+                "shipping"
+              ],
+              [
+                "Surabaya"
+              ],
+              [
+                "retur",
+                "7 hari",
+                "return"
+              ],
+              [
+                "ukuran",
+                "tidak muat",
+                "size",
+                "fit",
+                "does not fit"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "test_id": "CB-CS-V05",
+      "title": "Ambiguous late delivery plus size exchange, missing information",
+      "coverage": [
+        "ambiguous_intent",
+        "clarification",
+        "missing_information",
+        "unknown_exchange_policy",
+        "priority",
+        "escalation"
+      ],
+      "turns": [
+        {
+          "turn_id": "T1",
+          "customer_input": "Barang saya belum sampai, tapi saya juga mau ganti ukuran karena kepanjangan. Bisa dibantu sekarang?",
+          "simulation_ids": [
+            "SIM-EXCHANGE-001"
+          ],
+          "expected": {
+            "accepted_primary_intents": [
+              "AMBIGUOUS",
+              "COMPLAINT_LATE_MISSING"
+            ],
+            "required_secondary": [
+              "SIZE_FIT"
+            ],
+            "priority": "P1",
+            "escalation_recommended": true,
+            "escalation_reason_terms": [
+              [
+                "ambigu",
+                "tidak jelas",
+                "informasi",
+                "kebijakan",
+                "manusia",
+                "human",
+                "policy",
+                "missing",
+                "tidak dapat"
+              ]
+            ],
+            "must_include_any": [
+              [
+                "belum sampai",
+                "pengiriman",
+                "lacak",
+                "status"
+              ],
+              [
+                "ukuran",
+                "ganti",
+                "tukar"
+              ],
+              [
+                "tidak dapat",
+                "belum dapat",
+                "tidak tersedia",
+                "tidak memiliki akses",
+                "tidak bisa dipastikan",
+                "belum bisa",
+                "tidak bisa"
+              ],
+              [
+                "kebijakan",
+                "ketentuan",
+                "informasi"
+              ]
+            ],
+            "must_not_include": [
+              "pasti sampai",
+              "besok sampai",
+              "bisa ditukar",
+              "dijamin",
+              "dalam 2 hari",
+              "dalam 3 hari"
+            ],
+            "expected_knowledge_ids": [
+              "CB-TRACKING-LIMIT-001",
+              "CB-EXCHANGE-UNKNOWN-001",
+              "CB-SHIPPING-UNKNOWN-001"
+            ],
+            "citation_required": true,
+            "simulation_required": true,
+            "clarifying_required": true,
+            "summary_terms": [
+              [
+                "belum sampai",
+                "pengiriman",
+                "not arrived",
+                "has not arrived",
+                "late"
+              ],
+              [
+                "ukuran",
+                "ganti",
+                "size",
+                "exchange"
+              ],
+              [
+                "tidak",
+                "belum",
+                "not"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "test_id": "CB-CS-V06",
+      "title": "Account deletion request with legal threat and no verified deletion policy",
+      "coverage": [
+        "sensitive_complaint",
+        "legal_threat",
+        "unknown_policy",
+        "account_deletion",
+        "priority",
+        "escalation"
+      ],
+      "turns": [
+        {
+          "turn_id": "T1",
+          "customer_input": "Tolong hapus semua data akun saya sekarang. Kalau tidak, saya laporkan ke pihak berwenang dan sebar di media sosial.",
+          "simulation_ids": [],
+          "expected": {
+            "accepted_primary_intents": [
+              "OTHER"
+            ],
+            "required_secondary": [],
+            "priority": "P1",
+            "escalation_recommended": true,
+            "escalation_reason_terms": [
+              [
+                "hapus",
+                "penghapusan",
+                "privasi",
+                "kebijakan",
+                "manusia",
+                "tidak"
+              ]
+            ],
+            "must_include_any": [
+              [
+                "hapus",
+                "penghapusan"
+              ],
+              [
+                "tidak",
+                "belum"
+              ],
+              [
+                "informasi",
+                "kebijakan",
+                "proses",
+                "ketentuan"
+              ],
+              [
+                "manusia",
+                "tim",
+                "pemeriksaan",
+                "tinjau"
+              ]
+            ],
+            "must_not_include": [
+              "14 hari",
+              "30 hari",
+              "permanen",
+              "sudah dihapus",
+              "telah dihapus",
+              "diteruskan",
+              "dieskalasi",
+              "dijamin",
+              "pihak berwenang",
+              "media sosial"
+            ],
+            "expected_knowledge_ids": [
+              "CB-ACCOUNT-DELETION-UNKNOWN-001"
+            ],
+            "citation_required": false,
+            "simulation_required": false,
+            "clarifying_required": false,
+            "summary_terms": [
+              [
+                "hapus",
+                "penghapusan"
+              ],
+              [
+                "akun",
+                "data"
+              ],
+              [
+                "ancaman",
+                "hukum",
+                "legal",
+                "laporan"
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
