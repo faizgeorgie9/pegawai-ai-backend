@@ -29,7 +29,8 @@ type Problem = { text: string; upgrade?: boolean } | null
 export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: Bot; sid?: string; sessions: Session[]; onSessions: () => void; onRail: () => void }) {
   const [pv, setPv] = useState(0) // bumped whenever the side panel's data may have changed
   const bump = () => setPv((n) => n + 1)
-  const { setDialog, askNotify, refreshMe, viewing } = useData()
+  const { setDialog, askNotify, refreshMe, viewing, runs } = useData()
+  const attached = useRef('') // last run this view followed, so a run is never attached twice
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(false)
   const [run, setRun] = useState<{ id: string } | null>(null) // id '' while the POST is in flight
@@ -82,6 +83,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
   }
 
   function attach(runId: string, key: string) {
+    attached.current = runId
     live.current = key
     const finish = () => {
       unstream.current?.()
@@ -206,6 +208,29 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sid, bot.id])
   useEffect(() => () => unstream.current?.(), [])
+
+  // A run that starts in this session while the view is open and idle (the next turn of an evaluation sequence run
+  // by the server): reload the messages, so the finished turn shows, and follow the new run live.
+  useEffect(() => {
+    if (!sid || run || loading) return
+    const r = runs.find((x) => x.bot_id === bot.id && x.session_id === sid && x.kind !== 'group') // runs holds only active runs
+    if (!r || r.id === attached.current) return
+    const mine = epoch.current
+    void (async () => {
+      const msgs = await api.messages(bot.id, sid).catch(() => null)
+      if (!msgs || mine !== epoch.current || attached.current === r.id) return
+      const lastUser = [...msgs].reverse().find((m) => m.role === 'user')
+      const a: ChatMessage = { key: newKey('a'), role: 'assistant', content: '', reasoning: '', tools: [] }
+      const extra: ChatMessage[] = []
+      if (r.input && lastUser?.content.trim() !== r.input.trim()) extra.push({ key: newKey('u'), role: 'user', content: r.input, reasoning: '', tools: [] })
+      setMessages([...msgs, ...extra, a])
+      setRun({ id: r.id })
+      stick.current = true
+      attach(r.id, a.key)
+    })()
+    // attach is stable enough here; this must re-run only when the active runs or this view's state change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runs, sid, run, loading, bot.id])
 
   // Queued messages go out one at a time as soon as the run ends.
   useEffect(() => {
