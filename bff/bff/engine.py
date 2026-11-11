@@ -66,6 +66,8 @@ class Live:
     first_errors: list = field(default_factory=list)
     prior: dict = field(default_factory=dict)  # token usage of the attempt before the retry
     t0: float | None = None
+    clarify: dict | None = None  # the question Hermes waits on (identity needed to answer it), until settled
+
 
 
 LIVE: dict[str, Live] = {}
@@ -267,6 +269,17 @@ async def _handle(lv: Live, seq: int, ev: dict) -> str | None:
             hub.publish(lv.id, "approval", {"request_id": ev.get("request_id"),
                                             "description": redact(ev.get("description") or ev.get("command")),
                                             "choices": ev.get("choices")})
+    elif name.startswith("clarify."):
+        await _store_event(lv, seq, ev)
+        if name == "clarify.request":
+            choices = ev.get("choices")
+            lv.clarify = {"request_id": ev.get("prompt_id"), "execution_generation": ev.get("execution_generation"),
+                          "question": redact(ev.get("question") or ""),
+                          "choices": [redact(c) for c in choices if isinstance(c, str)] if isinstance(choices, list) else []}
+            hub.publish(lv.id, "clarify", lv.clarify)
+        elif name == "clarify.settled" and lv.clarify and lv.clarify["request_id"] == ev.get("prompt_id"):
+            lv.clarify = None
+            hub.publish(lv.id, "clarify_done", {})
     elif name == "reasoning.available":
         text = redact(ev.get("text") or "")
         lv.reasoning.append(text)
@@ -539,6 +552,29 @@ async def approval(user_id: str, run_id: str, choice: str) -> dict:
     r = await hermes.call(lv.bot, "POST", f"/v1/runs/{lv.hid}/approval", json_body={"choice": choice})
     if r.status_code >= 300:
         raise _hermes_error(r, "Gagal mengirim persetujuan")
+    return {"ok": True}
+
+
+async def clarify(user_id: str, run_id: str, answer) -> dict:
+    """Answer the question the model asked (tool clarify). Hermes wants exactly request_id, execution_generation
+    and answer (gateway/platforms/api_server_authority_runs.py:respond_run); the first two come from the stored request."""
+    if not isinstance(answer, str) or not 1 <= len(answer.strip()) <= 4000:
+        raise ApiError(400, "Jawaban wajib diisi (maksimal 4000 karakter)")
+    _, lv = await _owned_active(user_id, run_id)
+    pending = lv.clarify
+    if not pending:
+        raise ApiError(409, "Tidak ada pertanyaan yang menunggu jawaban")
+    r = await hermes.call(lv.bot, "POST", f"/v1/runs/{lv.hid}/clarify",
+                          json_body={"request_id": pending["request_id"],
+                                     "execution_generation": pending["execution_generation"], "answer": answer.strip()})
+    if r.status_code == 409:
+        lv.clarify = None  # stale or already answered: the card should go away
+        hub.publish(lv.id, "clarify_done", {})
+        raise ApiError(409, "Pertanyaan sudah dijawab atau kedaluwarsa")
+    if r.status_code >= 300:
+        raise _hermes_error(r, "Gagal mengirim jawaban")
+    lv.clarify = None
+    hub.publish(lv.id, "clarify_done", {})
     return {"ok": True}
 
 

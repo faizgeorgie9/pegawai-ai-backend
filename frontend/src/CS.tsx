@@ -172,7 +172,7 @@ function Desk({ bot, agentSelect, onDirty, onNew }: { bot: Bot; agentSelect: Rea
               Kirim
             </button>
           </form>
-          <RunBar busy={run.busy} tools={run.tools} writing={!!run.text} since={run.startedAt} onStop={run.stop} status={run.status} error={run.error} onRetry={last ?? undefined} />
+          <RunBar busy={run.busy} tools={run.tools} writing={!!run.text} since={run.startedAt} clarify={run.clarify} onAnswer={run.answer} onStop={run.stop} status={run.status} error={run.error} onRetry={last ?? undefined} />
           {(turns.length > 0 || pendingQ) && (
             <section className="turns" aria-live="polite" aria-label="Percakapan">
               <h2>Percakapan</h2>

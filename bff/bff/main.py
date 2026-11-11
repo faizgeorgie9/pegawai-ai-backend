@@ -350,7 +350,8 @@ async def run_stream(rid: str):
         lv = LIVE.get(rid)
         out = "".join(lv.out) if lv else row["output"]
         snap = {"output": out, "status": row["status"], "events": await _run_events(rid),
-                "reasoning": "\n\n".join(lv.steps) if lv else row["reasoning"] or ""}
+                "reasoning": "\n\n".join(lv.steps) if lv else row["reasoning"] or "",
+                "clarify": lv.clarify if lv else None}
         first = [("snapshot", snap)]
         if row["status"] not in engine.ACTIVE:
             first.append(("done", {"status": row["status"], "output": row["output"], "reasoning": row["reasoning"],
@@ -389,6 +390,11 @@ async def steer_run(rid: str, request: Request):
 @api.post("/runs/{rid}/approval")
 async def approve_run(rid: str, request: Request):
     return await engine.approval(current_user(), rid, (await body_of(request)).get("choice"))
+
+
+@api.post("/runs/{rid}/clarify")
+async def clarify_run(rid: str, request: Request):
+    return await engine.clarify(current_user(), rid, (await body_of(request)).get("answer"))
 
 
 # ---------- sequences (multi-turn runs that continue on the server) ----------

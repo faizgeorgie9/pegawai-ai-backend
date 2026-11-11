@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { errText } from './bff'
 import { ErrorLine, I, Icon } from './ui'
-import type { Bot } from './bff'
+import type { Bot, Clarify } from './bff'
 
 // Shared page pieces for the Sprint 3 pages.
 
@@ -183,4 +183,40 @@ export function useLoad<T>(fn: () => Promise<T>) {
     }
   }, [fn, n])
   return { ...s, retry: () => setN((x) => x + 1) }
+}
+
+// The model asked the user a question (tool clarify): the question, a button per choice, a free answer and Kirim. Same card as the approval.
+export function ClarifyCard({ c, onAnswer }: { c: Clarify; onAnswer: (text: string) => Promise<void> }) {
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const send = async (a: string) => {
+    if (!a.trim() || busy) return
+    setBusy(true)
+    try {
+      await onAnswer(a.trim())
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <form className="approval clarify" role="group" aria-label="Bot bertanya" onSubmit={(e) => { e.preventDefault(); void send(text) }}>
+      <p className="approval-title">Bot bertanya</p>
+      <p>{c.question}</p>
+      {c.choices.length > 0 && (
+        <div className="approval-actions">
+          {c.choices.map((ch) => (
+            <button key={ch} type="button" className="btn soft" disabled={busy} onClick={() => void send(ch)}>
+              {ch}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="clarify-row">
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Tulis jawaban Anda" aria-label="Jawaban Anda" maxLength={4000} disabled={busy} />
+        <button className="btn primary" type="submit" disabled={busy || !text.trim()}>
+          Kirim
+        </button>
+      </div>
+    </form>
+  )
 }

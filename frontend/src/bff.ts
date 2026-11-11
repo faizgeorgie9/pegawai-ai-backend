@@ -233,6 +233,16 @@ export interface Approval {
   description: string
   choices: string[]
 }
+export interface Clarify {
+  request_id: string
+  execution_generation: number
+  question: string
+  choices: string[]
+}
+export const toClarify = (d: Raw | null | undefined): Clarify | undefined =>
+  d && typeof d.question === 'string' && d.question
+    ? { request_id: asStr(d.request_id), execution_generation: Number(d.execution_generation) || 0, question: d.question, choices: Array.isArray(d.choices) ? d.choices.map((c: unknown) => asStr(c)) : [] }
+    : undefined
 export interface ChatMessage {
   key: string
   role: 'user' | 'assistant'
@@ -244,6 +254,7 @@ export interface ChatMessage {
   stopped?: boolean
   error?: string
   approval?: Approval
+  clarify?: Clarify
   notes?: string[]
 }
 export interface ActivityRow {
@@ -572,6 +583,7 @@ export const api = {
   stopRun: (id: string) => call<void>('POST', `/runs/${enc(id)}/stop`),
   steerRun: (id: string, text: string) => call<void>('POST', `/runs/${enc(id)}/steer`, { text }),
   approve: (id: string, choice: string) => call<void>('POST', `/runs/${enc(id)}/approval`, { choice }),
+  clarify: (id: string, answer: string) => call<void>('POST', `/runs/${enc(id)}/clarify`, { answer }),
   groups: async () => list(await call('GET', '/groups')).map(toGroup),
   createGroup: async (name: string, bot_ids: string[]) => toGroup(await call<Raw>('POST', '/groups', { name, bot_ids })),
   patchGroup: async (id: string, p: { name?: string; bot_ids?: string[] }) => toGroup(await call<Raw>('PATCH', `/groups/${enc(id)}`, p)),
