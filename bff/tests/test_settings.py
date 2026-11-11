@@ -31,14 +31,11 @@ def test_builtin_bot_may_change_model_but_not_persona():
     assert status(validate_edit, {"persona": "x"}, True) == 403
 
 
-def test_run_params_bot_wins_then_workspace_then_nothing():
-    ws = {"model": "m-ws", "provider": "p-ws", "reasoning_effort": "high"}
+def test_run_params_only_what_the_bot_sets():
     own = {"model": "m-bot", "provider": "p-bot", "reasoning_effort": "low"}
-    assert merge_run_params(own, ws) == {"model": "m-bot", "provider": "p-bot", "model_options": {"reasoning_effort": "low"}}
-    assert merge_run_params({}, ws) == {"model": "m-ws", "provider": "p-ws", "model_options": {"reasoning_effort": "high"}}
-    # model from the bot, effort falls back to the workspace
-    assert merge_run_params({"model": "m-bot", "provider": "p-bot", "reasoning_effort": None}, ws)["model_options"] == {"reasoning_effort": "high"}
-    assert merge_run_params({}, {"model": None, "provider": None, "reasoning_effort": None}) == {}
+    assert merge_run_params(own) == {"model": "m-bot", "provider": "p-bot", "model_options": {"reasoning_effort": "low"}}
+    assert merge_run_params({"model": None, "provider": None, "reasoning_effort": "high"}) == {"model_options": {"reasoning_effort": "high"}}
+    assert merge_run_params({}) == {}
 
 
 def test_settings_patch_validation():
@@ -51,3 +48,4 @@ def test_settings_patch_validation():
     assert status(clean_settings, {"timezone": "Mars/Base"}) == 400
     assert status(clean_settings, {"notify": {"done": "ya"}}) == 400
     assert status(clean_settings, {"bogus": 1}) == 400
+    assert status(clean_settings, {"model": "x", "provider": "p"}) == 400  # model is per agent only

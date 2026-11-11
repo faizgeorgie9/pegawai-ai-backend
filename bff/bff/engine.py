@@ -142,7 +142,7 @@ async def start_run(user_id: str, bot: str, session_id: str, input_: str, kind: 
     await check_quota(user_id)
     rid = str(uuid.uuid4())
     meta = await versions.snapshot(bot, instructions)  # version and config at the moment the run starts
-    params = await settings.run_params(user_id, bot)  # the bot's own model, else the workspace default, else nothing
+    params = await settings.run_params(bot)  # the bot's own model/effort, else nothing (Hermes uses the profile default)
     if params.get("model"):
         meta.update(model=params["model"], provider=params["provider"])
     if params.get("model_options"):

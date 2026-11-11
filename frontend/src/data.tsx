@@ -51,7 +51,7 @@ export const useData = () => {
 
 const ENDED = ['done', 'completed', 'finished', 'stopped', 'failed', 'error', 'idle', 'cancelled', 'canceled', 'interrupted', 'limit']
 export const sendEnded = (status: unknown) => ENDED.includes(asStr(status).toLowerCase())
-const DEFAULT_SETTINGS: Settings = { company_name: 'Colorbox', language: 'id', timezone: 'Asia/Jakarta', model: null, provider: null, reasoning_effort: null, notify: { done: true, failed: true, input: true } }
+const DEFAULT_SETTINGS: Settings = { company_name: 'Colorbox', language: 'id', timezone: 'Asia/Jakarta', notify: { done: true, failed: true, input: true } }
 const NOTIFY_KEY = 'pegawai.notifyAsked'
 const clip = (s: string, n = 60) => (s.length > n ? s.slice(0, n).trimEnd() + '…' : s)
 

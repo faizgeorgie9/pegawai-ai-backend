@@ -2,12 +2,11 @@ import { useCallback, useState } from 'react'
 import { api, errText } from './bff'
 import { useData } from './data'
 import { ErrorLine, nf } from './ui'
-import { EffortSelect, Loading, ModelSelect, PageHead, modelKey, splitModel, useLoad } from './ui-extra'
+import { Loading, PageHead, useLoad } from './ui-extra'
 
 // #/pengaturan/<bagian>. Left: the sections (a scrolling row on small screens). Right: the section, one sentence per option.
 const SECTIONS = [
   { id: 'umum', label: 'Umum' },
-  { id: 'model', label: 'Model AI' },
   { id: 'notifikasi', label: 'Notifikasi' },
   { id: 'keamanan', label: 'Keamanan dan izin' },
   { id: 'knowledge', label: 'Knowledge base' },
@@ -29,13 +28,9 @@ export default function Settings({ section }: { section?: string }) {
               {s.label}
             </a>
           ))}
-          <a href="#/tools" className="set-out">
-            Kemampuan
-          </a>
         </nav>
         <div className="set-body">
           {cur === 'umum' && <General />}
-          {cur === 'model' && <ModelAI />}
           {cur === 'notifikasi' && <Notifications />}
           {cur === 'keamanan' && <Security />}
           {cur === 'knowledge' && <Knowledge />}
@@ -132,25 +127,6 @@ function General() {
             Gelap
           </button>
         </div>
-      </Row>
-      {problem}
-    </div>
-  )
-}
-
-// ---------- Model AI ----------
-function ModelAI() {
-  const { settings } = useData()
-  const { save, problem } = useSave()
-  return (
-    <div className="set-sec">
-      <h2>Model AI</h2>
-      <p className="quiet">Berlaku untuk agen yang tidak punya pilihan sendiri. Pilihan per agen ada di halaman ubah agen.</p>
-      <Row title="Model bawaan" hint="Dipakai di tugas berikutnya.">
-        <ModelSelect label="Model" value={modelKey(settings.provider, settings.model)} onChange={(v) => void save(splitModel(v))} />
-      </Row>
-      <Row title="Tingkat berpikir bawaan" hint="Makin tinggi, makin teliti tetapi makin lambat dan boros token.">
-        <EffortSelect value={settings.reasoning_effort ?? ''} onChange={(v) => void save({ reasoning_effort: v || null })} />
       </Row>
       {problem}
     </div>

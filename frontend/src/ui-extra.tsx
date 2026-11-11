@@ -14,7 +14,7 @@ export function statusText(b: Pick<Bot, 'status' | 'activity' | 'deleteError'>):
   return 'Siap'
 }
 
-// Model and thinking-level dropdowns, shared by the agent edit page and Pengaturan. A model value is "provider|model"; '' = Bawaan.
+// Model and thinking-level dropdowns, used by the agent edit page. A model value is "provider|model"; '' = Default.
 export const modelKey = (provider: string | null | undefined, model: string | null | undefined) => (provider && model ? `${provider}|${model}` : '')
 export const splitModel = (v: string): { provider: string | null; model: string | null } => {
   const i = v.indexOf('|')
@@ -39,7 +39,7 @@ export function ModelSelect({ value, onChange, disabled, label = 'Model' }: { va
     <label className="field">
       <span>{label}</span>
       <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
-        <option value="">Bawaan{cat?.default.model ? ` (${cat.default.model})` : ''}</option>
+        <option value="">Default{cat?.default.model ? ` (${cat.default.model})` : ''}</option>
         {!known && <option value={value}>{splitModel(value).model}</option>}
         {cat?.providers.map((p) => (
           <optgroup key={p.slug} label={p.name}>
@@ -63,7 +63,7 @@ export function EffortSelect({ value, onChange, disabled }: { value: string; onC
     <label className="field">
       <span>Tingkat berpikir</span>
       <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
-        <option value="">Bawaan</option>
+        <option value="">Default</option>
         {EFFORT_MAIN.map(([v, l]) => (
           <option key={v} value={v}>
             {l}

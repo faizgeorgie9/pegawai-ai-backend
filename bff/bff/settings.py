@@ -1,6 +1,6 @@
 """Workspace settings (per user), the model catalog Hermes serves, and the model parameters sent on runs.
-Settings are one JSON row merged over DEFAULTS. A bot's own model/provider/reasoning_effort wins over the workspace default;
-nothing is sent to Hermes when neither is set (Hermes then uses the profile default)."""
+Settings are one JSON row merged over DEFAULTS. Model/provider/reasoning_effort exist per bot only; nothing is sent to Hermes
+when a bot has none (Hermes then uses the profile default). Old workspace model keys in the row are ignored."""
 import asyncio
 import json
 import re
@@ -16,7 +16,6 @@ TIMEZONES = ("Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura")  # WIB, WITA, WIT
 RETENTION_DAYS = 90  # db.cleanup_loop deletes tool-event logs older than this
 DEFAULTS = {
     "company_name": "Colorbox", "language": "id", "timezone": "Asia/Jakarta",
-    "model": None, "provider": None, "reasoning_effort": None,
     "notify": {"done": True, "failed": True, "input": True},
 }
 _MODEL = re.compile(r"^[\w.:/@+-]{1,120}$")
@@ -43,14 +42,13 @@ def clean_run_fields(body: dict) -> dict:
     return out
 
 
-def merge_run_params(bot: dict, defaults: dict) -> dict:
-    """Request fields for POST /v1/runs: the bot's own model (with its provider) else the workspace default, and the
-    same for reasoning_effort. Only what is set is returned."""
-    src = bot if bot.get("model") else defaults
+def merge_run_params(bot: dict) -> dict:
+    """Request fields for POST /v1/runs from the bot's own model (with its provider) and reasoning_effort. Only what is set
+    is returned."""
     out: dict = {}
-    if src.get("model") and src.get("provider"):
-        out.update(model=src["model"], provider=src["provider"])
-    effort = bot.get("reasoning_effort") or defaults.get("reasoning_effort")
+    if bot.get("model") and bot.get("provider"):
+        out.update(model=bot["model"], provider=bot["provider"])
+    effort = bot.get("reasoning_effort")
     if effort:
         out["model_options"] = {"reasoning_effort": effort}
     return out
@@ -63,7 +61,7 @@ def clean_settings(body: dict) -> dict:
         raise ApiError(400, "Kolom tidak dikenal: " + ", ".join(unknown))
     if not body:
         raise ApiError(400, "Tidak ada yang diubah")
-    out = clean_run_fields(body)
+    out: dict = {}
     if "company_name" in body:
         v = body["company_name"]
         v = " ".join(v.split()) if isinstance(v, str) else ""
@@ -94,8 +92,6 @@ async def get(user_id: str) -> dict:
 
 async def patch(user_id: str, body: dict) -> dict:
     ch = clean_settings(body)
-    if "model" in ch:
-        await check_model(user_id, ch["model"], ch["provider"])
     if "notify" in ch:
         ch["notify"] = {**(await get(user_id))["notify"], **ch["notify"]}
     await db.ex("insert into settings (user_id, data) values (%s, %s) on conflict (user_id) do update "
@@ -103,9 +99,9 @@ async def patch(user_id: str, body: dict) -> dict:
     return await get(user_id)
 
 
-async def run_params(user_id: str, bot_id: str) -> dict:
+async def run_params(bot_id: str) -> dict:
     row = await db.q1("select model, provider, reasoning_effort from bots where id = %s", bot_id)
-    return merge_run_params(row or {}, await get(user_id))
+    return merge_run_params(row or {})
 
 
 # ---------- model catalog ----------

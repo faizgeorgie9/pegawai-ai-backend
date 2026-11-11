@@ -65,7 +65,7 @@ export function AgentList() {
                     <a className="row" href={'#' + agenPath(b.id)} style={{ ['--bot' as string]: botColor(b), padding: 0 }}>
                       <BotAvatar bot={b} size={28} />
                       <b>{b.name}</b>
-                      {b.builtin && <span className="pill plain">Bawaan</span>}
+                      {b.builtin && <span className="pill plain">Default</span>}
                     </a>
                   </td>
                   <td data-label="Peran">{b.role}</td>
@@ -171,11 +171,11 @@ export function AgentDetail({ id }: { id: string }) {
             {b.color || 'plain'}
           </dd>
           <dt>Model</dt>
-          <dd>{b.model || 'Bawaan'}</dd>
+          <dd>{b.model || 'Default'}</dd>
           <dt>Tingkat berpikir</dt>
-          <dd>{EFFORT_WORD[b.effort] ?? 'Bawaan'}</dd>
+          <dd>{EFFORT_WORD[b.effort] ?? 'Default'}</dd>
           <dt>Jenis</dt>
-          <dd>{b.builtin ? 'Bawaan (tidak bisa dihapus)' : 'Buatan pengguna'}</dd>
+          <dd>{b.builtin ? 'Default (tidak bisa dihapus)' : 'Buatan pengguna'}</dd>
           <dt>Dibuat</dt>
           <dd>{b.createdAt ? stamp(b.createdAt) : '–'}</dd>
         </dl>
@@ -341,7 +341,7 @@ export function AgentEdit({ id }: { id: string }) {
       </a>
       <PageHead title={`Ubah ${d.name}`} />
       <form className="form-page" onSubmit={(e) => void submit(e)} noValidate>
-        {ro && <p className="note-box">Agen bawaan: nama, peran, tim, dan persona dikelola tim backend. Warna, model, dan tingkat berpikir bisa diubah.</p>}
+        {ro && <p className="note-box">Agen default: nama, peran, tim, dan persona dikelola tim backend. Warna, model, dan tingkat berpikir bisa diubah.</p>}
         <fieldset disabled={busy} className="form-page">
           <label className="field">
             <span>Nama</span>
@@ -387,7 +387,7 @@ export function AgentEdit({ id }: { id: string }) {
           </label>
           <ModelSelect value={f.model} onChange={(v) => set('model', v)} />
           <EffortSelect value={f.effort} onChange={(v) => set('effort', v)} />
-          <small className="quiet">Bawaan berarti memakai pilihan di Pengaturan, bagian Model AI. Pilihan baru berlaku di tugas berikutnya.</small>
+          <small className="quiet">Default memakai model default profil di Hermes. Pilihan baru berlaku di tugas berikutnya.</small>
         </fieldset>
         {problem && (
           <p className="problem-bar" role="alert">

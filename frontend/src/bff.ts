@@ -118,9 +118,6 @@ export interface Settings {
   company_name: string
   language: string
   timezone: string
-  model: string | null
-  provider: string | null
-  reasoning_effort: string | null
   notify: { done: boolean; failed: boolean; input: boolean }
 }
 export interface ModelCatalog {
