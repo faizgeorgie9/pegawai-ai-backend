@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api, errText } from './bff'
@@ -10,7 +10,7 @@ import { useData } from './data'
 import { Cs21Card, Provenance } from './ResultCards'
 import { ALL_DIMENSIONS, CS_RUBRIC, RUBRIC } from './results'
 import type { RunResult } from './results'
-import { SCENARIOS } from './scenarios'
+import { SCENARIOS, joinTurns } from './scenarios'
 import type { Scenario } from './scenarios'
 import { ErrorLine } from './ui'
 import { Empty, Loading, PageHead, Opt, useLoad } from './ui-extra'
@@ -52,6 +52,23 @@ function snapOf(q: Sequence): Snap {
 }
 const isActive = (q: Sequence | null) => !!q && (q.status === 'queued' || q.status === 'running')
 
+// One editable message of a scenario turn; grows with its text.
+function TurnBox({ id, label, value, onChange, disabled, invalid }: { id: string; label?: string; value: string; onChange: (v: string) => void; disabled: boolean; invalid: boolean }) {
+  const el = useRef<HTMLTextAreaElement>(null)
+  useLayoutEffect(() => {
+    const t = el.current
+    if (!t) return
+    t.style.height = 'auto'
+    t.style.height = `${t.scrollHeight + 2}px`
+  }, [value])
+  return (
+    <label className="field turn-box">
+      <span className={label ? undefined : 'sr-only'}>{label ?? 'Pesan yang dikirim ke agen'}</span>
+      <textarea ref={el} id={id} rows={2} value={value} disabled={disabled} aria-invalid={invalid} onChange={(e) => onChange(e.target.value)} />
+    </label>
+  )
+}
+
 type CmpState = { kind: 'repeat' | 'agents'; cols: Col[]; status: 'running' | 'done' | 'incomplete' }
 const emptyCol = (botId: string, botName: string): Col => ({ botId, botName, runId: '', sid: '', status: 'pending', text: '', error: '', tokens: 0, seconds: null, startedAt: 0, meta: {} })
 
@@ -72,6 +89,8 @@ export default function Uji() {
   const [botB, setBotB] = useState('')
   const [cmp, setCmp] = useState<CmpState | null>(null)
   const [problem, setProblem] = useState('')
+  const [edits, setEdits] = useState<Record<string, string[]>>({}) // edited turns per scenario, this page visit only
+  const [sent, setSent] = useState<string[]>([]) // the turns of the run shown (what was actually sent)
   const [turnNo, setTurnNo] = useState(0) // compare mode only: it still runs its turns here
   const cancelled = useRef(false)
   const gen = useRef(0) // bumped when a run starts, so a late restore never replaces it
@@ -106,28 +125,30 @@ export default function Uji() {
   const peerOpts = override ? bots.filter((b) => b.id !== override && b.team === teamOf(override)) : bots
 
   // Workflow context: only when the agent's team fits the case (CS cases with a CS agent, Marketing with a Marketing agent).
+  const turnsOf = (s: Scenario) => edits[s.id] ?? s.turns
   const ctxOf = (s: Scenario, bid: string): RunCtx | undefined =>
     teamOf(bid) === (s.group === 'cs' ? 'customer_support' : 'marketing') ? { workflow: s.group, stage: 'uji', ...(s.group === 'cs' && s.simulate ? { test_mode: true } : {}) } : undefined
 
   // Compare mode only: it still runs the turns here, in order, in one new session. Normal runs use a server-side sequence.
-  async function runTurns(s: Scenario, bid: string): Promise<Snap & { sid: string; superseded?: boolean }> {
+  async function runTurns(s: Scenario, turnList: string[], bid: string): Promise<Snap & { sid: string; superseded?: boolean }> {
     let sid = ''
     const turns: TurnOut[] = []
-    for (let i = 0; i < s.turns.length; i++) {
+    for (let i = 0; i < turnList.length; i++) {
       setTurnNo(i + 1)
-      const r = await run.send(s.turns[i], { botId: bid, sid: sid || undefined, ctx: ctxOf(s, bid) })
+      const r = await run.send(turnList[i], { botId: bid, sid: sid || undefined, ctx: ctxOf(s, bid) })
       if (r.status === 'idle') return { text: '', runId: '', status: 'idle', error: '', turns, sid, superseded: true }
       sid = r.sid || sid
       turns.push({ text: r.text, runId: r.runId, result: r.result })
-      if (r.status !== 'done' || cancelled.current) return { text: r.text, runId: r.runId, status: r.status, error: r.error || (s.turns.length > 1 ? `Berhenti di giliran ${i + 1} dari ${s.turns.length}.` : ''), turns, sid }
+      if (r.status !== 'done' || cancelled.current) return { text: r.text, runId: r.runId, status: r.status, error: r.error || (turnList.length > 1 ? `Berhenti di giliran ${i + 1} dari ${turnList.length}.` : ''), turns, sid }
     }
     const last = turns[turns.length - 1]
-    const text = s.turns.length > 1 ? turns.map((t, i) => `[Giliran ${i + 1}]\n${t.text}`).join('\n\n') : last.text
+    const text = turnList.length > 1 ? turns.map((t, i) => `[Giliran ${i + 1}]\n${t.text}`).join('\n\n') : last.text
     return { text, runId: last.runId, status: 'done', error: '', turns, sid }
   }
 
-  function begin(s: Scenario, bid: string) {
+  function begin(s: Scenario, bid: string, turnList: string[]) {
     setSc(s)
+    setSent(turnList)
     setBotId(bid)
     gen.current++
     setSeq(null)
@@ -138,15 +159,16 @@ export default function Uji() {
     window.setTimeout(() => panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
 
-  async function start(s: Scenario) {
+  async function start(s: Scenario, turnList: string[] = turnsOf(s)) {
     if (busy) return
     const bid = effective(s)
     if (!bid) return
-    if (compare) return void startCompare(s, bid)
-    begin(s, bid)
+    if (turnList.some((t) => !t.trim())) return
+    if (compare) return void startCompare(s, turnList, bid)
+    begin(s, bid, turnList)
     setStarting(true)
     try {
-      setSeq(await api.startSequence(bid, s.turns, s.id, ctxOf(s, bid)))
+      setSeq(await api.startSequence(bid, turnList, s.id, ctxOf(s, bid)))
     } catch (e) {
       setProblem(errText(e))
     } finally {
@@ -160,6 +182,7 @@ export default function Uji() {
     if (!s) return
     gen.current++
     setSc(s)
+    setSent(q.turns.length === s.turns.length && q.turns.every((t) => t.input) ? q.turns.map((t) => t.input) : s.turns)
     setBotId(q.bot_id)
     setCmp(null)
     setProblem('')
@@ -169,13 +192,13 @@ export default function Uji() {
   }
 
   // Each run goes in its own new session (no session id) and runs one after the other, so the concurrency cap is never hit.
-  async function startCompare(s: Scenario, bid: string) {
+  async function startCompare(s: Scenario, turnList: string[], bid: string) {
     if (kind === 'agents' && (!botB || botB === bid || teamOf(botB) !== teamOf(bid))) {
       setProblem('Agen kedua harus agen lain dari tim yang sama.')
       return
     }
     const ids = kind === 'repeat' ? Array<string>(times).fill(bid) : [bid, botB]
-    begin(s, bid)
+    begin(s, bid, turnList)
     cancelled.current = false
     let cols = ids.map((x) => emptyCol(x, nameOf(x)))
     const put = (i: number, p: Partial<Col>) => {
@@ -185,7 +208,7 @@ export default function Uji() {
     setCmp({ kind, cols, status: 'running' })
     for (let i = 0; i < ids.length; i++) {
       put(i, { status: 'running' })
-      const r = await runTurns(s, ids[i])
+      const r = await runTurns(s, turnList, ids[i])
       if (r.superseded) return
       const info = r.runId ? await api.run(r.runId).catch(() => null) : null
       const ok = r.status === 'done'
@@ -245,6 +268,9 @@ export default function Uji() {
 
   const shownRows = SCENARIOS.filter((s) => group === 'all' || s.group === group)
   const chosen = shownRows.find((s) => s.id === pickId) ?? shownRows[0]
+  const cur = chosen ? turnsOf(chosen) : []
+  const changed = !!chosen && joinTurns(cur) !== chosen.prompt
+  const emptyTurn = cur.some((t) => !t.trim())
   const seqStatus: RunStatus = !seq ? 'idle' : seqActive ? 'running' : seq.status === 'completed' ? 'done' : seq.status === 'stopped' ? 'stopped' : 'error'
   const liveIdx = cmp ? Math.max(0, cmp.cols.findIndex((c) => c.status === 'running')) : 0
 
@@ -311,7 +337,18 @@ export default function Uji() {
                   {chosen.turns.length > 1 && <span className="pill plain">{chosen.turns.length} giliran</span>}
                   {chosen.simulate && <span className="pill sim" title="Memakai data simulasi (SIM-*). Bukan data pelanggan nyata.">Simulasi</span>}
                 </div>
-                <div className="case-prompt" tabIndex={0} role="region" aria-label="Pesan yang dikirim ke agen">{chosen.prompt}</div>
+                <div className="case-prompt" role="group" aria-label="Pesan yang dikirim ke agen">
+                  {cur.map((t, i) => (
+                    <TurnBox key={`${chosen.id}-${i}`} id={`turn-${i}`} label={chosen.turns.length > 1 ? `Giliran ${i + 1}` : undefined} value={t} disabled={busy} invalid={!t.trim()} onChange={(v) => setEdits((e) => ({ ...e, [chosen.id]: cur.map((x, j) => (j === i ? v : x)) }))} />
+                  ))}
+                  {changed && (
+                    <div className="edit-row">
+                      <span className="pill warn">Diubah</span>
+                      <button type="button" className="btn link" disabled={busy} onClick={() => setEdits((e) => Object.fromEntries(Object.entries(e).filter(([k]) => k !== chosen.id)))}>Kembalikan teks asli</button>
+                    </div>
+                  )}
+                  {emptyTurn && <small className="err" role="alert">Pesan tidak boleh kosong. Isi teks pada setiap giliran sebelum menjalankan.</small>}
+                </div>
                 <label className="field">
                   <span>Agen</span>
                   <select value={override} disabled={busy} onChange={(e) => { setOverride(e.target.value); setBotB('') }}>
@@ -348,7 +385,7 @@ export default function Uji() {
                   </div>
                 )}
                 {problem && <ErrorLine text={problem} />}
-                <button className="btn primary" disabled={busy} onClick={() => void start(chosen)} aria-label={`${compare ? 'Bandingkan' : 'Jalankan'} ${chosen.id}`}>
+                <button className="btn primary" disabled={busy || emptyTurn} onClick={() => void start(chosen)} aria-label={`${compare ? 'Bandingkan' : 'Jalankan'} ${chosen.id}`}>
                   {compare ? 'Bandingkan' : 'Jalankan'}
                 </button>
               </section>
@@ -373,7 +410,7 @@ export default function Uji() {
                   onAnswer={run.answer}
                   status={cmp ? run.status : seqStatus}
                   error={cmp ? run.error : seq?.error ?? ''}
-                  onRetry={() => void start(sc)}
+                  onRetry={() => void start(sc, sent)}
                   stoppedNote={cmp ? 'Dihentikan. Perbandingan yang belum lengkap tidak bisa disimpan.' : 'Dihentikan. Anda masih bisa menyimpan evaluasi dengan hasil Nonaktif.'}
                 />
                 {cmp && <CompareColumns cols={cmp.cols} live={run.text} />}
@@ -381,7 +418,7 @@ export default function Uji() {
                 {!cmp && seqActive && live && sc.group !== 'cs' && <article className="rcard live"><div className="rbody"><p className="draft-text">{live}</p></div></article>}
                 {!cmp && runSnap && runSnap.status === 'done' && runSnap.turns.map((t, i) => (
                   <div key={i}>
-                    {sc.turns.length > 1 && <p className="quiet small">Giliran {i + 1}: {sc.turns[i]}</p>}
+                    {sc.turns.length > 1 && <p className="quiet small">Giliran {i + 1}: {seq?.turns[i]?.input || sent[i] || sc.turns[i]}</p>}
                     {t.result.structured ? (
                       <Cs21Card r={t.result.structured} validation={t.result.validation} origin="agent" meta={sc.turns.length > 1 ? `Giliran ${i + 1}` : undefined} raw={t.text} refs={t.result.refs} />
                     ) : (
@@ -395,8 +432,8 @@ export default function Uji() {
                     )}
                   </div>
                 ))}
-                {!cmp && runSnap && <EvalForm key={`${runKey}-${seq?.id}`} sc={sc} botId={botId} sid={seq?.session_id ?? ''} snap={runSnap} meta={runMeta} onSaved={saved} />}
-                {cmp?.status === 'done' && <EvalForm key={runKey} sc={sc} botId={botId} sid={cmp.cols[0].sid} snap={{ text: '', runId: cmp.cols[0].runId, status: 'done', error: '', turns: [] }} meta={cmp.cols[0].meta} cmp={cmp} onSaved={saved} />}
+                {!cmp && runSnap && <EvalForm key={`${runKey}-${seq?.id}`} sc={sc} turns={sent.length ? sent : sc.turns} botId={botId} sid={seq?.session_id ?? ''} snap={runSnap} meta={runMeta} onSaved={saved} />}
+                {cmp?.status === 'done' && <EvalForm key={runKey} sc={sc} turns={sent.length ? sent : sc.turns} botId={botId} sid={cmp.cols[0].sid} snap={{ text: '', runId: cmp.cols[0].runId, status: 'done', error: '', turns: [] }} meta={cmp.cols[0].meta} cmp={cmp} onSaved={saved} />}
               </>
             )}
           </div>
@@ -406,7 +443,7 @@ export default function Uji() {
   )
 }
 
-function EvalForm({ sc, botId, sid, snap, meta, cmp, onSaved }: { sc: Scenario; botId: string; sid: string; snap: Snap; meta: Partial<RunMeta>; cmp?: CmpState; onSaved: () => void }) {
+function EvalForm({ sc, turns, botId, sid, snap, meta, cmp, onSaved }: { sc: Scenario; turns: string[]; botId: string; sid: string; snap: Snap; meta: Partial<RunMeta>; cmp?: CmpState; onSaved: () => void }) {
   const [consistency, setConsistency] = useState<'konsisten' | 'tidak_konsisten' | ''>('')
   const [consNote, setConsNote] = useState('')
   const [expected, setExpected] = useState(sc.expected)
@@ -454,7 +491,7 @@ function EvalForm({ sc, botId, sid, snap, meta, cmp, onSaved }: { sc: Scenario; 
             },
           }
         : {}),
-      prompt: sc.prompt,
+      prompt: joinTurns(turns),
       expected,
       actual,
       scores: Object.fromEntries(dims.map((d) => [d.key, { score: scores[d.key].v === 'na' ? null : Number(scores[d.key].v), reason: scores[d.key].reason.trim() }])),
@@ -563,6 +600,12 @@ function download(name: string, mime: string, body: string) {
   URL.revokeObjectURL(a.href)
 }
 
+// The saved prompt differs from the scenario's original text (the message was edited before the run).
+const promptChanged = (e: Evaluation) => {
+  const s = SCENARIOS.find((x) => x.id === e.case_id)
+  return !!s && e.prompt !== s.prompt
+}
+
 function LogTable({ rows }: { rows: Evaluation[] }) {
   const { bots } = useData()
   const [text, setText] = useState('')
@@ -576,7 +619,7 @@ function LogTable({ rows }: { rows: Evaluation[] }) {
   const flat = (e: Evaluation) => ({
     case_id: e.case_id, agent: name(e.bot_id), date: new Date(e.created_at * 1000).toISOString(), status: VERDICT_LABEL[e.verdict], average_score: avgOf(e)?.toFixed(2) ?? '', route: ROUTE,
     run_id: e.run_id ?? '', session_id: e.session_id ?? '', reviewer: e.reviewer, critical_failure: e.notes.critical, errors: e.notes.errors, improvements: e.notes.improvements,
-    prompt: e.prompt, expected: e.expected, actual: e.actual, ...Object.fromEntries(ALL_DIMENSIONS.map((d) => [`score_${d.key}`, d.key in e.scores ? (e.scores[d.key].score ?? 'N/A') : ''])),
+    prompt_modified: promptChanged(e) ? 'Ya' : 'Tidak', prompt: e.prompt, expected: e.expected, actual: e.actual, ...Object.fromEntries(ALL_DIMENSIONS.map((d) => [`score_${d.key}`, d.key in e.scores ? (e.scores[d.key].score ?? 'N/A') : ''])),
     comparison_mode: e.comparison ? (e.comparison.mode === 'repeat' ? 'Ulang N kali' : 'Dua agen') : '',
     comparison_run_ids: e.comparison ? e.comparison.runs.map((r) => r.run_id).join(' | ') : '',
     comparison_consistency: e.comparison ? (e.comparison.consistency === 'konsisten' ? 'Konsisten' : 'Tidak konsisten') : '',
@@ -616,7 +659,7 @@ function LogTable({ rows }: { rows: Evaluation[] }) {
             {list.map((e) => (
               <Fragment key={e.id}>
               <tr className={VER_ROW}>
-                <td className="num" data-label="Kasus"><b>{e.case_id}</b>{e.comparison && <span className="pill origin tag">Bandingkan</span>}</td>
+                <td className="num" data-label="Kasus"><b>{e.case_id}</b>{promptChanged(e) && <span className="pill warn tag" title="Pesan berbeda dari teks asli skenario">Diubah</span>}{e.comparison && <span className="pill origin tag">Bandingkan</span>}</td>
                 <td data-label="Agen">{name(e.bot_id)}</td>
                 <td className="num" data-label="Tanggal">{new Date(e.created_at * 1000).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
                 <td data-label="Status"><span className={`pill ${e.verdict === 'pass' ? 'ok' : e.verdict === 'fail' ? 'bad' : 'warn'}`}>{VERDICT_LABEL[e.verdict]}</span></td>

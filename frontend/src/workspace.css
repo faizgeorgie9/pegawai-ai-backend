@@ -122,9 +122,13 @@
 .case-main small { font-size: var(--t-small); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pick-detail { display: flex; flex-direction: column; gap: var(--s-3); padding: var(--pad-panel); }
 .pick-detail > .btn { align-self: flex-start; margin-top: auto; }
-.case-prompt { flex: 1 1 auto; min-height: 96px; max-height: 320px; overflow-y: auto; padding: var(--s-3); background: var(--raised); border-radius: var(--radius-control); white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--t-small); line-height: 1.55; }
+.case-prompt { flex: 1 1 auto; display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
+.case-prompt textarea { max-height: 320px; overflow-y: auto; resize: none; font-size: var(--t-small); line-height: 1.55; overflow-wrap: anywhere; }
+.case-prompt small.err { color: var(--bad-ink); font-size: 13px; }
+.edit-row { display: flex; align-items: center; gap: var(--s-3); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .cmp-opts { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); }
-@media (max-width: 1024px) { .uji-pick { grid-template-columns: minmax(0, 1fr); } .case-prompt { flex: none; max-height: 180px; } }
+@media (max-width: 1024px) { .uji-pick { grid-template-columns: minmax(0, 1fr); } .case-prompt { flex: none; } }
 .seg { display: inline-flex; align-self: flex-start; gap: 2px; padding: 2px; border-radius: var(--radius-control); background: var(--raised); }
 .seg button { height: 28px; padding: 0 12px; border: 0; border-radius: 4px; background: transparent; color: var(--muted); font-weight: 500; cursor: pointer; }
 .seg button[aria-selected="true"] { background: var(--surface); color: var(--text); }
