@@ -114,7 +114,7 @@ function General() {
           <option value="id">Bahasa Indonesia</option>
         </select>
       </Row>
-      <Row title="Zona waktu" hint="Dipakai untuk menampilkan waktu.">
+      <Row title="Zona waktu" hint="Disimpan untuk jadwal dan tampilan waktu. Tampilan waktu belum mengikutinya.">
         <select value={settings.timezone} aria-label="Zona waktu" onChange={(e) => void save({ timezone: e.target.value })}>
           {ZONES.map(([v, l]) => (
             <option key={v} value={v}>
