@@ -457,6 +457,11 @@ def _uuid(v: str) -> str:
         raise ApiError(404, "Grup tidak ditemukan")
 
 
+@api.get("/groups/{gid}/live")
+async def group_live(gid: str):
+    return await groups.live(current_user(), gid)
+
+
 @api.get("/groups/{gid}/messages")
 async def group_messages(gid: str, before: int | None = None, limit: int = 50):
     return await groups.list_messages(current_user(), _uuid(gid), before, limit)

@@ -67,6 +67,7 @@ class Live:
     prior: dict = field(default_factory=dict)  # token usage of the attempt before the retry
     t0: float | None = None
     clarify: dict | None = None  # the question Hermes waits on (identity needed to answer it), until settled
+    approval: dict | None = None  # the approval Hermes waits on: {request_id, execution_generation}, until answered
 
 
 
@@ -266,7 +267,9 @@ async def _handle(lv: Live, seq: int, ev: dict) -> str | None:
     elif name.startswith("approval."):
         await _store_event(lv, seq, ev)
         if name == "approval.request":
-            hub.publish(lv.id, "approval", {"request_id": ev.get("request_id"),
+            rid = ev.get("prompt_id") or ev.get("request_id")
+            lv.approval = {"request_id": rid, "execution_generation": ev.get("execution_generation")}
+            hub.publish(lv.id, "approval", {"request_id": rid,
                                             "description": redact(ev.get("description") or ev.get("command")),
                                             "choices": ev.get("choices")})
     elif name.startswith("clarify."):
@@ -549,9 +552,19 @@ async def approval(user_id: str, run_id: str, choice: str) -> dict:
     if choice not in ("once", "session", "always", "deny"):
         raise ApiError(400, "Pilihan persetujuan tidak valid")
     _, lv = await _owned_active(user_id, run_id)
-    r = await hermes.call(lv.bot, "POST", f"/v1/runs/{lv.hid}/approval", json_body={"choice": choice})
+    pending = lv.approval
+    if not pending:
+        raise ApiError(409, "Tidak ada permintaan izin yang menunggu")
+    # Hermes accepts exactly request_id, execution_generation and choice (api_server_authority_runs.py:respond_run)
+    r = await hermes.call(lv.bot, "POST", f"/v1/runs/{lv.hid}/approval",
+                          json_body={"request_id": pending["request_id"],
+                                     "execution_generation": pending["execution_generation"], "choice": choice})
+    if r.status_code == 409:
+        lv.approval = None  # stale or already answered
+        raise ApiError(409, "Permintaan izin sudah dijawab atau kedaluwarsa")
     if r.status_code >= 300:
         raise _hermes_error(r, "Gagal mengirim persetujuan")
+    lv.approval = None
     return {"ok": True}
 
 

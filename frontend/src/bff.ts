@@ -588,6 +588,10 @@ export const api = {
   createGroup: async (name: string, bot_ids: string[]) => toGroup(await call<Raw>('POST', '/groups', { name, bot_ids })),
   patchGroup: async (id: string, p: { name?: string; bot_ids?: string[] }) => toGroup(await call<Raw>('PATCH', `/groups/${enc(id)}`, p)),
   groupMessages: async (id: string, before?: string) => list(await call('GET', `/groups/${enc(id)}/messages${q({ before, limit: 50 })}`)).map(toGroupMsg),
+  groupLive: async (id: string) => {
+    const t = (await call<Raw>('GET', `/groups/${enc(id)}/live`)).turn as Raw | null // the bot turn on screen, if any
+    return t ? { bot: asStr(t.bot_id), run: asStr(t.run_id) } : null
+  },
   sendGroup: async (id: string, text: string, mode: 'queue' | 'steer') => {
     const r = await call<Raw>('POST', `/groups/${enc(id)}/messages`, { text, mode })
     return { message: toGroupMsg(r.message ?? {}), queued: r.queued === true }

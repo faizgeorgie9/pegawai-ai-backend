@@ -63,3 +63,18 @@ def test_answer_without_pending_question_or_blank_is_refused(setup):
     with pytest.raises(ApiError) as e:
         asyncio.run(engine.clarify("u", "r1", "Biru"))
     assert e.value.status == 409
+
+
+def test_approval_uses_hermes_identity(setup):
+    sent, published = setup
+    lv = _live()
+    with pytest.raises(ApiError) as e:  # nothing is waiting: nothing is forwarded
+        asyncio.run(engine.approval("u", "r1", "once"))
+    assert e.value.status == 409 and sent == []
+    ev = {"event": "approval.request", "prompt_id": "a-7", "execution_generation": 2, "description": "rm -rf x",
+          "choices": ["once", "deny"]}
+    asyncio.run(engine._handle(lv, 4, ev))
+    assert published[-1][1]["request_id"] == "a-7"  # browser-facing event keeps its name
+    asyncio.run(engine.approval("u", "r1", "once"))
+    assert sent == [("/v1/runs/hrun1/approval", {"request_id": "a-7", "execution_generation": 2, "choice": "once"})]
+    assert lv.approval is None
