@@ -67,6 +67,7 @@ export const I = {
   log: 'M22 12h-4l-3 9L9 3l-3 9H2',
   agent: 'M12 8V4H8M4 8h16v12H4zM2 14h2M20 14h2M15 13v2M9 13v2',
   skills: 'm12 2 10 5-10 5L2 7zM2 17l10 5 10-5M2 12l10 5 10-5',
+  settings: 'M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0M16 4v4M8 10v4M18 16v4',
   down: 'M6 9l6 6 6-6',
   check: 'M20 6 9 17l-5-5',
 }

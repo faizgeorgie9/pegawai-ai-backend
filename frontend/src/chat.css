@@ -26,8 +26,6 @@ fieldset { border: 0; min-width: 0; padding: 0; margin: 0; }
 .nav-link[aria-current] { background: var(--active); font-weight: 500; }
 .nav-link[aria-current] svg { color: var(--text); }
 .side-foot { flex: none; display: flex; flex-direction: column; gap: 4px; padding: 12px 8px 16px; }
-.theme-btn { padding: 6px 8px; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--muted); font-size: 13px; text-align: left; cursor: pointer; }
-.theme-btn:hover { background: var(--raised); color: var(--text); }
 
 .sec-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); padding: 0 var(--s-1) 6px var(--s-2); }
 .sec-head h2, .sec-head h3 { font-size: 13px; font-weight: 500; color: var(--muted); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

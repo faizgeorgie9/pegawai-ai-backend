@@ -4,7 +4,9 @@ import type { Bot, BotDetail } from './bff'
 import { useData } from './data'
 import { agenPath, botPath, go } from './router'
 import { BotAvatar, COLORS, ErrorLine, botColor, nf, stamp, teamLabel } from './ui'
-import { CapChip, Empty, Loading, PageHead, Opt, statusText, useLoad } from './ui-extra'
+import { CapChip, Empty, EffortSelect, Loading, ModelSelect, PageHead, Opt, modelKey, splitModel, statusText, useLoad } from './ui-extra'
+
+const EFFORT_WORD: Record<string, string> = { low: 'Rendah', medium: 'Sedang', high: 'Tinggi', none: 'Tidak berpikir', minimal: 'Minimal', xhigh: 'Sangat tinggi' }
 
 // ---------- Daftar ----------
 export function AgentList() {
@@ -168,6 +170,10 @@ export function AgentDetail({ id }: { id: string }) {
             <span className="swatch-chip" style={{ background: botColor(b) }} />
             {b.color || 'plain'}
           </dd>
+          <dt>Model</dt>
+          <dd>{b.model || 'Bawaan'}</dd>
+          <dt>Tingkat berpikir</dt>
+          <dd>{EFFORT_WORD[b.effort] ?? 'Bawaan'}</dd>
           <dt>Jenis</dt>
           <dd>{b.builtin ? 'Bawaan (tidak bisa dihapus)' : 'Buatan pengguna'}</dd>
           <dt>Dibuat</dt>
@@ -277,7 +283,7 @@ export function AgentEdit({ id }: { id: string }) {
   const { bots, refreshBots, flash } = useData()
   const botFn = useCallback(() => api.bot(id), [id])
   const bot = useLoad(botFn)
-  const [f, setF] = useState({ name: '', role: '', team: '', color: 'plain', persona: '' })
+  const [f, setF] = useState({ name: '', role: '', team: '', color: 'plain', persona: '', model: '', effort: '' })
   const [newTeam, setNewTeam] = useState(false)
   const [touched, setTouched] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -285,7 +291,7 @@ export function AgentEdit({ id }: { id: string }) {
   const d = bot.data
 
   useEffect(() => {
-    if (d) setF({ name: d.name, role: d.role, team: d.team, color: d.color || 'plain', persona: d.persona })
+    if (d) setF({ name: d.name, role: d.role, team: d.team, color: d.color || 'plain', persona: d.persona, model: modelKey(d.provider, d.model), effort: d.effort })
   }, [d])
 
   if (bot.state === 'loading') return <section className="page"><Loading text="Memuat agen..." /></section>
@@ -308,13 +314,11 @@ export function AgentEdit({ id }: { id: string }) {
     e.preventDefault()
     setTouched(true)
     if (Object.keys(errs).length) return
-    const patch: Record<string, string> = {}
-    if (ro) {
-      if (f.color !== (d!.color || 'plain')) patch.color = f.color
-    } else {
-      for (const k of ['name', 'role', 'team', 'persona'] as const) if (f[k].trim() !== d![k].trim()) patch[k] = f[k].trim()
-      if (f.color !== (d!.color || 'plain')) patch.color = f.color
-    }
+    const patch: Record<string, string | null> = {}
+    if (!ro) for (const k of ['name', 'role', 'team', 'persona'] as const) if (f[k].trim() !== d![k].trim()) patch[k] = f[k].trim()
+    if (f.color !== (d!.color || 'plain')) patch.color = f.color
+    if (f.model !== modelKey(d!.provider, d!.model)) Object.assign(patch, splitModel(f.model))
+    if (f.effort !== d!.effort) patch.reasoning_effort = f.effort || null
     if (!Object.keys(patch).length) return setProblem('Belum ada yang diubah.')
     setBusy(true)
     setProblem('')
@@ -337,7 +341,7 @@ export function AgentEdit({ id }: { id: string }) {
       </a>
       <PageHead title={`Ubah ${d.name}`} />
       <form className="form-page" onSubmit={(e) => void submit(e)} noValidate>
-        {ro && <p className="note-box">Agen bawaan: nama, peran, tim, dan persona dikelola tim backend. Hanya warna yang bisa diubah.</p>}
+        {ro && <p className="note-box">Agen bawaan: nama, peran, tim, dan persona dikelola tim backend. Warna, model, dan tingkat berpikir bisa diubah.</p>}
         <fieldset disabled={busy} className="form-page">
           <label className="field">
             <span>Nama</span>
@@ -381,6 +385,9 @@ export function AgentEdit({ id }: { id: string }) {
             <small className="counter num">{f.persona.length} / 2.000</small>
             {!ro && d.template && <small className="quiet">Agen ini dibuat dari template. Menyimpan persona baru menggantikan teks template.</small>}
           </label>
+          <ModelSelect value={f.model} onChange={(v) => set('model', v)} />
+          <EffortSelect value={f.effort} onChange={(v) => set('effort', v)} />
+          <small className="quiet">Bawaan berarti memakai pilihan di Pengaturan, bagian Model AI. Pilihan baru berlaku di tugas berikutnya.</small>
         </fieldset>
         {problem && (
           <p className="problem-bar" role="alert">

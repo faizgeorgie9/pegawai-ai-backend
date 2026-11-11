@@ -46,8 +46,9 @@ def test_request_is_kept_and_answer_uses_hermes_identity(setup):
     ev = {"event": "clarify.request", "kind": "clarify", "prompt_id": "c-9", "execution_generation": 3,
           "question": "Warna favorit?", "choices": ["Biru", "Merah"], "multi_select": False}
     asyncio.run(engine._handle(lv, 5, ev))
-    assert published == [("clarify", {"request_id": "c-9", "execution_generation": 3,
+    assert [p for p in published if p[0] == "clarify"] == [("clarify", {"request_id": "c-9", "execution_generation": 3,
                                       "question": "Warna favorit?", "choices": ["Biru", "Merah"]})]
+    assert ("run_input", {"id": "r1", "bot_id": "rian", "kind": "chat", "what": "clarify"}) in published  # global: notifications
     asyncio.run(engine.clarify("u", "r1", "  Biru "))
     # Hermes accepts exactly these three fields (api_server_authority_runs.py respond_run)
     assert sent == [("/v1/runs/hrun1/clarify", {"request_id": "c-9", "execution_generation": 3, "answer": "Biru"})]

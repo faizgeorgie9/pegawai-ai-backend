@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { errText } from './bff'
+import { api, errText } from './bff'
 import { ErrorLine, I, Icon } from './ui'
 import type { Bot, Clarify } from './bff'
 
@@ -12,6 +12,75 @@ export function statusText(b: Pick<Bot, 'status' | 'activity' | 'deleteError'>):
   if (b.status === 'working') return b.activity ? `Sedang bekerja: ${b.activity}` : 'Sedang bekerja'
   if (b.status === 'discussing') return b.activity ? `Berdiskusi di grup: ${b.activity}` : 'Berdiskusi di grup'
   return 'Siap'
+}
+
+// Model and thinking-level dropdowns, shared by the agent edit page and Pengaturan. A model value is "provider|model"; '' = Bawaan.
+export const modelKey = (provider: string | null | undefined, model: string | null | undefined) => (provider && model ? `${provider}|${model}` : '')
+export const splitModel = (v: string): { provider: string | null; model: string | null } => {
+  const i = v.indexOf('|')
+  return i < 0 ? { provider: null, model: null } : { provider: v.slice(0, i), model: v.slice(i + 1) }
+}
+
+export function ModelSelect({ value, onChange, disabled, label = 'Model' }: { value: string; onChange: (v: string) => void; disabled?: boolean; label?: string }) {
+  const [cat, setCat] = useState<Awaited<ReturnType<typeof api.models>> | null>(null)
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    let live = true
+    api.models().then(
+      (c) => live && setCat(c),
+      (e) => live && setErr(errText(e)),
+    )
+    return () => {
+      live = false
+    }
+  }, [])
+  const known = !value || !!cat?.providers.some((p) => p.models.some((m) => modelKey(p.slug, m) === value))
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+        <option value="">Bawaan{cat?.default.model ? ` (${cat.default.model})` : ''}</option>
+        {!known && <option value={value}>{splitModel(value).model}</option>}
+        {cat?.providers.map((p) => (
+          <optgroup key={p.slug} label={p.name}>
+            {p.models.map((m) => (
+              <option key={m} value={modelKey(p.slug, m)}>
+                {m}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      {err && <small className="err" role="alert">{err}</small>}
+    </label>
+  )
+}
+
+const EFFORT_MAIN: [string, string][] = [['low', 'Rendah'], ['medium', 'Sedang'], ['high', 'Tinggi']]
+const EFFORT_ADV: [string, string][] = [['none', 'Tidak berpikir'], ['minimal', 'Minimal'], ['xhigh', 'Sangat tinggi']]
+export function EffortSelect({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
+  return (
+    <label className="field">
+      <span>Tingkat berpikir</span>
+      <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+        <option value="">Bawaan</option>
+        {EFFORT_MAIN.map(([v, l]) => (
+          <option key={v} value={v}>
+            {l}
+          </option>
+        ))}
+        {EFFORT_ADV.some(([v]) => v === value) && (
+          <optgroup label="Lanjutan">
+            {EFFORT_ADV.map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+          </optgroup>
+        )}
+      </select>
+    </label>
+  )
 }
 
 // Marks an optional field label. Forms where most fields are required mark only the optional ones.

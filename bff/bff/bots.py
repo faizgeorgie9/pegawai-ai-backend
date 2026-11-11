@@ -7,7 +7,7 @@ import subprocess
 import time
 import unicodedata
 
-from . import config, db, engine, groups, harden, hermes
+from . import config, db, engine, groups, harden, hermes, settings
 from .errors import ApiError
 
 log = logging.getLogger(__name__)
@@ -45,7 +45,8 @@ def _about(b: dict) -> str:
 
 def view(b: dict) -> dict:
     return {"id": b["id"], "name": b["name"], "role": b["role"], "team": b["team"], "color": b["color"],
-            "builtin": b["builtin"], "about": _about(b), "created_at": b.get("created_at"), "delete_error": b.get("delete_error"),
+            "builtin": b["builtin"], "about": _about(b),
+            "model": b.get("model"), "provider": b.get("provider"), "reasoning_effort": b.get("reasoning_effort"), "created_at": b.get("created_at"), "delete_error": b.get("delete_error"),
             **engine.bot_state(b["id"])}
 
 
@@ -202,20 +203,20 @@ async def _wait_served(slug: str) -> float:
 
 # ---------- edit ----------
 
-EDITABLE = ("name", "role", "team", "color", "persona")
+EDITABLE = ("name", "role", "team", "color", "persona", *settings.RUN_FIELDS)
 
 
 def validate_edit(body: dict, builtin: bool) -> dict:
     """Check a PATCH body and return only the fields to change (same rules as create). Pure: no I/O.
-    Builtin bots: their SOUL.md is hand-written and the name/role are inside it, so only the colour (database only) may change."""
+    Builtin bots: their SOUL.md is hand-written and the name/role are inside it, so only the colour and the model fields (database only) may change."""
     unknown = sorted(set(body) - set(EDITABLE))
     if unknown:
         raise ApiError(400, "Kolom tidak dikenal: " + ", ".join(unknown))
     if not body:
         raise ApiError(400, "Tidak ada yang diubah")
-    if builtin and set(body) != {"color"}:
-        raise ApiError(403, "Bot bawaan hanya bisa diubah warnanya")
-    out: dict = {}
+    if builtin and set(body) - {"color", *settings.RUN_FIELDS}:
+        raise ApiError(403, "Bot bawaan hanya bisa diubah warna dan modelnya")
+    out: dict = settings.clean_run_fields(body)
     if "name" in body:
         out["name"] = _line(body["name"], "Nama")
         if not make_slug(out["name"]):
@@ -239,6 +240,8 @@ def validate_edit(body: dict, builtin: bool) -> dict:
 async def update_bot(user_id: str, bot_id: str, body: dict) -> dict:
     b = await get_bot(user_id, bot_id)
     ch = validate_edit(body, b["builtin"])
+    if "model" in ch:
+        await settings.check_model(user_id, ch["model"], ch["provider"])
     new = {**b, **ch}
     if "persona" in ch:
         new["template"] = None  # a custom persona replaces the template text
@@ -248,8 +251,10 @@ async def update_bot(user_id: str, bot_id: str, body: dict) -> dict:
             await asyncio.to_thread((hermes.profile_dir(bot_id) / "SOUL.md").write_text, soul, "utf-8")
         except OSError:
             raise ApiError(500, "Gagal menyimpan persona bot")
-    await db.ex("update bots set name = %s, role = %s, team = %s, color = %s, template = %s, persona = %s where id = %s",
-                new["name"], new["role"], new["team"], new["color"], new["template"], new["persona"], bot_id)
+    await db.ex("update bots set name = %s, role = %s, team = %s, color = %s, template = %s, persona = %s, "
+                "model = %s, provider = %s, reasoning_effort = %s where id = %s",
+                new["name"], new["role"], new["team"], new["color"], new["template"], new["persona"],
+                new["model"], new["provider"], new["reasoning_effort"], bot_id)
     return await get_bot_view(user_id, bot_id)
 
 

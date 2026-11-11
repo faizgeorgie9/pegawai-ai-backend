@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import httpx
 
-from . import catalog, cs_schema, db, hermes, knowledge, versions
+from . import catalog, cs_schema, db, hermes, knowledge, settings, versions
 from .errors import ApiError
 from .redact import redact
 
@@ -68,6 +68,7 @@ class Live:
     t0: float | None = None
     clarify: dict | None = None  # the question Hermes waits on (identity needed to answer it), until settled
     approval: dict | None = None  # the approval Hermes waits on: {request_id, execution_generation}, until answered
+    params: dict = field(default_factory=dict)  # model / provider / model_options sent with the run (reused by the repair retry)
 
 
 
@@ -141,6 +142,11 @@ async def start_run(user_id: str, bot: str, session_id: str, input_: str, kind: 
     await check_quota(user_id)
     rid = str(uuid.uuid4())
     meta = await versions.snapshot(bot, instructions)  # version and config at the moment the run starts
+    params = await settings.run_params(user_id, bot)  # the bot's own model, else the workspace default, else nothing
+    if params.get("model"):
+        meta.update(model=params["model"], provider=params["provider"])
+    if params.get("model_options"):
+        meta["reasoning_effort"] = params["model_options"]["reasoning_effort"]
     if context:
         meta.update(context, prompt_hash=knowledge.prompt_hash(instructions, input_))
         if context.get("workflow") != "cs":
@@ -150,7 +156,7 @@ async def start_run(user_id: str, bot: str, session_id: str, input_: str, kind: 
     await db.ex("insert into runs (id, user_id, bot_id, session_id, group_id, kind, status, input, meta) "
                 "values (%s, %s, %s, %s, %s, %s, 'queued', %s, %s)", rid, user_id, bot, session_id, group_id, kind, input_,
                 _json(meta))
-    body = {"input": input_, "session_id": session_id}
+    body = {"input": input_, "session_id": session_id, **params}
     if instructions:
         body["instructions"] = instructions
     try:
@@ -167,7 +173,7 @@ async def start_run(user_id: str, bot: str, session_id: str, input_: str, kind: 
     hid = r.json()["run_id"]
     row = await db.q1("update runs set status = 'running', hermes_run_id = %s, started_at = now() "
                       "where id = %s returning *", hid, rid)
-    lv = Live(rid, bot, hid, kind, group_id, session_id, input=input_, t0=time.monotonic())
+    lv = Live(rid, bot, hid, kind, group_id, session_id, input=input_, t0=time.monotonic(), params=params)
     if context:
         lv.workflow, lv.instructions = context.get("workflow"), instructions
     LIVE[rid] = lv
@@ -269,6 +275,7 @@ async def _handle(lv: Live, seq: int, ev: dict) -> str | None:
         if name == "approval.request":
             rid = ev.get("prompt_id") or ev.get("request_id")
             lv.approval = {"request_id": rid, "execution_generation": ev.get("execution_generation")}
+            hub.publish("*", "run_input", {"id": lv.id, "bot_id": lv.bot, "kind": lv.kind, "what": "approval"})
             hub.publish(lv.id, "approval", {"request_id": rid,
                                             "description": redact(ev.get("description") or ev.get("command")),
                                             "choices": ev.get("choices")})
@@ -280,6 +287,7 @@ async def _handle(lv: Live, seq: int, ev: dict) -> str | None:
                           "question": redact(ev.get("question") or ""),
                           "choices": [redact(c) for c in choices if isinstance(c, str)] if isinstance(choices, list) else []}
             hub.publish(lv.id, "clarify", lv.clarify)
+            hub.publish("*", "run_input", {"id": lv.id, "bot_id": lv.bot, "kind": lv.kind, "what": "clarify"})
         elif name == "clarify.settled" and lv.clarify and lv.clarify["request_id"] == ev.get("prompt_id"):
             lv.clarify = None
             hub.publish(lv.id, "clarify_done", {})
@@ -342,7 +350,7 @@ async def _retry_cs(lv: Live, ev: dict, errors: list[str]) -> bool:
     text = REPAIR.format(errors="; ".join(errors[:5])[:600])
     try:
         r = await hermes.call(lv.bot, "POST", "/v1/runs", headers={"Idempotency-Key": f"{lv.id}-retry"},
-                              json_body={"input": text, "session_id": lv.session_id, "instructions": lv.instructions})
+                              json_body={"input": text, "session_id": lv.session_id, "instructions": lv.instructions, **lv.params})
         if r.status_code >= 300:
             return False
         hid = r.json()["run_id"]
