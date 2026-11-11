@@ -4,7 +4,7 @@ import type { Bot, BotDetail } from './bff'
 import { useData } from './data'
 import { agenPath, botPath, go } from './router'
 import { BotAvatar, COLORS, ErrorLine, botColor, nf, stamp, teamLabel } from './ui'
-import { CapChip, Empty, Loading, PageHead, Req, statusText, useLoad } from './ui-extra'
+import { CapChip, Empty, Loading, PageHead, Opt, statusText, useLoad } from './ui-extra'
 
 // ---------- Daftar ----------
 export function AgentList() {
@@ -19,7 +19,7 @@ export function AgentList() {
     <section className="page">
       <PageHead
         title="Agen"
-        sub="Semua agen AI Top Trends."
+        sub="Semua agen, dengan konteks Colorbox."
         actions={
           <a className="btn primary" href="#/agen/baru">
             Agen baru
@@ -40,7 +40,7 @@ export function AgentList() {
           </select>
         </label>
       </div>
-      {loadState === 'loading' && <Loading text="Memuat agen..." />}
+      {loadState === 'loading' && <Loading text="Memuat agen..." shape="table" />}
       {loadState === 'error' && bots.length === 0 && <ErrorLine text={error} onRetry={reload} />}
       {loadState === 'ok' && bots.length === 0 && <Empty title="Belum ada agen">Buat agen pertama lewat tombol Agen baru.</Empty>}
       {loadState === 'ok' && bots.length > 0 && shown.length === 0 && <Empty title="Tidak ada yang cocok">Ubah kata cari atau pilihan tim.</Empty>}
@@ -111,7 +111,7 @@ export function AgentDetail({ id }: { id: string }) {
   )
   const extra = useLoad(extraFn)
 
-  if (bot.state === 'loading') return <section className="page"><Loading text="Memuat agen..." /></section>
+  if (bot.state === 'loading') return <section className="page"><Loading text="Memuat agen..." shape="page" /></section>
   if (bot.state === 'error')
     return (
       <section className="page">
@@ -180,28 +180,28 @@ export function AgentDetail({ id }: { id: string }) {
         <p className="persona">{b.persona || 'Belum ada persona.'}</p>
       </div>
 
-      {extra.state === 'loading' && <Loading text="Memuat pemakaian..." />}
+      {extra.state === 'loading' && <Loading text="Memuat pemakaian..." shape="ledger" rows={2} />}
       {extra.state === 'error' && <ErrorLine text={extra.error} onRetry={extra.retry} />}
       {extra.state === 'ok' && (
         <>
-          <div className="counters">
-            <div className="counter-card">
-              <span>Percakapan</span>
-              <b>{nf.format(sessions.length)}</b>
+          <dl className="kpis k4">
+            <div>
+              <dt>Percakapan</dt>
+              <dd className="num">{nf.format(sessions.length)}</dd>
             </div>
-            <div className="counter-card">
-              <span>Token bulan ini</span>
-              <b>{nf.format(month?.total ?? 0)}</b>
+            <div>
+              <dt>Token bulan ini</dt>
+              <dd className="num">{nf.format(month?.total ?? 0)}</dd>
             </div>
-            <div className="counter-card">
-              <span>Token total</span>
-              <b>{nf.format(all?.total ?? 0)}</b>
+            <div>
+              <dt>Token total</dt>
+              <dd className="num">{nf.format(all?.total ?? 0)}</dd>
             </div>
-            <div className="counter-card">
-              <span>Tugas total</span>
-              <b>{nf.format(all?.runs ?? 0)}</b>
+            <div>
+              <dt>Tugas total</dt>
+              <dd className="num">{nf.format(all?.runs ?? 0)}</dd>
             </div>
-          </div>
+          </dl>
 
           <div className="cbox">
             <h2>Toolset aktif</h2>
@@ -340,17 +340,17 @@ export function AgentEdit({ id }: { id: string }) {
         {ro && <p className="note-box">Agen bawaan: nama, peran, tim, dan persona dikelola tim backend. Hanya warna yang bisa diubah.</p>}
         <fieldset disabled={busy} className="form-page">
           <label className="field">
-            <span>Nama {!ro && <Req />}</span>
+            <span>Nama</span>
             <input value={f.name} maxLength={40} disabled={ro} aria-invalid={!!fe('name')} onChange={(e) => set('name', e.target.value)} />
             {fe('name') && <small className="err" role="alert">{errs.name}</small>}
           </label>
           <label className="field">
-            <span>Peran {!ro && <Req />}</span>
+            <span>Peran</span>
             <input value={f.role} maxLength={40} disabled={ro} aria-invalid={!!fe('role')} onChange={(e) => set('role', e.target.value)} />
             {fe('role') && <small className="err" role="alert">{errs.role}</small>}
           </label>
           <label className="field">
-            <span>Tim {!ro && <Req />}</span>
+            <span>Tim</span>
             <select
               value={newTeam ? '__new' : f.team}
               disabled={ro}
@@ -367,7 +367,7 @@ export function AgentEdit({ id }: { id: string }) {
             {fe('team') && <small className="err" role="alert">{errs.team}</small>}
           </label>
           <div className="field">
-            <span id="clr">Warna</span>
+            <span id="clr">Warna <Opt /></span>
             <div className="swatches" role="radiogroup" aria-labelledby="clr">
               {Object.entries(COLORS).map(([c, hex]) => (
                 <button key={c} type="button" role="radio" aria-checked={c === f.color} aria-label={`Warna ${c}`} className="swatch" style={{ background: hex }} onClick={() => set('color', c)} />
@@ -375,10 +375,10 @@ export function AgentEdit({ id }: { id: string }) {
             </div>
           </div>
           <label className="field">
-            <span>Persona {!ro && <Req />}</span>
+            <span>Persona</span>
             <textarea value={f.persona} rows={8} maxLength={2000} disabled={ro} aria-invalid={!!fe('persona')} onChange={(e) => set('persona', e.target.value)} />
-            <small className="counter num">{f.persona.length} / 2.000</small>
             {fe('persona') && <small className="err" role="alert">{errs.persona}</small>}
+            <small className="counter num">{f.persona.length} / 2.000</small>
             {!ro && d.template && <small className="quiet">Agen ini dibuat dari template. Menyimpan persona baru menggantikan teks template.</small>}
           </label>
         </fieldset>

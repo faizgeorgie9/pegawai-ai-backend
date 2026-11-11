@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import httpx
 
-from . import db, hermes
+from . import catalog, cs_schema, db, hermes, knowledge, versions
 from .errors import ApiError
 from .redact import redact
 
@@ -60,6 +60,12 @@ class Live:
     finished: bool = False
     task: asyncio.Task | None = None
     flushed_at: float = 0.0
+    workflow: str | None = None  # "cs" | "marketing" when the run was started with a workflow
+    instructions: str | None = None  # kept for the one automatic JSON repair retry
+    retried: bool = False
+    first_errors: list = field(default_factory=list)
+    prior: dict = field(default_factory=dict)  # token usage of the attempt before the retry
+    t0: float | None = None
 
 
 LIVE: dict[str, Live] = {}
@@ -125,11 +131,22 @@ async def check_quota(user_id: str) -> None:
 # ---------- start ----------
 
 async def start_run(user_id: str, bot: str, session_id: str, input_: str, kind: str,
-                    group_id: str | None = None, instructions: str | None = None) -> dict:
+                    group_id: str | None = None, instructions: str | None = None, context: dict | None = None,
+                    origin: dict | None = None) -> dict:
+    """`context` (set when the run has a workflow): {workflow, stage, test_mode, context_refs, ...extra meta}.
+    `origin` is stored in meta.origin: where the run came from (see clean_origin / infer_origin)."""
     await check_quota(user_id)
     rid = str(uuid.uuid4())
-    await db.ex("insert into runs (id, user_id, bot_id, session_id, group_id, kind, status, input) "
-                "values (%s, %s, %s, %s, %s, %s, 'queued', %s)", rid, user_id, bot, session_id, group_id, kind, input_)
+    meta = await versions.snapshot(bot, instructions)  # version and config at the moment the run starts
+    if context:
+        meta.update(context, prompt_hash=knowledge.prompt_hash(instructions, input_))
+        if context.get("workflow") != "cs":
+            meta["validation"] = {"status": "not_applicable", "errors": []}
+    if origin:
+        meta["origin"] = origin
+    await db.ex("insert into runs (id, user_id, bot_id, session_id, group_id, kind, status, input, meta) "
+                "values (%s, %s, %s, %s, %s, %s, 'queued', %s, %s)", rid, user_id, bot, session_id, group_id, kind, input_,
+                _json(meta))
     body = {"input": input_, "session_id": session_id}
     if instructions:
         body["instructions"] = instructions
@@ -147,12 +164,42 @@ async def start_run(user_id: str, bot: str, session_id: str, input_: str, kind: 
     hid = r.json()["run_id"]
     row = await db.q1("update runs set status = 'running', hermes_run_id = %s, started_at = now() "
                       "where id = %s returning *", hid, rid)
-    lv = Live(rid, bot, hid, kind, group_id, session_id, input=input_)
+    lv = Live(rid, bot, hid, kind, group_id, session_id, input=input_, t0=time.monotonic())
+    if context:
+        lv.workflow, lv.instructions = context.get("workflow"), instructions
     LIVE[rid] = lv
     lv.task = asyncio.create_task(consume(lv))
     _publish_run(lv, "running")
     _publish_bot(bot)
     return row
+
+
+ORIGIN_TYPES = ("chat", "cs", "marketing", "evaluasi")
+
+
+def clean_origin(raw) -> dict | None:
+    """Validate the optional `origin` of a run request: {type, case_id?}. None when absent."""
+    if raw is None:
+        return None
+    if not isinstance(raw, dict) or raw.get("type") not in ORIGIN_TYPES:
+        raise ApiError(400, "Origin harus berisi type: chat, cs, marketing, atau evaluasi")
+    case_id = raw.get("case_id")
+    if case_id is not None and (not isinstance(case_id, str) or not 1 <= len(case_id.strip()) <= 40):
+        raise ApiError(400, "case_id harus berupa teks (maksimal 40 karakter)")
+    return {"type": raw["type"], **({"case_id": case_id.strip()} if case_id else {})}
+
+
+def infer_origin(group_id: str | None, workflow: str | None) -> dict:
+    return {"type": "group" if group_id else workflow or "chat"}
+
+
+async def workflow_context(bot: dict, workflow: str, stage: str | None, test_mode: bool, text: str,
+                           ins: str | None) -> tuple[str, dict]:
+    """The BFF retrieves before the run: knowledge bundle of the bot's team plus up to 5 catalog products.
+    Returns (instructions, context for start_run)."""
+    products = await catalog.search_products(text, limit=5)
+    ins, refs, meta = knowledge.build_context(bot["team"], workflow, ins, products, test_mode and workflow == "cs")
+    return ins, {**meta, "stage": stage.strip() if stage else None, "test_mode": test_mode, "context_refs": refs}
 
 
 async def _fail_early(rid: str, msg: str) -> None:
@@ -233,7 +280,7 @@ async def _handle(lv: Live, seq: int, ev: dict) -> str | None:
     return None
 
 
-async def consume(lv: Live) -> None:
+async def _stream_final(lv: Live) -> tuple[str, dict]:
     final: tuple[str, dict] | None = None
     poller = asyncio.create_task(poll_reasoning(lv))
     try:
@@ -261,7 +308,44 @@ async def consume(lv: Live) -> None:
         raise
     except Exception as e:  # never leave a run stuck in "running"
         final = ("failed", {"error": f"Kesalahan internal: {type(e).__name__}"})
-    poller.cancel()
+    finally:
+        poller.cancel()  # also when the run task itself is cancelled: the poll must not outlive the run
+    return final
+
+
+def _output_of(lv: Live, ev: dict) -> str:
+    return ev.get("output") if isinstance(ev.get("output"), str) else "".join(lv.out)
+
+
+REPAIR = ("Jawaban sebelumnya tidak lolos validasi skema JSON v2.1 ({errors}). Kirim ulang SELURUH jawaban sebagai satu "
+          "objek JSON valid sesuai bagian 11 instruksi, tanpa teks lain dan tanpa blok kode.")
+
+
+async def _retry_cs(lv: Live, ev: dict, errors: list[str]) -> bool:
+    """One automatic repair attempt (Hermes has no JSON mode): same session and instructions, ask for the JSON again."""
+    text = REPAIR.format(errors="; ".join(errors[:5])[:600])
+    try:
+        r = await hermes.call(lv.bot, "POST", "/v1/runs", headers={"Idempotency-Key": f"{lv.id}-retry"},
+                              json_body={"input": text, "session_id": lv.session_id, "instructions": lv.instructions})
+        if r.status_code >= 300:
+            return False
+        hid = r.json()["run_id"]
+    except (ApiError, KeyError, ValueError):
+        return False
+    u = ev.get("usage") or {}
+    lv.prior = {k: int(u.get(k) or 0) for k in ("input_tokens", "output_tokens", "total_tokens", "cache_read_tokens")}
+    lv.retried, lv.first_errors = True, errors
+    lv.hid, lv.input, lv.last_seq = hid, text, 0
+    await db.ex("update runs set hermes_run_id = %s where id = %s", hid, lv.id)
+    return True
+
+
+async def consume(lv: Live) -> None:
+    final = await _stream_final(lv)
+    if lv.workflow == "cs" and lv.instructions and not lv.retried and final[0] == "completed":
+        _, v = cs_schema.validate_cs(_output_of(lv, final[1]))
+        if v["status"] == "invalid" and await _retry_cs(lv, final[1], v["errors"]):
+            final = await _stream_final(lv)
     await finalize(lv, *final)
 
 
@@ -323,11 +407,14 @@ async def sync_steps(lv: Live) -> None:
             await _emit_reasoning(lv, t, i + 1)
 
 
+POLL_REASONING_S = 1
+
+
 async def poll_reasoning(lv: Live) -> None:
-    """Hermes /v1/runs streams no reasoning (bff-spec 'Verified'), so read it from the session every 2 s."""
+    """Hermes /v1/runs streams no reasoning (bff-spec 'Verified'), so read it from the session every 1 s (one small session read; the task ends with the run)."""
     try:
         while True:
-            await asyncio.sleep(2)
+            await asyncio.sleep(POLL_REASONING_S)
             await sync_steps(lv)
     except asyncio.CancelledError:
         raise
@@ -335,11 +422,40 @@ async def poll_reasoning(lv: Live) -> None:
         pass  # thinking is a bonus: a failed poll must never touch the run
 
 
+def done_extra(meta: dict) -> dict:
+    """Workflow results that ride along with the `done` SSE event and the finished-run snapshot."""
+    if not meta.get("workflow"):
+        return {}
+    return {"structured": meta.get("structured"), "validation": meta.get("validation"),
+            "context_refs": meta.get("context_refs") or []}
+
+
+async def _workflow_result(lv: Live, status: str, output: str) -> dict:
+    """meta patch of a workflow run: validated CS object, validation, and the escalation recommendation in the activity log."""
+    if lv.workflow != "cs":
+        return {}
+    if status != "completed":
+        return {"validation": {"status": "not_applicable", "errors": ["Tugas tidak selesai"]}}
+    structured, v = cs_schema.validate_cs(output)
+    if lv.retried:  # "repaired" = valid only after the automatic retry; errors then hold the first attempt's errors
+        v = {"status": "repaired" if v["status"] == "valid" else "invalid",
+             "errors": lv.first_errors if v["status"] == "valid" else v["errors"]}
+    v["attempts"] = 2 if lv.retried else 1
+    patch = {"validation": v}
+    if structured:
+        patch["structured"] = structured
+        esc = structured["escalation"]
+        if esc["recommended"]:  # shown by GET /api/activity; nothing is routed and nothing says "escalated"
+            await _store_event(lv, lv.last_seq + 1, {"event": "tool.completed", "tool": "Rekomendasi eskalasi",
+                                                     "preview": (esc.get("reason") or "")[:300], "duration": 0, "error": False})
+    return patch
+
+
 async def finalize(lv: Live, status: str, ev: dict) -> None:
     if lv.finished:
         return
     lv.finished = True
-    output = ev.get("output") if isinstance(ev.get("output"), str) else "".join(lv.out)
+    output = _output_of(lv, ev)
     usage = ev.get("usage") or {}
     err = ev.get("error")
     if isinstance(err, dict):
@@ -348,17 +464,27 @@ async def finalize(lv: Live, status: str, ev: dict) -> None:
     if status == "completed":
         await sync_steps(lv)  # last look at the session: thinking that landed after the final poll
     reasoning = "\n\n".join(lv.steps) or "\n\n".join(t for t in lv.reasoning if t) or None
-    inp, outp = int(usage.get("input_tokens") or 0), int(usage.get("output_tokens") or 0)
-    total = int(usage.get("total_tokens") or inp + outp)
-    cache = int(usage.get("cache_read_tokens") or 0)
-    await db.ex("update runs set status = %s, output = %s, reasoning = %s, error = %s, input_tokens = %s, "
-                "output_tokens = %s, total_tokens = %s, cache_read_tokens = %s, last_seq = %s, finished_at = now() "
-                "where id = %s", status, output, reasoning, error, inp, outp, total, cache, lv.last_seq, lv.id)
+    pr = lv.prior
+    inp = int(usage.get("input_tokens") or 0) + pr.get("input_tokens", 0)
+    outp = int(usage.get("output_tokens") or 0) + pr.get("output_tokens", 0)
+    own_total = int(usage.get("total_tokens") or int(usage.get("input_tokens") or 0) + int(usage.get("output_tokens") or 0))
+    total = own_total + pr.get("total_tokens", 0)
+    cache = int(usage.get("cache_read_tokens") or 0) + pr.get("cache_read_tokens", 0)
+    patch = await _workflow_result(lv, status, output)
+    if lv.workflow:
+        patch["tokens"] = {"input": inp, "output": outp, "total": total}
+        if lv.t0 is not None:
+            patch["latency_ms"] = int((time.monotonic() - lv.t0) * 1000)
+    row = await db.q1("update runs set status = %s, output = %s, reasoning = %s, error = %s, input_tokens = %s, "
+                      "output_tokens = %s, total_tokens = %s, cache_read_tokens = %s, last_seq = %s, finished_at = now(), "
+                      "meta = meta || %s where id = %s returning meta", status, output, reasoning, error, inp, outp, total,
+                      cache, lv.last_seq, _json(patch), lv.id)
     LIVE.pop(lv.id, None)
     lv.done.set()
     hub.publish(lv.id, "status", {"status": status})
     hub.publish(lv.id, "done", {"status": status, "output": output, "reasoning": reasoning, "error": error,
-                                "usage": {"input_tokens": inp, "output_tokens": outp, "total_tokens": total}})
+                                "usage": {"input_tokens": inp, "output_tokens": outp, "total_tokens": total},
+                                **done_extra(row["meta"])})
     _publish_run(lv, status)
     _publish_bot(lv.bot)
 
@@ -427,7 +553,7 @@ async def recover() -> None:
             continue
         lv = Live(rid, row["bot_id"], row["hermes_run_id"], row["kind"],
                   str(row["group_id"]) if row["group_id"] else None, row["session_id"], input=row["input"],
-                  last_seq=row["last_seq"])
+                  last_seq=row["last_seq"], workflow=(row["meta"] or {}).get("workflow"))
         lv.out.append(row["output"] or "")  # replay from last_seq would repeat deltas already flushed
         try:
             r = await hermes.call(lv.bot, "GET", f"/v1/runs/{lv.hid}")

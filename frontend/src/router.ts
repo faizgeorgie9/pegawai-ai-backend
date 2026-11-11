@@ -2,7 +2,7 @@ import { useMemo, useSyncExternalStore } from 'react'
 
 // Hash router. The hash is the state, so refresh and back work.
 // #/ beranda, #/chat (agent list), #/grup (group list), #/chat/<id>/<sesi?> (old #/bot/... still read), #/grup/<id>, #/agen, #/agen/baru, #/agen/<id>, #/agen/<id>/ubah,
-// #/tools, #/computer-use, #/scheduler, #/marketing, #/cs, #/uji, #/aktivitas
+// #/tools, #/computer-use, #/scheduler, #/marketing, #/cs, #/uji (alias #/evaluasi; #/uji?case=V02 opens that case), #/aktivitas
 export type Route =
   | { name: 'home' }
   | { name: 'bot'; id: string; sid?: string }
@@ -19,10 +19,11 @@ export type Route =
   | { name: 'scheduler' }
   | { name: 'marketing' }
   | { name: 'cs' }
-  | { name: 'uji' }
+  | { name: 'uji'; case?: string }
 
 export function parse(hash: string): Route {
-  const p = hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent)
+  const [path, query = ''] = hash.split('?')
+  const p = path.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent)
   if ((p[0] === 'chat' || p[0] === 'bot') && p[1]) return { name: 'bot', id: p[1], sid: p[2] }
   if (p[0] === 'chat') return { name: 'chat' }
   if (p[0] === 'grup') return p[1] ? { name: 'grup', id: p[1] } : { name: 'grup-list' }
@@ -38,7 +39,7 @@ export function parse(hash: string): Route {
   if (p[0] === 'scheduler') return { name: 'scheduler' }
   if (p[0] === 'marketing') return { name: 'marketing' }
   if (p[0] === 'cs') return { name: 'cs' }
-  if (p[0] === 'uji') return { name: 'uji' }
+  if (p[0] === 'uji' || p[0] === 'evaluasi') return { name: 'uji', case: new URLSearchParams(query).get('case') || undefined }
   return { name: 'home' }
 }
 

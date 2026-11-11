@@ -2,6 +2,9 @@
 // adds the shared key, so browser code never holds a key or a Hermes URL. Response shapes are read defensively
 // (the BFF is built in parallel): the normalisers below are the one place that knows about alternative field names.
 
+import { toRunResult } from './results'
+import type { RunResult } from './results'
+
 const BASE = '/bff/api'
 
 export class ApiError extends Error {
@@ -181,6 +184,35 @@ export interface RunInfo {
   session_id: string
   group_id: string
   started_at: number
+  origin: RunOrigin
+}
+// Where a run came from. `turn` and `of` are set for the turns of an Evaluasi sequence.
+export interface RunOrigin {
+  type: 'chat' | 'cs' | 'marketing' | 'evaluasi' | 'group'
+  case_id: string
+  turn: number
+  of: number
+}
+export interface SeqTurn {
+  turn: number
+  run_id: string
+  status: string
+  input: string
+  output: string
+  error: string
+  result: RunResult
+}
+export interface Sequence {
+  id: string
+  bot_id: string
+  session_id: string
+  case_id: string
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'stopped'
+  current_turn: number
+  of: number
+  run_ids: string[]
+  turns: SeqTurn[]
+  error: string
 }
 export interface Session {
   id: string
@@ -231,6 +263,45 @@ export interface EvalScore {
   score: number | null
   reason: string
 }
+// Version snapshot the BFF records on every run. Values are real or "tidak diketahui".
+export interface RunMeta {
+  hermes_version: string
+  model: string
+  provider: string
+  bot_id: string
+  soul_hash: string
+  toolsets: string[] | string
+  instructions_mode: string
+  bff_commit?: string
+}
+// Optional workflow context of a run (contract section 2): the BFF builds instructions and retrieves knowledge.
+export interface RunCtx {
+  workflow?: 'cs' | 'marketing'
+  stage?: string
+  test_mode?: boolean
+}
+export interface CompareRun {
+  run_id: string
+  session_id: string | null
+  bot_id: string
+  output: string
+  tokens: number
+  duration: number | null
+  meta: Partial<RunMeta>
+}
+export interface Comparison {
+  mode: 'repeat' | 'agents'
+  consistency: 'konsisten' | 'tidak_konsisten'
+  note: string
+  runs: CompareRun[]
+}
+export interface EvalSummary {
+  cases: { case_id: string; verdict: 'pass' | 'fail' | 'blocked' }[]
+  counts: { pass: number; fail: number; blocked: number }
+  total_evaluations: number
+  dimensions: Record<string, { avg: number | null; n: number }>
+  latest_at: number
+}
 export interface EvalInput {
   case_id: string
   bot_id: string
@@ -243,10 +314,12 @@ export interface EvalInput {
   verdict: 'pass' | 'fail' | 'blocked'
   notes: { errors: string; improvements: string; critical: boolean; reviewed_on: string }
   reviewer: string
+  comparison?: Comparison | null
 }
 export interface Evaluation extends EvalInput {
   id: string
   created_at: number
+  meta: Partial<RunMeta>
 }
 const toEval = (r: Raw): Evaluation => ({
   id: asStr(r.id),
@@ -262,6 +335,8 @@ const toEval = (r: Raw): Evaluation => ({
   notes: { errors: asStr(r.notes?.errors), improvements: asStr(r.notes?.improvements), critical: r.notes?.critical === true, reviewed_on: asStr(r.notes?.reviewed_on) },
   reviewer: asStr(r.reviewer),
   created_at: epoch(r.created_at),
+  meta: r.meta && typeof r.meta === 'object' ? r.meta : {},
+  comparison: r.comparison && typeof r.comparison === 'object' && Array.isArray(r.comparison.runs) ? (r.comparison as Comparison) : null,
 })
 
 // ---- normalisers ----
@@ -331,6 +406,27 @@ export const toRun = (r: Raw): RunInfo => ({
   session_id: asStr(r.session_id),
   group_id: asStr(r.group_id),
   started_at: epoch(r.started_at ?? r.created_at),
+  origin: toOrigin(r.origin),
+})
+const ORIGINS = ['chat', 'cs', 'marketing', 'evaluasi', 'group'] as const
+const toOrigin = (o: Raw | null | undefined): RunOrigin => ({
+  type: ORIGINS.find((t) => t === o?.type) ?? 'chat',
+  case_id: asStr(o?.case_id),
+  turn: asNum(o?.turn),
+  of: asNum(o?.of),
+})
+const SEQ_STATUS = ['queued', 'running', 'completed', 'failed', 'stopped'] as const
+const toSeq = (r: Raw): Sequence => ({
+  id: asStr(r.id),
+  bot_id: asStr(r.bot_id),
+  session_id: asStr(r.session_id),
+  case_id: asStr(r.origin?.case_id),
+  status: SEQ_STATUS.find((t) => t === r.status) ?? 'failed',
+  current_turn: asNum(r.current_turn),
+  of: asNum(r.of),
+  run_ids: list(r.run_ids).map((x) => asStr(x)),
+  turns: list(r.turns).map((t) => ({ turn: asNum(t.turn), run_id: asStr(t.run_id), status: asStr(t.status), input: asStr(t.input), output: asStr(t.output), error: asStr(t.error), result: toRunResult(t) })),
+  error: asStr(r.error),
 })
 const toSession = (s: Raw): Session => ({
   id: asStr(s.id),
@@ -447,15 +543,32 @@ export const api = {
     foldMessages(list(await call('GET', `/bots/${enc(botId)}/sessions/${enc(sid)}/messages`, undefined, signal))),
   renameSession: (botId: string, sid: string, title: string) => call<void>('PATCH', `/bots/${enc(botId)}/sessions/${enc(sid)}`, { title }),
   deleteSession: (botId: string, sid: string) => call<void>('DELETE', `/bots/${enc(botId)}/sessions/${enc(sid)}`),
-  startRun: async (botId: string, input: string, session_id?: string, instructions?: string) => {
-    const r = await call<Raw>('POST', `/bots/${enc(botId)}/runs`, { input, ...(session_id ? { session_id } : {}), ...(instructions ? { instructions } : {}) })
+  startRun: async (botId: string, input: string, session_id?: string, instructions?: string, ctx?: RunCtx) => {
+    const r = await call<Raw>('POST', `/bots/${enc(botId)}/runs`, { input, ...(session_id ? { session_id } : {}), ...(instructions ? { instructions } : {}), ...(ctx?.workflow ? { workflow: ctx.workflow, ...(ctx.stage ? { stage: ctx.stage } : {}), ...(ctx.test_mode ? { test_mode: true } : {}) } : {}) })
     return { run: toRun(r.run ?? r), session_id: asStr(r.session_id ?? r.run?.session_id) }
   },
   runs: async (status: 'active' | 'recent', limit?: number, bot?: string) => list(await call('GET', `/runs${q({ status, limit, bot })}`)).map(toRun),
   run: async (id: string) => {
     const r = await call<Raw>('GET', `/runs/${enc(id)}`)
-    return { ...toRun(r.run ?? r), output: asStr((r.run ?? r).output) }
+    const x = r.run ?? r
+    const t0 = epoch(x.started_at)
+    const t1 = epoch(x.finished_at)
+    return {
+      ...toRun(x),
+      output: asStr(x.output),
+      tokens: asNum(x.total_tokens),
+      seconds: t0 && t1 ? Math.max(0, t1 - t0) : null,
+      meta: (x.meta && typeof x.meta === 'object' ? x.meta : {}) as Partial<RunMeta>,
+    }
   },
+  startSequence: async (botId: string, turns: string[], caseId: string, ctx?: RunCtx) =>
+    toSeq(await call<Raw>('POST', `/bots/${enc(botId)}/sequences`, { turns, origin: { type: 'evaluasi', case_id: caseId }, ...(ctx?.workflow ? { workflow: ctx.workflow, ...(ctx.stage ? { stage: ctx.stage } : {}), ...(ctx.test_mode ? { test_mode: true } : {}) } : {}) })),
+  sequence: async (id: string) => toSeq(await call<Raw>('GET', `/sequences/${enc(id)}`)),
+  latestSequence: async (caseId: string): Promise<Sequence | null> => {
+    const r = list(await call('GET', `/sequences${q({ case_id: caseId, limit: 1 })}`))
+    return r[0] ? toSeq(r[0]) : null
+  },
+  stopSequence: (id: string) => call<void>('POST', `/sequences/${enc(id)}/stop`),
   stopRun: (id: string) => call<void>('POST', `/runs/${enc(id)}/stop`),
   steerRun: (id: string, text: string) => call<void>('POST', `/runs/${enc(id)}/steer`, { text }),
   approve: (id: string, choice: string) => call<void>('POST', `/runs/${enc(id)}/approval`, { choice }),
@@ -484,6 +597,16 @@ export const api = {
       reasoning: asStr(r.reasoning),
     })),
   evaluations: async (): Promise<Evaluation[]> => list(await call('GET', '/evaluations')).map(toEval),
+  evaluationSummary: async (): Promise<EvalSummary> => {
+    const r = await call<Raw>('GET', '/evaluations/summary')
+    return {
+      cases: list(r.cases).map((c) => ({ case_id: asStr(c.case_id), verdict: c.verdict === 'pass' || c.verdict === 'blocked' ? c.verdict : 'fail' })),
+      counts: { pass: asNum(r.counts?.pass), fail: asNum(r.counts?.fail), blocked: asNum(r.counts?.blocked) },
+      total_evaluations: asNum(r.total_evaluations),
+      dimensions: Object.fromEntries(Object.entries((r.dimensions ?? {}) as Raw).map(([k, v]) => [k, { avg: typeof v?.avg === 'number' ? v.avg : null, n: asNum(v?.n) }])),
+      latest_at: epoch(r.latest_at),
+    }
+  },
   saveEvaluation: async (b: EvalInput, id?: string) => toEval(await call<Raw>(id ? 'PATCH' : 'POST', id ? `/evaluations/${enc(id)}` : '/evaluations', b)),
   activity: async (f: { bot?: string; status?: string; before?: string; session_id?: string; group_id?: string; limit?: number }) => list(await call('GET', `/activity${q({ limit: 100, ...f })}`)).map(toActivity),
 }

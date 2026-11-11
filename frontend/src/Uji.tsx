@@ -1,23 +1,33 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api, errText } from './bff'
-import type { EvalInput, Evaluation } from './bff'
+import type { EvalInput, Evaluation, EvalSummary, RunCtx, RunMeta, Sequence } from './bff'
+import { CompareColumns, Versions, metaValue } from './Compare'
+import type { Col } from './Compare'
+import Summary from './Summary'
 import { useData } from './data'
-import { RUBRIC } from './results'
+import { Cs21Card, Provenance } from './ResultCards'
+import { ALL_DIMENSIONS, CS_RUBRIC, RUBRIC } from './results'
+import type { RunResult } from './results'
 import { SCENARIOS } from './scenarios'
 import type { Scenario } from './scenarios'
 import { ErrorLine } from './ui'
-import { Empty, Loading, PageHead, Req, useLoad } from './ui-extra'
-import { useRun } from './useRun'
+import { Empty, Loading, PageHead, Opt, useLoad } from './ui-extra'
+import { go, useRoute } from './router'
+import { useFollow, useRun } from './useRun'
+import type { RunStatus } from './useRun'
 import { OpenInChat, RunBar } from './ws-common'
 
 const ROUTE = 'UI → BFF → Hermes'
 const VERDICT_LABEL = { pass: 'Lulus', fail: 'Gagal', blocked: 'Nonaktif' } as const
 type Verdict = keyof typeof VERDICT_LABEL
 type Sc = { v: string; reason: string } // v: '' | '1'..'5' | 'na'
+const VER_KEYS = ['hermes_version', 'model', 'provider', 'bot_id', 'soul_hash', 'toolsets', 'instructions_mode', 'bff_commit'] as const
+const VER_ROW = 'ev-row'
 const today = () => new Date().toISOString().slice(0, 10)
-const blankScores = (): Record<string, Sc> => Object.fromEntries(RUBRIC.map((d) => [d.key, { v: '', reason: '' }]))
+const dimsOf = (sc: Scenario): readonly { key: string; label: string }[] => (sc.group === 'cs' ? CS_RUBRIC : RUBRIC)
+const blankScores = (dims: readonly { key: string }[]): Record<string, Sc> => Object.fromEntries(dims.map((d) => [d.key, { v: '', reason: '' }]))
 
 export function suggest(scores: Record<string, Sc>, critical: boolean): { verdict: Verdict; why: string } {
   const rel = Object.values(scores).filter((s) => /^[1-5]$/.test(s.v))
@@ -31,6 +41,20 @@ export const avgOf = (e: Pick<Evaluation, 'scores'>): number | null => {
   return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null
 }
 
+type TurnOut = { text: string; runId: string; result: RunResult }
+type Snap = { text: string; runId: string; status: string; error: string; turns: TurnOut[] }
+// The result of a finished server-side sequence, in the shape the evaluation form and the result cards read.
+function snapOf(q: Sequence): Snap {
+  const last = q.turns[q.turns.length - 1]
+  const turns = q.turns.filter((t) => t.status === 'completed').map((t) => ({ text: t.output, runId: t.run_id, result: t.result }))
+  const text = q.status === 'completed' && q.of > 1 ? turns.map((t, i) => `[Giliran ${i + 1}]\n${t.text}`).join('\n\n') : last?.output ?? ''
+  return { text, runId: last?.run_id ?? '', status: q.status === 'completed' ? 'done' : q.status === 'stopped' ? 'stopped' : 'error', error: q.error, turns }
+}
+const isActive = (q: Sequence | null) => !!q && (q.status === 'queued' || q.status === 'running')
+
+type CmpState = { kind: 'repeat' | 'agents'; cols: Col[]; status: 'running' | 'done' | 'incomplete' }
+const emptyCol = (botId: string, botName: string): Col => ({ botId, botName, runId: '', sid: '', status: 'pending', text: '', error: '', tokens: 0, seconds: null, startedAt: 0, meta: {} })
+
 export default function Uji() {
   const { bots } = useData()
   const [group, setGroup] = useState<'all' | 'marketing' | 'cs'>('all')
@@ -38,115 +62,354 @@ export default function Uji() {
   const [override, setOverride] = useState('')
   const [botId, setBotId] = useState('')
   const [runKey, setRunKey] = useState(0) // new evaluation form per run
-  const [sid, setSid] = useState('')
-  const [runSnap, setRunSnap] = useState<{ text: string; runId: string; status: string; error: string } | null>(null)
+  const [seq, setSeq] = useState<Sequence | null>(null) // the server-side run of the shown case (single or multi-turn)
+  const [starting, setStarting] = useState(false)
+  const [runMeta, setRunMeta] = useState<Partial<RunMeta>>({})
+  const [tab, setTab] = useState<'uji' | 'bandingkan' | 'ringkasan'>('uji')
+  const [pickId, setPickId] = useState('')
+  const [kind, setKind] = useState<'repeat' | 'agents'>('repeat')
+  const [times, setTimes] = useState<2 | 3>(2)
+  const [botB, setBotB] = useState('')
+  const [cmp, setCmp] = useState<CmpState | null>(null)
+  const [problem, setProblem] = useState('')
+  const [turnNo, setTurnNo] = useState(0) // compare mode only: it still runs its turns here
+  const cancelled = useRef(false)
+  const gen = useRef(0) // bumped when a run starts, so a late restore never replaces it
+  const seqRef = useRef<Sequence | null>(null)
+  const cmpRef = useRef<CmpState | null>(null)
   const fn = useCallback(() => api.evaluations(), [])
   const log = useLoad(fn)
+  const sumFn = useCallback((): Promise<EvalSummary> => api.evaluationSummary(), [])
+  const summary = useLoad(sumFn)
   const panel = useRef<HTMLDivElement>(null)
 
   const defaultBot = (s: Scenario) => bots.find((b) => b.id === (s.group === 'cs' ? 'siti' : 'rian'))?.id ?? bots[0]?.id ?? ''
   const effective = (s: Scenario) => override || defaultBot(s)
   const run = useRun()
+  const seqActive = isActive(seq)
+  const busy = run.busy || cmp?.status === 'running' || seqActive || starting
+  const runSnap = useMemo(() => (seq && !seqActive ? snapOf(seq) : null), [seq, seqActive])
+  const liveRun = seqActive ? seq?.turns.find((t) => t.status === 'running')?.run_id ?? '' : ''
+  const live = useFollow(liveRun)
+  seqRef.current = seq
+  cmpRef.current = cmp
+  const route = useRoute()
+  const wanted = route.name === 'uji' ? route.case : undefined
+  const compare = tab === 'bandingkan'
+  const nameOf = (id: string) => bots.find((b) => b.id === id)?.name ?? id
+  const teamOf = (id: string) => bots.find((b) => b.id === id)?.team
+  const saved = () => {
+    log.retry()
+    summary.retry()
+  }
+  // Agent B: another agent of the same team as agent A (when A is "Otomatis", it is checked when the scenario starts).
+  const peerOpts = override ? bots.filter((b) => b.id !== override && b.team === teamOf(override)) : bots
 
-  async function start(s: Scenario) {
-    if (run.busy) return
-    const bid = effective(s)
-    if (!bid) return
-    setSc(s)
-    setBotId(bid)
-    setRunSnap(null)
-    setSid('')
-    setRunKey((k) => k + 1)
-    window.setTimeout(() => panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
-    const r = await run.send(s.prompt, { botId: bid })
-    if (r.status === 'idle') return
-    setSid(r.sid)
-    setRunSnap({ text: r.text, runId: r.runId, status: r.status, error: r.error })
+  // Workflow context: only when the agent's team fits the case (CS cases with a CS agent, Marketing with a Marketing agent).
+  const ctxOf = (s: Scenario, bid: string): RunCtx | undefined =>
+    teamOf(bid) === (s.group === 'cs' ? 'customer_support' : 'marketing') ? { workflow: s.group, stage: 'uji', ...(s.group === 'cs' && s.simulate ? { test_mode: true } : {}) } : undefined
+
+  // Compare mode only: it still runs the turns here, in order, in one new session. Normal runs use a server-side sequence.
+  async function runTurns(s: Scenario, bid: string): Promise<Snap & { sid: string; superseded?: boolean }> {
+    let sid = ''
+    const turns: TurnOut[] = []
+    for (let i = 0; i < s.turns.length; i++) {
+      setTurnNo(i + 1)
+      const r = await run.send(s.turns[i], { botId: bid, sid: sid || undefined, ctx: ctxOf(s, bid) })
+      if (r.status === 'idle') return { text: '', runId: '', status: 'idle', error: '', turns, sid, superseded: true }
+      sid = r.sid || sid
+      turns.push({ text: r.text, runId: r.runId, result: r.result })
+      if (r.status !== 'done' || cancelled.current) return { text: r.text, runId: r.runId, status: r.status, error: r.error || (s.turns.length > 1 ? `Berhenti di giliran ${i + 1} dari ${s.turns.length}.` : ''), turns, sid }
+    }
+    const last = turns[turns.length - 1]
+    const text = s.turns.length > 1 ? turns.map((t, i) => `[Giliran ${i + 1}]\n${t.text}`).join('\n\n') : last.text
+    return { text, runId: last.runId, status: 'done', error: '', turns, sid }
   }
 
+  function begin(s: Scenario, bid: string) {
+    setSc(s)
+    setBotId(bid)
+    gen.current++
+    setSeq(null)
+    setRunMeta({})
+    setCmp(null)
+    setProblem('')
+    setRunKey((k) => k + 1)
+    window.setTimeout(() => panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }
+
+  async function start(s: Scenario) {
+    if (busy) return
+    const bid = effective(s)
+    if (!bid) return
+    if (compare) return void startCompare(s, bid)
+    begin(s, bid)
+    setStarting(true)
+    try {
+      setSeq(await api.startSequence(bid, s.turns, s.id, ctxOf(s, bid)))
+    } catch (e) {
+      setProblem(errText(e))
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  // Show a sequence started earlier (this page or another visit): progress while it runs, the results when it is done.
+  function restore(q: Sequence) {
+    const s = SCENARIOS.find((x) => x.id === q.case_id)
+    if (!s) return
+    gen.current++
+    setSc(s)
+    setBotId(q.bot_id)
+    setCmp(null)
+    setProblem('')
+    setRunMeta({})
+    setSeq(q)
+    setRunKey((k) => k + 1)
+  }
+
+  // Each run goes in its own new session (no session id) and runs one after the other, so the concurrency cap is never hit.
+  async function startCompare(s: Scenario, bid: string) {
+    if (kind === 'agents' && (!botB || botB === bid || teamOf(botB) !== teamOf(bid))) {
+      setProblem('Agen kedua harus agen lain dari tim yang sama.')
+      return
+    }
+    const ids = kind === 'repeat' ? Array<string>(times).fill(bid) : [bid, botB]
+    begin(s, bid)
+    cancelled.current = false
+    let cols = ids.map((x) => emptyCol(x, nameOf(x)))
+    const put = (i: number, p: Partial<Col>) => {
+      cols = cols.map((c, j) => (j === i ? { ...c, ...p } : c))
+      setCmp({ kind, cols, status: 'running' })
+    }
+    setCmp({ kind, cols, status: 'running' })
+    for (let i = 0; i < ids.length; i++) {
+      put(i, { status: 'running' })
+      const r = await runTurns(s, ids[i])
+      if (r.superseded) return
+      const info = r.runId ? await api.run(r.runId).catch(() => null) : null
+      const ok = r.status === 'done'
+      put(i, { status: ok ? 'done' : r.status === 'stopped' ? 'stopped' : 'error', text: r.text, error: r.error, runId: r.runId, sid: r.sid, tokens: info?.tokens ?? 0, seconds: info?.seconds ?? null, startedAt: info?.started_at ?? 0, meta: info?.meta ?? {} })
+      if (!ok || cancelled.current) {
+        setCmp({ kind, cols, status: 'incomplete' })
+        return
+      }
+    }
+    setCmp({ kind, cols, status: 'done' })
+  }
+  const stop = () => {
+    if (seq && seqActive) return void api.stopSequence(seq.id).catch(() => {})
+    cancelled.current = true
+    run.stop()
+  }
+
+  // Poll the sequence while it runs (the server keeps going when this page is closed).
+  const seqId = seq?.id
+  useEffect(() => {
+    if (!seqId || !seqActive) return
+    const t = window.setInterval(() => void api.sequence(seqId).then((q) => setSeq((cur) => (cur?.id === seqId ? q : cur)), () => {}), 1500)
+    return () => window.clearInterval(t)
+  }, [seqId, seqActive])
+
+  const lastRun = seq && !seqActive ? seq.run_ids[seq.run_ids.length - 1] ?? '' : ''
+  useEffect(() => {
+    if (!lastRun) return
+    let dead = false
+    void api.run(lastRun).then((d) => !dead && setRunMeta(d.meta), () => {})
+    return () => {
+      dead = true
+    }
+  }, [lastRun])
+
+  // #/uji?case=V02 (the "Sedang dikerjakan" link) selects that case.
+  useEffect(() => {
+    if (!wanted || !SCENARIOS.some((x) => x.id === wanted)) return
+    setGroup('all')
+    setPickId(wanted)
+    setTab('uji')
+  }, [wanted])
+
+  // On opening a case, restore its latest sequence (unless this view already shows one for it, or compare results are shown).
+  const caseId = pickId || SCENARIOS.find((x) => group === 'all' || x.group === group)?.id || ''
+  const normalTab = tab === 'uji'
+  useEffect(() => {
+    if (!caseId || !normalTab || seqRef.current?.case_id === caseId || cmpRef.current) return
+    const mine = gen.current
+    let dead = false
+    void api.latestSequence(caseId).then((q) => { if (!dead && q && gen.current === mine) restore(q) }, () => {})
+    return () => {
+      dead = true
+    }
+    // restore only reads setters and the scenario list
+  }, [caseId, normalTab])
+
   const shownRows = SCENARIOS.filter((s) => group === 'all' || s.group === group)
+  const chosen = shownRows.find((s) => s.id === pickId) ?? shownRows[0]
+  const seqStatus: RunStatus = !seq ? 'idle' : seqActive ? 'running' : seq.status === 'completed' ? 'done' : seq.status === 'stopped' ? 'stopped' : 'error'
+  const liveIdx = cmp ? Math.max(0, cmp.cols.findIndex((c) => c.status === 'running')) : 0
 
   return (
     <section className="page ws">
-      <PageHead title="Uji & nilai" sub="Jalankan kasus uji dan beri nilai 1–5." />
-      <p className="note-box">Kasus Marketing TC-01 sampai TC-11 mengikuti test matrix requirement v1.1. Kasus CS CS-V01 sampai CS-V06 mengikuti test corpus Colorbox CS v2.1 yang tervalidasi.</p>
+      <PageHead title="Evaluasi" sub="Jalankan skenario uji, bandingkan hasil, dan beri nilai 1–5." />
 
-      <div className="toolbar">
-        <div className="seg" role="tablist" aria-label="Kelompok skenario">
-          {(['all', 'marketing', 'cs'] as const).map((g) => (
-            <button key={g} role="tab" aria-selected={group === g} onClick={() => setGroup(g)}>
-              {g === 'all' ? 'Semua' : g === 'marketing' ? 'Marketing' : 'CS'}
-            </button>
-          ))}
-        </div>
-        <label className="field inline ws-agent">
-          <span>Agen</span>
-          <select value={override} onChange={(e) => setOverride(e.target.value)}>
-            <option value="">Otomatis (Rian untuk Marketing, Siti untuk CS)</option>
-            {bots.map((b) => (
-              <option key={b.id} value={b.id}>{b.name} · {b.role}</option>
-            ))}
-          </select>
-        </label>
+      <div className="tabs" role="tablist" aria-label="Bagian Evaluasi">
+        {([['uji', 'Uji'], ['bandingkan', 'Bandingkan'], ['ringkasan', 'Ringkasan']] as const).map(([k, l]) => (
+          <button key={k} type="button" role="tab" aria-selected={tab === k} disabled={busy && tab !== k} onClick={() => setTab(k)}>
+            {l}
+          </button>
+        ))}
       </div>
 
-      <div className="table-wrap">
-        <table className="plain sc-table">
-          <thead><tr><th>Kasus</th><th>Skenario</th><th>Prompt</th><th></th></tr></thead>
-          <tbody>
-            {shownRows.map((s) => (
-              <tr key={s.id} data-on={sc?.id === s.id || undefined}>
-                <td className="num" data-label="Kasus"><b>{s.id}</b></td>
-                <td data-label="Skenario" className="rich">
-                  <b>{s.title}</b>
-                  <div className="quiet small">{s.capability}</div>
-                  <span className={`pill ${s.group === 'cs' ? 'warn' : 'sample'}`}>{s.tag}</span>
-                </td>
-                <td data-label="Prompt"><div className="clamp2" title={s.prompt}>{s.prompt}</div></td>
-                <td className="act-cell">
-                  <button className="btn primary" disabled={run.busy} onClick={() => void start(s)} aria-label={`Jalankan ${s.id}`}>Jalankan</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {tab === 'ringkasan' && (
+        <>
+          {summary.state === 'ok' && summary.data && <Summary data={summary.data} />}
+          {summary.state === 'error' && <ErrorLine text={summary.error} onRetry={summary.retry} />}
+          <div className="block">
+            <header><h2>Log eksperimen</h2></header>
+            {log.state === 'loading' && <Loading text="Memuat log eksperimen..." shape="table" />}
+            {log.state === 'error' && <ErrorLine text={log.error} onRetry={log.retry} />}
+            {log.state === 'ok' && <LogTable rows={log.data ?? []} />}
+          </div>
+        </>
+      )}
 
-      <div ref={panel} className="uji-run">
-        {!sc && <Empty title="Belum ada yang dijalankan">Pilih skenario lalu tekan Jalankan. Setiap run memakai sesi baru.</Empty>}
-        {sc && (
-          <>
-            <header className="ws-form-head">
-              <h2>{sc.id}: {sc.title}</h2>
-              <span className="quiet small">Agen: {bots.find((b) => b.id === botId)?.name ?? botId} · {ROUTE}</span>
-              <OpenInChat botId={botId} sid={sid} />
-            </header>
-            <RunBar busy={run.busy} text="Agen sedang bekerja..." onStop={run.stop} status={run.status} error={run.error} onRetry={() => void start(sc)} stoppedNote="Dihentikan. Anda masih bisa menyimpan evaluasi dengan hasil Nonaktif." />
-            {run.busy && run.text && <article className="rcard live"><div className="rbody"><p className="draft-text">{run.text}</p></div></article>}
-            {runSnap && runSnap.status === 'done' && (
-              <article className="rcard">
-                <header><b>Output aktual</b><span className="pill origin">Jawaban agen, teks asli</span></header>
-                <div className="rbody md"><Markdown remarkPlugins={[remarkGfm]}>{runSnap.text || '(kosong)'}</Markdown></div>
-              </article>
+      {tab !== 'ringkasan' && (
+        <>
+          <div className="uji-pick">
+            <section className="pick-list" aria-labelledby="cases-h">
+              <header className="pick-head">
+                <h2 id="cases-h">Kasus uji</h2>
+                <div className="seg" role="tablist" aria-label="Kelompok skenario">
+                  {(['all', 'marketing', 'cs'] as const).map((g) => (
+                    <button key={g} role="tab" aria-selected={group === g} onClick={() => setGroup(g)}>
+                      {g === 'all' ? 'Semua' : g === 'marketing' ? 'Marketing' : 'CS'}
+                    </button>
+                  ))}
+                </div>
+              </header>
+              <ul className="cases">
+                {shownRows.map((s) => (
+                  <li key={s.id}>
+                    <button type="button" className="case" aria-pressed={chosen?.id === s.id} onClick={() => { setPickId(s.id); if (wanted) go('/uji', true) }}>
+                      <span className="case-id num">{s.id}</span>
+                      <span className="case-main">
+                        <b>{s.title}</b>
+                        <small title={s.tag}>{s.tag}{s.turns.length > 1 ? ` · ${s.turns.length} giliran` : ''}{s.simulate ? ' · simulasi' : ''}</small>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            {chosen && (
+              <section className="pick-detail" aria-labelledby="chosen-h">
+                <h2 id="chosen-h">{chosen.id}: {chosen.title}</h2>
+                <p className="quiet small">{chosen.capability}</p>
+                <div className="chip-row">
+                  <span className={`pill ${chosen.tagKind === 'dummy' ? 'sample' : 'plain'}`}>{chosen.tag}</span>
+                  {chosen.turns.length > 1 && <span className="pill plain">{chosen.turns.length} giliran</span>}
+                  {chosen.simulate && <span className="pill sim" title="Memakai data simulasi (SIM-*). Bukan data pelanggan nyata.">Simulasi</span>}
+                </div>
+                <div className="case-prompt" tabIndex={0} role="region" aria-label="Pesan yang dikirim ke agen">{chosen.prompt}</div>
+                <label className="field">
+                  <span>Agen</span>
+                  <select value={override} disabled={busy} onChange={(e) => { setOverride(e.target.value); setBotB('') }}>
+                    <option value="">Otomatis ({chosen.group === 'cs' ? 'Siti' : 'Rian'})</option>
+                    {bots.map((b) => (
+                      <option key={b.id} value={b.id}>{b.name} · {b.role}</option>
+                    ))}
+                  </select>
+                </label>
+                {compare && (
+                  <div className="cmp-opts">
+                    <div className="seg" role="tablist" aria-label="Cara membandingkan">
+                      <button role="tab" aria-selected={kind === 'repeat'} disabled={busy} onClick={() => setKind('repeat')}>Ulang N kali</button>
+                      <button role="tab" aria-selected={kind === 'agents'} disabled={busy} onClick={() => setKind('agents')}>Dua agen</button>
+                    </div>
+                    {kind === 'repeat' ? (
+                      <label className="field">
+                        <span>Jumlah run</span>
+                        <select value={times} disabled={busy} onChange={(e) => setTimes(Number(e.target.value) === 3 ? 3 : 2)}>
+                          <option value={2}>2 kali</option>
+                          <option value={3}>3 kali</option>
+                        </select>
+                      </label>
+                    ) : (
+                      <label className="field">
+                        <span>Agen kedua</span>
+                        <select value={botB} disabled={busy} onChange={(e) => setBotB(e.target.value)}>
+                          <option value="">Pilih agen satu tim</option>
+                          {peerOpts.map((b) => <option key={b.id} value={b.id}>{b.name} · {b.role}</option>)}
+                        </select>
+                      </label>
+                    )}
+                    <p className="quiet small">Tiap run memakai sesi baru, dijalankan satu per satu.</p>
+                  </div>
+                )}
+                {problem && <ErrorLine text={problem} />}
+                <button className="btn primary" disabled={busy} onClick={() => void start(chosen)} aria-label={`${compare ? 'Bandingkan' : 'Jalankan'} ${chosen.id}`}>
+                  {compare ? 'Bandingkan' : 'Jalankan'}
+                </button>
+              </section>
             )}
-            {runSnap && runSnap.status !== 'running' && <EvalForm key={runKey} sc={sc} botId={botId} sid={sid} snap={runSnap} onSaved={log.retry} />}
-          </>
-        )}
-      </div>
+          </div>
 
-      <div className="block">
-        <header><h2>Log eksperimen</h2></header>
-        {log.state === 'loading' && <Loading />}
-        {log.state === 'error' && <ErrorLine text={log.error} onRetry={log.retry} />}
-        {log.state === 'ok' && <LogTable rows={log.data ?? []} />}
-      </div>
+          <div ref={panel} className="uji-run">
+            {sc && (
+              <>
+                <header className="ws-form-head">
+                  <h2>{sc.id}: {sc.title}</h2>
+                  <span className="quiet small">
+                    {cmp ? (cmp.kind === 'repeat' ? `Ulang ${cmp.cols.length} kali · ${nameOf(botId)}` : `Dua agen: ${cmp.cols.map((c) => c.botName).join(' dan ')}`) : `Agen: ${nameOf(botId)}`} · {ROUTE}
+                  </span>
+                  {!cmp && <OpenInChat botId={botId} sid={seq?.session_id ?? ''} />}
+                </header>
+                <RunBar
+                  busy={busy}
+                  detail={[cmp ? `Run ${liveIdx + 1} dari ${cmp.cols.length}: ${cmp.cols[liveIdx].botName}` : '', sc.turns.length > 1 ? `giliran ${cmp ? turnNo : seq?.current_turn ?? 1} dari ${sc.turns.length}` : ''].filter(Boolean).join(', ') || undefined}
+                  onStop={stop}
+                  status={cmp ? run.status : seqStatus}
+                  error={cmp ? run.error : seq?.error ?? ''}
+                  onRetry={() => void start(sc)}
+                  stoppedNote={cmp ? 'Dihentikan. Perbandingan yang belum lengkap tidak bisa disimpan.' : 'Dihentikan. Anda masih bisa menyimpan evaluasi dengan hasil Nonaktif.'}
+                />
+                {cmp && <CompareColumns cols={cmp.cols} live={run.text} />}
+                {cmp?.status === 'incomplete' && <p className="note-box">Perbandingan belum lengkap, jadi belum bisa dinilai. Jalankan lagi.</p>}
+                {!cmp && seqActive && live && sc.group !== 'cs' && <article className="rcard live"><div className="rbody"><p className="draft-text">{live}</p></div></article>}
+                {!cmp && runSnap && runSnap.status === 'done' && runSnap.turns.map((t, i) => (
+                  <div key={i}>
+                    {sc.turns.length > 1 && <p className="quiet small">Giliran {i + 1}: {sc.turns[i]}</p>}
+                    {t.result.structured ? (
+                      <Cs21Card r={t.result.structured} validation={t.result.validation} origin="agent" meta={sc.turns.length > 1 ? `Giliran ${i + 1}` : undefined} raw={t.text} refs={t.result.refs} />
+                    ) : (
+                      <>
+                        <article className="rcard">
+                          <header><b>Output aktual</b>{t.result.validation?.status === 'invalid' && <span className="pill bad">Tidak lolos validasi v2.1</span>}</header>
+                          <div className="rbody md"><Markdown remarkPlugins={[remarkGfm]}>{t.text || '(kosong)'}</Markdown></div>
+                        </article>
+                        <Provenance refs={t.result.refs} workflow={sc.group} />
+                      </>
+                    )}
+                  </div>
+                ))}
+                {!cmp && runSnap && <EvalForm key={`${runKey}-${seq?.id}`} sc={sc} botId={botId} sid={seq?.session_id ?? ''} snap={runSnap} meta={runMeta} onSaved={saved} />}
+                {cmp?.status === 'done' && <EvalForm key={runKey} sc={sc} botId={botId} sid={cmp.cols[0].sid} snap={{ text: '', runId: cmp.cols[0].runId, status: 'done', error: '', turns: [] }} meta={cmp.cols[0].meta} cmp={cmp} onSaved={saved} />}
+              </>
+            )}
+          </div>
+        </>
+      )}
     </section>
   )
 }
 
-function EvalForm({ sc, botId, sid, snap, onSaved }: { sc: Scenario; botId: string; sid: string; snap: { text: string; runId: string; status: string; error: string }; onSaved: () => void }) {
+function EvalForm({ sc, botId, sid, snap, meta, cmp, onSaved }: { sc: Scenario; botId: string; sid: string; snap: Snap; meta: Partial<RunMeta>; cmp?: CmpState; onSaved: () => void }) {
+  const [consistency, setConsistency] = useState<'konsisten' | 'tidak_konsisten' | ''>('')
+  const [consNote, setConsNote] = useState('')
   const [expected, setExpected] = useState(sc.expected)
-  const [scores, setScores] = useState<Record<string, Sc>>(blankScores)
+  const dims = dimsOf(sc)
+  const [scores, setScores] = useState<Record<string, Sc>>(() => blankScores(dimsOf(sc)))
   const [critical, setCritical] = useState(false)
   const [verdict, setVerdict] = useState<Verdict | ''>(snap.status === 'done' ? '' : 'blocked')
   const [errors, setErrors] = useState('')
@@ -157,16 +420,18 @@ function EvalForm({ sc, botId, sid, snap, onSaved }: { sc: Scenario; botId: stri
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState('')
   const [savedId, setSavedId] = useState('')
-  const actual = snap.status === 'done' ? snap.text : `[${snap.status === 'error' ? 'Error' : 'Dihentikan'}] ${snap.error}`.trim()
+  const actual = cmp
+    ? cmp.cols.map((c, i) => `[Run ${i + 1} · ${c.botName}]\n${c.text}`).join('\n\n').slice(0, 40000)
+    : snap.status === 'done' ? snap.text : `[${snap.status === 'error' ? 'Error' : 'Dihentikan'}] ${snap.error}`.trim()
   const sug = suggest(scores, critical)
 
   const bad: Record<string, string> = {}
-  for (const d of RUBRIC) {
+  for (const d of dims) {
     const s = scores[d.key]
     if (!s.v) bad[d.key] = 'Pilih skor 1 sampai 5 atau N/A.'
     else if (s.v === 'na' && !s.reason.trim()) bad[d.key] = 'N/A wajib diberi alasan.'
   }
-  const missing = [...(verdict ? [] : ['Pilih hasil: Lulus, Gagal, atau Nonaktif.']), ...(reviewer.trim() ? [] : ['Nama reviewer wajib diisi.']), ...(Object.keys(bad).length ? [`${Object.keys(bad).length} dimensi rubrik belum lengkap.`] : [])]
+  const missing = [...(cmp && !consistency ? ['Pilih Konsisten atau Tidak konsisten.'] : []), ...(verdict ? [] : ['Pilih hasil: Lulus, Gagal, atau Nonaktif.']), ...(reviewer.trim() ? [] : ['Nama reviewer wajib diisi.']), ...(Object.keys(bad).length ? [`${Object.keys(bad).length} dimensi rubrik belum lengkap.`] : [])]
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
@@ -177,10 +442,20 @@ function EvalForm({ sc, botId, sid, snap, onSaved }: { sc: Scenario; botId: stri
       bot_id: botId,
       session_id: sid || null,
       run_id: snap.runId || null,
+      ...(cmp && consistency
+        ? {
+            comparison: {
+              mode: cmp.kind,
+              consistency,
+              note: consNote.trim(),
+              runs: cmp.cols.map((c) => ({ run_id: c.runId, session_id: c.sid || null, bot_id: c.botId, output: c.text, tokens: c.tokens, duration: c.seconds, meta: c.meta })),
+            },
+          }
+        : {}),
       prompt: sc.prompt,
       expected,
       actual,
-      scores: Object.fromEntries(RUBRIC.map((d) => [d.key, { score: scores[d.key].v === 'na' ? null : Number(scores[d.key].v), reason: scores[d.key].reason.trim() }])),
+      scores: Object.fromEntries(dims.map((d) => [d.key, { score: scores[d.key].v === 'na' ? null : Number(scores[d.key].v), reason: scores[d.key].reason.trim() }])),
       verdict,
       notes: { errors, improvements: improve, critical, reviewed_on: date },
       reviewer: reviewer.trim(),
@@ -206,13 +481,29 @@ function EvalForm({ sc, botId, sid, snap, onSaved }: { sc: Scenario; botId: stri
         <span>Output yang diharapkan (dari skenario, boleh diubah)</span>
         <textarea rows={3} value={expected} onChange={(e) => setExpected(e.target.value)} />
       </label>
-      <label className="field">
-        <span>Output aktual (otomatis)</span>
-        <textarea rows={3} value={actual} readOnly />
-      </label>
+      {cmp ? (
+        <fieldset className="verdicts">
+          <legend>Konsistensi antar run</legend>
+          {([['konsisten', 'Konsisten'], ['tidak_konsisten', 'Tidak konsisten']] as const).map(([v, l]) => (
+            <label key={v} className="ws-switch">
+              <input type="radio" name="consistency" checked={consistency === v} onChange={() => setConsistency(v)} />
+              <span>{l}</span>
+            </label>
+          ))}
+          {tried && !consistency && <small className="err" role="alert">Pilih Konsisten atau Tidak konsisten.</small>}
+        </fieldset>
+      ) : (
+        <label className="field">
+          <span>Output aktual (otomatis)</span>
+          <textarea rows={3} value={actual} readOnly />
+        </label>
+      )}
+      {cmp && <label className="field"><span>Catatan konsistensi <Opt /></span><textarea rows={2} value={consNote} maxLength={2000} onChange={(e) => setConsNote(e.target.value)} /></label>}
+      <Versions items={cmp ? cmp.cols.map((c, i) => ({ label: `Run ${i + 1} · ${c.botName}`, meta: c.meta })) : [{ label: 'Run', meta }]} />
+      <p className="quiet small">Versi dicatat otomatis oleh BFF saat run dimulai.</p>
       <fieldset className="rubric">
-        <legend>Rubrik, skor 1 sampai 5</legend>
-        {RUBRIC.map((d) => {
+        <legend>{sc.group === 'cs' ? 'Rubrik CS (6 kriteria), skor 1 sampai 5' : 'Rubrik, skor 1 sampai 5'}</legend>
+        {dims.map((d) => {
           const s = scores[d.key]
           return (
             <div key={d.key} className="rub-row">
@@ -244,10 +535,10 @@ function EvalForm({ sc, botId, sid, snap, onSaved }: { sc: Scenario; botId: stri
           </label>
         ))}
       </fieldset>
-      <label className="field"><span>Error dan kekurangan</span><textarea rows={2} value={errors} onChange={(e) => setErrors(e.target.value)} /></label>
-      <label className="field"><span>Saran perbaikan</span><textarea rows={2} value={improve} onChange={(e) => setImprove(e.target.value)} /></label>
+      <label className="field"><span>Error dan kekurangan <Opt /></span><textarea rows={2} value={errors} onChange={(e) => setErrors(e.target.value)} /></label>
+      <label className="field"><span>Saran perbaikan <Opt /></span><textarea rows={2} value={improve} onChange={(e) => setImprove(e.target.value)} /></label>
       <div className="fgrid">
-        <label className="field"><span>Nama reviewer <Req /></span><input value={reviewer} maxLength={80} onChange={(e) => setReviewer(e.target.value)} aria-invalid={tried && !reviewer.trim()} />{tried && !reviewer.trim() && <small className="err" role="alert">Nama reviewer wajib diisi.</small>}</label>
+        <label className="field"><span>Nama reviewer</span><input value={reviewer} maxLength={80} onChange={(e) => setReviewer(e.target.value)} aria-invalid={tried && !reviewer.trim()} />{tried && !reviewer.trim() && <small className="err" role="alert">Nama reviewer wajib diisi.</small>}</label>
         <label className="field"><span>Tanggal</span><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
       </div>
       {tried && missing.length > 0 && <ul className="field-err" role="alert">{missing.map((m) => <li key={m}>{m}</li>)}</ul>}
@@ -283,7 +574,12 @@ function LogTable({ rows }: { rows: Evaluation[] }) {
   const flat = (e: Evaluation) => ({
     case_id: e.case_id, agent: name(e.bot_id), date: new Date(e.created_at * 1000).toISOString(), status: VERDICT_LABEL[e.verdict], average_score: avgOf(e)?.toFixed(2) ?? '', route: ROUTE,
     run_id: e.run_id ?? '', session_id: e.session_id ?? '', reviewer: e.reviewer, critical_failure: e.notes.critical, errors: e.notes.errors, improvements: e.notes.improvements,
-    prompt: e.prompt, expected: e.expected, actual: e.actual, ...Object.fromEntries(RUBRIC.map((d) => [`score_${d.key}`, e.scores[d.key]?.score ?? 'N/A'])),
+    prompt: e.prompt, expected: e.expected, actual: e.actual, ...Object.fromEntries(ALL_DIMENSIONS.map((d) => [`score_${d.key}`, d.key in e.scores ? (e.scores[d.key].score ?? 'N/A') : ''])),
+    comparison_mode: e.comparison ? (e.comparison.mode === 'repeat' ? 'Ulang N kali' : 'Dua agen') : '',
+    comparison_run_ids: e.comparison ? e.comparison.runs.map((r) => r.run_id).join(' | ') : '',
+    comparison_consistency: e.comparison ? (e.comparison.consistency === 'konsisten' ? 'Konsisten' : 'Tidak konsisten') : '',
+    comparison_note: e.comparison?.note ?? '',
+    ...Object.fromEntries(VER_KEYS.map((k) => [`version_${k}`, metaValue(e.meta, k)])),
   })
   function csv() {
     const f = list.map(flat)
@@ -292,7 +588,7 @@ function LogTable({ rows }: { rows: Evaluation[] }) {
     download('log-eksperimen.csv', 'text/csv;charset=utf-8', '﻿' + [head.join(','), ...f.map((r) => head.map((h) => csvCell((r as Record<string, unknown>)[h])).join(','))].join('\r\n'))
   }
   function json() {
-    download('log-eksperimen.json', 'application/json', JSON.stringify(list.map((e) => ({ ...flat(e), scores: e.scores })), null, 2))
+    download('log-eksperimen.json', 'application/json', JSON.stringify(list.map((e) => ({ ...flat(e), scores: e.scores, meta: e.meta, comparison: e.comparison })), null, 2))
   }
 
   if (!rows.length) return <Empty title="Log masih kosong">Evaluasi yang disimpan muncul di sini.</Empty>
@@ -313,18 +609,30 @@ function LogTable({ rows }: { rows: Evaluation[] }) {
       </div>
       <div className="table-wrap">
         <table className="plain">
-          <thead><tr><th>Kasus</th><th>Agen</th><th>Tanggal</th><th>Status</th><th>Skor rata-rata</th><th>Rute</th><th>Reviewer</th></tr></thead>
+          <thead><tr><th>Kasus</th><th>Agen</th><th>Tanggal</th><th>Status</th><th className="r">Skor rata-rata</th><th>Rute</th><th>Reviewer</th></tr></thead>
           <tbody>
             {list.map((e) => (
-              <tr key={e.id}>
-                <td className="num" data-label="Kasus"><b>{e.case_id}</b></td>
+              <Fragment key={e.id}>
+              <tr className={VER_ROW}>
+                <td className="num" data-label="Kasus"><b>{e.case_id}</b>{e.comparison && <span className="pill origin tag">Bandingkan</span>}</td>
                 <td data-label="Agen">{name(e.bot_id)}</td>
                 <td className="num" data-label="Tanggal">{new Date(e.created_at * 1000).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
                 <td data-label="Status"><span className={`pill ${e.verdict === 'pass' ? 'ok' : e.verdict === 'fail' ? 'bad' : 'warn'}`}>{VERDICT_LABEL[e.verdict]}</span></td>
-                <td className="num" data-label="Skor rata-rata">{avgOf(e)?.toFixed(1) ?? '–'}</td>
+                <td className="num r" data-label="Skor rata-rata">{avgOf(e)?.toFixed(1) ?? '–'}</td>
                 <td data-label="Rute">{ROUTE}</td>
                 <td data-label="Reviewer">{e.reviewer || '–'}</td>
               </tr>
+              <tr className="sub-row">
+                <td colSpan={7}>
+                  <Versions items={e.comparison ? e.comparison.runs.map((r, i) => ({ label: `Run ${i + 1} · ${name(r.bot_id)}`, meta: r.meta })) : [{ label: 'Run', meta: e.meta }]} />
+                  {e.comparison && (
+                    <p className="quiet small cmp-sum">
+                      {e.comparison.mode === 'repeat' ? 'Ulang N kali' : 'Dua agen'}: <b>{e.comparison.consistency === 'konsisten' ? 'Konsisten' : 'Tidak konsisten'}</b>. Run: {e.comparison.runs.map((r) => r.run_id.slice(0, 8)).join(', ')}.{e.comparison.note ? ` ${e.comparison.note}` : ''}
+                    </p>
+                  )}
+                </td>
+              </tr>
+              </Fragment>
             ))}
             {list.length === 0 && <tr><td colSpan={7} className="quiet">Tidak ada baris yang cocok dengan filter.</td></tr>}
           </tbody>

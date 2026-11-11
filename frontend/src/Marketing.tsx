@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { useData } from './data'
 import type { Bot } from './bff'
 import { MARKETING_EXAMPLES } from './fixtures'
-import { AnswerDetails, MarketingCard, PlainAnswer } from './ResultCards'
+import { AnswerDetails, MarketingCard, PlainAnswer, Provenance } from './ResultCards'
 import { instructionsFor, parseMarketing, stripBlock } from './results'
-import type { MarketingKind, MarketingResult, Parsed } from './results'
+import { LiveDraft } from './LiveSteps'
+import type { ContextRef, MarketingKind, MarketingResult, Parsed } from './results'
 import { useRun } from './useRun'
-import { DataLegend, Empty, Loading, PageHead, Req } from './ui-extra'
+import { I, Icon } from './ui'
+import { Empty, Loading, Opt, PageHead } from './ui-extra'
 import { AgentSelect, ConfirmSwitch, OpenInChat, RunBar, Switch, hhmm, teamBots } from './ws-common'
 
 const STAGES = ['Brief', 'Rencana', 'Konten', 'Review', 'Revisi'] as const
@@ -21,6 +23,7 @@ interface Output {
   label: string
   parsed: Parsed<MarketingResult>
   structured: boolean
+  refs: ContextRef[]
   runId: string
   at: Date
 }
@@ -28,7 +31,7 @@ const blankForm = { objective: '', product: '', channel: '', contentType: '', co
 type Form = typeof blankForm
 const DUMMY: Form = {
   objective: 'Memperkenalkan kaos grafis baru ke pengikut Instagram',
-  product: 'Colorbox Regular Fit Short Sleeve Graphic T-Shirt (data DUMMY untuk uji, bukan data resmi)',
+  product: 'Colorbox Regular Fit Short Sleeve Graphic T-Shirt (Public Data · 9 Nov 2026)',
   channel: 'Instagram',
   contentType: 'Caption Instagram',
   count: '3',
@@ -66,7 +69,7 @@ function validate(f: Form): Partial<Record<keyof Form, string>> {
 function briefPrompt(f: Form): string {
   const row = (k: string, v: string) => (v.trim() ? `${k}: ${v.trim()}\n` : '')
   return (
-    'Ini brief dari saya untuk konten Colorbox. Data produk di bawah adalah contoh (dummy), bukan data resmi.\n\n' +
+    'Ini brief dari saya untuk konten Colorbox.\n\n' +
     row('Tujuan', f.objective) + row('Produk/topik', f.product) + row('Kanal', f.channel) + row('Tipe konten', f.contentType) + row('Jumlah output', f.count) +
     FIELDS.map(([k, l]) => row(l, f[k])).join('') +
     '\nTolong rapikan menjadi brief terstruktur. Tulis asumsi, pertanyaan yang masih terbuka, dan nyatakan siap atau belum siap dikerjakan. Jangan menulis konten dulu.'
@@ -91,11 +94,9 @@ export default function Marketing() {
     <section className="page ws">
       <PageHead
         title="Marketing"
-        sub="Alur langkah demi langkah: brief → rencana → konten → review → revisi."
-        hint={<>Untuk tanya bebas, pakai <a href="#/chat">Chat</a>.</>}
+        sub="Satu alur, lima tahap: brief, rencana, konten, review, revisi."
         actions={<AgentSelect label="Agen" bots={team} value={cur?.id ?? ''} onChange={(id) => (id === cur?.id ? null : dirty.current ? setPending(id) : setAgent(id))} />}
       />
-      <DataLegend />
       {!cur ? <Loading text="Memuat agen Marketing..." /> : <Workspace key={cur.id} bot={cur} onDirty={(v) => (dirty.current = v)} />}
       {pending && (
         <ConfirmSwitch
@@ -145,7 +146,7 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
     setLast(() => () => void go(st, prompt, label))
     setSample(false)
     const kind = KIND[st]
-    const r = await run.send(prompt, { sid: sidRef.current || undefined, instructions: structured ? instructionsFor(kind) : undefined })
+    const r = await run.send(prompt, { sid: sidRef.current || undefined, instructions: structured ? instructionsFor(kind) : undefined, ctx: { workflow: 'marketing', stage: STAGES[st].toLowerCase() } })
     if (r.status === 'idle') return // superseded or reset: ignore
     if (r.sid) {
       sidRef.current = r.sid
@@ -154,7 +155,7 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
     if (r.status !== 'done') return
     const parsed: Parsed<MarketingResult> = structured ? parseMarketing(r.text, kind) : { text: r.text.trim(), result: null, state: 'none', raw: '' }
     const n = (counts.current[st] = (counts.current[st] ?? 0) + 1)
-    const o: Output = { id: `${st}-${n}`, stage: st, n, label, parsed, structured, runId: r.runId, at: new Date() }
+    const o: Output = { id: `${st}-${n}`, stage: st, n, label, parsed, structured, refs: r.result.refs, runId: r.runId, at: new Date() }
     setOuts((cur) => [...cur, o])
     setView(o.id)
     setStage(st)
@@ -197,63 +198,67 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
 
   return (
     <>
-      <div className="ws-bar">
-        <Switch checked={structured} onChange={setStructured} label="Mode terstruktur (eksperimen)" hint="Agen diminta menambahkan satu blok JSON untuk kartu hasil. Format ini usulan frontend dan belum divalidasi backend." />
-        <Switch checked={sample} onChange={setSample} label="Lihat contoh" />
-        <OpenInChat botId={bot.id} sid={sid} />
-        <span className="quiet small ws-sess">{sid ? 'Sesi aktif: semua tahap memakai percakapan yang sama.' : 'Sesi dimulai saat brief dikirim.'}</span>
-      </div>
-      {structured && <p className="quiet small">Mode terstruktur: agen diminta menutup jawaban dengan blok JSON. Skema ini usulan frontend; backend belum memvalidasi. Jika blok tidak terbaca, jawaban teks tetap ditampilkan.</p>}
+      {sid && (
+        <div className="ws-bar">
+          <OpenInChat botId={bot.id} sid={sid} />
+          <span className="quiet small ws-sess">Semua tahap memakai percakapan yang sama.</span>
+        </div>
+      )}
 
       <ol className="stepper" aria-label="Tahap kerja">
         {STAGES.map((s, i) => (
-          <li key={s}>
+          <li key={s} data-link={i > 0 && stageDone(i - 1) ? 'done' : undefined}>
             <button type="button" aria-current={stage === i ? 'step' : undefined} onClick={() => setStage(i)} data-done={stageDone(i) || undefined}>
-              <span className="step-n" aria-hidden="true">{stageDone(i) ? '✓' : i + 1}</span>
-              {s}
+              <span className="step-n" aria-hidden="true">{stageDone(i) ? <Icon d={I.check} size={14} /> : i + 1}</span>
+              <span>{s}{stageDone(i) && <span className="sr">, selesai</span>}</span>
             </button>
           </li>
         ))}
       </ol>
 
-      <div className="ws-grid">
+      <div className="ws-grid" data-solo={outs.length === 0 || undefined}>
         <div className="ws-main">
           {stage === 0 && (
             <form className="ws-form" onSubmit={submitBrief} noValidate>
               <div className="ws-form-head">
                 <h2>Brief</h2>
                 <button type="button" className="btn soft" onClick={() => setForm(DUMMY)}>
-                  Isi contoh Colorbox (dummy)
+                  Isi contoh Colorbox
                 </button>
               </div>
               <div className="fgrid">
-                <Field label="Tujuan *" err={tried ? errs.objective : ''}>
+                <Field label="Tujuan" err={tried ? errs.objective : ''}>
                   <input value={form.objective} onChange={(e) => setForm({ ...form, objective: e.target.value })} aria-invalid={tried && !!errs.objective} />
                 </Field>
-                <Field label="Produk atau topik *" err={tried ? errs.product : ''}>
+                <Field label="Produk atau topik" err={tried ? errs.product : ''}>
                   <input value={form.product} onChange={(e) => setForm({ ...form, product: e.target.value })} aria-invalid={tried && !!errs.product} />
                 </Field>
-                <Field label="Kanal *" err={tried ? errs.channel : ''}>
+                <Field label="Kanal" err={tried ? errs.channel : ''}>
                   <select value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })} aria-invalid={tried && !!errs.channel}>
                     <option value="">Pilih kanal</option>
                     {CHANNELS.map((c) => <option key={c}>{c}</option>)}
                   </select>
                 </Field>
-                <Field label="Tipe konten *" err={tried ? errs.contentType : ''}>
+                <Field label="Tipe konten" err={tried ? errs.contentType : ''}>
                   <select value={form.contentType} onChange={(e) => setForm({ ...form, contentType: e.target.value })} aria-invalid={tried && !!errs.contentType}>
                     <option value="">Pilih tipe</option>
                     {CONTENT_TYPES.map((c) => <option key={c}>{c}</option>)}
                   </select>
                 </Field>
-                <Field label="Jumlah output *" err={tried ? errs.count : ''}>
+                <Field label="Jumlah output" err={tried ? errs.count : ''}>
                   <input inputMode="numeric" value={form.count} onChange={(e) => setForm({ ...form, count: e.target.value })} aria-invalid={tried && !!errs.count} />
                 </Field>
-                {FIELDS.map(([k, l]) => (
-                  <Field key={k} label={l}>
-                    <input value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
-                  </Field>
-                ))}
               </div>
+              <details className="opts" open={FIELDS.some(([k]) => form[k].trim() !== '') || undefined}>
+                <summary>Tambahan (opsional)</summary>
+                <div className="fgrid opts-body">
+                  {FIELDS.map(([k, l]) => (
+                    <Field key={k} label={l}>
+                      <input value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
+                    </Field>
+                  ))}
+                </div>
+              </details>
               {tried && Object.keys(errs).length > 0 && <p className="field-err" role="alert">Lengkapi {Object.keys(errs).length} kolom wajib di atas.</p>}
               <div className="form-actions">
                 <button className="btn primary" type="submit" disabled={run.busy}>
@@ -299,18 +304,18 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
               <p className="quiet">Tulis feedback, lalu minta revisi. Hasil dibandingkan dengan draf sebelumnya.</p>
               {needs(!!draft, 'Belum ada draf. Buat konten dulu di tahap Konten.')}
               {draft && <DraftPick drafts={drafts} value={draft.id} onChange={setDraftId} />}
-              <Field label="Feedback *" err={fbTried && !feedback.trim() ? 'Tulis feedback untuk revisi.' : ''}>
+              <Field label="Feedback" err={fbTried && !feedback.trim() ? 'Tulis feedback untuk revisi.' : ''}>
                 <textarea rows={3} value={feedback} onChange={(e) => setFeedback(e.target.value)} aria-invalid={fbTried && !feedback.trim()} />
               </Field>
-              <Field label="Bagian yang wajib dipertahankan">
+              <Field label="Bagian yang wajib dipertahankan" opt>
                 <textarea rows={2} value={keep} onChange={(e) => setKeep(e.target.value)} placeholder="Contoh: nama produk dan nada santai" />
               </Field>
               <button className="btn primary" type="submit" disabled={run.busy || !draft}>Minta revisi</button>
             </form>
           )}
 
-          <RunBar busy={run.busy} text={run.text ? 'Agen sedang menulis...' : `${bot.name} sedang bekerja...`} onStop={run.stop} status={run.status} error={run.error} onRetry={last ?? undefined} />
-          {run.busy && run.text && <article className="rcard live"><div className="rbody"><p className="draft-text">{stripBlock(run.text)}</p></div></article>}
+          <RunBar busy={run.busy} tools={run.tools} writing={!!run.text} since={run.startedAt} onStop={run.stop} status={run.status} error={run.error} onRetry={last ?? undefined} />
+          {run.busy && run.text && <article className="rcard live"><div className="rbody"><LiveDraft text={stripBlock(run.text)} /></div></article>}
 
           {sample ? (
             <div className="sample-box">
@@ -323,11 +328,9 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
           )}
         </div>
 
+        {outs.length > 0 && (
         <aside className="ws-hist" aria-label="Riwayat hasil">
           <h2>Riwayat hasil</h2>
-          {outs.length === 0 ? (
-            <p className="quiet small">Belum ada. Setiap versi per tahap tersimpan di sini selama sesi ini terbuka.</p>
-          ) : (
             <ul>
               {[...outs].reverse().map((o) => (
                 <li key={o.id}>
@@ -338,10 +341,18 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
                 </li>
               ))}
             </ul>
-          )}
-          <p className="quiet small">Riwayat ini hanya di layar. Percakapan lengkap ada di riwayat chat agen.</p>
         </aside>
+        )}
       </div>
+
+      <details className="opts">
+        <summary>Opsi lanjutan</summary>
+        <div className="opts-body">
+          <Switch checked={structured} onChange={setStructured} label="Hasil terstruktur (eksperimen)" hint="Agen diminta menutup jawaban dengan satu blok JSON untuk kartu hasil. Skema ini usulan frontend dan belum divalidasi backend." />
+          <p className="quiet small">Jika blok tidak terbaca, jawaban teks tetap ditampilkan.</p>
+          <Switch checked={sample} onChange={setSample} label="Tampilkan contoh hasil" hint="Contoh bentuk kartu dari requirement. Bukan output agen." />
+        </div>
+      </details>
     </>
   )
 }
@@ -352,15 +363,21 @@ function OutputView({ o, meta }: { o: Output; meta: string }) {
       <>
         <MarketingCard r={o.parsed.result} origin="agent" meta={meta} />
         <AnswerDetails text={o.parsed.text} />
+        <Provenance refs={o.refs} workflow="marketing" />
       </>
     )
-  return <PlainAnswer text={o.parsed.text} note={o.structured ? 'Format terstruktur tidak terbaca' : undefined} />
+  return (
+    <>
+      <PlainAnswer text={o.parsed.text} note={o.structured ? 'Format terstruktur tidak terbaca' : undefined} />
+      <Provenance refs={o.refs} workflow="marketing" />
+    </>
+  )
 }
 
-function Field({ label, err, children }: { label: string; err?: string; children: React.ReactNode }) {
+function Field({ label, err, opt, children }: { label: string; err?: string; opt?: boolean; children: React.ReactNode }) {
   return (
     <label className="field">
-      <span>{label.endsWith(' *') ? <>{label.slice(0, -2)} <Req /></> : label}</span>
+      <span>{label}{opt && <> <Opt /></>}</span>
       {children}
       {err && <small className="err" role="alert">{err}</small>}
     </label>

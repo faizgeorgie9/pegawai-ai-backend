@@ -10,6 +10,7 @@ dependencies = [
     "psycopg[binary,pool]>=3.2",
     "ruamel.yaml>=0.18",
     "python-dotenv>=1.0",
+    "pydantic>=2.7",
 ]
 
 [dependency-groups]
@@ -24,3 +25,5 @@ packages = ["bff"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-m 'not live'"  # live tests call Hermes (cost tokens): run them with `uv run pytest -m live`
+markers = ["live: runs real Hermes runs through a running BFF; skipped by default"]

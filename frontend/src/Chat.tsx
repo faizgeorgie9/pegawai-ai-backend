@@ -1,11 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ApiError, api, asStr, errText, isAbort, newKey, subscribe, usageOf } from './bff'
-import type { Bot, ChatMessage, Raw, Session, SseState, ToolChip } from './bff'
+import type { Bot, ChatMessage, Session, SseState } from './bff'
 import { useData } from './data'
+import { Cs21Card } from './ResultCards'
+import { partialReplyDraft, toCs21 } from './results'
+import { applyTool, settle, toolsFrom } from './steps'
+import { LiveDraft, LiveSteps } from './LiveSteps'
+import { useSmoothText } from './useSmoothText'
+import type { Cs21 } from './results'
 import { go, botPath } from './router'
-import { statusText } from './ui-extra'
+import { CopyButton, RunProgress, statusText } from './ui-extra'
 import { PanelButtons, SidePanel, Split } from './Panel'
 import { BotAvatar, CLOSE, Icon, ThinkingBlock, nf } from './ui'
 
@@ -18,31 +24,13 @@ function readThink(): boolean {
   }
 }
 
-const isEnd = (ev: string) => /complet|finish|done|end|result|error|fail/.test(ev)
-function applyTool(tools: ToolChip[], d: Raw): ToolChip[] {
-  const tool = asStr(d.tool, 'tool')
-  const ev = asStr(d.event).toLowerCase()
-  const bad = Boolean(d.error) || /error|fail/.test(ev)
-  const preview = asStr(d.preview) || undefined
-  if (!isEnd(ev)) return [...tools, { id: newKey('t'), tool, preview, status: 'run' }]
-  const i = tools.map((t) => t.tool === tool && t.status === 'run').lastIndexOf(true)
-  const status = bad ? 'bad' : 'done'
-  if (i < 0) return [...tools, { id: newKey('t'), tool, preview, status }]
-  return tools.map((t, n) => (n === i ? { ...t, status, preview: preview ?? t.preview } : t))
-}
-const toolsFrom = (x: unknown): ToolChip[] | undefined =>
-  Array.isArray(x)
-    ? (x as Raw[])
-        .filter((r) => !r.type || String(r.type).startsWith('tool.')) // stored rows: {type, payload}; live ones are already flat
-        .reduce<ToolChip[]>((acc, r) => applyTool(acc, r.type ? { ...(r.payload as Raw), event: r.type } : r), [])
-    : undefined
-
 type Problem = { text: string; upgrade?: boolean } | null
 
-export default function Chat({ bot, sid, sessions, onSessions }: { bot: Bot; sid?: string; sessions: Session[]; onSessions: () => void }) {
+export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: Bot; sid?: string; sessions: Session[]; onSessions: () => void; onRail: () => void }) {
   const [pv, setPv] = useState(0) // bumped whenever the side panel's data may have changed
   const bump = () => setPv((n) => n + 1)
-  const { setDialog, askNotify, refreshMe, viewing } = useData()
+  const { setDialog, askNotify, refreshMe, viewing, runs } = useData()
+  const attached = useRef('') // last run this view followed, so a run is never attached twice
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(false)
   const [run, setRun] = useState<{ id: string } | null>(null) // id '' while the POST is in flight
@@ -95,6 +83,7 @@ export default function Chat({ bot, sid, sessions, onSessions }: { bot: Bot; sid
   }
 
   function attach(runId: string, key: string) {
+    attached.current = runId
     live.current = key
     const finish = () => {
       unstream.current?.()
@@ -138,7 +127,7 @@ export default function Chat({ bot, sid, sessions, onSessions }: { bot: Bot; sid
             reasoning: asStr(d.reasoning) || m.reasoning,
             tokens: usage,
             approval: undefined,
-            tools: m.tools.map((t) => (t.status === 'run' ? { ...t, status: 'done' } : t)),
+            tools: settle(m.tools),
             stopped: /stop|cancel|interrupt/.test(status) || undefined,
             error: /fail|error/.test(status) ? asStr(d.error) || 'Bot belum berhasil menyelesaikan tugas ini.' : undefined,
           }))
@@ -219,6 +208,29 @@ export default function Chat({ bot, sid, sessions, onSessions }: { bot: Bot; sid
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sid, bot.id])
   useEffect(() => () => unstream.current?.(), [])
+
+  // A run that starts in this session while the view is open and idle (the next turn of an evaluation sequence run
+  // by the server): reload the messages, so the finished turn shows, and follow the new run live.
+  useEffect(() => {
+    if (!sid || run || loading) return
+    const r = runs.find((x) => x.bot_id === bot.id && x.session_id === sid && x.kind !== 'group') // runs holds only active runs
+    if (!r || r.id === attached.current) return
+    const mine = epoch.current
+    void (async () => {
+      const msgs = await api.messages(bot.id, sid).catch(() => null)
+      if (!msgs || mine !== epoch.current || attached.current === r.id) return
+      const lastUser = [...msgs].reverse().find((m) => m.role === 'user')
+      const a: ChatMessage = { key: newKey('a'), role: 'assistant', content: '', reasoning: '', tools: [] }
+      const extra: ChatMessage[] = []
+      if (r.input && lastUser?.content.trim() !== r.input.trim()) extra.push({ key: newKey('u'), role: 'user', content: r.input, reasoning: '', tools: [] })
+      setMessages([...msgs, ...extra, a])
+      setRun({ id: r.id })
+      stick.current = true
+      attach(r.id, a.key)
+    })()
+    // attach is stable enough here; this must re-run only when the active runs or this view's state change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runs, sid, run, loading, bot.id])
 
   // Queued messages go out one at a time as soon as the run ends.
   useEffect(() => {
@@ -308,6 +320,9 @@ export default function Chat({ bot, sid, sessions, onSessions }: { bot: Bot; sid
     <Split panel={<SidePanel scope={sid ? { session_id: sid } : null} version={pv} bot={bot} />}>
     <section className="convo" aria-label={`Percakapan dengan ${bot.name}`}>
       <header className="convo-head">
+        <button className="btn soft sm rail-open" onClick={onRail}>
+          Riwayat
+        </button>
         <BotAvatar bot={bot} size={36} />
         <div className="convo-title">
           <h1>{bot.name}</h1>
@@ -316,7 +331,7 @@ export default function Chat({ bot, sid, sessions, onSessions }: { bot: Bot; sid
             {active?.model && active.messageCount !== -1 ? ` · ${active.model}` : ''}
           </p>
         </div>
-        <button className="btn soft convo-new" title="Mulai percakapan baru, riwayat lama tetap ada" onClick={() => go(botPath(bot.id))}>
+        <button className="btn soft sm convo-new" title="Mulai percakapan baru, riwayat lama tetap ada" onClick={() => go(botPath(bot.id))}>
           Topik baru
         </button>
         <button className="switch" role="switch" aria-checked={showThink} onClick={toggleThink}>
@@ -440,6 +455,19 @@ export default function Chat({ bot, sid, sessions, onSessions }: { bot: Bot; sid
   )
 }
 
+const JSON_START = /^\s*(```(?:json)?\s*)?\{/i
+
+// A CS agent answers in JSON (CS v2.1). The chat shows the reply draft; the card with everything else opens from "Lihat detail".
+function csFromText(text: string): Cs21 | null {
+  const t = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '')
+  if (!t.startsWith('{')) return null
+  try {
+    return toCs21(JSON.parse(t))
+  } catch {
+    return null
+  }
+}
+
 const mdComponents = {
   a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
     <a href={href} target="_blank" rel="noopener noreferrer">
@@ -449,9 +477,9 @@ const mdComponents = {
   img: () => null, // no remote images from model output
 }
 
-export function Md({ text }: { text: string }) {
+export function Md({ text, caret }: { text: string; caret?: boolean }) {
   return (
-    <div className="md">
+    <div className="md" data-caret={caret || undefined}>
       <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>
         {text}
       </Markdown>
@@ -469,6 +497,9 @@ function Message(p: {
   onApprove: (deny: boolean) => void
 }) {
   const { m, bot, live } = p
+  const cs = useMemo(() => (m.role === 'assistant' ? csFromText(m.content) : null), [m.role, m.content])
+  const draft = useMemo(() => (live && m.role === 'assistant' ? partialReplyDraft(m.content) : null), [live, m.role, m.content]) // CS reply while its JSON is still open
+  const sm = useSmoothText(m.content, live && m.role === 'assistant')
   if (m.role === 'user') {
     return (
       <div className="msg user">
@@ -481,25 +512,30 @@ function Message(p: {
     <div className="msg bot">
       <BotAvatar bot={bot} size={28} />
       <div className="msg-body">
-        {m.tools.length > 0 && (
-          <ul className="chips" aria-label="Aktivitas">
-            {m.tools.map((t) => (
-              <li key={t.id} className="chip" data-status={t.status} title={t.preview}>
-                <span className="dot" aria-hidden="true" />
-                {t.tool}
-              </li>
-            ))}
-          </ul>
-        )}
-        <ThinkingBlock text={m.reasoning} running={waiting && !m.tools.length} seconds={m.seconds} defaultOpen={p.showThink} />
-        {m.content ? (
-          <Md text={m.content} />
-        ) : waiting && m.tools.length > 0 ? (
-          <p className="quiet working">
-            <span className="dots" aria-hidden="true" />
-            Bot sedang bekerja…
-          </p>
+        {live && !m.approval && <RunProgress />}
+        <LiveSteps tools={m.tools} running={live && !m.approval} writing={!!m.content} seconds={m.seconds} />
+        <ThinkingBlock text={m.reasoning} running={waiting} seconds={m.seconds} defaultOpen={p.showThink} />
+        {cs ? (
+          <div className="cs-msg">
+            <p className="quiet small">Draf balasan pelanggan · draf internal, perlu tinjauan manusia</p>
+            <p className="draft-text">{cs.reply}</p>
+            <details className="cs-detail">
+              <summary>Lihat detail</summary>
+              <Cs21Card r={cs} validation={null} origin="agent" raw={m.content} />
+            </details>
+          </div>
+        ) : draft ? (
+          <LiveDraft text={draft} label="Draf balasan · sedang ditulis" />
+        ) : live && JSON_START.test(m.content) ? (
+          <p className="quiet">Menyusun draf balasan…</p>
+        ) : m.content ? (
+          <Md text={sm.text} caret={sm.caret} />
         ) : null}
+        {!live && (cs?.reply || m.content) && (
+          <div className="msg-tools">
+            <CopyButton text={cs ? cs.reply : m.content} what={cs ? 'draf balasan' : 'jawaban'} />
+          </div>
+        )}
         {m.approval && (
           <div className="approval" role="group" aria-label="Butuh izin">
             <p className="approval-title">Bot meminta izin</p>

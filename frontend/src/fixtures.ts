@@ -1,4 +1,4 @@
-import type { CsResult, MarketingResult } from './results'
+import type { Cs21, MarketingResult } from './results'
 
 // Requirement examples E-01 to E-05 (Marketing) are designs, not real agent output. Shown only behind "Lihat contoh",
 // always with the badge "Contoh data", never mixed with real results. Product: Colorbox graphic tee (dummy).
@@ -68,19 +68,16 @@ export const MARKETING_EXAMPLES: { id: string; title: string; result: MarketingR
   },
 ]
 
-export const CS_EXAMPLE: CsResult = {
-  kind: 'cs',
-  inquiry: 'Halo, sweatshirt Colorbox x Liunic yang ada di homepage itu harganya berapa? Ukuran M masih ada stok?',
-  classification: 'PRODUCT_AVAILABILITY',
-  sources: [
-    { ref: 'CB-PRODUCT-001 (https://colorbox.co.id/)', excerpt: 'Harga IDR 249.900 (promo IDR 239.900 dicek 7 Nov 2026); ukuran S, M, L, XL terdaftar di listing.', classification: 'public_data' },
-    { ref: 'CB-SIZE-UNKNOWN-001 (https://colorbox.co.id/pages/size-guide)', excerpt: 'Tabel ukuran hanya berupa gambar; nilai numerik belum diverifikasi.', classification: 'public_data' }
-  ],
-  draft: 'Halo Kak, terima kasih sudah menghubungi Colorbox. Untuk Colorbox x Liunic Oversized Sweatshirt, pada tanggal peninjauan (7 November 2026) halaman utama resmi menampilkan harga IDR 249.900 dengan harga promosi IDR 239.900 (harga dapat berubah sewaktu-waktu). Terkait ketersediaan stok ukuran M, kami tidak dapat memastikannya secara langsung karena membutuhkan pengecekan inventaris toko; daftar ukuran pada katalog tidak menjamin stok tersedia. Silakan cek langsung di situs resmi colorbox.co.id sebelum memesan.',
-  context_notes: 'Pertanyaan pertama seputar harga & ketersediaan stok ukuran M. Tidak ada klaim live stock atau fit.',
-  summary: 'Inquiry produk Colorbox x Liunic Sweatshirt: konfirmasi harga dan cek stok ukuran M.',
-  priority: 'sedang',
-  escalate: true,
-  escalation_reason: 'Keterbatasan akses inventaris langsung (live stock lookup tidak tersedia); memerlukan pengecekan manual tim bila stok meragukan.',
-  simulated: false,
+// Shape example of a CS v2.1 card (not agent output). Product facts are the public values of 7 Nov 2026 from the demo file.
+export const CS_EXAMPLE: Cs21 = {
+  primary_intent: 'PRODUCT_AVAILABILITY',
+  secondary_intents: ['PRODUCT_INFO', 'SIZE_FIT'],
+  confidence: 0.9,
+  priority: 'P2',
+  reply: 'Halo, terima kasih sudah menghubungi Colorbox. Harga yang tampil pada tanggal peninjauan adalah contoh. Stok ukuran M tidak dapat kami pastikan dari sini, silakan cek halaman produk atau kanal resmi. [draf contoh]',
+  summary: { issue: 'Harga dan stok ukuran M (contoh)', reported: ['Pelanggan biasa memakai ukuran M'], verified: ['Harga tampil di halaman utama pada tanggal tinjauan'], unknowns: ['Stok ukuran M', 'Ketebalan bahan'], references: [], outcome: 'Mengetahui harga dan ketersediaan', context: [] },
+  refs: [{ knowledge_id: 'CB-PRODUCT-001', source_ids: ['SRC-01'], source_url: 'https://colorbox.co.id/', accessed_date: '2026-11-07', used_for: 'Harga produk pada tanggal tinjauan (contoh)' }],
+  clarifying: '',
+  escalation: { recommended: true, reason: 'Stok langsung tidak bisa dicek (contoh).' },
+  simulation: { simulated: false, ids: [] },
 }

@@ -1,3 +1,5 @@
+# LEGACY (superseded by the BFF on 10 Nov 2026, see local_setup/LEGACY.md).
+# DO NOT RUN: it overwrites the SOUL.md, API keys and toolset hardening of the Hermes profiles.
 """
 setup_hermes_bots.py - Grounding Hermes bot profiles with authoritative Colorbox Knowledge Hub
 """

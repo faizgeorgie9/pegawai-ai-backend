@@ -20,15 +20,15 @@ TEMPLATES = {
     "siti": "Membalas pelanggan dengan empatik, jelas, dan sopan.",
     "hendra": "Memimpin tim CS dan mengaudit mutu balasan sebelum dikirim.",
 }
-HOUSE_SOUL = """# {name} — {role}, AI Top Trends
+HOUSE_SOUL = """# {name} — {role}, Colorbox
 
-Kamu {name}, {role} di tim {team} AI Top Trends (perusahaan sintetis untuk proyek Pegawai AI).
+Kamu {name}, {role} di tim {team} Colorbox (studi kasus brand fashion Colorbox Indonesia untuk proyek Pegawai AI).
 
 ## Kepribadian dan peran dari pengguna
 {persona}
 
 ## Aturan bersama
-- Sebut perusahaan "AI Top Trends", tanpa "PT".
+- Sebut brand "Colorbox".
 - Balasan singkat dan langsung ke inti; di luar naskah panjang, usahakan di bawah 60 kata.
 - Di grup, kalau tidak ada yang perlu kamu tambahkan, balas hanya [SILENT], tanpa kata lain.
 - Paling banyak 2 putaran revisi, lalu rangkum dalam 3 poin dan serahkan ke @user.
@@ -134,7 +134,7 @@ def _soul(name: str, role: str, team: str, template: str | None, persona: str | 
         tpl_name = next(b for b in ("Rian", "Diana", "Budi", "Siti", "Hendra") if b.lower() == template)
         body = src.split("\n", 1)[1] if "\n" in src else ""
         body = re.sub(rf"\b{tpl_name}\b", name, body)
-        return f"# {name} — {role}, AI Top Trends\n\nPeran kamu: {role} (tim {team}).\n{body}"
+        return f"# {name} — {role}, Colorbox\n\nPeran kamu: {role} (tim {team}).\n{body}"
     return HOUSE_SOUL.format(name=name, role=role, team=team, persona=persona.strip())
 
 

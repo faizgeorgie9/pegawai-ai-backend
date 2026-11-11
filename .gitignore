@@ -34,3 +34,4 @@ temp_usage_*.json
 .DS_Store
 Thumbs.db
 
+.dev-logs/

@@ -1,11 +1,13 @@
-// Structured results (frontend proposal, to be agreed with backend: docs/sprint3/kebutuhan-api-frontend.md, section
-// "Skema hasil terstruktur"). The agent appends one fenced block ```pegawai-result + JSON to its normal answer; we parse it,
-// check it with the guards below and draw cards. Nothing here is validated by the backend. On any failure the caller shows
-// the plain answer, never invented cards.
+// Structured results. Marketing: the agent appends one fenced block ```pegawai-result + JSON to its normal answer; we parse it
+// and check it with the guards below (not validated by the backend). CS (v2.1): the BFF validates the JSON and sends it in the
+// run's `done` event (docs/sprint3/kontrak-api-bff.md, sections 5 and 6); `toCs21` only normalises it. The old `kind:"cs"`
+// block still parses (`toCs`). On any failure the caller shows the plain answer, never invented cards.
 
 export type Cls = 'public_data' | 'research_findings' | 'assumptions' | 'dummy'
 export const CLS_LABEL: Record<Cls, string> = { public_data: 'Public Data', research_findings: 'Research Findings', assumptions: 'Assumptions', dummy: 'Dummy/Simulated' }
 
+// Marketing rubric (9 dimensions) and CS rubric (6 criteria, Hub 4.1). Evaluations store scores by key; the two sets share
+// accuracy, relevance, brand and knowledge.
 export const RUBRIC = [
   { key: 'accuracy', label: 'Akurasi dan keandalan fakta' },
   { key: 'relevance', label: 'Relevansi dan kecocokan audiens' },
@@ -18,6 +20,15 @@ export const RUBRIC = [
   { key: 'human_review', label: 'Kebutuhan review manusia' },
 ] as const
 export type RubricKey = (typeof RUBRIC)[number]['key']
+export const CS_RUBRIC = [
+  { key: 'accuracy', label: 'Accuracy: fakta sesuai sumber' },
+  { key: 'relevance', label: 'Relevance: menjawab pertanyaan' },
+  { key: 'brand', label: 'Brand Alignment: nada dan gaya Colorbox' },
+  { key: 'knowledge', label: 'Knowledge Utilization: memakai knowledge yang benar' },
+  { key: 'anti_hallucination', label: 'Anti-Hallucination: tidak mengarang' },
+  { key: 'escalation', label: 'Escalation: rekomendasi eskalasi tepat' },
+] as const
+export const ALL_DIMENSIONS: { key: string; label: string }[] = [...RUBRIC, ...CS_RUBRIC.filter((c) => !RUBRIC.some((r) => r.key === c.key))]
 
 export interface Idea { title: string; reason: string; classification?: Cls }
 export interface CalRow { date: string; channel: string; type: string; idea: string; message: string; cta: string }
@@ -45,6 +56,31 @@ export interface CsResult {
   simulated: boolean
 }
 export type Result = MarketingResult | CsResult
+
+// ---- CS v2.1 (BFF-validated) ----
+export const INTENT_LABEL: Record<string, string> = {
+  PRODUCT_INFO: 'Info produk', PRODUCT_AVAILABILITY: 'Ketersediaan produk', SIZE_FIT: 'Ukuran dan fit', SHIPPING_DELIVERY: 'Pengiriman', CLICK_COLLECT: 'Click & Collect',
+  ORDER_PROCESS: 'Proses pesanan', ORDER_STATUS: 'Status pesanan', COMPLAINT_DAMAGED: 'Keluhan: barang rusak', COMPLAINT_WRONG_ITEM: 'Keluhan: barang salah',
+  COMPLAINT_LATE_MISSING: 'Keluhan: terlambat atau hilang', RETURN_REFUND: 'Retur dan refund', PAYMENT: 'Pembayaran', WEBSITE_TECHNICAL: 'Masalah website', OTHER: 'Lainnya', AMBIGUOUS: 'Ambigu',
+}
+export type P = 'P0' | 'P1' | 'P2' | 'P3'
+export interface KnowledgeRef { knowledge_id: string; source_ids: string[]; source_url: string; accessed_date: string; used_for: string }
+export interface Cs21 {
+  primary_intent: string
+  secondary_intents: string[]
+  confidence: number
+  priority: P
+  reply: string
+  summary: { issue: string; reported: string[]; verified: string[]; unknowns: string[]; references: string[]; outcome: string; context: string[] }
+  refs: KnowledgeRef[]
+  clarifying: string
+  escalation: { recommended: boolean; reason: string }
+  simulation: { simulated: boolean; ids: string[] }
+}
+export interface Validation { status: 'valid' | 'repaired' | 'invalid' | 'not_applicable'; errors: string[]; attempts?: number }
+export interface ContextRef { type: 'knowledge' | 'product' | 'fixture'; id: string; title: string; classification: string; source_id: string; url: string; accessed_date: string }
+// What the BFF returns with a run that had a workflow (SSE `done` or run meta).
+export interface RunResult { structured: Cs21 | null; validation: Validation | null; refs: ContextRef[] }
 export type MarketingKind = MarketingResult['kind']
 
 // ---- guards (they also normalise: a model may send a string where we want a list) ----
@@ -112,88 +148,56 @@ export function toMarketing(x: unknown): MarketingResult | null {
 }
 
 export function toCs(x: unknown): CsResult | null {
-  if (!isObj(x)) return null
-  
-  // Support both legacy kind: 'cs' and Colorbox CS v2.1 schema
-  const draft = str(x.customer_reply_draft || x.draft)
-  if (!draft) return null
-
-  // Priority mapping: support P0, P1, P2, P3 as well as rendah, sedang, tinggi
-  const rawPrio = str(x.priority).toUpperCase()
-  let p: Priority = 'sedang'
-  if (rawPrio === 'P0' || rawPrio === 'P1' || rawPrio.toLowerCase() === 'tinggi') {
-    p = 'tinggi'
-  } else if (rawPrio === 'P2' || rawPrio.toLowerCase() === 'sedang') {
-    p = 'sedang'
-  } else if (rawPrio === 'P3' || rawPrio.toLowerCase() === 'rendah') {
-    p = 'rendah'
-  }
-
-  // Escalation: support { recommended, reason } and { escalate, escalation_reason }
-  let escalate = false
-  let escalationReason = ''
-  if (typeof x.escalate === 'boolean') {
-    escalate = x.escalate
-    escalationReason = str(x.escalation_reason)
-  } else if (isObj(x.escalation)) {
-    escalate = Boolean(x.escalation.recommended)
-    escalationReason = str(x.escalation.reason)
-  }
-
-  // Classification / Primary Intent
-  const classification = str(x.primary_intent || x.classification || x.intent)
-
-  // Simulation
-  let simulated = false
-  if (x.simulated === true) {
-    simulated = true
-  } else if (isObj(x.simulation)) {
-    simulated = Boolean(x.simulation.is_simulated)
-  }
-
-  // Sources / Knowledge refs
-  let sources: Source[] = []
-  if (Array.isArray(x.sources)) {
-    sources = x.sources.map((s) => (isObj(s) ? { ref: str(s.ref ?? s.title ?? s.name), excerpt: str(s.excerpt), classification: cls(s.classification) } : { ref: str(s), excerpt: '' })).filter((s) => s.ref)
-  } else if (Array.isArray(x.knowledge_refs)) {
-    sources = x.knowledge_refs.map((k) => (isObj(k) ? { ref: str(k.knowledge_id || k.source_url), excerpt: str(k.used_for || k.source_url), classification: 'public_data' as Cls } : { ref: str(k), excerpt: '' })).filter((s) => s.ref)
-  }
-
-  // Summary & Context notes
-  let summary = str(x.summary)
-  let contextNotes = str(x.context_notes)
-  if (isObj(x.ticket_summary)) {
-    const ts = x.ticket_summary
-    if (!summary) summary = str(ts.issue || '')
-    if (!contextNotes) {
-      const parts: string[] = []
-      if (Array.isArray(ts.customer_reported_facts) && ts.customer_reported_facts.length) {
-        parts.push(`Pelanggan: ${ts.customer_reported_facts.join('; ')}`)
-      }
-      if (Array.isArray(ts.publicly_verified_facts) && ts.publicly_verified_facts.length) {
-        parts.push(`Verifikasi: ${ts.publicly_verified_facts.join('; ')}`)
-      }
-      if (Array.isArray(ts.unknowns) && ts.unknowns.length) {
-        parts.push(`Unknown: ${ts.unknowns.join('; ')}`)
-      }
-      contextNotes = parts.join('\n')
-    }
-  }
-
+  if (!isObj(x) || x.kind !== 'cs' || !str(x.draft) || typeof x.escalate !== 'boolean') return null
+  const p = str(x.priority).toLowerCase()
+  if (p !== 'rendah' && p !== 'sedang' && p !== 'tinggi') return null
   return {
     kind: 'cs',
     inquiry: str(x.inquiry),
-    classification,
-    sources,
-    draft,
-    context_notes: contextNotes,
-    summary,
+    classification: str(x.classification ?? x.intent),
+    sources: Array.isArray(x.sources) ? x.sources.map((s) => (isObj(s) ? { ref: str(s.ref ?? s.title ?? s.name), excerpt: str(s.excerpt), classification: cls(s.classification) } : { ref: str(s), excerpt: '' })).filter((s) => s.ref) : [],
+    draft: str(x.draft),
+    context_notes: str(x.context_notes),
+    summary: str(x.summary),
     priority: p,
-    escalate,
-    escalation_reason: escalationReason,
-    simulated,
+    escalate: x.escalate,
+    escalation_reason: str(x.escalation_reason),
+    simulated: x.simulated === true,
   }
 }
+
+export function toCs21(x: unknown): Cs21 | null {
+  if (!isObj(x) || !str(x.primary_intent) || !str(x.priority) || !str(x.customer_reply_draft)) return null
+  const pr = str(x.priority).toUpperCase()
+  if (pr !== 'P0' && pr !== 'P1' && pr !== 'P2' && pr !== 'P3') return null
+  const ts = isObj(x.ticket_summary) ? x.ticket_summary : {}
+  const es = isObj(x.escalation) ? x.escalation : {}
+  const sim = isObj(x.simulation) ? x.simulation : {}
+  const nz = (v: unknown) => (v === null || v === undefined ? '' : str(v))
+  return {
+    primary_intent: str(x.primary_intent),
+    secondary_intents: strs(x.secondary_intents),
+    confidence: Number.isFinite(Number(x.classification_confidence)) ? Number(x.classification_confidence) : 0,
+    priority: pr,
+    reply: str(x.customer_reply_draft),
+    summary: { issue: str(ts.issue), reported: strs(ts.customer_reported_facts), verified: strs(ts.publicly_verified_facts), unknowns: strs(ts.unknowns), references: strs(ts.customer_provided_references), outcome: nz(ts.requested_outcome), context: strs(ts.context_retained) },
+    refs: arr(x.knowledge_refs).map((k) => ({ knowledge_id: str(k.knowledge_id), source_ids: strs(k.source_ids), source_url: nz(k.source_url), accessed_date: nz(k.accessed_date), used_for: str(k.used_for) })),
+    clarifying: nz(x.clarifying_question),
+    escalation: { recommended: es.recommended === true, reason: nz(es.reason) },
+    simulation: { simulated: sim.is_simulated === true, ids: strs(sim.scenario_ids) },
+  }
+}
+export function toValidation(x: unknown): Validation | null {
+  if (!isObj(x)) return null
+  const s = str(x.status)
+  if (s !== 'valid' && s !== 'repaired' && s !== 'invalid' && s !== 'not_applicable') return null
+  const a = Number(x.attempts)
+  return { status: s, errors: strs(x.errors), attempts: x.attempts !== undefined && Number.isFinite(a) ? a : undefined }
+}
+export const toRefs = (x: unknown): ContextRef[] =>
+  arr(x).map((r) => ({ type: r.type === 'product' || r.type === 'fixture' ? r.type : 'knowledge', id: str(r.id), title: str(r.title), classification: str(r.classification), source_id: str(r.source_id), url: str(r.url), accessed_date: str(r.accessed_date) }))
+// The `done` frame (structured, validation, context_refs) and the run detail (same keys inside `meta`) have the same shape.
+export const toRunResult = (d: unknown): RunResult => (isObj(d) ? { structured: toCs21(d.structured), validation: toValidation(d.validation), refs: toRefs(d.context_refs) } : { structured: null, validation: null, refs: [] })
 
 export const isMarketingResult = (x: unknown): x is MarketingResult => toMarketing(x) !== null
 export const isCsResult = (x: unknown): x is CsResult => toCs(x) !== null
@@ -222,14 +226,87 @@ export const parseCs = (a: string): Parsed<CsResult> => extract(a, toCs)
 // While streaming: hide the block (even half-written) from the visible answer.
 export const stripBlock = (a: string) => a.replace(/```pegawai-result[\s\S]*$/, '').replace(/```pegawai-result[\s\S]*?```/g, '').trim()
 
-// ---- instructions sent with the run (BFF -> Hermes /v1/runs `instructions`) ----
+// ---- instructions sent with the run (Marketing only; the BFF builds the CS v2.1 instructions) ----
 const HEAD = 'Jawab seperti biasa dalam bahasa Indonesia. Di akhir jawaban, tambahkan tepat satu blok kode berpagar dengan label pegawai-result berisi JSON valid (tanpa komentar, tanpa koma sisa) dengan bentuk ini. Isi semua teks dalam bahasa Indonesia. Kolom classification salah satu dari public_data, research_findings, assumptions, dummy. Jangan menaruh teks apa pun setelah blok itu.\n'
-const SHAPES: Record<MarketingKind | 'cs', string> = {
+const SHAPES: Record<MarketingKind, string> = {
   brief: '{"kind":"brief","fields":{"tujuan":"","produk":"","kanal":"","tipe_konten":"","jumlah_output":"","audiens":"","nada":"","pesan_kunci":"","cta":""},"assumptions":[""],"questions":[""],"ready":true}\n"ready" true hanya jika brief cukup untuk dikerjakan; jika tidak, isi questions.',
   plan: '{"kind":"plan","creative_brief":"","ideas":[{"title":"","reason":"","classification":"assumptions"}],"calendar":[{"date":"","channel":"","type":"","idea":"","message":"","cta":""}]}',
   content: '{"kind":"content","type":"caption","items":[{"text":"","alt_angle":"","classification":"assumptions"}],"sources":[""],"assumptions":[""],"warnings":[""]}\nSatu item per opsi. sources memuat sumber klaim; kosongkan jika tidak ada dan tulis di warnings.',
   review: '{"kind":"review","findings":[""],"evidence":[""],"recommendations":[""],"scores":{"accuracy":1,"relevance":1,"brand":1,"consistency":1,"knowledge":1,"instruction":1,"completeness":1,"error_handling":1,"human_review":1}}\nSkor bilangan bulat 1 sampai 5 untuk setiap dimensi.',
   revision: '{"kind":"revision","before":"","after":"","feedback_applied":[""],"change_log":[""],"open_issues":[""]}\nbefore adalah draf lama, after adalah draf baru lengkap.',
-  cs: '{"kind":"cs","inquiry":"","classification":"","sources":[{"ref":"","excerpt":""}],"draft":"","context_notes":"","summary":"","priority":"sedang","escalate":false,"escalation_reason":"","simulated":false}\nclassification (tingkat atas): jenis pertanyaan, mis. ukuran, harga, stok, keluhan, retur; bukan kategori data. priority: rendah, sedang, atau tinggi. draft: balasan untuk pelanggan, hanya dari sumber yang ada. simulated true untuk pesanan, retur, dan refund (data simulasi). Jika info tidak ada, katakan tidak tahu dan sarankan eskalasi.',
 }
-export const instructionsFor = (k: MarketingKind | 'cs') => HEAD + SHAPES[k]
+export const instructionsFor = (k: MarketingKind) => HEAD + SHAPES[k]
+
+// ---- partial CS reply while the JSON is still streaming ----
+// Start of the last JSON object in a stream: skips leading text and a ```json fence. After a complete object, a later "{" is a new
+// attempt (the automatic repair retry), so the failed first attempt is dropped.
+function lastObjectStart(t: string): number {
+  let i = t.indexOf('{')
+  if (i < 0) return -1
+  for (;;) {
+    let depth = 0
+    let str = false
+    let esc = false
+    let end = -1
+    for (let j = i; j < t.length && end < 0; j++) {
+      const c = t[j]
+      if (str) {
+        if (esc) esc = false
+        else if (c === '\\') esc = true
+        else if (c === '"') str = false
+      } else if (c === '"') str = true
+      else if (c === '{') depth++
+      else if (c === '}' && --depth === 0) end = j
+    }
+    const next = end < 0 ? -1 : t.indexOf('{', end + 1)
+    if (next < 0) return i
+    i = next
+  }
+}
+
+const ESC: Record<string, string> = { '"': '"', '\\': '\\', '/': '/', n: '\n', r: '\r', t: '\t', b: '\b', f: '\f' }
+// Reads a JSON string body starting after its opening quote. `closed` is false when the text ends inside the string.
+function readString(t: string, from: number): { value: string; end: number; closed: boolean } {
+  let out = ''
+  for (let i = from; i < t.length; i++) {
+    const c = t[i]
+    if (c === '"') return { value: out, end: i, closed: true }
+    if (c !== '\\') {
+      out += c
+      continue
+    }
+    const n = t[i + 1]
+    if (n === undefined) break // lone backslash at the end: wait for the next chunk
+    if (n === 'u') {
+      const hex = t.slice(i + 2, i + 6)
+      if (!/^[0-9a-fA-F]{4}$/.test(hex)) break
+      out += String.fromCharCode(parseInt(hex, 16))
+      i += 5
+    } else {
+      out += ESC[n] ?? n
+      i++
+    }
+  }
+  return { value: out.replace(/[\uD800-\uDBFF]$/, ''), end: t.length, closed: false } // never show half a surrogate pair
+}
+
+// The growing value of "customer_reply_draft" (top-level key) from incomplete CS JSON. null = key not seen yet (or not a string).
+export function partialReplyDraft(text: string): string | null {
+  const start = lastObjectStart(text)
+  if (start < 0) return null
+  let depth = 0
+  for (let i = start; i < text.length; i++) {
+    const c = text[i]
+    if (c === '{' || c === '[') depth++
+    else if (c === '}' || c === ']') depth--
+    else if (c === '"') {
+      const s = readString(text, i + 1)
+      if (!s.closed) return null
+      i = s.end
+      if (depth !== 1 || s.value !== 'customer_reply_draft') continue
+      const m = /^\s*:\s*"/.exec(text.slice(i + 1))
+      return m ? readString(text, i + 1 + m[0].length).value : null
+    }
+  }
+  return null
+}

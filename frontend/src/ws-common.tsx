@@ -3,6 +3,9 @@ import type { Bot } from './bff'
 import { botPath } from './router'
 import { Dialog, ErrorLine } from './ui'
 import type { RunStatus } from './useRun'
+import { RunProgress } from './ui-extra'
+import { LiveSteps } from './LiveSteps'
+import type { ToolChip } from './bff'
 
 // Pieces shared by the Marketing and CS workspaces and the test page.
 
@@ -29,7 +32,7 @@ export function AgentSelect({ label, bots, value, onChange, disabled }: { label:
 export function Switch({ checked, onChange, label, hint }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: string }) {
   return (
     <label className="ws-switch" title={hint}>
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <input type="checkbox" role="switch" className="tgl" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       <span>{label}</span>
     </label>
   )
@@ -58,18 +61,18 @@ export function ConfirmSwitch({ onYes, onNo }: { onYes: () => void; onNo: () => 
   )
 }
 
-export function RunBar({ busy, text, onStop, status, error, onRetry, stoppedNote }: { busy: boolean; text: string; onStop: () => void; status: RunStatus; error: string; onRetry?: () => void; stoppedNote?: string }) {
+export function RunBar({ busy, detail, onStop, status, error, onRetry, stoppedNote, tools, writing, since }: { busy: boolean; detail?: string; onStop: () => void; status: RunStatus; error: string; onRetry?: () => void; stoppedNote?: string; tools?: ToolChip[]; writing?: boolean; since?: number }) {
   return (
     <>
       {busy && (
-        <div className="runbar" role="status">
-          <span className="dots" aria-hidden="true" />
-          <span>{text}</span>
+        <div className="runbar">
+          <RunProgress detail={detail} />
           <button className="btn soft" onClick={onStop}>
             Hentikan
           </button>
         </div>
       )}
+      {tools && <LiveSteps key={since} tools={tools} running={busy} writing={!!writing} since={since} />}
       {status === 'error' && error && <ErrorLine text={error} onRetry={onRetry} />}
       {status === 'stopped' && <p className="note-box">{stoppedNote ?? 'Dihentikan. Tidak ada hasil yang disimpan.'}</p>}
     </>

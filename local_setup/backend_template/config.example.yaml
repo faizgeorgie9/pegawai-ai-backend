@@ -56,7 +56,7 @@ models:
 # Customer Context Conventions (Synthetic Baseline)
 customer_context:
   active_profile: "AI Top Trends v1.0.0"
-  company_name: "PT AI Top Trends"
+  company_name: "Colorbox"  # legacy example; the active context is bff/knowledge/ (see local_setup/LEGACY.md)
   business_sector: "Jasa Konsultan Otomasi AI & Digital Agency"
   brand_voice:
     pillars:

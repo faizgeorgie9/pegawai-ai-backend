@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bots, config, db, engine, evaluations, groups, harden, hermes, usage
+from . import bots, catalog, config, db, engine, evaluations, groups, harden, hermes, sequences, usage
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -18,9 +18,11 @@ from .errors import ApiError
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await db.open_pool()
+    await catalog.sync()
     hermes.start_client()
     await engine.recover()
     await groups.recover()
+    await sequences.recover()
     await bots.adopt_sessions()
     cleaner = asyncio.create_task(db.cleanup_loop())
     yield
@@ -261,7 +263,7 @@ async def delete_session(bot_id: str, sid: str):
 @api.post("/bots/{bot_id}/runs", status_code=202)
 async def create_run(bot_id: str, request: Request):
     uid = current_user()
-    await bots.get_bot(uid, bot_id)
+    bot = await bots.get_bot(uid, bot_id)
     b = await body_of(request)
     text, sid = b.get("input"), b.get("session_id")
     if not isinstance(text, str) or not 1 <= len(text.strip()) <= 20000:
@@ -274,9 +276,32 @@ async def create_run(bot_id: str, request: Request):
     ins = b.get("instructions")  # optional per-run instructions (the frontend's experimental structured mode)
     if ins is not None and (not isinstance(ins, str) or len(ins) > 6000):
         raise ApiError(400, "Instruksi harus berupa teks (maksimal 6000 karakter)")
-    run = await engine.start_run(uid, bot_id, sid, text.strip(), "chat",
-                                 instructions=ins.strip() if isinstance(ins, str) and ins.strip() else None)
+    ins = ins.strip() if isinstance(ins, str) and ins.strip() else None
+    workflow, stage, test_mode = b.get("workflow"), b.get("stage"), b.get("test_mode", False)
+    if workflow not in (None, "cs", "marketing"):
+        raise ApiError(400, "Workflow harus cs atau marketing")
+    if stage is not None and (not isinstance(stage, str) or not 1 <= len(stage.strip()) <= 60):
+        raise ApiError(400, "Stage harus berupa teks (maksimal 60 karakter)")
+    if not isinstance(test_mode, bool):
+        raise ApiError(400, "test_mode harus true atau false")
+    origin = engine.clean_origin(b.get("origin")) or engine.infer_origin(None, workflow)
+    context = None
+    if workflow:
+        ins, context = await engine.workflow_context(bot, workflow, stage, test_mode, text, ins)
+    run = await engine.start_run(uid, bot_id, sid, text.strip(), "chat", instructions=ins, context=context, origin=origin)
     return {"run": engine.run_view(run), "session_id": sid}
+
+
+@api.get("/products/search")
+async def products_search(q: str | None = None, category: str | None = None, max_price: int | None = None,
+                          color: str | None = None, size: str | None = None, limit: int = 5):
+    """Catalog search: Postgres text search on q plus structured filters. At least one of them is required."""
+    if not any((q and q.strip(), category, max_price is not None, color, size)):
+        raise ApiError(400, "Isi q atau salah satu filter (category, max_price, color, size)")
+    if any(v is not None and len(v) > 200 for v in (q, category, color, size)):
+        raise ApiError(400, "Parameter pencarian terlalu panjang")
+    rows = await catalog.search_products(q, category, max_price, color, size, limit)
+    return {"data": rows, "count": len(rows)}
 
 
 @api.get("/runs")
@@ -284,9 +309,13 @@ async def list_runs(status: str = "recent", limit: int = 30, bot: str | None = N
     limit = max(1, min(limit, 100))
     cond = "r.status = any(%s)" if status == "active" else "not (r.status = any(%s))"
     rows = await db.q(f"select r.id, r.bot_id, b.name as bot_name, r.kind, r.status, left(r.input, 120) as input, "
-                      f"r.group_id, r.session_id, r.total_tokens, r.created_at, r.finished_at from runs r "
-                      f"join bots b on b.id = r.bot_id where r.user_id = %s and {cond} and (%s::text is null or r.bot_id = %s) "
-                      f"order by r.created_at desc limit %s", current_user(), list(engine.ACTIVE), bot, bot, limit)
+                      f"r.group_id, r.session_id, r.total_tokens, r.created_at, r.finished_at, r.meta->'origin' as origin, r.meta->>'workflow' as wf "
+                      f"from runs r join bots b on b.id = r.bot_id where r.user_id = %s and {cond} "
+                      f"and (%s::text is null or r.bot_id = %s) order by r.created_at desc limit %s",
+                      current_user(), list(engine.ACTIVE), bot, bot, limit)
+    for r in rows:  # runs from before origin existed: infer it
+        r["origin"] = r["origin"] or engine.infer_origin(r["group_id"], r["wf"])
+        del r["wf"]
     return rows
 
 
@@ -327,7 +356,8 @@ async def run_stream(rid: str):
             first.append(("done", {"status": row["status"], "output": row["output"], "reasoning": row["reasoning"],
                                    "error": row["error"], "usage": {"input_tokens": row["input_tokens"],
                                                                     "output_tokens": row["output_tokens"],
-                                                                    "total_tokens": row["total_tokens"]}}))
+                                                                    "total_tokens": row["total_tokens"]},
+                                   **engine.done_extra(row["meta"])}))
             hub.unsubscribe(rid, q)
             return sse_response(_one_shot(first))
     except BaseException:
@@ -359,6 +389,35 @@ async def steer_run(rid: str, request: Request):
 @api.post("/runs/{rid}/approval")
 async def approve_run(rid: str, request: Request):
     return await engine.approval(current_user(), rid, (await body_of(request)).get("choice"))
+
+
+# ---------- sequences (multi-turn runs that continue on the server) ----------
+
+@api.post("/bots/{bot_id}/sequences", status_code=202)
+async def create_sequence(bot_id: str, request: Request):
+    return await sequences.create(current_user(), bot_id, await body_of(request))
+
+
+@api.get("/sequences")
+async def list_sequences(case_id: str | None = None, limit: int = 1):
+    return await sequences.list_for(current_user(), case_id, limit)
+
+
+@api.get("/sequences/{sid}")
+async def get_sequence(sid: str):
+    return await sequences.get_view(current_user(), _seq_id(sid))
+
+
+@api.post("/sequences/{sid}/stop")
+async def stop_sequence(sid: str):
+    return await sequences.stop(current_user(), _seq_id(sid))
+
+
+def _seq_id(v: str) -> str:
+    try:
+        return str(uuid.UUID(v))
+    except ValueError:
+        raise ApiError(404, "Urutan tidak ditemukan")
 
 
 # ---------- groups ----------
@@ -425,8 +484,11 @@ async def activity(bot: str | None = None, status: str | None = None, limit: int
         "coalesce(g.name, 'Chat') as source "
         "from run_events e join runs r on r.id = e.run_id join bots b on b.id = r.bot_id "
         "left join groups g on g.id = r.group_id "
-        "left join run_events s on s.run_id = e.run_id and s.type = 'tool.started' "
+        # lateral + limit 1: a run can store several tool.started events with the same tool_call_id, and a plain
+        # join then repeated the completed row (duplicate ids in the activity list)
+        "left join lateral (select s.payload from run_events s where s.run_id = e.run_id and s.type = 'tool.started' "
         "and s.payload->>'tool_call_id' = e.payload->>'tool_call_id' and e.payload ? 'tool_call_id' "
+        "order by s.id desc limit 1) s on true "
         "where e.type = 'tool.completed' and r.user_id = %s and (%s::text is null or r.bot_id = %s) "
         "and (%s::text is null or (case when e.payload->>'error' = 'true' then 'error' else 'ok' end) = %s) "
         "and (%s::bigint is null or e.id < %s) and (%s::text is null or r.session_id = %s) "
@@ -488,6 +550,11 @@ async def office():
 @api.get("/evaluations")
 async def list_evaluations():
     return await evaluations.list_all(current_user())
+
+
+@api.get("/evaluations/summary")
+async def evaluations_summary():
+    return await evaluations.summary(current_user())
 
 
 @api.post("/evaluations", status_code=201)

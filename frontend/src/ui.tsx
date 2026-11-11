@@ -26,7 +26,7 @@ export const elapsed = (epoch: number, now: number) => {
 export const COLORS: Record<string, string> = {
   amber: '#d97706',
   teal: '#0d9488',
-  indigo: '#3b82f6',
+  indigo: '#3366cc',
   sky: '#0ea5e9',
   rose: '#b8336a',
   green: '#059669',
