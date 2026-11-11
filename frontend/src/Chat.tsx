@@ -13,7 +13,7 @@ import type { Cs21 } from './results'
 import { go, botPath } from './router'
 import { ClarifyCard, CopyButton, RunProgress, statusText } from './ui-extra'
 import { PanelButtons, SidePanel, Split } from './Panel'
-import { BotAvatar, CLOSE, Icon, ThinkingBlock, nf } from './ui'
+import { BotAvatar, CLOSE, Icon, ThinkingBlock, botColor, nf } from './ui'
 
 const THINK_KEY = 'pegawai.showThinking'
 function readThink(): boolean {
@@ -334,7 +334,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
   return (
     <Split panel={<SidePanel scope={sid ? { session_id: sid } : null} version={pv} bot={bot} />}>
     <section className="convo" aria-label={`Percakapan dengan ${bot.name}`}>
-      <header className="convo-head">
+      <header className="convo-head" style={{ ['--bot' as string]: botColor(bot) }}>
         <button className="btn soft sm rail-open" onClick={onRail}>
           Riwayat
         </button>
@@ -526,7 +526,7 @@ function Message(p: {
   }
   const waiting = live && !m.content && !m.approval && !m.clarify
   return (
-    <div className="msg bot">
+    <div className="msg bot" style={{ ['--bot' as string]: botColor(bot) }}>
       <BotAvatar bot={bot} size={28} />
       <div className="msg-body">
         {live && !m.approval && !m.clarify && <RunProgress />}

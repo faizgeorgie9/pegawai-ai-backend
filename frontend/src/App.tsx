@@ -147,10 +147,10 @@ function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
         </NavGroup>
 
         <NavGroup label="Workflow">
-          <NavItem href="#/marketing" icon={I.marketing} current={route.name === 'marketing'}>
+          <NavItem href="#/marketing" team="marketing" icon={I.marketing} current={route.name === 'marketing'}>
             Marketing
           </NavItem>
-          <NavItem href="#/cs" icon={I.support} current={route.name === 'cs'}>
+          <NavItem href="#/cs" team="customer_support" icon={I.support} current={route.name === 'cs'}>
             CS
           </NavItem>
         </NavGroup>
@@ -186,9 +186,9 @@ function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
   )
 }
 
-function NavItem({ href, icon, current, children }: { href: string; icon: string; current: boolean; children: React.ReactNode }) {
+function NavItem({ href, icon, current, team, children }: { href: string; icon: string; current: boolean; team?: string; children: React.ReactNode }) {
   return (
-    <a className="nav-link" href={href} aria-current={current ? 'page' : undefined}>
+    <a className="nav-link" data-team={team} href={href} aria-current={current ? 'page' : undefined}>
       <Icon d={icon} size={16} />
       {children}
     </a>

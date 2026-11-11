@@ -4,9 +4,7 @@ import type { Bot, BotDetail } from './bff'
 import { useData } from './data'
 import { agenPath, botPath, go } from './router'
 import { BotAvatar, COLORS, ErrorLine, botColor, nf, stamp, teamLabel } from './ui'
-import { CapChip, Empty, EffortSelect, Loading, ModelSelect, PageHead, Opt, modelKey, splitModel, statusText, useLoad } from './ui-extra'
-
-const EFFORT_WORD: Record<string, string> = { low: 'Rendah', medium: 'Sedang', high: 'Tinggi', none: 'Tidak berpikir', minimal: 'Minimal', xhigh: 'Sangat tinggi' }
+import { CapChip, Empty, EffortSelect, Loading, ModelSelect, PageHead, Opt, defaultEffortLabel, defaultModelLabel, effortWord, modelKey, splitModel, statusText, useLoad } from './ui-extra'
 
 // ---------- Daftar ----------
 export function AgentList() {
@@ -65,11 +63,11 @@ export function AgentList() {
                     <a className="row" href={'#' + agenPath(b.id)} style={{ ['--bot' as string]: botColor(b), padding: 0 }}>
                       <BotAvatar bot={b} size={28} />
                       <b>{b.name}</b>
-                      {b.builtin && <span className="pill plain">Default</span>}
+                      {b.builtin && <span className="pill plain">Sistem</span>}
                     </a>
                   </td>
                   <td data-label="Peran">{b.role}</td>
-                  <td data-label="Tim">{teamLabel(b.team)}</td>
+                  <td data-label="Tim"><span className="pill" data-team={b.team}>{teamLabel(b.team)}</span></td>
                   <td data-label="Status">{statusText(b)}</td>
                   <td data-label="Aksi">
                     <span className="head-actions">
@@ -93,6 +91,7 @@ export function AgentList() {
 
 // ---------- Detail ----------
 const RUN_STATUS: Record<string, string> = { completed: 'Selesai', failed: 'Gagal', stopped: 'Dihentikan', running: 'Berjalan', queued: 'Antre' }
+const RUN_PILL: Record<string, string> = { completed: 'ok', failed: 'bad', running: 'run', queued: 'wait' }
 export function AgentDetail({ id }: { id: string }) {
   const { setDialog } = useData()
   const botFn = useCallback(() => api.bot(id), [id])
@@ -108,6 +107,7 @@ export function AgentDetail({ id }: { id: string }) {
           (t) => t.bots[0] ?? null,
           () => null,
         ),
+        api.models().catch(() => null),
       ]),
     [id],
   )
@@ -124,7 +124,7 @@ export function AgentDetail({ id }: { id: string }) {
       </section>
     )
   const b = bot.data as BotDetail
-  const [sessions, runs, um, ua, tools] = extra.data ?? [[], [], [], [], null]
+  const [sessions, runs, um, ua, tools, cat] = extra.data ?? [[], [], [], [], null, null]
   const month = um.find((x) => x.bot_id === id)
   const all = ua.find((x) => x.bot_id === id)
 
@@ -164,18 +164,18 @@ export function AgentDetail({ id }: { id: string }) {
           <dt>Peran</dt>
           <dd>{b.role}</dd>
           <dt>Tim</dt>
-          <dd>{teamLabel(b.team)}</dd>
+          <dd><span className="pill" data-team={b.team}>{teamLabel(b.team)}</span></dd>
           <dt>Warna</dt>
           <dd>
             <span className="swatch-chip" style={{ background: botColor(b) }} />
             {b.color || 'plain'}
           </dd>
           <dt>Model</dt>
-          <dd>{b.model || 'Default'}</dd>
+          <dd>{b.model || defaultModelLabel(cat)}</dd>
           <dt>Tingkat berpikir</dt>
-          <dd>{EFFORT_WORD[b.effort] ?? 'Default'}</dd>
+          <dd>{effortWord(b.effort) || defaultEffortLabel(cat)}</dd>
           <dt>Jenis</dt>
-          <dd>{b.builtin ? 'Default (tidak bisa dihapus)' : 'Buatan pengguna'}</dd>
+          <dd>{b.builtin ? 'Disediakan sistem (tidak bisa dihapus)' : 'Buatan pengguna'}</dd>
           <dt>Dibuat</dt>
           <dd>{b.createdAt ? stamp(b.createdAt) : '–'}</dd>
         </dl>
@@ -249,7 +249,7 @@ export function AgentDetail({ id }: { id: string }) {
                         <td className="num" data-label="Waktu">{stamp(r.started_at)}</td>
                         <td data-label="Tugas">{r.input || '–'}</td>
                         <td data-label="Status">
-                          <span className={`pill ${r.status === 'completed' ? 'ok' : r.status === 'failed' ? 'bad' : ''}`}>{RUN_STATUS[r.status] ?? r.status}</span>
+                          <span className={`pill ${RUN_PILL[r.status] ?? 'idle'}`}>{RUN_STATUS[r.status] ?? r.status}</span>
                         </td>
                       </tr>
                     ))}
@@ -341,7 +341,7 @@ export function AgentEdit({ id }: { id: string }) {
       </a>
       <PageHead title={`Ubah ${d.name}`} />
       <form className="form-page" onSubmit={(e) => void submit(e)} noValidate>
-        {ro && <p className="note-box">Agen default: nama, peran, tim, dan persona dikelola tim backend. Warna, model, dan tingkat berpikir bisa diubah.</p>}
+        {ro && <p className="note-box">Agen sistem: nama, peran, tim, dan persona dikelola tim backend. Warna, model, dan tingkat berpikir bisa diubah.</p>}
         <fieldset disabled={busy} className="form-page">
           <label className="field">
             <span>Nama</span>

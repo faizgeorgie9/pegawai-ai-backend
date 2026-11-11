@@ -1,18 +1,32 @@
-/* Achromatic ledger (draw.mjs --app, seed 1580668898): no colour in the chrome, near-black primary, one blue hue on the main data
-   (status dots, token bars, the selected thing's mark), pale status pairs only for status. DM Sans, one family.
+/* Tinted ledger (draws on draw.mjs --app achromatic-ledger, seed 1580668898): flat surfaces, near-black / near-white primary, DM Sans, one family.
+   Colour tells things apart and never decorates: the ground steps (light: warm grey under white cards; dark: slate-blue with
+   ground < surface < raised < active), five status colours defined once (--st-*: blue running, green done, amber waiting for
+   approval or an answer, red failed, grey idle), one colour per agent (--c-*, the agent's own colour name), one soft colour per team
+   (--team-*), and the accent on the active nav item and focus. No gradients, glow or glass.
    Light is the default; dark applies only when chosen (data-theme="dark", set from the sidebar toggle).
    Layout and components live in chat.css. */
 :root {
   color-scheme: light;
-  --ground: #f6f7f9; --surface: #ffffff; --raised: #f1f2f5; --active: #e8eaee;
-  --border: #e3e5ea; --rule: #eef0f3; --control: #c8ccd4;
-  --text: #0f1115; --muted: #585f6c; --faint: #646b78;
-  --primary: #141414; --on-primary: #ffffff;
-  --accent: #1d5fbf; --link: #1a56b0;
-  --accent-wash: var(--active); --accent-soft: var(--raised); --accent-track: #dfe3ea; --accent-ink: var(--text); --on-accent: #ffffff;
-  --positive: #247b50; --negative: #c4242a;
-  --ok-bg: #dcfae5; --ok-ink: #04250e; --bad-bg: #ffedea; --bad-ink: #831c1e;
-  --warn-bg: #fffbeb; --warn-ink: #92400e; --warn-line: #fde68a; --plain-bg: #eceef2; --plain-ink: #3b414c;
+  --ground: #e9e8e4; --surface: #ffffff; --raised: #f3f2ef; --active: #dfddd6;
+  --border: #d4d1c9; --rule: #e2e0d9; --control: #b3afa4;
+  --text: #15171c; --muted: #4e5562; --faint: #5a6170;
+  --primary: #15171c; --on-primary: #ffffff;
+  --accent: #1c5fc2; --link: #174fa6;
+  --accent-wash: #dce7f8; --accent-soft: #e4ecf8; --accent-track: #d6d9e0; --accent-ink: #123f80; --on-accent: #ffffff;
+  /* status: one definition, reused by pills, dots, step marks, run bars and the activity log */
+  --st-run: #1c5fc2;  --st-run-bg: #dce8fb;  --st-run-ink: #0f3a7d;
+  --st-done: #1e7a4a; --st-done-bg: #d9f2e2; --st-done-ink: #0a3f23;
+  --st-wait: #b45309; --st-wait-bg: #fcebc4; --st-wait-ink: #6a3704;
+  --st-fail: #c4242a; --st-fail-bg: #fbe3e1; --st-fail-ink: #7d1a1d;
+  --st-idle: #8b919c; --st-idle-bg: #e4e5e9;  --st-idle-ink: #3b414c;
+  --positive: var(--st-done); --negative: var(--st-fail);
+  --ok-bg: var(--st-done-bg); --ok-ink: var(--st-done-ink); --bad-bg: var(--st-fail-bg); --bad-ink: var(--st-fail-ink);
+  --warn-bg: var(--st-wait-bg); --warn-ink: var(--st-wait-ink); --warn-line: #e6c273; --plain-bg: var(--st-idle-bg); --plain-ink: var(--st-idle-ink);
+  /* teams: Marketing rose, Customer Service teal, anything else neutral (--plain-*) */
+  --team-mkt: #b0386f; --team-mkt-bg: #f8e1ec; --team-mkt-ink: #7a1f4b;
+  --team-cs: #0b7c8c;  --team-cs-bg: #d8f0f3;  --team-cs-ink: #07505b;
+  /* an agent's own colour (the BFF palette names); use it as a mark or edge, mixed toward --text when it sets text */
+  --c-amber: #c96a04; --c-teal: #0b8a7f; --c-indigo: #5b57d6; --c-sky: #0a85c4; --c-rose: #b8336a; --c-green: #0a8f63; --c-red: #dc2626; --c-slate: #64748b;
   /* one spacing scale (4 8 12 16 24 32 48), one radius pair, one type scale (12 13 14 16 20 24), one motion set */
   --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px;
   --radius-card: 8px; --radius-control: 6px;
@@ -25,14 +39,21 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --ground: #0e0f11; --surface: #16181c; --raised: #1e2126; --active: #292d34;
-  --border: #2a2e35; --rule: #21252b; --control: #474d57;
-  --text: #f2f4f7; --muted: #aab1bc; --faint: #98a0ab;
-  --primary: #f2f4f7; --on-primary: #0e0f11;
-  --accent: #6ea2f0; --link: #8db8f5; --accent-track: #2f343c; --on-accent: #0e0f11;
-  --positive: #3fc07a; --negative: #e5566f;
-  --ok-bg: #172a1d; --ok-ink: #7be0a6; --bad-bg: #2c1a20; --bad-ink: #f58aa0;
-  --warn-bg: #2a2110; --warn-ink: #f0c36b; --warn-line: #4d3c16; --plain-bg: #272b31; --plain-ink: #d3d8df;
+  --ground: #161a22; --surface: #20262f; --raised: #29303b; --active: #343c4a;
+  --border: #3c4555; --rule: #2d3441; --control: #5b667a;
+  --text: #eef1f6; --muted: #b4bdcb; --faint: #a3adbd;
+  --primary: #eef1f6; --on-primary: #161a22;
+  --accent: #7aa9f2; --link: #93b9f6;
+  --accent-wash: #27385a; --accent-soft: #263652; --accent-track: #3a4456; --accent-ink: #bcd4f9; --on-accent: #101827;
+  --st-run: #6fa3f2;  --st-run-bg: #1f3358;  --st-run-ink: #b5d0f8;
+  --st-done: #3fc27c; --st-done-bg: #1a3a2b; --st-done-ink: #8fe5b3;
+  --st-wait: #e6a93c; --st-wait-bg: #43361a; --st-wait-ink: #f5cf85;
+  --st-fail: #f0687e; --st-fail-bg: #4a2430; --st-fail-ink: #f9a9b7;
+  --st-idle: #8f99ab; --st-idle-bg: #333b49;  --st-idle-ink: #d2d8e2;
+  --warn-line: #6b5522;
+  --team-mkt: #ec86b3; --team-mkt-bg: #4a2a3d; --team-mkt-ink: #f6b4d2;
+  --team-cs: #4cc4d4;  --team-cs-bg: #1f4148;  --team-cs-ink: #9fe1ea;
+  --c-amber: #f2a93b; --c-teal: #35c9b8; --c-indigo: #9d9bf7; --c-sky: #52c0f2; --c-rose: #f07aa8; --c-green: #3fd09a; --c-red: #f27272; --c-slate: #98a6ba;
 }
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -59,11 +80,15 @@ b, strong { font-weight: 600; }
 .pill.ok { background: var(--ok-bg); color: var(--ok-ink); }
 .pill.bad, .pill.alert { background: var(--bad-bg); color: var(--bad-ink); }
 .pill.warn, .pill.watch { background: var(--warn-bg); color: var(--warn-ink); }
-.pill.neutral, .pill.plain { background: var(--plain-bg); color: var(--plain-ink); }
+.pill.neutral, .pill.plain, .pill.idle { background: var(--plain-bg); color: var(--plain-ink); }
+.pill.run { background: var(--st-run-bg); color: var(--st-run-ink); }
+.pill.wait { background: var(--st-wait-bg); color: var(--st-wait-ink); }
+.pill[data-team="marketing"] { background: var(--team-mkt-bg); color: var(--team-mkt-ink); }
+.pill[data-team="customer_support"] { background: var(--team-cs-bg); color: var(--team-cs-ink); }
 .btn:disabled { opacity: .45; cursor: default; }
 .btn.soft { background: var(--raised); color: var(--text); }
 .btn.soft:hover:not(:disabled) { background: var(--active); }
-.btn.danger { background: var(--negative); color: #fff; }
+.btn.danger { background: var(--st-fail); color: var(--on-accent); }
 .btn.quiet-btn { color: inherit; font-weight: 500; }
 .btn.quiet-btn:hover:not(:disabled) { background: var(--raised); }
 input, select, textarea { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--control); border-radius: var(--radius-control); }

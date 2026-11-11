@@ -121,7 +121,7 @@ export interface Settings {
   notify: { done: boolean; failed: boolean; input: boolean }
 }
 export interface ModelCatalog {
-  default: { model: string | null; provider: string | null }
+  default: { model: string | null; provider: string | null; reasoning_effort?: string | null }
   providers: { slug: string; name: string; models: string[] }[]
 }
 export interface Security {

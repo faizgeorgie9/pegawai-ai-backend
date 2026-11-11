@@ -91,7 +91,7 @@ export default function Marketing() {
   const cur = team.find((b) => b.id === agent) ?? team.find((b) => b.id === 'rian') ?? team[0]
 
   return (
-    <section className="page ws">
+    <section className="page ws" data-team="marketing">
       <PageHead
         title="Marketing"
         sub="Satu alur, lima tahap: brief, rencana, konten, review, revisi."

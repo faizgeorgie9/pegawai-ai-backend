@@ -3,6 +3,7 @@ import pytest
 from bff.bots import validate_edit
 from bff.errors import ApiError
 from bff.settings import clean_run_fields, clean_settings, merge_run_params
+from bff import settings
 
 
 def status(fn, *a):
@@ -49,3 +50,25 @@ def test_settings_patch_validation():
     assert status(clean_settings, {"notify": {"done": "ya"}}) == 400
     assert status(clean_settings, {"bogus": 1}) == 400
     assert status(clean_settings, {"model": "x", "provider": "p"}) == 400  # model is per agent only
+
+
+def test_profile_effort_reads_only_agent_reasoning_effort(monkeypatch):
+    import tempfile
+    from pathlib import Path
+
+    tmp_path = Path(tempfile.mkdtemp())
+    from bff import config
+
+    monkeypatch.setattr(config, "HERMES_HOME", tmp_path)
+    prof = tmp_path / "profiles" / "rian"
+    prof.mkdir(parents=True)
+    cfg = prof / "config.yaml"
+    assert settings.profile_effort("rian") is None  # no file
+    cfg.write_text("model: x\n", encoding="utf-8")
+    assert settings.profile_effort("rian") == "medium"  # unset: Hermes documents medium
+    cfg.write_text("agent:\n  reasoning_effort: ''\n", encoding="utf-8")
+    assert settings.profile_effort("rian") == "medium"
+    cfg.write_text("agent:\n  reasoning_effort: High\n", encoding="utf-8")
+    assert settings.profile_effort("rian") == "high"
+    cfg.write_text("agent:\n  reasoning_effort: bogus\n", encoding="utf-8")
+    assert settings.profile_effort("rian") is None

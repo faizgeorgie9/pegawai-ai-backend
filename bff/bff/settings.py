@@ -126,9 +126,28 @@ async def catalog(user_id: str) -> dict:
         provs = None
     if r.status_code != 200 or provs is None:
         raise ApiError(502, "Daftar model belum bisa dibaca dari Hermes")
-    data = {"default": {"model": d.get("model"), "provider": d.get("provider")}, "providers": provs}
+    data = {"default": {"model": d.get("model"), "provider": d.get("provider"), "reasoning_effort": profile_effort(bot["id"])},
+            "providers": provs}
     _cache.update(at=time.monotonic(), data=data)
     return data
+
+
+HERMES_EFFORTS = ("none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra")
+
+
+def profile_effort(slug: str) -> str | None:
+    """What "Default" resolves to for the thinking level: agent.reasoning_effort of the profile config.yaml; Hermes documents an
+    empty/unset value as "medium" (docs/user-guide/configuration.md, section Reasoning Effort). No Hermes API exposes it, so this
+    reads that one key from config.yaml (never .env). None when the file or value cannot be read."""
+    try:
+        data = YAML(typ="safe").load((hermes.profile_dir(slug) / "config.yaml").read_text(encoding="utf-8")) or {}
+        raw = (data.get("agent") or {}).get("reasoning_effort")
+    except Exception:
+        return None
+    raw = str(raw).strip().lower() if raw is not None else ""
+    if not raw:
+        return "medium"
+    return raw if raw in HERMES_EFFORTS else None
 
 
 async def check_model(user_id: str, model: str | None, provider: str | None) -> None:

@@ -133,7 +133,7 @@ export function ChatLayout({ route }: { route: Extract<Route, { name: 'bot' } | 
         {loadState === 'error' && bots.length === 0 && <ErrorLine text={error} onRetry={reload} />}
         {loadState === 'ok' && bots.length === 0 && <p className="quiet pad">Belum ada agen.</p>}
         {Object.entries(teams).map(([team, list]) => (
-          <div key={team} className="bot-group">
+          <div key={team} className="bot-group" data-team={team}>
             <h3>{teamLabel(team)}</h3>
             <ul>
               {list.map((b) => (

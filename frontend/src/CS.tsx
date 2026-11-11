@@ -40,7 +40,7 @@ export default function CS() {
   const cur = team.find((b) => b.id === agent) ?? team.find((b) => b.id === 'siti') ?? team[0]
 
   return (
-    <section className="page ws">
+    <section className="page ws" data-team="customer_support">
       <PageHead title="Customer Service" sub="Simulasikan pertanyaan pelanggan. Jawaban berupa draf internal: tidak ada pesan yang dikirim." />
       {!cur ? <Loading text="Memuat agen CS..." /> : <Desk key={cur.id + ':' + gen} bot={cur} agentSelect={<AgentSelect label="Agen" bots={team} value={cur.id} onChange={(id) => (id === cur.id ? null : dirty.current ? setPending(id) : setAgent(id))} />} onDirty={(v) => (dirty.current = v)} onNew={() => { dirty.current = false; setGen((g) => g + 1) }} />}
       {pending && (

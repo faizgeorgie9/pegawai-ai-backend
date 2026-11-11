@@ -215,7 +215,7 @@ def validate_edit(body: dict, builtin: bool) -> dict:
     if not body:
         raise ApiError(400, "Tidak ada yang diubah")
     if builtin and set(body) - {"color", *settings.RUN_FIELDS}:
-        raise ApiError(403, "Agen default hanya bisa diubah warna dan modelnya")
+        raise ApiError(403, "Agen sistem hanya bisa diubah warna dan modelnya")
     out: dict = settings.clean_run_fields(body)
     if "name" in body:
         out["name"] = _line(body["name"], "Nama")
@@ -287,7 +287,7 @@ async def delete_bot(user_id: str, bot_id: str) -> None:
     A failed removal is logged and puts the bot back with `delete_error`, so the user sees it on the bot and can delete again."""
     b = await get_bot(user_id, bot_id)
     if b["builtin"]:
-        raise ApiError(403, "Agen default tidak bisa dihapus")
+        raise ApiError(403, "Agen sistem tidak bisa dihapus")
     busy = await db.q1("select 1 as x from runs where bot_id = %s and status = any(%s) limit 1", bot_id, list(engine.ACTIVE))
     if busy or any(lv.bot == bot_id for lv in engine.LIVE.values()):
         raise ApiError(409, "Bot sedang bekerja. Hentikan tugasnya dulu.")
