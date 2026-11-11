@@ -17,7 +17,7 @@ export interface Scenario {
   simulate: boolean // CS only: send test_mode (SIM-* fixtures)
 }
 const PRODUCT = 'Produk: Colorbox Regular Fit Short Sleeve Graphic T-Shirt, Rp 79.900 (Public Data · 9 Nov 2026).'
-const joinTurns = (t: string[]) => (t.length === 1 ? t[0] : t.map((x, i) => `Giliran ${i + 1}: ${x}`).join('\n'))
+export const joinTurns = (t: string[]) => (t.length === 1 ? t[0] : t.map((x, i) => `Giliran ${i + 1}: ${x}`).join('\n'))
 const make = (s: Omit<Scenario, 'prompt'>): Scenario => ({ ...s, prompt: joinTurns(s.turns) })
 const M = (id: string, title: string, capability: string, prompt: string, expected: string, dummy = false): Scenario =>
   make({ id, group: 'marketing', title, capability, turns: [`${prompt}\n\n${PRODUCT}`], expected, tag: dummy ? 'Public Data · 9 Nov 2026, promo DUMMY' : 'Public Data · 9 Nov 2026', tagKind: dummy ? 'dummy' : 'public', simulate: false })
