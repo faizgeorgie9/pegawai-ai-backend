@@ -369,6 +369,8 @@ export default function Uji() {
                   busy={busy}
                   detail={[cmp ? `Run ${liveIdx + 1} dari ${cmp.cols.length}: ${cmp.cols[liveIdx].botName}` : '', sc.turns.length > 1 ? `giliran ${cmp ? turnNo : seq?.current_turn ?? 1} dari ${sc.turns.length}` : ''].filter(Boolean).join(', ') || undefined}
                   onStop={stop}
+                  clarify={cmp ? run.clarify : undefined}
+                  onAnswer={run.answer}
                   status={cmp ? run.status : seqStatus}
                   error={cmp ? run.error : seq?.error ?? ''}
                   onRetry={() => void start(sc)}

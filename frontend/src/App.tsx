@@ -9,6 +9,7 @@ import { Dialogs } from './Dialogs'
 import { Kemampuan } from './Platform'
 import CS from './CS'
 import Marketing from './Marketing'
+import Settings from './Settings'
 import Uji from './Uji'
 import { botPath, go, groupPath, useRoute } from './router'
 import type { Route } from './router'
@@ -74,6 +75,7 @@ function Shell() {
         {route.name === 'marketing' && <Marketing />}
         {route.name === 'cs' && <CS />}
         {route.name === 'uji' && <Uji />}
+        {route.name === 'pengaturan' && <Settings section={route.section} />}
       </main>
 
       <div className="toasts" aria-live="polite">
@@ -113,8 +115,9 @@ function Shell() {
 }
 
 // ---------- sidebar ----------
-// Nine places in three groups. The agent and group lists live on the Chat and Grup pages, not here.
+// Four groups. The agent and group lists live on the Chat and Grup pages, not here.
 function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
+  const { settings } = useData()
   return (
     <aside className="side" aria-label="Menu utama">
       <div className="side-top">
@@ -122,7 +125,7 @@ function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
           <Mark />
           <span className="brand-text">
             Pegawai AI
-            <small>Colorbox</small>
+            <small>{settings.company_name}</small>
           </span>
         </span>
         <button className="icon-btn close-drawer" aria-label="Tutup menu" onClick={onClose}>
@@ -131,7 +134,7 @@ function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
       </div>
 
       <nav className="side-scroll" aria-label="Halaman">
-        <NavGroup label="Kerja">
+        <NavGroup label="Percakapan">
           <NavItem href="#/" icon={I.home} current={route.name === 'home'}>
             Beranda
           </NavItem>
@@ -141,20 +144,23 @@ function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
           <NavItem href="#/grup" icon={I.group} current={route.name === 'grup-list' || route.name === 'grup'}>
             Grup
           </NavItem>
-          <NavItem href="#/marketing" icon={I.marketing} current={route.name === 'marketing'}>
+        </NavGroup>
+
+        <NavGroup label="Workflow">
+          <NavItem href="#/marketing" team="marketing" icon={I.marketing} current={route.name === 'marketing'}>
             Marketing
           </NavItem>
-          <NavItem href="#/cs" icon={I.support} current={route.name === 'cs'}>
-            Customer Service
+          <NavItem href="#/cs" team="customer_support" icon={I.support} current={route.name === 'cs'}>
+            CS
           </NavItem>
         </NavGroup>
 
         <NavGroup label="Pengujian">
           <NavItem href="#/uji" icon={I.test} current={route.name === 'uji'}>
-            Evaluasi
+            Uji
           </NavItem>
           <NavItem href="#/aktivitas" icon={I.log} current={route.name === 'aktivitas'}>
-            Log aktivitas
+            Aktivitas
           </NavItem>
         </NavGroup>
 
@@ -165,6 +171,9 @@ function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
           <NavItem href="#/tools" icon={I.skills} current={route.name === 'tools' || route.name === 'computer-use' || route.name === 'scheduler'}>
             Kemampuan
           </NavItem>
+          <NavItem href="#/pengaturan" icon={I.settings} current={route.name === 'pengaturan'}>
+            Pengaturan
+          </NavItem>
         </NavGroup>
       </nav>
 
@@ -172,15 +181,14 @@ function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
         <div className="runs-slot">
           <RunsPill />
         </div>
-        <ThemeToggle />
       </footer>
     </aside>
   )
 }
 
-function NavItem({ href, icon, current, children }: { href: string; icon: string; current: boolean; children: React.ReactNode }) {
+function NavItem({ href, icon, current, team, children }: { href: string; icon: string; current: boolean; team?: string; children: React.ReactNode }) {
   return (
-    <a className="nav-link" href={href} aria-current={current ? 'page' : undefined}>
+    <a className="nav-link" data-team={team} href={href} aria-current={current ? 'page' : undefined}>
       <Icon d={icon} size={16} />
       {children}
     </a>
@@ -194,27 +202,6 @@ function NavGroup({ label, children }: { label: string; children: React.ReactNod
       <h2 id={id}>{label}</h2>
       <div className="group-body">{children}</div>
     </section>
-  )
-}
-
-// Light is the default. Dark is a choice, remembered when storage works.
-function ThemeToggle() {
-  const [dark, setDark] = useState(() => document.documentElement.dataset.theme === 'dark')
-  function toggle() {
-    const v = !dark
-    setDark(v)
-    if (v) document.documentElement.dataset.theme = 'dark'
-    else delete document.documentElement.dataset.theme
-    try {
-      localStorage.setItem('pa.theme', v ? 'dark' : 'light')
-    } catch {
-      /* not remembered */
-    }
-  }
-  return (
-    <button className="theme-btn" onClick={toggle}>
-      {dark ? 'Pakai tema terang' : 'Pakai tema gelap'}
-    </button>
   )
 }
 

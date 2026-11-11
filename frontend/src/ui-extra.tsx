@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { errText } from './bff'
+import { api, errText } from './bff'
 import { ErrorLine, I, Icon } from './ui'
-import type { Bot } from './bff'
+import type { Bot, Clarify } from './bff'
 
 // Shared page pieces for the Sprint 3 pages.
 
@@ -12,6 +12,88 @@ export function statusText(b: Pick<Bot, 'status' | 'activity' | 'deleteError'>):
   if (b.status === 'working') return b.activity ? `Sedang bekerja: ${b.activity}` : 'Sedang bekerja'
   if (b.status === 'discussing') return b.activity ? `Berdiskusi di grup: ${b.activity}` : 'Berdiskusi di grup'
   return 'Siap'
+}
+
+// Model and thinking-level dropdowns, used by the agent edit page. A model value is "provider|model"; '' = Default.
+export const modelKey = (provider: string | null | undefined, model: string | null | undefined) => (provider && model ? `${provider}|${model}` : '')
+export const splitModel = (v: string): { provider: string | null; model: string | null } => {
+  const i = v.indexOf('|')
+  return i < 0 ? { provider: null, model: null } : { provider: v.slice(0, i), model: v.slice(i + 1) }
+}
+
+export function ModelSelect({ value, onChange, disabled, label = 'Model' }: { value: string; onChange: (v: string) => void; disabled?: boolean; label?: string }) {
+  const [cat, setCat] = useState<Awaited<ReturnType<typeof api.models>> | null>(null)
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    let live = true
+    api.models().then(
+      (c) => live && setCat(c),
+      (e) => live && setErr(errText(e)),
+    )
+    return () => {
+      live = false
+    }
+  }, [])
+  const known = !value || !!cat?.providers.some((p) => p.models.some((m) => modelKey(p.slug, m) === value))
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{defaultModelLabel(cat)}</option>
+        {!known && <option value={value}>{splitModel(value).model}</option>}
+        {cat?.providers.map((p) => (
+          <optgroup key={p.slug} label={p.name}>
+            {p.models.map((m) => (
+              <option key={m} value={modelKey(p.slug, m)}>
+                {m}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      {err && <small className="err" role="alert">{err}</small>}
+    </label>
+  )
+}
+
+const EFFORT_WORD: Record<string, string> = { none: 'Tidak berpikir', minimal: 'Minimal', low: 'Rendah', medium: 'Sedang', high: 'Tinggi', xhigh: 'Sangat tinggi', max: 'Maksimal', ultra: 'Ultra' }
+export const effortWord = (v: string | null | undefined) => (v ? EFFORT_WORD[v] ?? v : '')
+// What "Default" resolves to, shown next to the word everywhere: the profile's own value, else "ikut provider" (value unknown).
+export const defaultEffortLabel = (cat?: { default: { reasoning_effort?: string | null } } | null) => `Default (${effortWord(cat?.default.reasoning_effort) || 'ikut provider'})`
+export const defaultModelLabel = (cat?: { default: { model: string | null } } | null) => `Default${cat?.default.model ? ` (${cat.default.model})` : ''}`
+const EFFORT_MAIN: [string, string][] = [['low', 'Rendah'], ['medium', 'Sedang'], ['high', 'Tinggi']]
+const EFFORT_ADV: [string, string][] = [['none', 'Tidak berpikir'], ['minimal', 'Minimal'], ['xhigh', 'Sangat tinggi']]
+export function EffortSelect({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
+  const [cat, setCat] = useState<Awaited<ReturnType<typeof api.models>> | null>(null)
+  useEffect(() => {
+    let live = true
+    api.models().then((c) => live && setCat(c), () => {}) // the label then says "ikut provider"; ModelSelect shows the error
+    return () => {
+      live = false
+    }
+  }, [])
+  return (
+    <label className="field">
+      <span>Tingkat berpikir</span>
+      <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{defaultEffortLabel(cat)}</option>
+        {EFFORT_MAIN.map(([v, l]) => (
+          <option key={v} value={v}>
+            {l}
+          </option>
+        ))}
+        {EFFORT_ADV.some(([v]) => v === value) && (
+          <optgroup label="Lanjutan">
+            {EFFORT_ADV.map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+          </optgroup>
+        )}
+      </select>
+    </label>
+  )
 }
 
 // Marks an optional field label. Forms where most fields are required mark only the optional ones.
@@ -183,4 +265,40 @@ export function useLoad<T>(fn: () => Promise<T>) {
     }
   }, [fn, n])
   return { ...s, retry: () => setN((x) => x + 1) }
+}
+
+// The model asked the user a question (tool clarify): the question, a button per choice, a free answer and Kirim. Same card as the approval.
+export function ClarifyCard({ c, onAnswer }: { c: Clarify; onAnswer: (text: string) => Promise<void> }) {
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const send = async (a: string) => {
+    if (!a.trim() || busy) return
+    setBusy(true)
+    try {
+      await onAnswer(a.trim())
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <form className="approval clarify" role="group" aria-label="Bot bertanya" onSubmit={(e) => { e.preventDefault(); void send(text) }}>
+      <p className="approval-title">Bot bertanya</p>
+      <p>{c.question}</p>
+      {c.choices.length > 0 && (
+        <div className="approval-actions">
+          {c.choices.map((ch) => (
+            <button key={ch} type="button" className="btn soft" disabled={busy} onClick={() => void send(ch)}>
+              {ch}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="clarify-row">
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Tulis jawaban Anda" aria-label="Jawaban Anda" maxLength={4000} disabled={busy} />
+        <button className="btn primary" type="submit" disabled={busy || !text.trim()}>
+          Kirim
+        </button>
+      </div>
+    </form>
+  )
 }

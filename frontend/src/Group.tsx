@@ -1,6 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ApiError, api, asStr, errText } from './bff'
-import type { Bot, GroupMsg } from './bff'
+import { ApiError, api, asStr, errText, subscribe } from './bff'
+import type { Bot, GroupMsg, ToolChip } from './bff'
+import { LiveSteps } from './LiveSteps'
+import { applyTool, settle, toolsFrom } from './steps'
+import { useSmoothText } from './useSmoothText'
 import { Md } from './Chat'
 import { useData } from './data'
 import { PanelButtons, SidePanel, Split } from './Panel'
@@ -9,6 +12,14 @@ import { BotAvatar, ErrorLine, PENCIL, Icon, ThinkingBlock, botColor, clock, tea
 
 const sameId = (a: string, b: string) => a === b
 type Problem = { text: string; upgrade?: boolean } | null
+// The bot turn being written right now: text and steps come from that run's own stream (the same one Chat follows).
+interface Turn {
+  bot: string
+  run: string // empty until the run has started
+  text: string
+  tools: ToolChip[]
+  reasoning: string
+}
 
 export default function GroupChat({ id, onRail }: { id: string; onRail: () => void }) {
   const { groups, bots, loadState, on, setDialog, setGroup, askNotify, viewing, reload } = useData()
@@ -19,7 +30,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
   const [error, setError] = useState('')
   const [hasMore, setHasMore] = useState(false)
   const [older, setOlder] = useState(false)
-  const [typing, setTyping] = useState<Record<string, 'thinking' | 'writing'>>({})
+  const [turn, setTurn] = useState<Turn | null>(null)
   const [rv, setRv] = useState(0) // bumped when group_reasoning arrives
   const [thoughts, setThoughts] = useState<Record<string, { text: string; seconds?: number }>>({}) // run_id -> reasoning
   const [pv, setPv] = useState(0) // bumped whenever the side panel's data may have changed
@@ -45,10 +56,14 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
     const mine = ++epoch.current
     setState('loading')
     setMsgs([])
-    setTyping({})
+    setTurn(null)
     setPending([])
     setProblem(null)
     stick.current = true
+    api.groupLive(id).then(
+      (t) => mine === epoch.current && t && setTurn((cur) => cur ?? { bot: t.bot, run: t.run, text: '', tools: [], reasoning: '' }),
+      () => {}, // a reload mid-turn recovers the live bubble; without it the final message still arrives
+    )
     api.groupMessages(id).then(
       (m) => {
         if (mine !== epoch.current) return
@@ -83,27 +98,43 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
       }),
       on('group_typing', (d) => {
         if (asStr(d.group_id) !== id) return
-        const b = asStr(d.bot_id)
-        // phase "thinking" until the first words arrive, then "writing"
-        setTyping((cur) => {
-          if (!d.on) {
-            const { [b]: _gone, ...rest } = cur
-            return rest
-          }
-          return { ...cur, [b]: d.phase === 'writing' ? 'writing' : (cur[b] ?? 'thinking') }
+        const bot = asStr(d.bot_id)
+        const run = asStr(d.run_id)
+        setTurn((cur) => {
+          if (!d.on) return cur?.bot === bot ? null : cur
+          if (cur?.bot === bot) return run && !cur.run ? { ...cur, run } : cur
+          return { bot, run, text: '', tools: [], reasoning: '' }
         })
         bump()
       }),
       on('group_send', (d) => {
         if (asStr(d.group_id) === id && /done|complet|finish|stop|fail|error|idle|cancel|limit/i.test(asStr(d.status))) {
           setPending([])
-          setTyping({})
+          setTurn(null)
           bump()
         }
       }),
     ]
     return () => offs.forEach((f) => f())
   }, [id, on])
+
+  const run = turn?.run
+  useEffect(() => {
+    if (!run) return
+    const upd = (f: (t: Turn) => Turn) => setTurn((cur) => (cur && cur.run === run ? f(cur) : cur))
+    const off = subscribe(`/runs/${encodeURIComponent(run)}/stream`, {
+      snapshot: (d) =>
+        upd((t) => ({ ...t, text: asStr(d.output), tools: toolsFrom(d.events) ?? t.tools, reasoning: asStr(d.reasoning) || t.reasoning })),
+      delta: (d) => upd((t) => ({ ...t, text: t.text + asStr(d.text) })),
+      tool: (d) => upd((t) => ({ ...t, tools: applyTool(t.tools, d) })),
+      reasoning: (d) => upd((t) => ({ ...t, reasoning: [t.reasoning, asStr(d.text)].filter(Boolean).join('\n\n') })),
+      done: () => {
+        off() // a finished run's stream ends; left open, EventSource would reconnect forever
+        upd((t) => ({ ...t, tools: settle(t.tools) })) // the final message replaces this bubble
+      },
+    })
+    return off
+  }, [run])
 
   useEffect(() => {
     let live = true
@@ -123,7 +154,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
       el.scrollTop = el.scrollHeight - anchor.current // keep the reader's place after older messages are prepended
       anchor.current = null
     } else if (stick.current) el.scrollTop = el.scrollHeight
-  }, [msgs, typing])
+  }, [msgs, turn])
   useEffect(() => {
     const el = box.current
     if (!el) return
@@ -217,8 +248,6 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
     )
   }
 
-  const typingBots = Object.keys(typing).map((t) => bots.find((b) => b.id === t)).filter((b): b is Bot => !!b)
-
   return (
     <Split panel={<SidePanel scope={{ group_id: id }} version={pv} group={group} members={members} />}>
     <section className="convo" aria-label={`Grup ${group.name}`}>
@@ -296,16 +325,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
           {msgs.map((m) => (
             <GroupBubble key={m.id} m={m} bot={bots.find((b) => b.id === m.bot_id)} queued={pending.includes(m.id)} thought={thoughts[m.run_id ?? '']} />
           ))}
-          {typingBots.length > 0 && (
-            <div className="typing" style={{ ['--bot' as string]: botColor(typingBots[0]) }}>
-              <span className="typing-dots" aria-hidden="true">
-                <i />
-                <i />
-                <i />
-              </span>
-              {typingBots.map((b) => `${b.name} sedang ${typing[b.id] === 'writing' ? 'mengetik' : 'berpikir'}…`).join(' · ')}
-            </div>
-          )}
+          {turn && <LiveBubble t={turn} bot={bots.find((b) => b.id === turn.bot)} />}
         </div>
       </div>
 
@@ -417,13 +437,37 @@ function GroupBubble({ m, bot, queued, thought }: { m: GroupMsg; bot?: Bot; queu
         <p className="gmsg-who">
           <b>{bot?.name ?? 'Bot'}</b>
           {bot?.role && <span>{bot.role}</span>}
-          {bot?.team && <span className="team-tag">{teamLabel(bot.team)}</span>}
+          {bot?.team && <span className="team-tag" data-team={bot.team}>{teamLabel(bot.team)}</span>}
           <time>{clock(m.created_at)}</time>
         </p>
         {thought?.text && <ThinkingBlock text={thought.text} running={false} seconds={thought.seconds} />}
         <div className="bubble">
           <Md text={m.text} />
         </div>
+      </div>
+    </div>
+  )
+}
+
+function LiveBubble({ t, bot }: { t: Turn; bot?: Bot }) {
+  const sm = useSmoothText(t.text, true)
+  const waiting = !t.text
+  return (
+    <div className="msg bot gmsg" style={{ ['--bot' as string]: botColor(bot) }}>
+      <BotAvatar bot={bot ?? { name: '?', color: '' }} size={32} />
+      <div className="msg-body">
+        <p className="gmsg-who">
+          <b>{bot?.name ?? 'Bot'}</b>
+          {bot?.role && <span>{bot.role}</span>}
+          {bot?.team && <span className="team-tag">{teamLabel(bot.team)}</span>}
+        </p>
+        <LiveSteps tools={t.tools} running writing={!waiting} />
+        <ThinkingBlock text={t.reasoning} running={waiting} />
+        {!waiting && (
+          <div className="bubble">
+            <Md text={sm.text} caret={sm.caret} />
+          </div>
+        )}
       </div>
     </div>
   )

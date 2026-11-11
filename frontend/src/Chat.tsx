@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { ApiError, api, asStr, errText, isAbort, newKey, subscribe, usageOf } from './bff'
+import { ApiError, api, asStr, errText, isAbort, newKey, subscribe, toClarify, usageOf } from './bff'
 import type { Bot, ChatMessage, Session, SseState } from './bff'
 import { useData } from './data'
 import { Cs21Card } from './ResultCards'
@@ -11,9 +11,9 @@ import { LiveDraft, LiveSteps } from './LiveSteps'
 import { useSmoothText } from './useSmoothText'
 import type { Cs21 } from './results'
 import { go, botPath } from './router'
-import { CopyButton, RunProgress, statusText } from './ui-extra'
+import { ClarifyCard, CopyButton, RunProgress, statusText } from './ui-extra'
 import { PanelButtons, SidePanel, Split } from './Panel'
-import { BotAvatar, CLOSE, Icon, ThinkingBlock, nf } from './ui'
+import { BotAvatar, CLOSE, Icon, ThinkingBlock, botColor, nf } from './ui'
 
 const THINK_KEY = 'pegawai.showThinking'
 function readThink(): boolean {
@@ -105,6 +105,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
             content: asStr(d.output) || m.content,
             reasoning: asStr(d.reasoning) || m.reasoning,
             tools: toolsFrom(d.tools ?? d.tool_events ?? d.events) ?? m.tools,
+            clarify: toClarify(d.clarify) ?? m.clarify,
           })),
         delta: (d) => edit(key, (m) => ({ ...m, content: m.content + asStr(d.text), approval: undefined })),
         reasoning: (d) => {
@@ -118,11 +119,14 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
             ...m,
             approval: { request_id: asStr(d.request_id), description: asStr(d.description), choices: Array.isArray(d.choices) ? d.choices.map((c: unknown) => asStr(c)) : [] },
           })),
+        clarify: (d) => edit(key, (m) => ({ ...m, clarify: toClarify(d) })),
+        clarify_done: () => edit(key, (m) => ({ ...m, clarify: undefined })),
         done: (d) => {
           const status = asStr(d.status).toLowerCase()
           const usage = d.usage ? usageOf(d.usage) : undefined
           edit(key, (m) => ({
             ...m,
+            clarify: undefined,
             content: asStr(d.output) || m.content,
             reasoning: asStr(d.reasoning) || m.reasoning,
             tokens: usage,
@@ -314,12 +318,23 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
     }
   }
 
+  async function answer(m: ChatMessage, text: string) {
+    const c = m.clarify
+    if (!c || !run?.id) return
+    try {
+      await api.clarify(run.id, text)
+      edit(m.key, (x) => ({ ...x, clarify: undefined }))
+    } catch (e) {
+      setProblem({ text: errText(e) })
+    }
+  }
+
   const running = !!run
 
   return (
     <Split panel={<SidePanel scope={sid ? { session_id: sid } : null} version={pv} bot={bot} />}>
     <section className="convo" aria-label={`Percakapan dengan ${bot.name}`}>
-      <header className="convo-head">
+      <header className="convo-head" style={{ ['--bot' as string]: botColor(bot) }}>
         <button className="btn soft sm rail-open" onClick={onRail}>
           Riwayat
         </button>
@@ -380,6 +395,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
               live={running && i === messages.length - 1 && m.role === 'assistant'}
               reconnecting={conn === 'retry' && running && i === messages.length - 1}
               onApprove={(deny) => void approve(m, deny)}
+              onAnswer={(t) => answer(m, t)}
             />
           ))}
           {queue.map((t, i) => (
@@ -495,6 +511,7 @@ function Message(p: {
   live: boolean
   reconnecting: boolean
   onApprove: (deny: boolean) => void
+  onAnswer: (text: string) => Promise<void>
 }) {
   const { m, bot, live } = p
   const cs = useMemo(() => (m.role === 'assistant' ? csFromText(m.content) : null), [m.role, m.content])
@@ -507,13 +524,13 @@ function Message(p: {
       </div>
     )
   }
-  const waiting = live && !m.content && !m.approval
+  const waiting = live && !m.content && !m.approval && !m.clarify
   return (
-    <div className="msg bot">
+    <div className="msg bot" style={{ ['--bot' as string]: botColor(bot) }}>
       <BotAvatar bot={bot} size={28} />
       <div className="msg-body">
-        {live && !m.approval && <RunProgress />}
-        <LiveSteps tools={m.tools} running={live && !m.approval} writing={!!m.content} seconds={m.seconds} />
+        {live && !m.approval && !m.clarify && <RunProgress />}
+        <LiveSteps tools={m.tools} running={live && !m.approval && !m.clarify} writing={!!m.content} seconds={m.seconds} />
         <ThinkingBlock text={m.reasoning} running={waiting} seconds={m.seconds} defaultOpen={p.showThink} />
         {cs ? (
           <div className="cs-msg">
@@ -550,6 +567,7 @@ function Message(p: {
             </div>
           </div>
         )}
+        {m.clarify && <ClarifyCard key={m.clarify.request_id} c={m.clarify} onAnswer={p.onAnswer} />}
         {m.notes?.map((n, i) => (
           <p key={i} className="meta">
             Anda mengarahkan: {n}

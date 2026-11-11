@@ -22,18 +22,9 @@ export const elapsed = (epoch: number, now: number) => {
   return s < 60 ? `${s} dtk` : `${Math.floor(s / 60)} mnt ${s % 60} dtk`
 }
 
-// A bot's colour arrives as a name (the BFF's palette) or a hex string; anything else falls back to the accent.
-export const COLORS: Record<string, string> = {
-  amber: '#d97706',
-  teal: '#0d9488',
-  indigo: '#3366cc',
-  sky: '#0ea5e9',
-  rose: '#b8336a',
-  green: '#059669',
-  red: '#dc2626',
-  slate: '#64748b',
-}
-export const botColor = (b?: Pick<Bot, 'color'>) => (b ? (COLORS[b.color.toLowerCase()] ?? (/^#[0-9a-f]{3,8}$/i.test(b.color) ? b.color : '#b8336a')) : '#b8336a')
+// A bot's colour arrives as a name (the BFF's palette) or a hex string. Names map to the --c-* tokens (styles.css), which differ per theme.
+export const COLORS: Record<string, string> = Object.fromEntries(['amber', 'teal', 'indigo', 'sky', 'rose', 'green', 'red', 'slate'].map((c) => [c, `var(--c-${c})`]))
+export const botColor = (b?: Pick<Bot, 'color'>) => (b ? (COLORS[b.color.toLowerCase()] ?? (/^#[0-9a-f]{3,8}$/i.test(b.color) ? b.color : 'var(--c-slate)')) : 'var(--c-slate)')
 
 // Team ids arrive as slugs ("customer_support"); show them as words.
 const TEAM_LABELS: Record<string, string> = { marketing: 'Marketing', customer_support: 'Customer Service' }
@@ -67,6 +58,7 @@ export const I = {
   log: 'M22 12h-4l-3 9L9 3l-3 9H2',
   agent: 'M12 8V4H8M4 8h16v12H4zM2 14h2M20 14h2M15 13v2M9 13v2',
   skills: 'm12 2 10 5-10 5L2 7zM2 17l10 5 10-5M2 12l10 5 10-5',
+  settings: 'M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0M16 4v4M8 10v4M18 16v4',
   down: 'M6 9l6 6 6-6',
   check: 'M20 6 9 17l-5-5',
 }

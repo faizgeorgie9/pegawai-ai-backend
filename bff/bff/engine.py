@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import httpx
 
-from . import catalog, cs_schema, db, hermes, knowledge, versions
+from . import catalog, cs_schema, db, hermes, knowledge, settings, versions
 from .errors import ApiError
 from .redact import redact
 
@@ -66,6 +66,10 @@ class Live:
     first_errors: list = field(default_factory=list)
     prior: dict = field(default_factory=dict)  # token usage of the attempt before the retry
     t0: float | None = None
+    clarify: dict | None = None  # the question Hermes waits on (identity needed to answer it), until settled
+    approval: dict | None = None  # the approval Hermes waits on: {request_id, execution_generation}, until answered
+    params: dict = field(default_factory=dict)  # model / provider / model_options sent with the run (reused by the repair retry)
+
 
 
 LIVE: dict[str, Live] = {}
@@ -138,6 +142,11 @@ async def start_run(user_id: str, bot: str, session_id: str, input_: str, kind: 
     await check_quota(user_id)
     rid = str(uuid.uuid4())
     meta = await versions.snapshot(bot, instructions)  # version and config at the moment the run starts
+    params = await settings.run_params(bot)  # the bot's own model/effort, else nothing (Hermes uses the profile default)
+    if params.get("model"):
+        meta.update(model=params["model"], provider=params["provider"])
+    if params.get("model_options"):
+        meta["reasoning_effort"] = params["model_options"]["reasoning_effort"]
     if context:
         meta.update(context, prompt_hash=knowledge.prompt_hash(instructions, input_))
         if context.get("workflow") != "cs":
@@ -147,7 +156,7 @@ async def start_run(user_id: str, bot: str, session_id: str, input_: str, kind: 
     await db.ex("insert into runs (id, user_id, bot_id, session_id, group_id, kind, status, input, meta) "
                 "values (%s, %s, %s, %s, %s, %s, 'queued', %s, %s)", rid, user_id, bot, session_id, group_id, kind, input_,
                 _json(meta))
-    body = {"input": input_, "session_id": session_id}
+    body = {"input": input_, "session_id": session_id, **params}
     if instructions:
         body["instructions"] = instructions
     try:
@@ -164,7 +173,7 @@ async def start_run(user_id: str, bot: str, session_id: str, input_: str, kind: 
     hid = r.json()["run_id"]
     row = await db.q1("update runs set status = 'running', hermes_run_id = %s, started_at = now() "
                       "where id = %s returning *", hid, rid)
-    lv = Live(rid, bot, hid, kind, group_id, session_id, input=input_, t0=time.monotonic())
+    lv = Live(rid, bot, hid, kind, group_id, session_id, input=input_, t0=time.monotonic(), params=params)
     if context:
         lv.workflow, lv.instructions = context.get("workflow"), instructions
     LIVE[rid] = lv
@@ -264,9 +273,24 @@ async def _handle(lv: Live, seq: int, ev: dict) -> str | None:
     elif name.startswith("approval."):
         await _store_event(lv, seq, ev)
         if name == "approval.request":
-            hub.publish(lv.id, "approval", {"request_id": ev.get("request_id"),
+            rid = ev.get("prompt_id") or ev.get("request_id")
+            lv.approval = {"request_id": rid, "execution_generation": ev.get("execution_generation")}
+            hub.publish("*", "run_input", {"id": lv.id, "bot_id": lv.bot, "kind": lv.kind, "what": "approval"})
+            hub.publish(lv.id, "approval", {"request_id": rid,
                                             "description": redact(ev.get("description") or ev.get("command")),
                                             "choices": ev.get("choices")})
+    elif name.startswith("clarify."):
+        await _store_event(lv, seq, ev)
+        if name == "clarify.request":
+            choices = ev.get("choices")
+            lv.clarify = {"request_id": ev.get("prompt_id"), "execution_generation": ev.get("execution_generation"),
+                          "question": redact(ev.get("question") or ""),
+                          "choices": [redact(c) for c in choices if isinstance(c, str)] if isinstance(choices, list) else []}
+            hub.publish(lv.id, "clarify", lv.clarify)
+            hub.publish("*", "run_input", {"id": lv.id, "bot_id": lv.bot, "kind": lv.kind, "what": "clarify"})
+        elif name == "clarify.settled" and lv.clarify and lv.clarify["request_id"] == ev.get("prompt_id"):
+            lv.clarify = None
+            hub.publish(lv.id, "clarify_done", {})
     elif name == "reasoning.available":
         text = redact(ev.get("text") or "")
         lv.reasoning.append(text)
@@ -326,7 +350,7 @@ async def _retry_cs(lv: Live, ev: dict, errors: list[str]) -> bool:
     text = REPAIR.format(errors="; ".join(errors[:5])[:600])
     try:
         r = await hermes.call(lv.bot, "POST", "/v1/runs", headers={"Idempotency-Key": f"{lv.id}-retry"},
-                              json_body={"input": text, "session_id": lv.session_id, "instructions": lv.instructions})
+                              json_body={"input": text, "session_id": lv.session_id, "instructions": lv.instructions, **lv.params})
         if r.status_code >= 300:
             return False
         hid = r.json()["run_id"]
@@ -536,9 +560,42 @@ async def approval(user_id: str, run_id: str, choice: str) -> dict:
     if choice not in ("once", "session", "always", "deny"):
         raise ApiError(400, "Pilihan persetujuan tidak valid")
     _, lv = await _owned_active(user_id, run_id)
-    r = await hermes.call(lv.bot, "POST", f"/v1/runs/{lv.hid}/approval", json_body={"choice": choice})
+    pending = lv.approval
+    if not pending:
+        raise ApiError(409, "Tidak ada permintaan izin yang menunggu")
+    # Hermes accepts exactly request_id, execution_generation and choice (api_server_authority_runs.py:respond_run)
+    r = await hermes.call(lv.bot, "POST", f"/v1/runs/{lv.hid}/approval",
+                          json_body={"request_id": pending["request_id"],
+                                     "execution_generation": pending["execution_generation"], "choice": choice})
+    if r.status_code == 409:
+        lv.approval = None  # stale or already answered
+        raise ApiError(409, "Permintaan izin sudah dijawab atau kedaluwarsa")
     if r.status_code >= 300:
         raise _hermes_error(r, "Gagal mengirim persetujuan")
+    lv.approval = None
+    return {"ok": True}
+
+
+async def clarify(user_id: str, run_id: str, answer) -> dict:
+    """Answer the question the model asked (tool clarify). Hermes wants exactly request_id, execution_generation
+    and answer (gateway/platforms/api_server_authority_runs.py:respond_run); the first two come from the stored request."""
+    if not isinstance(answer, str) or not 1 <= len(answer.strip()) <= 4000:
+        raise ApiError(400, "Jawaban wajib diisi (maksimal 4000 karakter)")
+    _, lv = await _owned_active(user_id, run_id)
+    pending = lv.clarify
+    if not pending:
+        raise ApiError(409, "Tidak ada pertanyaan yang menunggu jawaban")
+    r = await hermes.call(lv.bot, "POST", f"/v1/runs/{lv.hid}/clarify",
+                          json_body={"request_id": pending["request_id"],
+                                     "execution_generation": pending["execution_generation"], "answer": answer.strip()})
+    if r.status_code == 409:
+        lv.clarify = None  # stale or already answered: the card should go away
+        hub.publish(lv.id, "clarify_done", {})
+        raise ApiError(409, "Pertanyaan sudah dijawab atau kedaluwarsa")
+    if r.status_code >= 300:
+        raise _hermes_error(r, "Gagal mengirim jawaban")
+    lv.clarify = None
+    hub.publish(lv.id, "clarify_done", {})
     return {"ok": True}
 
 

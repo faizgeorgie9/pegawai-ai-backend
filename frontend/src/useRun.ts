@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api, asStr, errText, subscribe } from './bff'
-import type { RunCtx, ToolChip } from './bff'
+import { api, asStr, errText, subscribe, toClarify } from './bff'
+import type { Clarify, RunCtx, ToolChip } from './bff'
 import { applyTool, settle, toolsFrom } from './steps'
 import { toRunResult } from './results'
 import type { RunResult } from './results'
@@ -26,6 +26,7 @@ export function useRun(botId = '') {
   const [runId, setRunId] = useState('')
   const [tools, setTools] = useState<ToolChip[]>([]) // live steps: one per tool event, kept after the run for the folded line
   const [startedAt, setStartedAt] = useState(0)
+  const [clarify, setClarify] = useState<Clarify | undefined>() // the question the agent waits on, until answered
   const ticket = useRef(0)
   const unstream = useRef<(() => void) | null>(null)
   const runRef = useRef('')
@@ -45,6 +46,7 @@ export function useRun(botId = '') {
     setError('')
     setRunId('')
     setTools([])
+    setClarify(undefined)
   }, [drop])
 
   const send = useCallback(
@@ -56,6 +58,7 @@ export function useRun(botId = '') {
       setError('')
       setRunId('')
       setTools([])
+      setClarify(undefined)
       setStartedAt(Date.now())
       const fail = (e: string): RunEnd => ({ status: 'error', text: '', error: e, runId: runRef.current, sid: opt.sid ?? '', result: NONE })
       return new Promise<RunEnd>((resolve) => {
@@ -65,6 +68,7 @@ export function useRun(botId = '') {
           setStatus(r.status)
           setError(r.error)
           setTools(settle)
+          setClarify(undefined)
           if (r.text) setText(r.text)
           resolve(r)
         }
@@ -82,6 +86,14 @@ export function useRun(botId = '') {
                 setText(acc)
                 const t = toolsFrom(d.tools ?? d.tool_events ?? d.events)
                 if (t) setTools(t)
+                const c = toClarify(d.clarify)
+                if (c) setClarify(c)
+              },
+              clarify: (d) => {
+                if (mine === ticket.current) setClarify(toClarify(d))
+              },
+              clarify_done: () => {
+                if (mine === ticket.current) setClarify(undefined)
               },
               tool: (d) => {
                 if (mine === ticket.current) setTools((cur) => applyTool(cur, d))
@@ -110,7 +122,13 @@ export function useRun(botId = '') {
     if (runRef.current) void api.stopRun(runRef.current).catch(() => {})
   }, [])
 
-  return { status, text, error, runId, tools, startedAt, send, stop, reset, busy: status === 'running' }
+  const answer = useCallback(async (text: string) => {
+    if (!runRef.current) return
+    await api.clarify(runRef.current, text)
+    setClarify(undefined)
+  }, [])
+
+  return { status, text, error, runId, tools, startedAt, send, stop, reset, clarify, answer, busy: status === 'running' }
 }
 
 // Follow a run that something else started (a server-side sequence): live text from its stream, nothing else.

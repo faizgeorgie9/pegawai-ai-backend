@@ -91,7 +91,7 @@ export default function Marketing() {
   const cur = team.find((b) => b.id === agent) ?? team.find((b) => b.id === 'rian') ?? team[0]
 
   return (
-    <section className="page ws">
+    <section className="page ws" data-team="marketing">
       <PageHead
         title="Marketing"
         sub="Satu alur, lima tahap: brief, rencana, konten, review, revisi."
@@ -314,7 +314,7 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
             </form>
           )}
 
-          <RunBar busy={run.busy} tools={run.tools} writing={!!run.text} since={run.startedAt} onStop={run.stop} status={run.status} error={run.error} onRetry={last ?? undefined} />
+          <RunBar busy={run.busy} tools={run.tools} writing={!!run.text} since={run.startedAt} clarify={run.clarify} onAnswer={run.answer} onStop={run.stop} status={run.status} error={run.error} onRetry={last ?? undefined} />
           {run.busy && run.text && <article className="rcard live"><div className="rbody"><LiveDraft text={stripBlock(run.text)} /></div></article>}
 
           {sample ? (

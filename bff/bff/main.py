@@ -6,11 +6,12 @@ import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, Depends, FastAPI, Header, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bots, catalog, config, db, engine, evaluations, groups, harden, hermes, sequences, usage
+from . import bots, catalog, config, db, engine, evaluations, groups, harden, hermes, sequences, settings, usage
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -350,7 +351,8 @@ async def run_stream(rid: str):
         lv = LIVE.get(rid)
         out = "".join(lv.out) if lv else row["output"]
         snap = {"output": out, "status": row["status"], "events": await _run_events(rid),
-                "reasoning": "\n\n".join(lv.steps) if lv else row["reasoning"] or ""}
+                "reasoning": "\n\n".join(lv.steps) if lv else row["reasoning"] or "",
+                "clarify": lv.clarify if lv else None}
         first = [("snapshot", snap)]
         if row["status"] not in engine.ACTIVE:
             first.append(("done", {"status": row["status"], "output": row["output"], "reasoning": row["reasoning"],
@@ -389,6 +391,44 @@ async def steer_run(rid: str, request: Request):
 @api.post("/runs/{rid}/approval")
 async def approve_run(rid: str, request: Request):
     return await engine.approval(current_user(), rid, (await body_of(request)).get("choice"))
+
+
+@api.post("/runs/{rid}/clarify")
+async def clarify_run(rid: str, request: Request):
+    return await engine.clarify(current_user(), rid, (await body_of(request)).get("answer"))
+
+
+# ---------- settings ----------
+
+@api.get("/models")
+async def models():
+    return await settings.catalog(current_user())
+
+
+@api.get("/settings")
+async def get_settings():
+    return await settings.get(current_user())
+
+
+@api.patch("/settings")
+async def patch_settings(request: Request):
+    return await settings.patch(current_user(), await body_of(request))
+
+
+@api.get("/settings/security")
+async def settings_security():
+    return await settings.security(current_user())
+
+
+@api.get("/settings/knowledge")
+async def settings_knowledge():
+    return {"retention_days": settings.RETENTION_DAYS, "docs": settings.knowledge_docs()}
+
+
+@api.get("/export/history")
+async def export_history():
+    data = await settings.export_history(current_user())
+    return JSONResponse(jsonable_encoder(data), headers={"Content-Disposition": 'attachment; filename="riwayat-chat.json"'})
 
 
 # ---------- sequences (multi-turn runs that continue on the server) ----------
@@ -449,6 +489,11 @@ def _uuid(v: str) -> str:
         return str(uuid.UUID(v))
     except ValueError:
         raise ApiError(404, "Grup tidak ditemukan")
+
+
+@api.get("/groups/{gid}/live")
+async def group_live(gid: str):
+    return await groups.live(current_user(), gid)
 
 
 @api.get("/groups/{gid}/messages")

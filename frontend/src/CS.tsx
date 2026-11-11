@@ -40,7 +40,7 @@ export default function CS() {
   const cur = team.find((b) => b.id === agent) ?? team.find((b) => b.id === 'siti') ?? team[0]
 
   return (
-    <section className="page ws">
+    <section className="page ws" data-team="customer_support">
       <PageHead title="Customer Service" sub="Simulasikan pertanyaan pelanggan. Jawaban berupa draf internal: tidak ada pesan yang dikirim." />
       {!cur ? <Loading text="Memuat agen CS..." /> : <Desk key={cur.id + ':' + gen} bot={cur} agentSelect={<AgentSelect label="Agen" bots={team} value={cur.id} onChange={(id) => (id === cur.id ? null : dirty.current ? setPending(id) : setAgent(id))} />} onDirty={(v) => (dirty.current = v)} onNew={() => { dirty.current = false; setGen((g) => g + 1) }} />}
       {pending && (
@@ -172,7 +172,7 @@ function Desk({ bot, agentSelect, onDirty, onNew }: { bot: Bot; agentSelect: Rea
               Kirim
             </button>
           </form>
-          <RunBar busy={run.busy} tools={run.tools} writing={!!run.text} since={run.startedAt} onStop={run.stop} status={run.status} error={run.error} onRetry={last ?? undefined} />
+          <RunBar busy={run.busy} tools={run.tools} writing={!!run.text} since={run.startedAt} clarify={run.clarify} onAnswer={run.answer} onStop={run.stop} status={run.status} error={run.error} onRetry={last ?? undefined} />
           {(turns.length > 0 || pendingQ) && (
             <section className="turns" aria-live="polite" aria-label="Percakapan">
               <h2>Percakapan</h2>

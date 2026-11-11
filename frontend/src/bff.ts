@@ -89,6 +89,9 @@ export interface Bot {
   about: string
   createdAt: number // epoch seconds, 0 when unknown
   deleteError: string // set when the background removal of the profile failed, else ''
+  model: string // '' = follow the default
+  provider: string
+  effort: string // reasoning_effort, '' = follow the default
 }
 export interface BotDetail extends Bot {
   persona: string
@@ -110,6 +113,24 @@ export interface BotTools {
 export interface ToolsInfo {
   deny: string[]
   bots: BotTools[]
+}
+export interface Settings {
+  company_name: string
+  language: string
+  timezone: string
+  notify: { done: boolean; failed: boolean; input: boolean }
+}
+export interface ModelCatalog {
+  default: { model: string | null; provider: string | null; reasoning_effort?: string | null }
+  providers: { slug: string; name: string; models: string[] }[]
+}
+export interface Security {
+  deny: string[]
+  bots: { bot_id: string; name: string; ok: boolean; blocked: string[]; approvals: string | null }[]
+}
+export interface KnowledgeInfo {
+  retention_days: number
+  docs: { id: string; title: string; workflow: string; version: string | null; date: string | null; files: { name: string; title: string }[] }[]
 }
 export interface Template {
   id: string
@@ -233,6 +254,16 @@ export interface Approval {
   description: string
   choices: string[]
 }
+export interface Clarify {
+  request_id: string
+  execution_generation: number
+  question: string
+  choices: string[]
+}
+export const toClarify = (d: Raw | null | undefined): Clarify | undefined =>
+  d && typeof d.question === 'string' && d.question
+    ? { request_id: asStr(d.request_id), execution_generation: Number(d.execution_generation) || 0, question: d.question, choices: Array.isArray(d.choices) ? d.choices.map((c: unknown) => asStr(c)) : [] }
+    : undefined
 export interface ChatMessage {
   key: string
   role: 'user' | 'assistant'
@@ -244,6 +275,7 @@ export interface ChatMessage {
   stopped?: boolean
   error?: string
   approval?: Approval
+  clarify?: Clarify
   notes?: string[]
 }
 export interface ActivityRow {
@@ -352,6 +384,9 @@ const toBot = (r: Raw): Bot => ({
   about: asStr(r.about),
   createdAt: epoch(r.created_at),
   deleteError: asStr(r.delete_error),
+  model: asStr(r.model),
+  provider: asStr(r.provider),
+  effort: asStr(r.reasoning_effort),
 })
 const toLimits = (r: Raw = {}): Limits => ({
   monthly_tokens: r.monthly_tokens == null ? null : asNum(r.monthly_tokens),
@@ -493,6 +528,21 @@ const q = (o: Record<string, string | number | undefined>) => {
 const enc = encodeURIComponent
 
 export const api = {
+  settings: () => call<Settings>('GET', '/settings'),
+  saveSettings: (p: Partial<Settings>) => call<Settings>('PATCH', '/settings', p),
+  models: () => call<ModelCatalog>('GET', '/models'),
+  security: () => call<Security>('GET', '/settings/security'),
+  knowledge: () => call<KnowledgeInfo>('GET', '/settings/knowledge'),
+  exportHistory: async (): Promise<Blob> => {
+    let res: Response
+    try {
+      res = await fetch(BASE + '/export/history')
+    } catch {
+      throw new ApiError('Server belum terjangkau. Pastikan BFF menyala, lalu coba lagi.')
+    }
+    if (!res.ok) throw new ApiError(fallbackMessage(res.status), res.status)
+    return res.blob()
+  },
   me: async () => toMe(await call<Raw>('GET', '/me')),
   plans: async () => list(await call('GET', '/plans')).map(toPlan),
   setPlan: (plan_id: string) => call<unknown>('PUT', '/me/plan', { plan_id }),
@@ -512,7 +562,7 @@ export const api = {
     const r = await call<Raw>('GET', `/bots/${enc(id)}`)
     return { ...toBot(r), persona: asStr(r.persona), template: asStr(r.template) }
   },
-  updateBot: async (id: string, p: { name?: string; role?: string; team?: string; color?: string; persona?: string }): Promise<BotDetail> => {
+  updateBot: async (id: string, p: { name?: string; role?: string; team?: string; color?: string; persona?: string; model?: string | null; provider?: string | null; reasoning_effort?: string | null }): Promise<BotDetail> => {
     const r = await call<Raw>('PATCH', `/bots/${enc(id)}`, p)
     return { ...toBot(r), persona: asStr(r.persona), template: asStr(r.template) }
   },
@@ -572,10 +622,15 @@ export const api = {
   stopRun: (id: string) => call<void>('POST', `/runs/${enc(id)}/stop`),
   steerRun: (id: string, text: string) => call<void>('POST', `/runs/${enc(id)}/steer`, { text }),
   approve: (id: string, choice: string) => call<void>('POST', `/runs/${enc(id)}/approval`, { choice }),
+  clarify: (id: string, answer: string) => call<void>('POST', `/runs/${enc(id)}/clarify`, { answer }),
   groups: async () => list(await call('GET', '/groups')).map(toGroup),
   createGroup: async (name: string, bot_ids: string[]) => toGroup(await call<Raw>('POST', '/groups', { name, bot_ids })),
   patchGroup: async (id: string, p: { name?: string; bot_ids?: string[] }) => toGroup(await call<Raw>('PATCH', `/groups/${enc(id)}`, p)),
   groupMessages: async (id: string, before?: string) => list(await call('GET', `/groups/${enc(id)}/messages${q({ before, limit: 50 })}`)).map(toGroupMsg),
+  groupLive: async (id: string) => {
+    const t = (await call<Raw>('GET', `/groups/${enc(id)}/live`)).turn as Raw | null // the bot turn on screen, if any
+    return t ? { bot: asStr(t.bot_id), run: asStr(t.run_id) } : null
+  },
   sendGroup: async (id: string, text: string, mode: 'queue' | 'steer') => {
     const r = await call<Raw>('POST', `/groups/${enc(id)}/messages`, { text, mode })
     return { message: toGroupMsg(r.message ?? {}), queued: r.queued === true }

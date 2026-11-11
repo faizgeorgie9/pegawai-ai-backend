@@ -2,7 +2,7 @@ import { useMemo, useSyncExternalStore } from 'react'
 
 // Hash router. The hash is the state, so refresh and back work.
 // #/ beranda, #/chat (agent list), #/grup (group list), #/chat/<id>/<sesi?> (old #/bot/... still read), #/grup/<id>, #/agen, #/agen/baru, #/agen/<id>, #/agen/<id>/ubah,
-// #/tools, #/computer-use, #/scheduler, #/marketing, #/cs, #/uji (alias #/evaluasi; #/uji?case=V02 opens that case), #/aktivitas
+// #/pengaturan (and #/pengaturan/<bagian>), #/tools, #/computer-use, #/scheduler, #/marketing, #/cs, #/uji (alias #/evaluasi; #/uji?case=V02 opens that case), #/aktivitas
 export type Route =
   | { name: 'home' }
   | { name: 'bot'; id: string; sid?: string }
@@ -14,6 +14,7 @@ export type Route =
   | { name: 'agen-baru' }
   | { name: 'agen-detail'; id: string }
   | { name: 'agen-ubah'; id: string }
+  | { name: 'pengaturan'; section?: string }
   | { name: 'tools' }
   | { name: 'computer-use' }
   | { name: 'scheduler' }
@@ -34,6 +35,7 @@ export function parse(hash: string): Route {
     return { name: 'agen' }
   }
   if (p[0] === 'aktivitas') return { name: 'aktivitas' }
+  if (p[0] === 'pengaturan') return { name: 'pengaturan', section: p[1] }
   if (p[0] === 'tools') return { name: 'tools' }
   if (p[0] === 'computer-use') return { name: 'computer-use' }
   if (p[0] === 'scheduler') return { name: 'scheduler' }

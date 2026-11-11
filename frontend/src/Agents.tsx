@@ -4,7 +4,7 @@ import type { Bot, BotDetail } from './bff'
 import { useData } from './data'
 import { agenPath, botPath, go } from './router'
 import { BotAvatar, COLORS, ErrorLine, botColor, nf, stamp, teamLabel } from './ui'
-import { CapChip, Empty, Loading, PageHead, Opt, statusText, useLoad } from './ui-extra'
+import { CapChip, Empty, EffortSelect, Loading, ModelSelect, PageHead, Opt, defaultEffortLabel, defaultModelLabel, effortWord, modelKey, splitModel, statusText, useLoad } from './ui-extra'
 
 // ---------- Daftar ----------
 export function AgentList() {
@@ -63,11 +63,11 @@ export function AgentList() {
                     <a className="row" href={'#' + agenPath(b.id)} style={{ ['--bot' as string]: botColor(b), padding: 0 }}>
                       <BotAvatar bot={b} size={28} />
                       <b>{b.name}</b>
-                      {b.builtin && <span className="pill plain">Bawaan</span>}
+                      {b.builtin && <span className="pill plain">Sistem</span>}
                     </a>
                   </td>
                   <td data-label="Peran">{b.role}</td>
-                  <td data-label="Tim">{teamLabel(b.team)}</td>
+                  <td data-label="Tim"><span className="pill" data-team={b.team}>{teamLabel(b.team)}</span></td>
                   <td data-label="Status">{statusText(b)}</td>
                   <td data-label="Aksi">
                     <span className="head-actions">
@@ -91,6 +91,7 @@ export function AgentList() {
 
 // ---------- Detail ----------
 const RUN_STATUS: Record<string, string> = { completed: 'Selesai', failed: 'Gagal', stopped: 'Dihentikan', running: 'Berjalan', queued: 'Antre' }
+const RUN_PILL: Record<string, string> = { completed: 'ok', failed: 'bad', running: 'run', queued: 'wait' }
 export function AgentDetail({ id }: { id: string }) {
   const { setDialog } = useData()
   const botFn = useCallback(() => api.bot(id), [id])
@@ -106,6 +107,7 @@ export function AgentDetail({ id }: { id: string }) {
           (t) => t.bots[0] ?? null,
           () => null,
         ),
+        api.models().catch(() => null),
       ]),
     [id],
   )
@@ -122,7 +124,7 @@ export function AgentDetail({ id }: { id: string }) {
       </section>
     )
   const b = bot.data as BotDetail
-  const [sessions, runs, um, ua, tools] = extra.data ?? [[], [], [], [], null]
+  const [sessions, runs, um, ua, tools, cat] = extra.data ?? [[], [], [], [], null, null]
   const month = um.find((x) => x.bot_id === id)
   const all = ua.find((x) => x.bot_id === id)
 
@@ -162,14 +164,18 @@ export function AgentDetail({ id }: { id: string }) {
           <dt>Peran</dt>
           <dd>{b.role}</dd>
           <dt>Tim</dt>
-          <dd>{teamLabel(b.team)}</dd>
+          <dd><span className="pill" data-team={b.team}>{teamLabel(b.team)}</span></dd>
           <dt>Warna</dt>
           <dd>
             <span className="swatch-chip" style={{ background: botColor(b) }} />
             {b.color || 'plain'}
           </dd>
+          <dt>Model</dt>
+          <dd>{b.model || defaultModelLabel(cat)}</dd>
+          <dt>Tingkat berpikir</dt>
+          <dd>{effortWord(b.effort) || defaultEffortLabel(cat)}</dd>
           <dt>Jenis</dt>
-          <dd>{b.builtin ? 'Bawaan (tidak bisa dihapus)' : 'Buatan pengguna'}</dd>
+          <dd>{b.builtin ? 'Disediakan sistem (tidak bisa dihapus)' : 'Buatan pengguna'}</dd>
           <dt>Dibuat</dt>
           <dd>{b.createdAt ? stamp(b.createdAt) : '–'}</dd>
         </dl>
@@ -243,7 +249,7 @@ export function AgentDetail({ id }: { id: string }) {
                         <td className="num" data-label="Waktu">{stamp(r.started_at)}</td>
                         <td data-label="Tugas">{r.input || '–'}</td>
                         <td data-label="Status">
-                          <span className={`pill ${r.status === 'completed' ? 'ok' : r.status === 'failed' ? 'bad' : ''}`}>{RUN_STATUS[r.status] ?? r.status}</span>
+                          <span className={`pill ${RUN_PILL[r.status] ?? 'idle'}`}>{RUN_STATUS[r.status] ?? r.status}</span>
                         </td>
                       </tr>
                     ))}
@@ -277,7 +283,7 @@ export function AgentEdit({ id }: { id: string }) {
   const { bots, refreshBots, flash } = useData()
   const botFn = useCallback(() => api.bot(id), [id])
   const bot = useLoad(botFn)
-  const [f, setF] = useState({ name: '', role: '', team: '', color: 'plain', persona: '' })
+  const [f, setF] = useState({ name: '', role: '', team: '', color: 'plain', persona: '', model: '', effort: '' })
   const [newTeam, setNewTeam] = useState(false)
   const [touched, setTouched] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -285,7 +291,7 @@ export function AgentEdit({ id }: { id: string }) {
   const d = bot.data
 
   useEffect(() => {
-    if (d) setF({ name: d.name, role: d.role, team: d.team, color: d.color || 'plain', persona: d.persona })
+    if (d) setF({ name: d.name, role: d.role, team: d.team, color: d.color || 'plain', persona: d.persona, model: modelKey(d.provider, d.model), effort: d.effort })
   }, [d])
 
   if (bot.state === 'loading') return <section className="page"><Loading text="Memuat agen..." /></section>
@@ -308,13 +314,11 @@ export function AgentEdit({ id }: { id: string }) {
     e.preventDefault()
     setTouched(true)
     if (Object.keys(errs).length) return
-    const patch: Record<string, string> = {}
-    if (ro) {
-      if (f.color !== (d!.color || 'plain')) patch.color = f.color
-    } else {
-      for (const k of ['name', 'role', 'team', 'persona'] as const) if (f[k].trim() !== d![k].trim()) patch[k] = f[k].trim()
-      if (f.color !== (d!.color || 'plain')) patch.color = f.color
-    }
+    const patch: Record<string, string | null> = {}
+    if (!ro) for (const k of ['name', 'role', 'team', 'persona'] as const) if (f[k].trim() !== d![k].trim()) patch[k] = f[k].trim()
+    if (f.color !== (d!.color || 'plain')) patch.color = f.color
+    if (f.model !== modelKey(d!.provider, d!.model)) Object.assign(patch, splitModel(f.model))
+    if (f.effort !== d!.effort) patch.reasoning_effort = f.effort || null
     if (!Object.keys(patch).length) return setProblem('Belum ada yang diubah.')
     setBusy(true)
     setProblem('')
@@ -337,7 +341,7 @@ export function AgentEdit({ id }: { id: string }) {
       </a>
       <PageHead title={`Ubah ${d.name}`} />
       <form className="form-page" onSubmit={(e) => void submit(e)} noValidate>
-        {ro && <p className="note-box">Agen bawaan: nama, peran, tim, dan persona dikelola tim backend. Hanya warna yang bisa diubah.</p>}
+        {ro && <p className="note-box">Agen sistem: nama, peran, tim, dan persona dikelola tim backend. Warna, model, dan tingkat berpikir bisa diubah.</p>}
         <fieldset disabled={busy} className="form-page">
           <label className="field">
             <span>Nama</span>
@@ -381,6 +385,9 @@ export function AgentEdit({ id }: { id: string }) {
             <small className="counter num">{f.persona.length} / 2.000</small>
             {!ro && d.template && <small className="quiet">Agen ini dibuat dari template. Menyimpan persona baru menggantikan teks template.</small>}
           </label>
+          <ModelSelect value={f.model} onChange={(v) => set('model', v)} />
+          <EffortSelect value={f.effort} onChange={(v) => set('effort', v)} />
+          <small className="quiet">Default memakai model default profil di Hermes. Pilihan baru berlaku di tugas berikutnya.</small>
         </fieldset>
         {problem && (
           <p className="problem-bar" role="alert">

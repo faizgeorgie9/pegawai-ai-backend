@@ -20,6 +20,7 @@ class SendState:
     task: asyncio.Task | None = None
     run_id: str | None = None
     bot: str | None = None
+    turn_bot: str | None = None  # bot whose turn is on screen (from "thinking" until its message is posted)
     stopped: bool = False
     cancel_round: bool = False
 
@@ -126,6 +127,19 @@ async def post(gid: str, author: str, text: str, bot_id: str | None = None, run_
     return row
 
 
+def _typing(gid: str, bot_id: str, on: bool, **extra) -> None:
+    hub.publish("*", "group_typing", {"group_id": gid, "bot_id": bot_id, "on": on, **extra})
+
+
+async def live(user_id: str, gid: str) -> dict:
+    """The turn on screen right now, so a reloaded page can follow it: its run stream carries text and steps."""
+    await get_group(user_id, gid)
+    st = ACTIVE.get(gid)
+    if not st or not st.turn_bot:
+        return {"turn": None}
+    return {"turn": {"bot_id": st.turn_bot, "run_id": st.run_id}}
+
+
 def _group_event(gid: str, status: str) -> None:
     hub.publish("*", "group_send", {"group_id": gid, "status": status})
 
@@ -212,15 +226,26 @@ async def _turn(gid: str, st: SendState, bot: dict, g: dict, mems: list[dict]) -
                 gid, bot["bot_id"], new[-1]["id"])
     if not lines:
         return None
-    hub.publish("*", "group_typing", {"group_id": gid, "bot_id": bot["bot_id"], "on": True, "phase": "thinking"})
+    st.turn_bot = bot["bot_id"]
+    _typing(gid, bot["bot_id"], True, phase="thinking")
     try:
         run = await engine.start_run(st.user_id, bot["bot_id"], f"grup-{gid}-{bot['bot_id']}", "\n".join(lines),
                                      "group", gid, _instructions(g["name"], mems))
         st.run_id, st.bot = str(run["id"]), bot["bot_id"]
+        # the client follows the run's own stream (text, steps) from here: `on` is sent again, now with the run id
+        _typing(gid, bot["bot_id"], True, phase="thinking", run_id=st.run_id)
         return await engine.wait_done(st.run_id)
+    except BaseException:
+        _turn_over(gid, st, bot["bot_id"])
+        raise
     finally:
         st.run_id = st.bot = None
-        hub.publish("*", "group_typing", {"group_id": gid, "bot_id": bot["bot_id"], "on": False})
+
+
+def _turn_over(gid: str, st: SendState, bot_id: str) -> None:
+    """The bot's turn leaves the screen. Called after its message is posted, so the live bubble hands over to it."""
+    st.turn_bot = None
+    _typing(gid, bot_id, False)
 
 
 async def _run_loop(gid: str, st: SendState, msgs: list[tuple[int, str]]) -> None:
@@ -273,20 +298,23 @@ async def _loop_body(gid: str, st: SendState, msgs: list[tuple[int, str]]) -> st
             row = await _turn(gid, st, bot, g, mems)
             if row is None:
                 continue
-            tokens += row["total_tokens"]
-            await db.ex("update group_sends set tokens_used = %s where id = %s", tokens, st.send_id)
-            if row["status"] == "cancelled" or st.stopped:
-                return None
-            if row["status"] != "completed":
-                return f"Diskusi berhenti: {bot['name']} gagal menjawab."
-            text = (row["output"] or "").strip()
-            if text.replace(SILENT, "").strip():
-                text = text.replace(SILENT, "").strip()
-                await post(gid, "bot", text, bot["bot_id"], row["id"], st.send_id)
-                posted += 1
-                round_msgs.append((bot["bot_id"], text))
-            if budget is not None and tokens >= budget:
-                return f"Diskusi berhenti: batas {budget} token per kiriman tercapai."
+            try:
+                tokens += row["total_tokens"]
+                await db.ex("update group_sends set tokens_used = %s where id = %s", tokens, st.send_id)
+                if row["status"] == "cancelled" or st.stopped:
+                    return None
+                if row["status"] != "completed":
+                    return f"Diskusi berhenti: {bot['name']} gagal menjawab."
+                text = (row["output"] or "").strip()
+                if text.replace(SILENT, "").strip():
+                    text = text.replace(SILENT, "").strip()
+                    await post(gid, "bot", text, bot["bot_id"], row["id"], st.send_id)
+                    posted += 1
+                    round_msgs.append((bot["bot_id"], text))
+                if budget is not None and tokens >= budget:
+                    return f"Diskusi berhenti: batas {budget} token per kiriman tercapai."
+            finally:
+                _turn_over(gid, st, bot["bot_id"])
         # next round: members mentioned in this round who have not spoken after the mention
         nxt: set[str] = set()
         for i, (author, text) in enumerate(round_msgs):
