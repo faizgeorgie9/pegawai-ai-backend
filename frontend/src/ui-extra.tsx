@@ -58,6 +58,38 @@ export function ModelSelect({ value, onChange, disabled, label = 'Model' }: { va
 
 const EFFORT_WORD: Record<string, string> = { none: 'Tidak berpikir', minimal: 'Minimal', low: 'Rendah', medium: 'Sedang', high: 'Tinggi', xhigh: 'Sangat tinggi', max: 'Maksimal', ultra: 'Ultra' }
 export const effortWord = (v: string | null | undefined) => (v ? EFFORT_WORD[v] ?? v : '')
+
+// Plain Indonesian names for the agent tools (Hermes toolsets). Unknown ones fall back to the engine's own label.
+// shortcut: fixed list of known toolsets, add a line here when Hermes ships a new one.
+const TOOLSET_TEXT: Record<string, [string, string]> = {
+  web: ['Pencarian web', 'Mencari dan membaca halaman web.'],
+  browser: ['Peramban otomatis', 'Membuka halaman web, mengklik, dan mengetik.'],
+  terminal: ['Perintah komputer', 'Menjalankan perintah di komputer server.'],
+  file: ['Berkas', 'Membaca dan menulis berkas.'],
+  code_execution: ['Menjalankan kode', 'Menjalankan program kecil, misalnya untuk menghitung.'],
+  vision: ['Membaca gambar', 'Memahami isi gambar.'],
+  video: ['Membaca video', 'Memahami isi video.'],
+  image_gen: ['Membuat gambar', 'Membuat gambar dari deskripsi.'],
+  video_gen: ['Membuat video', 'Membuat video dari deskripsi.'],
+  x_search: ['Pencarian X (Twitter)', 'Mencari kiriman di X.'],
+  tts: ['Teks jadi suara', 'Membacakan teks dengan suara.'],
+  stt: ['Suara jadi teks', 'Menulis ulang pesan suara.'],
+  skills: ['Keahlian tambahan', 'Panduan kerja khusus yang bisa dipakai agen.'],
+  todo: ['Daftar langkah', 'Menyusun langkah kerja sebelum mengerjakan.'],
+  kanban: ['Papan tugas', 'Mengelola tugas di papan Kanban.'],
+  memory: ['Ingatan', 'Mengingat hal penting antar percakapan.'],
+  context_engine: ['Pengelola konteks', 'Menjaga isi percakapan panjang tetap muat.'],
+  session_search: ['Cari percakapan lama', 'Mencari isi percakapan sebelumnya.'],
+  connections: ['Sambungan aplikasi', 'Terhubung ke aplikasi lain dan meminta izin akun.'],
+  clarify: ['Pertanyaan balik', 'Bertanya kepada Anda saat informasi kurang.'],
+  delegation: ['Membagi tugas', 'Menyerahkan sub-tugas ke agen lain.'],
+  cronjob: ['Tugas terjadwal', 'Membuat dan mengatur tugas berulang.'],
+  discord: ['Discord', 'Membaca dan ikut percakapan di Discord.'],
+  discord_admin: ['Admin Discord', 'Mengatur kanal dan peran di server Discord.'],
+  computer_use: ['Kontrol komputer', 'Mengendalikan komputer secara otomatis.'],
+  a2a: ['Agen ke agen', 'Berkomunikasi dengan agen dari sistem lain.'],
+}
+export const toolsetText = (name: string, label: string, description: string): [string, string] => TOOLSET_TEXT[name] ?? [label || name, description]
 // What "Default" resolves to, shown next to the word everywhere: the profile's own value, else "ikut bawaan penyedia" (value unknown).
 export const defaultEffortLabel = (cat?: { default: { reasoning_effort?: string | null } } | null) => `Bawaan (${effortWord(cat?.default.reasoning_effort) || 'ikut bawaan penyedia'})`
 export const defaultModelLabel = (cat?: { default: { model: string | null } } | null) => `Bawaan${cat?.default.model ? ` (${cat.default.model})` : ''}`

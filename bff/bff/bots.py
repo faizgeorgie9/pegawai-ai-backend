@@ -108,9 +108,9 @@ def _hermes_cli(*args: str, timeout=120) -> None:
     try:
         r = subprocess.run([config.HERMES_BIN, *args], capture_output=True, timeout=timeout, shell=False)
     except (OSError, subprocess.TimeoutExpired):
-        raise ApiError(502, "Perintah Hermes gagal dijalankan atau terlalu lama")
+        raise ApiError(502, "Perintah ke mesin agen gagal atau terlalu lama")
     if r.returncode != 0:
-        raise ApiError(502, "Hermes menolak perintah (kode %d)" % r.returncode)
+        raise ApiError(502, "Mesin agen menolak perintah (kode %d)" % r.returncode)
 
 
 def _rewrite_key(slug: str) -> None:
@@ -157,7 +157,7 @@ async def create_bot(user_id: str, body: dict) -> dict:
     plan = await engine.get_plan(user_id)
     n = (await db.q1("select count(*)::int as n from bots where user_id = %s and deleted_at is null", user_id))["n"]
     if n >= plan["max_bots"]:
-        raise ApiError(402, "Batas jumlah bot di paket Anda tercapai. Naikkan paket untuk menambah bot.", upgrade=True)
+        raise ApiError(402, "Batas jumlah agen di paket Anda tercapai. Hapus agen yang tidak dipakai, atau hubungi tim AITopTrends untuk menaikkan paket.", upgrade=True)
     slug = await _free_slug(base)
     try:
         await asyncio.to_thread(_hermes_cli, "profile", "create", slug, "--clone-from", template or "rian", "--no-alias")
@@ -198,7 +198,7 @@ async def _wait_served(slug: str) -> float:
         except ApiError:
             pass
         await asyncio.sleep(2)
-    raise ApiError(504, "Bot dibuat tetapi belum aktif di gateway. Coba lagi sebentar.")
+    raise ApiError(504, "Agen dibuat tetapi belum siap dipakai. Coba lagi sebentar.")
 
 
 # ---------- edit ----------

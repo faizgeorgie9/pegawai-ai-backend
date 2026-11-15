@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from './bff'
 import { ErrorLine } from './ui'
-import { BlockedBanner, CapChip, Empty, Loading, OFF_WHY, PageHead, SampleBadge, useLoad } from './ui-extra'
+import { BlockedBanner, CapChip, Empty, Loading, OFF_WHY, PageHead, SampleBadge, toolsetText, useLoad } from './ui-extra'
 import { Scheduler } from './Scheduler'
 import { ConnectApps } from './connections'
 import { go } from './router'
@@ -27,7 +27,8 @@ export function Tools() {
   const failed = t.data?.bots.filter((b) => !b.ok) ?? []
   for (const b of answered)
     for (const ts of b.toolsets) {
-      const r = rows.get(ts.name) ?? { name: ts.name, label: clean(ts.label), description: ts.description, users: [], seen: 0 }
+      const [label, description] = toolsetText(ts.name, clean(ts.label), ts.description)
+      const r = rows.get(ts.name) ?? { name: ts.name, label, description, users: [], seen: 0 }
       r.seen++
       if (ts.enabled) r.users.push(b.name)
       rows.set(ts.name, r)
@@ -38,7 +39,7 @@ export function Tools() {
   return (
     <div className="tab-body">
       <ConnectApps />
-      <p className="note-box">Pengaturan per agen: perlu disepakati dengan backend. Halaman ini hanya untuk melihat.</p>
+      <p className="note-box">Pengaturan alat per agen belum tersedia. Halaman ini hanya untuk melihat.</p>
       {t.state === 'loading' && !slow && <Loading text="Memuat daftar alat..." shape="ledger" />}
       {t.state === 'loading' && slow && <ErrorLine text="Daftar alat belum bisa ditampilkan. Coba lagi sebentar." onRetry={t.retry} />}
       {t.state === 'error' && <ErrorLine text={t.error} onRetry={t.retry} />}

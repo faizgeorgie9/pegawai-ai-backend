@@ -4,7 +4,7 @@ import type { Bot, BotDetail } from './bff'
 import { useData } from './data'
 import { agenPath, botPath, go } from './router'
 import { BotAvatar, COLORS, ErrorLine, botColor, nf, stamp, teamLabel } from './ui'
-import { CapChip, Empty, EffortSelect, Loading, ModelSelect, PageHead, Opt, defaultEffortLabel, defaultModelLabel, effortWord, modelKey, splitModel, statusText, useLoad } from './ui-extra'
+import { CapChip, Empty, EffortSelect, Loading, ModelSelect, PageHead, Opt, defaultEffortLabel, defaultModelLabel, effortWord, modelKey, splitModel, statusText, toolsetText, useLoad } from './ui-extra'
 
 // ---------- Daftar ----------
 export function AgentList() {
@@ -218,8 +218,8 @@ export function AgentDetail({ id }: { id: string }) {
             ) : (
               <div className="chip-row">
                 {tools.toolsets.filter((t) => t.enabled).map((t) => (
-                  <span key={t.name} className="chip" title={t.description}>
-                    {t.name}
+                  <span key={t.name} className="chip" title={toolsetText(t.name, '', t.description)[1]}>
+                    {toolsetText(t.name, '', t.description)[0]}
                   </span>
                 ))}
                 {tools.toolsets.every((t) => !t.enabled) && <span className="quiet">Tidak ada alat aktif.</span>}
@@ -341,7 +341,7 @@ export function AgentEdit({ id }: { id: string }) {
       </a>
       <PageHead title={`Ubah ${d.name}`} />
       <form className="form-page" onSubmit={(e) => void submit(e)} noValidate>
-        {ro && <p className="note-box">Agen sistem: nama, peran, tim, dan persona dikelola tim backend. Warna, model, dan tingkat berpikir bisa diubah.</p>}
+        {ro && <p className="note-box">Agen sistem: nama, peran, tim, dan persona dikelola tim AITopTrends. Warna, model, dan tingkat berpikir bisa diubah.</p>}
         <fieldset disabled={busy} className="form-page">
           <label className="field">
             <span>Nama</span>

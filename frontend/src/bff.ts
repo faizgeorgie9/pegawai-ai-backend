@@ -19,7 +19,7 @@ export class ApiError extends Error {
 
 function fallbackMessage(status: number): string {
   if (status === 401) return 'Akses ditolak. Kunci BFF belum diisi atau salah.'
-  if (status === 402) return 'Batas penggunaan tercapai. Coba lagi nanti.'
+  if (status === 402) return 'Batas paket Anda tercapai.'
   if (status === 404) return 'Data tidak ditemukan. Mungkin sudah dihapus.'
   if (status === 409) return 'Permintaan bentrok dengan keadaan saat ini. Coba lagi.'
   if (status === 429) return 'Terlalu banyak tugas berjalan, coba sebentar lagi.'
@@ -48,9 +48,8 @@ async function call<T>(method: string, path: string, body?: unknown, signal?: Ab
       /* empty or non-JSON error body */
     }
     const msg = typeof j.error === 'string' && j.error ? j.error : fallbackMessage(res.status)
-    // 402 = quota reached. The plan UI is hidden, so show a plain error (no upgrade hint).
-    if (res.status === 402) throw new ApiError('Batas penggunaan tercapai. Coba lagi nanti.', 402, false)
-    throw new ApiError(msg, res.status, j.upgrade === true)
+    // 402 = plan limit reached. The BFF message says which limit; the plan UI is hidden, so never offer an upgrade button.
+    throw new ApiError(msg, res.status, res.status !== 402 && j.upgrade === true)
   }
   if (res.status === 204) return undefined as T
   try {

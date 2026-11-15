@@ -54,7 +54,7 @@ export function CompareColumns({ cols, live }: { cols: Col[]; live: string }) {
                 <dd className="num" title={c.runId}>{c.runId ? c.runId.slice(0, 8) : '–'}</dd>
                 <dt>Waktu</dt>
                 <dd className="num">{clock(c.startedAt)}{c.seconds !== null ? ` · ${c.seconds < 10 ? c.seconds.toFixed(1) : Math.round(c.seconds)} dtk` : ''}</dd>
-                <dt>Token (satuan teks)</dt>
+                <dt>Token</dt>
                 <dd className="num">{c.status === 'done' ? c.tokens.toLocaleString('id-ID') : '–'}</dd>
               </dl>
               {c.status === 'pending' && <p className="quiet">Menunggu giliran.</p>}

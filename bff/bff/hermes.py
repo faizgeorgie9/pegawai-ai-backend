@@ -50,7 +50,7 @@ async def call(bot: str, method: str, path: str, *, json_body=None, headers=None
         return await client.request(method, f"/p/{bot}{path}", json=json_body,
                                     headers=_headers(bot, headers), timeout=timeout)
     except httpx.HTTPError:
-        raise ApiError(502, "Tidak bisa menghubungi Hermes. Pastikan gateway berjalan.")
+        raise ApiError(502, "Mesin agen tidak terjangkau. Coba lagi sebentar, atau hubungi tim AITopTrends.")
 
 
 async def events(bot: str, hermes_run_id: str, last_seq: int) -> AsyncIterator[tuple[int, dict]]:

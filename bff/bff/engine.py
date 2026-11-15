@@ -126,9 +126,9 @@ async def check_quota(user_id: str) -> None:
     # shortcut: check-then-insert is not atomic; fine for one local user, add a per-user lock when real login lands.
     plan = await get_plan(user_id)
     if plan["monthly_usd"] is not None and (await costs.month(user_id, plan["monthly_usd"]))["state"] == "exceeded":  # NULL = no limit
-        raise ApiError(402, "Batas biaya bulan ini tercapai. Naikkan paket untuk melanjutkan.", upgrade=True)
+        raise ApiError(402, "Batas biaya bulan ini tercapai. Hubungi tim AITopTrends untuk menaikkan paket.", upgrade=True)
     if await active_runs(user_id) >= plan["max_concurrent_runs"]:
-        raise ApiError(402, "Batas tugas bersamaan di paket Anda tercapai. Tunggu tugas selesai atau naikkan paket.",
+        raise ApiError(402, "Batas tugas bersamaan di paket Anda tercapai. Tunggu tugas selesai, atau hubungi tim AITopTrends untuk menaikkan paket.",
                        upgrade=True)
 
 
@@ -555,7 +555,7 @@ async def steer(user_id: str, run_id: str, text: str) -> dict:
     if r.status_code == 409:
         raise ApiError(409, "Bot sudah selesai, pesan dikirim sebagai pesan baru")
     if r.status_code >= 300:
-        raise _hermes_error(r, "Gagal mengarahkan bot")
+        raise _hermes_error(r, "Gagal mengarahkan agen")
     return {"accepted": True}
 
 

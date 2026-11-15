@@ -44,10 +44,10 @@ export default function Dashboard() {
   const caps: Row[] = [
     { href: '#/agen', name: 'Agen', detail: 'Daftar, buat, ubah, hapus', cap: 'ok' },
     toolsRow,
-    { href: '#/marketing', name: 'Marketing', detail: 'Memakai knowledge dan katalog Colorbox', cap: 'ok' },
+    { href: '#/marketing', name: 'Marketing', detail: 'Memakai pengetahuan dan katalog Colorbox', cap: 'ok' },
     { href: '#/cs', name: 'Layanan pelanggan', detail: 'Jawaban perlu ditinjau manusia', cap: 'ok' },
     { href: '#/computer-use', name: 'Computer Use', detail: 'Belum dibuka', cap: 'blocked' },
-    { href: '#/scheduler', name: 'Scheduler', detail: 'Jadwal berulang dan rencana konten', cap: 'ok' },
+    { href: '#/scheduler', name: 'Jadwal', detail: 'Jadwal berulang dan rencana konten', cap: 'ok' },
   ]
 
   return (

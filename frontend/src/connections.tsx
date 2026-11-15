@@ -29,7 +29,7 @@ export function ConnectApps() {
         <h2 id="connect-h">Hubungkan aplikasi</h2>
         <CapChip cap="mock" label="Draft" />
       </header>
-      <p className="note-box">Ini rancangan tampilan. Sambungan OAuth belum dibuat, jadi belum ada akun yang bisa disambungkan dan belum ada yang tersambung.</p>
+      <p className="note-box">Ini rancangan tampilan. Sambungan ke akun Anda belum dibuat, jadi belum ada aplikasi yang bisa disambungkan.</p>
       <ul className="connect-grid">
         {APPS.map((a) => (
           <li key={a.id} className="connect-card" data-app={a.id}>
@@ -46,7 +46,7 @@ export function ConnectApps() {
                 Hubungkan
               </button>
               <span id={`why-${a.id}`} className="quiet small">
-                Belum bisa: sambungan OAuth belum dibangun.
+                Belum bisa: sambungan akun belum dibuat.
               </span>
             </div>
           </li>

@@ -228,7 +228,7 @@ def _passthrough(r) -> JSONResponse:
     except ValueError:
         content = {}
     if r.status_code >= 400:
-        return JSONResponse({"error": "Hermes menolak permintaan"}, status_code=502 if r.status_code >= 500 else r.status_code)
+        return JSONResponse({"error": "Mesin agen menolak permintaan"}, status_code=502 if r.status_code >= 500 else r.status_code)
     return JSONResponse(content, status_code=r.status_code)
 
 

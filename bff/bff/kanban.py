@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from . import config, costs, db, engine, plan_schema, usage
 
-COLUMNS = [("todo", "Antre"), ("running", "Berjalan"), ("blocked", "Perlu tindakan"), ("done", "Selesai")]
+COLUMNS = [("todo", "Menunggu"), ("running", "Berjalan"), ("blocked", "Perlu tindakan"), ("done", "Selesai")]
 PERIOD_DAYS = {"today": 1, "7d": 7, "30d": 30}
 PER_COLUMN = 40  # cards sent per column; `total` says how many matched
 AHEAD_DAYS = 7  # planned occurrences further away are not on the board yet

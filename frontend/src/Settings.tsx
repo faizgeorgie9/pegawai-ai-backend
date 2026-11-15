@@ -180,7 +180,7 @@ function Security() {
   return (
     <div className="set-sec">
       <h2>Keamanan dan izin</h2>
-      <p className="quiet">Hanya untuk dilihat. Pembatasan ini dipasang tim backend di tiap agen.</p>
+      <p className="quiet">Hanya untuk dilihat. Pembatasan ini dipasang tim AITopTrends di tiap agen.</p>
       {s.state === 'loading' && <Loading text="Memuat pembatasan..." shape="table" />}
       {s.state === 'error' && <ErrorLine text={s.error} onRetry={s.retry} />}
       {s.state === 'ok' && s.data && (
@@ -263,9 +263,9 @@ function MySources() {
   }
   return (
     <div className="kb-sec">
-      <h3>Sumber milikmu</h3>
+      <h3>Sumber milik Anda</h3>
       <p className="quiet">
-        Berkas dan link yang kamu simpan. Semua agenmu bisa memakainya dan menyebut nama sumbernya. Bisa juga ditambah langsung dari chat: klik ikon klip, atau tempel link dan tulis &ldquo;simpan&rdquo;. Pencarian memakai kata kunci.
+        Berkas dan link yang Anda simpan. Semua agen Anda bisa memakainya dan menyebut nama sumbernya. Bisa juga ditambah langsung dari chat: klik ikon klip, atau tempel link dan tulis &ldquo;simpan&rdquo;. Pencarian memakai kata kunci.
       </p>
       <div className="kb-add">
         <input
@@ -403,7 +403,7 @@ function Split({ title, rows }: { title: string; rows: { key: string; name: Reac
             <span className="bar-sm" aria-hidden="true">
               <span style={{ width: `${top > 0 ? Math.max(2, (Number(r.cost.usd) / top) * 100) : 2}%` }} />
             </span>
-            <small className="quiet num">{nf.format(r.tokens)} token (satuan teks)</small>
+            <small className="quiet num">{nf.format(r.tokens)} token</small>
           </li>
         ))}
       </ul>
