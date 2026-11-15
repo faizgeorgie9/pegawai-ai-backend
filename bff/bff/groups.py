@@ -79,7 +79,7 @@ async def create_group(user_id: str, name, bot_ids) -> dict:
     plan = await engine.get_plan(user_id)
     n = (await db.q1("select count(*)::int as n from groups where user_id = %s and deleted_at is null", user_id))["n"]
     if n >= plan["max_groups"]:
-        raise ApiError(402, "Batas jumlah grup di paket Anda tercapai. Naikkan paket untuk menambah grup.", upgrade=True)
+        raise ApiError(402, "Batas jumlah grup di paket Anda tercapai. Hapus grup yang tidak dipakai, atau hubungi tim AITopTrends untuk menaikkan paket.", upgrade=True)
     gid = str(uuid.uuid4())
     await db.ex("insert into groups (id, user_id, name) values (%s, %s, %s)", gid, user_id, name)
     await _set_members(gid, ids)
@@ -227,7 +227,11 @@ def _instructions(group_name: str, mems: list[dict], today: str | None = None) -
             "Balas singkat sesuai peranmu.\n"
             f"Jika tidak ada yang perlu kamu tambahkan, balas persis {SILENT}.\n"
             "Sebut @nama untuk meminta anggota lain.\n"
-            "Jangan mengulang pesan anggota lain.")
+            "Jangan mengulang pesan anggota lain.\n"
+            "Jika diminta menyusun rencana konten beberapa hari: tulis satu ringkasan singkat, lalu akhiri pesanmu dengan satu blok ```json "
+            "berformat {\"plan\":{\"title\":\"...\",\"days\":[{\"date\":\"YYYY-MM-DD\",\"theme\":\"...\",\"products\":[\"...\"],"
+            "\"brief\":\"...\",\"time\":\"09:00\"}]}} (tanggal berurutan, maksimal 14 hari). Jangan menyebut @nama lain di pesan yang berisi rencana; "
+            "pengguna akan menyetujuinya dulu.")
 
 
 def _mentioned(text: str, mems: list[dict]) -> set[str]:
