@@ -1,4 +1,5 @@
 import os
+import shlex
 import shutil
 from pathlib import Path
 
@@ -14,3 +15,5 @@ HERMES_HOME = Path(os.environ.get("HERMES_HOME") or (Path(os.environ.get("LOCALA
 HERMES_BIN = os.environ.get("HERMES_BIN") or shutil.which("hermes") or "hermes"
 # Persona files for the five template bots (repo: bots/souls).
 SOULS_DIR = Path(os.environ.get("SOULS_DIR") or ROOT.parent.parent / "bots" / "souls")
+# Read-only list of Hermes own Kanban (kanban.py adds --tenant <user id>). Override with HERMES_KANBAN_CMD, e.g. "hermes kanban list --json".
+HERMES_KANBAN_CMD = shlex.split(os.environ["HERMES_KANBAN_CMD"]) if os.environ.get("HERMES_KANBAN_CMD") else [HERMES_BIN, "kanban", "list", "--json"]

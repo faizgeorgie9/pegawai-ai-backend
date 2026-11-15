@@ -11,7 +11,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bots, catalog, config, costs, db, engine, evaluations, groups, harden, hermes, scheduler, sequences, settings, usage
+from . import bots, catalog, config, costs, db, engine, evaluations, groups, harden, hermes, kanban, scheduler, sequences, settings, usage
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -574,6 +574,15 @@ async def revise_plan(gid: str, message_id: int, request: Request):
 @api.post("/groups/{gid}/stop")
 async def stop_group(gid: str):
     return await groups.stop(current_user(), _uuid(gid))
+
+
+# ---------- kanban ----------
+
+@api.get("/kanban")
+async def get_kanban(agent: str | None = None, group: str | None = None, period: str = "7d"):
+    if period not in kanban.PERIOD_DAYS:
+        raise ApiError(400, "Periode harus today, 7d, atau 30d")
+    return await kanban.get(current_user(), agent or None, _uuid(group) if group else None, period)
 
 
 # ---------- activity, events, office ----------

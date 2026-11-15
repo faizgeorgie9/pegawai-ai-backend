@@ -206,6 +206,32 @@ export interface ContentPlan {
   days: PlanDay[]
   schedule_id: string | null // set once the user approved it
 }
+// Kanban board (GET /kanban): our own work in four columns, plus Hermes' own Kanban when it is connected.
+export type KanbanColumnId = 'todo' | 'running' | 'blocked' | 'done'
+export interface KanbanCard {
+  key: string
+  source: 'chat' | 'group' | 'schedule' | 'sequence' | 'plan' | 'hermes'
+  title: string
+  column: KanbanColumnId
+  outcome: 'ok' | 'failed' | 'cancelled' | null
+  note: string
+  agents: { id: string; name: string; color: string }[]
+  group: { id: string; name: string } | null
+  at: number // epoch seconds, 0 when unknown
+  link: string // app route, '' when the card cannot be opened
+  cost: Money | null
+  estimated: boolean
+}
+export interface KanbanBoard {
+  columns: { id: KanbanColumnId; label: string; total: number; cards: KanbanCard[] }[]
+  hermes: { state: 'ok' | 'unavailable' | 'pending'; count: number }
+  period: string
+}
+export interface KanbanFilter {
+  agent?: string
+  group?: string
+  period?: string
+}
 export type OccStatus = 'planned' | 'running' | 'done' | 'skipped' | 'failed' | 'cancelled'
 export interface Occurrence {
   id: string
@@ -573,6 +599,26 @@ const toSchedule = (r: Raw): Schedule => ({
     estimated: o.estimated === true,
   })),
 })
+const KCOL: KanbanColumnId[] = ['todo', 'running', 'blocked', 'done']
+const toKanbanCard = (r: Raw): KanbanCard => ({
+  key: asStr(r.key),
+  source: (['chat', 'group', 'schedule', 'sequence', 'plan', 'hermes'] as const).find((x) => x === r.source) ?? 'chat',
+  title: asStr(r.title),
+  column: KCOL.find((x) => x === r.column) ?? 'done',
+  outcome: (['ok', 'failed', 'cancelled'] as const).find((x) => x === r.outcome) ?? null,
+  note: asStr(r.note),
+  agents: list(r.agents).map((a) => ({ id: asStr(a.id), name: asStr(a.name), color: asStr(a.color, 'slate') })),
+  group: r.group ? { id: asStr(r.group.id), name: asStr(r.group.name) } : null,
+  at: epoch(r.at),
+  link: asStr(r.link),
+  cost: r.cost ? toMoney(r.cost) : null,
+  estimated: r.estimated === true,
+})
+const toKanban = (r: Raw): KanbanBoard => ({
+  columns: list(r.columns).map((c) => ({ id: KCOL.find((x) => x === c.id) ?? 'done', label: asStr(c.label), total: asNum(c.total), cards: list(c.cards).map(toKanbanCard) })),
+  hermes: { state: (['ok', 'unavailable', 'pending'] as const).find((x) => x === r.hermes?.state) ?? 'unavailable', count: asNum(r.hermes?.count) },
+  period: asStr(r.period, '7d'),
+})
 export const toRun = (r: Raw): RunInfo => ({
   id: asStr(r.id),
   bot_id: asStr(r.bot_id),
@@ -781,6 +827,7 @@ export const api = {
   stopGroup: (id: string) => call<void>('POST', `/groups/${enc(id)}/stop`),
   approvePlan: async (gid: string, messageId: string) => toSchedule(await call<Raw>('POST', `/groups/${enc(gid)}/plans/${enc(messageId)}/approve`)),
   revisePlan: (gid: string, messageId: string, feedback: string) => call<void>('POST', `/groups/${enc(gid)}/plans/${enc(messageId)}/revise`, { feedback }),
+  kanban: async (f: KanbanFilter) => toKanban(await call<Raw>('GET', `/kanban${q({ ...f })}`)),
   schedules: async () => list(await call('GET', '/schedules')).map(toSchedule),
   createSchedule: async (b: ScheduleInput) => toSchedule(await call<Raw>('POST', '/schedules', b)),
   scheduleAction: async (id: string, what: 'pause' | 'resume' | 'cancel') => toSchedule(await call<Raw>('POST', `/schedules/${enc(id)}/${what}`)),

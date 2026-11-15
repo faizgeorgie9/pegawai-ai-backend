@@ -61,6 +61,7 @@ export const I = {
   settings: 'M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0M16 4v4M8 10v4M18 16v4',
   down: 'M6 9l6 6 6-6',
   check: 'M20 6 9 17l-5-5',
+  board: 'M4 4h5v16H4zM10 4h5v10h-5zM16 4h4v13h-4z',
 }
 export const PENCIL = 'M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4'
 export const TRASH = 'M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13'

@@ -4,6 +4,7 @@ import { AgentDetail, AgentEdit, AgentList, AgentNew } from './Agents'
 import { api, errText } from './bff'
 import { ChatLayout, GroupLayout } from './ChatLayout'
 import Dashboard from './Dashboard'
+import Kanban from './Kanban'
 import { DataProvider, useData } from './data'
 import { Dialogs } from './Dialogs'
 import { Kemampuan } from './Platform'
@@ -66,6 +67,7 @@ function Shell() {
         {(route.name === 'bot' || route.name === 'chat') && <ChatLayout route={route} />}
         {(route.name === 'grup' || route.name === 'grup-list') && <GroupLayout route={route} />}
         {route.name === 'aktivitas' && <Activity />}
+        {route.name === 'kanban' && <Kanban />}
         {route.name === 'home' && <Dashboard />}
         {route.name === 'agen' && <AgentList />}
         {route.name === 'agen-baru' && <AgentNew />}
@@ -143,6 +145,9 @@ function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
           </NavItem>
           <NavItem href="#/grup" icon={I.group} current={route.name === 'grup-list' || route.name === 'grup'}>
             Grup
+          </NavItem>
+          <NavItem href="#/kanban" icon={I.board} current={route.name === 'kanban'}>
+            Kanban
           </NavItem>
         </NavGroup>
 

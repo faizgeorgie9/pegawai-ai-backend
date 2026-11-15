@@ -112,6 +112,33 @@ async def drive(targets: list[str], make_input: Callable[[int, list[str]], str],
     return {"status": "done", "reason": None, "run_ids": run_ids}
 
 
+async def follow_group(poll: Callable[[], Awaitable[list[dict]]], busy: Callable[[], bool], stopped: Callable[[], bool],
+                       halt: Callable[[], Awaitable[object]], save: Callable[[list[str]], Awaitable[None]],
+                       sleep: Callable[[float], Awaitable[None]] = asyncio.sleep, every: float = 2.0) -> dict:
+    """Wait for the group discussion a message started, linking the group's runs to the occurrence as they appear.
+    poll() = runs of the group since the message (oldest first, {id, status, error}); busy() = the group loop is still going.
+    Same result shape as drive(). shortcut: runs are matched by group and time, so a user chatting in the same group at the
+    same moment is counted too (the loop is shared then); tag the runs with the occurrence if that ever matters."""
+    asked, ids, rows = False, [], []
+    while True:
+        rows = await poll()
+        if [str(r["id"]) for r in rows] != ids:
+            ids = [str(r["id"]) for r in rows]
+            await save(ids)
+        if stopped() and not asked:
+            asked = True
+            await halt()
+        if not busy():
+            break
+        await sleep(every)
+    if asked:
+        return {"status": "cancelled", "reason": "Dihentikan", "run_ids": ids}
+    bad = rows[-1] if rows and rows[-1]["status"] in ("failed", "interrupted") else None
+    if bad:
+        return {"status": "failed", "reason": bad.get("error") or "Tidak selesai", "run_ids": ids}
+    return {"status": "done", "reason": None, "run_ids": ids}
+
+
 # ---------- database side ----------
 
 async def _owned(uid: str, sid: str) -> dict:
@@ -348,12 +375,22 @@ async def run_occurrence(occ: dict) -> dict:
                               lambda i, outs: brief if i == 0 else f"{brief}\n\nNaskah dari Writer:\n{outs[-1]}",
                               lambda bot, text: start_with(bot, text, f"grup-{gid}-{bot}", "group", gid, ins, origin),
                               engine.wait_done, done, lambda: oid in STOPS)
-        else:  # recurring on a group: a normal message to the group (the group loop answers it)
+        else:  # recurring on a group: a normal message to the group; the occurrence follows the runs the group loop starts for it
+            gid = str(s["group_id"])
             try:
-                await groups.send(uid, str(s["group_id"]), brief, "queue")
-                res = {"status": "done", "reason": None, "run_ids": []}
+                sent = (await groups.send(uid, gid, brief, "queue"))["message"]
             except ApiError as e:
                 res = {"status": "skipped" if e.status == 402 else "failed", "reason": e.message, "run_ids": []}
+            else:
+                async def poll():
+                    return await db.q("select id, status, error from runs where user_id = %s and group_id = %s and created_at >= %s "
+                                      "order by created_at", uid, gid, sent["created_at"])
+
+                async def save(ids):
+                    run_ids[:] = ids
+                    await db.ex("update schedule_occurrences set run_ids = %s where id = %s", Jsonb(ids), oid)
+                res = await follow_group(poll, lambda: gid in groups.ACTIVE, lambda: oid in STOPS,
+                                         lambda: groups.stop(uid, gid), save)
     except Exception as e:
         res = {"status": "failed", "reason": e.message if isinstance(e, ApiError) else f"Kesalahan internal: {type(e).__name__}",
                "run_ids": run_ids}
