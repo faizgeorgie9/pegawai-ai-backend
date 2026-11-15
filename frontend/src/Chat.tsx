@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { ApiError, api, asStr, errText, isAbort, newKey, subscribe, toClarify, usageOf } from './bff'
 import type { Bot, ChatMessage, Session, SseState } from './bff'
 import { useData } from './data'
@@ -9,6 +7,7 @@ import { partialReplyDraft, toCs21 } from './results'
 import { applyTool, settle, toolsFrom } from './steps'
 import { LiveDraft, LiveSteps } from './LiveSteps'
 import { useSmoothText } from './useSmoothText'
+import { Md } from './rich'
 import type { Cs21 } from './results'
 import { go, botPath } from './router'
 import { KbAttach, KbLines, KbTrayView, asksToSave, useKbTray } from './kb-ui'
@@ -488,25 +487,6 @@ function csFromText(text: string): Cs21 | null {
   } catch {
     return null
   }
-}
-
-const mdComponents = {
-  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
-    <a href={href} target="_blank" rel="noopener noreferrer">
-      {children}
-    </a>
-  ),
-  img: () => null, // no remote images from model output
-}
-
-export function Md({ text, caret }: { text: string; caret?: boolean }) {
-  return (
-    <div className="md" data-caret={caret || undefined}>
-      <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-        {text}
-      </Markdown>
-    </div>
-  )
 }
 
 function Message(p: {

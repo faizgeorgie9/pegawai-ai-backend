@@ -4,7 +4,7 @@ import type { Bot, GroupMsg, ToolChip } from './bff'
 import { LiveSteps } from './LiveSteps'
 import { applyTool, settle, toolsFrom } from './steps'
 import { useSmoothText } from './useSmoothText'
-import { Md } from './Chat'
+import { MentionsCtx, Md } from './rich'
 import { useData } from './data'
 import { PlanCard, withoutPlanBlock } from './PlanCard'
 import { PanelButtons, SidePanel, Split } from './Panel'
@@ -310,6 +310,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
           if (el.scrollTop < 60) void loadOlder()
         }}
       >
+        <MentionsCtx.Provider value={members}>
         <div className="thread group-thread" aria-live="polite">
           {state === 'loading' && <p className="quiet center">Memuat pesan...</p>}
           {state === 'error' && <ErrorLine text={error} onRetry={load} />}
@@ -334,6 +335,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
           ))}
           {turn && <LiveBubble t={turn} bot={bots.find((b) => b.id === turn.bot)} />}
         </div>
+        </MentionsCtx.Provider>
       </div>
 
       <div className="composer-wrap">
