@@ -1,8 +1,10 @@
 import { useCallback, useState } from 'react'
+import type { ReactNode } from 'react'
 import { api, errText } from './bff'
+import type { Money, MonthUsage } from './bff'
 import { useData } from './data'
 import { ErrorLine, nf } from './ui'
-import { Loading, PageHead, useLoad } from './ui-extra'
+import { CostMeter, Loading, PageHead, Perkiraan, useLoad } from './ui-extra'
 
 // #/pengaturan/<bagian>. Left: the sections (a scrolling row on small screens). Right: the section, one sentence per option.
 const SECTIONS = [
@@ -252,40 +254,110 @@ function Knowledge() {
 }
 
 // ---------- Paket dan pemakaian ----------
+const dayText = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+
+function Split({ title, rows }: { title: string; rows: { key: string; name: ReactNode; cost: Money; tokens: number; est: boolean }[] }) {
+  const top = Math.max(...rows.map((r) => Number(r.cost.usd)), 0)
+  return (
+    <div>
+      <h3>{title}</h3>
+      <ul className="usage-list">
+        {rows.map((r) => (
+          <li key={r.key}>
+            <span className="row-top">
+              <span>
+                {r.name} {r.est && <Perkiraan />}
+              </span>
+              <b className="num">{r.cost.label}</b>
+            </span>
+            <span className="bar-sm" aria-hidden="true">
+              <span style={{ width: `${top > 0 ? Math.max(2, (Number(r.cost.usd) / top) * 100) : 2}%` }} />
+            </span>
+            <small className="quiet num">{nf.format(r.tokens)} token</small>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function UsageDetail({ u }: { u: MonthUsage }) {
+  if (u.tokens.runs === 0) return <p className="quiet">Belum ada pemakaian bulan ini. Biaya muncul di sini setelah agen mengerjakan tugas.</p>
+  const days = Math.max(...u.by_day.map((d) => Number(d.cost.usd)), 0)
+  return (
+    <>
+      <div className="usage-split">
+        <Split title="Per agen" rows={u.by_agent.map((a) => ({ key: a.bot_id, name: a.name, cost: a.cost, tokens: a.tokens, est: a.estimated }))} />
+        <Split
+          title="Per model"
+          rows={u.by_model.map((m) => ({ key: `${m.provider}/${m.model}`, name: m.priced ? m.model : `${m.model} (belum ada harga)`, cost: m.cost, tokens: m.tokens, est: m.estimated }))}
+        />
+      </div>
+      <div className="usage-days">
+        <h3>Per hari</h3>
+        <ul className="usage-list">
+          {u.by_day.map((d) => (
+            <li key={d.day}>
+              <span className="day num">{dayText(d.day)}</span>
+              <span className="bar-sm" aria-hidden="true">
+                <span style={{ width: `${days > 0 ? Math.max(2, (Number(d.cost.usd) / days) * 100) : 2}%` }} />
+              </span>
+              <b className="amt num">{d.cost.label}</b>
+            </li>
+          ))}
+        </ul>
+      </div>
+      {u.unpriced_tokens > 0 && <p className="note-box">{nf.format(u.unpriced_tokens)} token belum dihitung karena modelnya belum punya harga.</p>}
+    </>
+  )
+}
+
 function Plan() {
   const { me, loadState } = useData()
+  const spent = me?.usage.cost.usd // refetch the breakdown when the month's cost changes
+  const fn = useCallback(() => api.usageMonth(), [spent])
+  const m = useLoad(fn)
   if (!me) return <div className="set-sec">{loadState === 'loading' ? <Loading text="Memuat paket..." /> : <p className="quiet">Data paket belum terbaca.</p>}</div>
-  const { limits: l, usage: u } = me
-  const pct = l.monthly_tokens ? Math.min(100, Math.round((u.tokens_month / l.monthly_tokens) * 100)) : 0
+  const { usage: u } = me
+  const d = m.data
   return (
     <div className="set-sec">
       <h2>Paket dan pemakaian</h2>
       <dl className="kv">
         <dt>Paket aktif</dt>
         <dd>{me.plan.name}</dd>
+        <dt>Biaya bulan ini</dt>
+        <dd>
+          <CostMeter u={u} reasons={d?.estimate_reasons} />
+        </dd>
         <dt>Token bulan ini</dt>
         <dd>
           <span className="num">{nf.format(u.tokens_month)}</span>
-          {l.monthly_tokens === null ? ' (tanpa batas)' : <> dari <span className="num">{nf.format(l.monthly_tokens)}</span> ({pct}%)</>}
-          {l.monthly_tokens !== null && (
-            <span className="set-meter" role="img" aria-label={`${pct} persen dari batas token bulan ini`}>
-              <span style={{ width: `${pct}%` }} />
-            </span>
-          )}
         </dd>
         <dt>Agen</dt>
         <dd>
-          <span className="num">{u.bots}</span> dari <span className="num">{l.max_bots}</span>
+          <span className="num">{u.bots}</span> dari <span className="num">{me.limits.max_bots}</span>
         </dd>
         <dt>Grup</dt>
         <dd>
-          <span className="num">{u.groups}</span> dari <span className="num">{l.max_groups}</span>
+          <span className="num">{u.groups}</span> dari <span className="num">{me.limits.max_groups}</span>
         </dd>
         <dt>Tugas bersamaan</dt>
         <dd>
-          <span className="num">{u.active_runs}</span> dari <span className="num">{l.max_concurrent_runs}</span>
+          <span className="num">{u.active_runs}</span> dari <span className="num">{me.limits.max_concurrent_runs}</span>
         </dd>
       </dl>
+      <h2>Rincian biaya</h2>
+      {d && (
+        <p className="quiet small">
+          {new Date(d.period.start).toLocaleDateString('id-ID', { month: 'long', year: 'numeric', timeZone: d.period.timezone })} ({d.period.timezone}), diperbarui{' '}
+          {new Date(d.updated_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: d.period.timezone })}. Dihitung dari token sebenarnya dikali harga model per 1 juta token (masuk,
+          keluar, cache). {d.basis === 'estimated' ? 'Angka berlabel "perkiraan" memakai harga yang belum diverifikasi.' : 'Semua harga sudah diverifikasi dari halaman resmi penyedia.'}
+        </p>
+      )}
+      {m.state === 'loading' && !d && <Loading text="Memuat rincian..." />}
+      {m.state === 'error' && !d && <ErrorLine text={m.error} onRetry={m.retry} />}
+      {d && <UsageDetail u={d} />}
     </div>
   )
 }

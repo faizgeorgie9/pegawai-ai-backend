@@ -87,7 +87,7 @@ export default function Dashboard() {
         </article>
       </div>
 
-      <dl className="kpis">
+      <dl className="kpis k4">
         <div>
           <dt>Tugas aktif</dt>
           <dd className="num">{nf.format(runs.length)}</dd>
@@ -99,6 +99,13 @@ export default function Dashboard() {
         <div>
           <dt>Token bulan ini</dt>
           <dd className="num">{me ? nf.format(me.usage.tokens_month) : '–'}</dd>
+        </div>
+        <div>
+          <dt>Biaya bulan ini</dt>
+          <dd className="num">
+            {me ? me.usage.cost.label : '–'}
+            {me?.usage.basis === 'estimated' && <small className="quiet"> perkiraan</small>}
+          </dd>
         </div>
       </dl>
 

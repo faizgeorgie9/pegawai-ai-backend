@@ -4,6 +4,7 @@ import Activity from './Activity'
 import { api, errText } from './bff'
 import type { Bot, Group, Scope, Usage } from './bff'
 import { useData } from './data'
+import { CostMeter, Perkiraan } from './ui-extra'
 import { go } from './router'
 import { BotAvatar, CLOSE, ErrorLine, Icon, botColor, clock, nf, teamLabel } from './ui'
 import './panel.css'
@@ -211,8 +212,6 @@ function Tokens({ scope, version, bot, members, group }: Scoped) {
   const u = useRemote<Usage>(() => api.usage(scope), scopeKey(scope), version)
   const month = useRemote(() => api.usageBots('month'), 'month', version)
   const lookup = (id: string) => members?.find((b) => b.id === id) ?? (bot && bot.id === id ? bot : undefined) ?? bots.find((b) => b.id === id)
-  const limit = me?.limits.monthly_tokens
-  const used = me?.usage.tokens_month ?? 0
 
   return (
     <div className="p-scroll">
@@ -243,6 +242,9 @@ function Tokens({ scope, version, bot, members, group }: Scoped) {
                 </dd>
               </div>
             </dl>
+            <p className="cost-line">
+              Biaya percakapan ini <b className="num">{u.data.cost.label}</b> {u.data.basis === 'estimated' && <Perkiraan reasons={u.data.estimate_reasons} />}
+            </p>
             {group && (
               <p className="quiet small">
                 Batas per kiriman grup: <b>{me?.limits.group_send_token_budget == null ? 'Tanpa batas' : `${dash(me.limits.group_send_token_budget)} token`}</b>
@@ -261,7 +263,8 @@ function Tokens({ scope, version, bot, members, group }: Scoped) {
                     </span>
                     <Bar ratio={b.total / Math.max(1, u.data!.by_bot[0].total)} color="var(--accent)" />
                     <small className="quiet num">
-                      {dash(b.input)} masuk, {dash(b.output)} keluar
+                      {dash(b.input)} masuk, {dash(b.output)} keluar · {b.cost.label}
+                      {b.estimated && ' (perkiraan)'}
                     </small>
                   </li>
                 )
@@ -281,6 +284,7 @@ function Tokens({ scope, version, bot, members, group }: Scoped) {
                       {dash(t.input)} / {dash(t.output)}
                     </small>{' '}
                     <b>{dash(t.total)}</b>
+                    <small className="quiet"> · {t.cost.label}</small>
                   </span>
                 </li>
               ))}
@@ -300,7 +304,10 @@ function Tokens({ scope, version, bot, members, group }: Scoped) {
               <li key={b.bot_id}>
                 <span className="bar-top">
                   <span>{b.name}</span>
-                  <span className="num">{dash(b.total)}</span>
+                  <span className="num">
+                    {b.cost.label}
+                    {b.estimated && <small className="quiet"> perkiraan</small>} <small className="quiet">· {dash(b.total)}</small>
+                  </span>
                 </span>
                 <Bar ratio={b.total / Math.max(1, month.data![0].total)} color="var(--accent)" />
               </li>
@@ -311,10 +318,9 @@ function Tokens({ scope, version, bot, members, group }: Scoped) {
           <div className="meter">
             <span className="bar-top">
               <span>Paket {me.plan.name}</span>
-              <span className="num">{limit === null ? 'Tanpa batas' : `${dash(used)} dari ${dash(limit ?? 0)}`}</span>
+              <a href="#/pengaturan/paket">Rincian</a>
             </span>
-            {limit !== null && <Bar ratio={limit ? used / limit : 0} color="var(--accent)" />}
-            {limit === null && <small className="quiet num">{dash(used)} token terpakai bulan ini</small>}
+            <CostMeter u={me.usage} />
           </div>
         )}
       </section>

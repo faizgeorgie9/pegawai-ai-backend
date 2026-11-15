@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { api, errText } from './bff'
 import { ErrorLine, I, Icon } from './ui'
-import type { Bot, Clarify } from './bff'
+import type { Bot, Clarify, EstimateReason, LimitInfo } from './bff'
 
 // Shared page pieces for the Sprint 3 pages.
 
@@ -97,6 +97,54 @@ export function EffortSelect({ value, onChange, disabled }: { value: string; onC
 }
 
 // Marks an optional field label. Forms where most fields are required mark only the optional ones.
+// USD usage. Amounts come formatted from the BFF (Money.label: "$0" / "< $0.01" / rounded to cents). A cost with unverified or
+// missing prices is an estimate and is always labeled "perkiraan"; the reasons are the hover text.
+const REASON: Record<EstimateReason['code'], (m: string) => string> = {
+  unverified_price: (m) => `Harga ${m} belum diverifikasi dari halaman resmi penyedia.`,
+  model_not_recorded: () => 'Sebagian tugas tidak mencatat modelnya, jadi dihitung dengan model bawaan agen.',
+  no_price: (m) => `Belum ada harga untuk ${m}, jadi belum dihitung.`,
+}
+export const reasonText = (r: EstimateReason[] = []) => r.map((x) => REASON[x.code](x.models.join(', '))).join(' ')
+
+export function Perkiraan({ reasons, why }: { reasons?: EstimateReason[]; why?: string }) {
+  return (
+    <span className="pill warn est" title={why ?? (reasonText(reasons) || 'Biaya ini perkiraan.')}>
+      perkiraan
+    </span>
+  )
+}
+
+const STATE_TEXT = { normal: 'Aman', warning: 'Hampir habis', exceeded: 'Batas tercapai' } as const
+
+// Spent / limit / remaining with the three states: normal, warning (>= 80%), exceeded (new tasks are refused).
+export function CostMeter({ u, reasons, plan }: { u: LimitInfo; reasons?: EstimateReason[]; plan?: string }) {
+  const pct = u.percent ?? 0
+  return (
+    <div className="cost-meter" data-state={u.limit ? u.state : 'none'}>
+      <div className="cost-head">
+        <span className="cost-spent num">{u.cost.label}</span>
+        <span className="quiet">{u.limit ? `dari ${u.limit.label} bulan ini${plan ? ` (paket ${plan})` : ''}` : 'bulan ini, tanpa batas biaya'}</span>
+        {u.basis === 'estimated' && <Perkiraan reasons={reasons} />}
+        {u.limit && <span className={`pill ${u.state === 'normal' ? 'ok' : u.state === 'warning' ? 'warn' : 'bad'}`}>{STATE_TEXT[u.state]}</span>}
+      </div>
+      {u.limit && (
+        <span className="set-meter" role="img" aria-label={`${pct} persen dari batas biaya bulan ini`}>
+          <span style={{ width: `${Math.min(100, pct)}%` }} />
+        </span>
+      )}
+      {u.limit && u.remaining && (
+        <small className="quiet">
+          {u.state === 'exceeded'
+            ? 'Tugas baru ditolak sampai bulan depan atau paket dinaikkan.'
+            : u.state === 'warning'
+              ? `Sisa ${u.remaining.label}. Naikkan paket sebelum tugas mulai ditolak.`
+              : `Sisa ${u.remaining.label}.`}
+        </small>
+      )}
+    </div>
+  )
+}
+
 export const Opt = () => <em className="req">(opsional)</em>
 
 export type Cap = 'ok' | 'mock' | 'none' | 'blocked' | 'unknown'

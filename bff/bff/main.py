@@ -11,7 +11,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bots, catalog, config, db, engine, evaluations, groups, harden, hermes, sequences, settings, usage
+from . import bots, catalog, config, costs, db, engine, evaluations, groups, harden, hermes, sequences, settings, usage
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -131,14 +131,21 @@ async def me():
     plan = await engine.get_plan(uid)
     nb = (await db.q1("select count(*)::int as n from bots where user_id = %s and deleted_at is null", uid))["n"]
     ng = (await db.q1("select count(*)::int as n from groups where user_id = %s and deleted_at is null", uid))["n"]
-    return {"user": user, "plan": {"id": plan["id"], "name": plan["name"]}, "limits": plan,
+    month = await costs.month(uid, plan["monthly_usd"])
+    return {"user": user, "plan": {"id": plan["id"], "name": plan["name"]}, "limits": plan_view(plan),
             "usage": {"tokens_month": await engine.tokens_month(uid), "bots": nb, "groups": ng,
-                      "active_runs": await engine.active_runs(uid)}}
+                      "active_runs": await engine.active_runs(uid),
+                      **{k: month[k] for k in ("cost", "limit", "remaining", "percent", "state", "basis")}}}
+
+
+def plan_view(plan: dict) -> dict:
+    """monthly_usd travels as an exact decimal string, not a float."""
+    return {**plan, "monthly_usd": costs.money(plan["monthly_usd"])}
 
 
 @api.get("/plans")
 async def plans():
-    return await db.q("select * from plans order by sort")
+    return [plan_view(p) for p in await db.q("select * from plans order by sort")]
 
 
 @api.put("/me/plan")
@@ -550,8 +557,14 @@ def _scope(session_id: str | None, group_id: str | None) -> tuple[str | None, st
 
 @api.get("/usage")
 async def usage_of(session_id: str | None = None, group_id: str | None = None):
+    """With session_id or group_id: that conversation (tokens, USD cost, month block). With neither: the month view of the
+    account (period, cost, limit, remaining, percent, state, basis, by agent / model / day)."""
+    uid = current_user()
+    limit = (await engine.get_plan(uid))["monthly_usd"]
+    if session_id is None and group_id is None:
+        return await costs.month(uid, limit)
     sid, gid = _scope(session_id, group_id)
-    return await usage.conversation(current_user(), sid, gid)
+    return await usage.conversation(uid, sid, gid, limit)
 
 
 @api.get("/usage/bots")

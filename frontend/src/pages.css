@@ -205,6 +205,25 @@ td.st-col { min-width: 170px; }
 .set-files { margin: 0; padding-left: 18px; color: var(--muted); }
 .set-meter { display: block; height: 6px; margin-top: 6px; background: var(--accent-track); border-radius: 999px; overflow: hidden; }
 .set-meter span { display: block; height: 100%; background: var(--accent); }
+.cost-meter { display: flex; flex-direction: column; gap: 6px; }
+.cost-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.cost-spent { font-size: 20px; font-weight: 600; }
+.cost-meter[data-state="warning"] .set-meter span { background: var(--warn-line); }
+.cost-meter[data-state="exceeded"] .set-meter span { background: var(--bad-ink); }
+.pill.est { font-weight: 500; }
+.usage-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-4); }
+.usage-split h3, .usage-days h3 { font-size: 14px; margin: 0 0 var(--s-2); }
+.usage-list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.usage-list li { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.usage-list .row-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.usage-list .row-top > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.usage-list .bar-sm { display: block; height: 6px; border-radius: 999px; background: var(--accent-track); overflow: hidden; }
+.usage-list .bar-sm > span { display: block; height: 100%; background: var(--accent); }
+.usage-days .usage-list li { flex-direction: row; align-items: center; gap: 10px; }
+.usage-days .usage-list .day { flex: none; width: 56px; font-size: 13px; color: var(--muted); }
+.usage-days .usage-list .bar-sm { flex: 1; }
+.usage-days .usage-list .amt { flex: none; width: 72px; text-align: right; font-size: 13px; }
+@media (max-width: 760px) { .usage-split { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 760px) {
   .set-layout { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
   .set-nav { position: static; flex-direction: row; overflow-x: auto; border-bottom: 1px solid var(--border); gap: 0; }

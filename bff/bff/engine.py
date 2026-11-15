@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import httpx
 
-from . import catalog, cs_schema, db, hermes, knowledge, settings, versions
+from . import catalog, costs, cs_schema, db, hermes, knowledge, settings, versions
 from .errors import ApiError
 from .redact import redact
 
@@ -125,8 +125,8 @@ async def active_runs(user_id: str) -> int:
 async def check_quota(user_id: str) -> None:
     # shortcut: check-then-insert is not atomic; fine for one local user, add a per-user lock when real login lands.
     plan = await get_plan(user_id)
-    if plan["monthly_tokens"] is not None and await tokens_month(user_id) >= plan["monthly_tokens"]:  # NULL = no limit
-        raise ApiError(402, "Kuota token bulan ini habis. Naikkan paket untuk melanjutkan.", upgrade=True)
+    if plan["monthly_usd"] is not None and (await costs.month(user_id, plan["monthly_usd"]))["state"] == "exceeded":  # NULL = no limit
+        raise ApiError(402, "Batas biaya bulan ini tercapai. Naikkan paket untuk melanjutkan.", upgrade=True)
     if await active_runs(user_id) >= plan["max_concurrent_runs"]:
         raise ApiError(402, "Batas tugas bersamaan di paket Anda tercapai. Tunggu tugas selesai atau naikkan paket.",
                        upgrade=True)
@@ -495,6 +495,9 @@ async def finalize(lv: Live, status: str, ev: dict) -> None:
     total = own_total + pr.get("total_tokens", 0)
     cache = int(usage.get("cache_read_tokens") or 0) + pr.get("cache_read_tokens", 0)
     patch = await _workflow_result(lv, status, output)
+    rt = ev.get("runtime") if isinstance(ev.get("runtime"), dict) else {}
+    if rt.get("model") and rt.get("provider"):  # the model Hermes actually served, the one the run is priced with
+        patch.update(model=rt["model"], provider=rt["provider"])
     if lv.workflow:
         patch["tokens"] = {"input": inp, "output": outp, "total": total}
         if lv.t0 is not None:

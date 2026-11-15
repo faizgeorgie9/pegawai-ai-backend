@@ -140,9 +140,29 @@ export interface Template {
   color: string
   description: string
 }
+// Exact USD amount as the BFF formats it: `usd` is the exact decimal string, `label` the rounded text to show ("$0.50", "< $0.01").
+export interface Money {
+  usd: string
+  label: string
+}
+export type LimitState = 'normal' | 'warning' | 'exceeded'
+// Why a cost is an estimate ("perkiraan"): unverified_price, model_not_recorded or no_price, with the models involved.
+export interface EstimateReason {
+  code: 'unverified_price' | 'model_not_recorded' | 'no_price'
+  models: string[]
+}
+// The limit part of a usage view. limit/remaining/percent are null when the plan has no USD limit.
+export interface LimitInfo {
+  cost: Money
+  limit: Money | null
+  remaining: Money | null
+  percent: number | null
+  state: LimitState
+  basis: 'measured' | 'estimated'
+}
 // null means "no limit" (shown as "Tanpa batas")
 export interface Limits {
-  monthly_tokens: number | null
+  monthly_usd: Money | null
   group_send_token_budget: number | null
   max_bots: number
   max_groups: number
@@ -156,7 +176,7 @@ export interface Plan extends Limits {
 export interface Me {
   plan: { id: string; name: string }
   limits: Limits
-  usage: { tokens_month: number; bots: number; groups: number; active_runs: number }
+  usage: { tokens_month: number; bots: number; groups: number; active_runs: number } & LimitInfo
 }
 export interface Group {
   id: string
@@ -183,8 +203,12 @@ export interface Thought {
 }
 export interface Usage {
   total: { input: number; output: number; cache_read: number; total: number; runs: number }
-  by_bot: { bot_id: string; name: string; input: number; output: number; total: number; runs: number }[]
-  turns: { run_id: string; bot_id: string; created_at: number; input: number; output: number; total: number; status: string }[]
+  by_bot: { bot_id: string; name: string; input: number; output: number; total: number; runs: number; cost: Money; estimated: boolean }[]
+  turns: { run_id: string; bot_id: string; created_at: number; input: number; output: number; total: number; status: string; cost: Money; estimated: boolean }[]
+  cost: Money
+  basis: 'measured' | 'estimated'
+  estimate_reasons: EstimateReason[]
+  month: LimitInfo
 }
 export interface BotUsage {
   bot_id: string
@@ -193,6 +217,25 @@ export interface BotUsage {
   output: number
   total: number
   runs: number
+  cost: Money
+  estimated: boolean
+}
+interface Slice {
+  cost: Money
+  tokens: number
+  runs: number
+}
+// GET /usage without a scope: this month's USD view of the account.
+export interface MonthUsage extends LimitInfo {
+  currency: 'USD'
+  period: { start: string; end: string; timezone: string }
+  updated_at: string
+  tokens: { input: number; output: number; cache_read: number; total: number; runs: number }
+  unpriced_tokens: number
+  estimate_reasons: EstimateReason[]
+  by_agent: (Slice & { bot_id: string; name: string; estimated: boolean })[]
+  by_model: (Slice & { provider: string; model: string; estimated: boolean; priced: boolean })[]
+  by_day: (Slice & { day: string })[]
 }
 export type Scope = { session_id: string; group_id?: undefined } | { group_id: string; session_id?: undefined }
 export interface RunInfo {
@@ -388,12 +431,21 @@ const toBot = (r: Raw): Bot => ({
   provider: asStr(r.provider),
   effort: asStr(r.reasoning_effort),
 })
+const toMoney = (r: Raw): Money => ({ usd: asStr(r.usd, '0'), label: asStr(r.label, '$0') })
 const toLimits = (r: Raw = {}): Limits => ({
-  monthly_tokens: r.monthly_tokens == null ? null : asNum(r.monthly_tokens),
+  monthly_usd: r.monthly_usd == null ? null : toMoney(r.monthly_usd),
   group_send_token_budget: r.group_send_token_budget == null ? null : asNum(r.group_send_token_budget),
   max_bots: asNum(r.max_bots),
   max_groups: asNum(r.max_groups),
   max_concurrent_runs: asNum(r.max_concurrent_runs),
+})
+const toLimitInfo = (u: Raw = {}): LimitInfo => ({
+  cost: toMoney(u.cost ?? {}),
+  limit: u.limit ? toMoney(u.limit) : null,
+  remaining: u.remaining ? toMoney(u.remaining) : null,
+  percent: u.percent == null ? null : asNum(u.percent),
+  state: u.state === 'warning' || u.state === 'exceeded' ? u.state : 'normal',
+  basis: u.basis === 'estimated' ? 'estimated' : 'measured',
 })
 const toPlan = (r: Raw): Plan => ({
   id: asStr(r.id),
@@ -407,7 +459,13 @@ const toMe = (r: Raw): Me => {
   return {
     plan: p,
     limits: toLimits(r.limits ?? r.plan),
-    usage: { tokens_month: asNum(u.tokens_month), bots: asNum(u.bots), groups: asNum(u.groups), active_runs: asNum(u.active_runs) },
+    usage: {
+      tokens_month: asNum(u.tokens_month),
+      bots: asNum(u.bots),
+      groups: asNum(u.groups),
+      active_runs: asNum(u.active_runs),
+      ...toLimitInfo(u),
+    },
   }
 }
 const toGroup = (r: Raw): Group => {
@@ -641,6 +699,7 @@ export const api = {
     const u = await call<Usage>('GET', `/usage${q({ ...s })}`)
     return { ...u, turns: u.turns.map((t) => ({ ...t, created_at: epoch(t.created_at) })) }
   },
+  usageMonth: () => call<MonthUsage>('GET', '/usage'),
   usageBots: (period: 'month' | 'all') => call<BotUsage[]>('GET', `/usage/bots${q({ period })}`),
   thinking: async (s: Scope): Promise<Thought[]> =>
     list(await call('GET', `/thinking${q({ ...s })}`)).map((r) => ({
