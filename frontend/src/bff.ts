@@ -19,7 +19,7 @@ export class ApiError extends Error {
 
 function fallbackMessage(status: number): string {
   if (status === 401) return 'Akses ditolak. Kunci BFF belum diisi atau salah.'
-  if (status === 402) return 'Batas penggunaan tercapai. Coba lagi nanti.'
+  if (status === 402) return 'Batas paket Anda tercapai.'
   if (status === 404) return 'Data tidak ditemukan. Mungkin sudah dihapus.'
   if (status === 409) return 'Permintaan bentrok dengan keadaan saat ini. Coba lagi.'
   if (status === 429) return 'Terlalu banyak tugas berjalan, coba sebentar lagi.'
@@ -33,8 +33,8 @@ async function call<T>(method: string, path: string, body?: unknown, signal?: Ab
     res = await fetch(BASE + path, {
       method,
       signal,
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: body === undefined || body instanceof FormData ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
     })
   } catch (e) {
     if (signal?.aborted) throw e
@@ -48,9 +48,8 @@ async function call<T>(method: string, path: string, body?: unknown, signal?: Ab
       /* empty or non-JSON error body */
     }
     const msg = typeof j.error === 'string' && j.error ? j.error : fallbackMessage(res.status)
-    // 402 = quota reached. The plan UI is hidden, so show a plain error (no upgrade hint).
-    if (res.status === 402) throw new ApiError('Batas penggunaan tercapai. Coba lagi nanti.', 402, false)
-    throw new ApiError(msg, res.status, j.upgrade === true)
+    // 402 = plan limit reached. The BFF message says which limit; the plan UI is hidden, so never offer an upgrade button.
+    throw new ApiError(msg, res.status, res.status !== 402 && j.upgrade === true)
   }
   if (res.status === 204) return undefined as T
   try {
@@ -132,6 +131,48 @@ export interface KnowledgeInfo {
   retention_days: number
   docs: { id: string; title: string; workflow: string; version: string | null; date: string | null; files: { name: string; title: string }[] }[]
 }
+// Knowledge Base item (a file or link the user added; the BFF extracts the text and keeps it per user).
+export interface KbItem {
+  id: string | null // null: a link that could not even be stored (e.g. the Knowledge Base is full)
+  kind: 'file' | 'gdrive' | 'url' | 'notion'
+  name: string
+  source: string | null
+  status: 'processing' | 'ready' | 'failed'
+  error: string | null
+  size_bytes: number | null
+  chars: number | null
+  created_at: string | null
+  refreshable?: boolean // imported through a connection (Drive / Notion): can be fetched again
+}
+// Connections (Google Drive, Gmail, Notion). not_configured: the administrator has not set up the app yet.
+export type ConnProvider = 'gdrive' | 'gmail' | 'notion'
+export interface Connection {
+  provider: ConnProvider
+  name: string
+  status: 'not_configured' | 'disconnected' | 'connected' | 'reconnect'
+  account: string | null
+  connected_at: string | null
+  redirect_uri: string // what the administrator registers at the provider
+  setup: { env: string; label: string; filled: boolean }[] // which admin values are filled (never the values)
+}
+// A file or page the user can pick from Drive / Notion.
+export interface PickItem {
+  id: string
+  name: string
+  type: string | null
+  modified: string | null
+  size: number | null
+}
+export interface PickPage {
+  items: PickItem[]
+  next: string | null
+}
+export interface ImportResult {
+  id: string | null
+  name: string
+  status: 'ready' | 'failed' | 'processing'
+  error?: string | null
+}
 export interface Template {
   id: string
   name: string
@@ -140,9 +181,29 @@ export interface Template {
   color: string
   description: string
 }
+// Exact USD amount as the BFF formats it: `usd` is the exact decimal string, `label` the rounded text to show ("$0.50", "< $0.01").
+export interface Money {
+  usd: string
+  label: string
+}
+export type LimitState = 'normal' | 'warning' | 'exceeded'
+// Why a cost is an estimate ("perkiraan"): unverified_price, model_not_recorded or no_price, with the models involved.
+export interface EstimateReason {
+  code: 'unverified_price' | 'model_not_recorded' | 'no_price'
+  models: string[]
+}
+// The limit part of a usage view. limit/remaining/percent are null when the plan has no USD limit.
+export interface LimitInfo {
+  cost: Money
+  limit: Money | null
+  remaining: Money | null
+  percent: number | null
+  state: LimitState
+  basis: 'measured' | 'estimated'
+}
 // null means "no limit" (shown as "Tanpa batas")
 export interface Limits {
-  monthly_tokens: number | null
+  monthly_usd: Money | null
   group_send_token_budget: number | null
   max_bots: number
   max_groups: number
@@ -156,7 +217,7 @@ export interface Plan extends Limits {
 export interface Me {
   plan: { id: string; name: string }
   limits: Limits
-  usage: { tokens_month: number; bots: number; groups: number; active_runs: number }
+  usage: { tokens_month: number; bots: number; groups: number; active_runs: number } & LimitInfo
 }
 export interface Group {
   id: string
@@ -172,6 +233,82 @@ export interface GroupMsg {
   text: string
   run_id: string
   created_at: number
+  plan?: ContentPlan // the message ends with a valid content plan (the BFF validated it): shown as an approval card
+}
+export interface PlanDay {
+  date: string // YYYY-MM-DD
+  theme: string
+  products: string[]
+  brief: string
+  time: string // HH:MM
+}
+export interface ContentPlan {
+  title: string
+  days: PlanDay[]
+  schedule_id: string | null // set once the user approved it
+}
+// Kanban board (GET /kanban): our own work in four columns, plus Hermes' own Kanban when it is connected.
+export type KanbanColumnId = 'todo' | 'running' | 'blocked' | 'done'
+export interface KanbanCard {
+  key: string
+  source: 'chat' | 'group' | 'schedule' | 'sequence' | 'plan' | 'hermes'
+  title: string
+  column: KanbanColumnId
+  outcome: 'ok' | 'failed' | 'cancelled' | null
+  note: string
+  agents: { id: string; name: string; color: string }[]
+  group: { id: string; name: string } | null
+  at: number // epoch seconds, 0 when unknown
+  link: string // app route, '' when the card cannot be opened
+  cost: Money | null
+  estimated: boolean
+}
+export interface KanbanBoard {
+  columns: { id: KanbanColumnId; label: string; total: number; cards: KanbanCard[] }[]
+  hermes: { state: 'ok' | 'unavailable' | 'pending'; count: number }
+  period: string
+}
+export interface KanbanFilter {
+  agent?: string
+  group?: string
+  period?: string
+}
+export type OccStatus = 'planned' | 'running' | 'done' | 'skipped' | 'failed' | 'cancelled'
+export interface Occurrence {
+  id: string
+  schedule_id: string
+  planned_at: number // epoch seconds
+  title: string
+  brief: string
+  status: OccStatus
+  skip_reason: string
+  agents: string[] // plan days: writer, visual; empty = the schedule's own target
+  run_id: string
+  cost: Money | null
+  estimated: boolean
+}
+export interface Schedule {
+  id: string
+  kind: 'recurring' | 'plan'
+  title: string
+  status: 'active' | 'paused' | 'cancelled'
+  target: string // agent or group name
+  bot_id: string
+  group_id: string
+  prompt: string
+  days: number[] // 0 = Monday
+  time: string
+  timezone: string
+  next_at: number // 0 when none
+  occurrences: Occurrence[]
+}
+export interface ScheduleInput {
+  title: string
+  prompt: string
+  days: number[]
+  time: string
+  bot_id?: string
+  group_id?: string
 }
 export interface Thought {
   run_id: string
@@ -183,8 +320,12 @@ export interface Thought {
 }
 export interface Usage {
   total: { input: number; output: number; cache_read: number; total: number; runs: number }
-  by_bot: { bot_id: string; name: string; input: number; output: number; total: number; runs: number }[]
-  turns: { run_id: string; bot_id: string; created_at: number; input: number; output: number; total: number; status: string }[]
+  by_bot: { bot_id: string; name: string; input: number; output: number; total: number; runs: number; cost: Money; estimated: boolean }[]
+  turns: { run_id: string; bot_id: string; created_at: number; input: number; output: number; total: number; status: string; cost: Money; estimated: boolean }[]
+  cost: Money
+  basis: 'measured' | 'estimated'
+  estimate_reasons: EstimateReason[]
+  month: LimitInfo
 }
 export interface BotUsage {
   bot_id: string
@@ -193,6 +334,25 @@ export interface BotUsage {
   output: number
   total: number
   runs: number
+  cost: Money
+  estimated: boolean
+}
+interface Slice {
+  cost: Money
+  tokens: number
+  runs: number
+}
+// GET /usage without a scope: this month's USD view of the account.
+export interface MonthUsage extends LimitInfo {
+  currency: 'USD'
+  period: { start: string; end: string; timezone: string }
+  updated_at: string
+  tokens: { input: number; output: number; cache_read: number; total: number; runs: number }
+  unpriced_tokens: number
+  estimate_reasons: EstimateReason[]
+  by_agent: (Slice & { bot_id: string; name: string; estimated: boolean })[]
+  by_model: (Slice & { provider: string; model: string; estimated: boolean; priced: boolean })[]
+  by_day: (Slice & { day: string })[]
 }
 export type Scope = { session_id: string; group_id?: undefined } | { group_id: string; session_id?: undefined }
 export interface RunInfo {
@@ -277,6 +437,8 @@ export interface ChatMessage {
   approval?: Approval
   clarify?: Clarify
   notes?: string[]
+  kb?: KbItem[] // Knowledge Base items saved from this message's links (result), shown under the bubble
+  kbBusy?: boolean // the message asks to save a link and the BFF is still reading it
 }
 export interface ActivityRow {
   id: string
@@ -388,12 +550,21 @@ const toBot = (r: Raw): Bot => ({
   provider: asStr(r.provider),
   effort: asStr(r.reasoning_effort),
 })
+const toMoney = (r: Raw): Money => ({ usd: asStr(r.usd, '0'), label: asStr(r.label, '$0') })
 const toLimits = (r: Raw = {}): Limits => ({
-  monthly_tokens: r.monthly_tokens == null ? null : asNum(r.monthly_tokens),
+  monthly_usd: r.monthly_usd == null ? null : toMoney(r.monthly_usd),
   group_send_token_budget: r.group_send_token_budget == null ? null : asNum(r.group_send_token_budget),
   max_bots: asNum(r.max_bots),
   max_groups: asNum(r.max_groups),
   max_concurrent_runs: asNum(r.max_concurrent_runs),
+})
+const toLimitInfo = (u: Raw = {}): LimitInfo => ({
+  cost: toMoney(u.cost ?? {}),
+  limit: u.limit ? toMoney(u.limit) : null,
+  remaining: u.remaining ? toMoney(u.remaining) : null,
+  percent: u.percent == null ? null : asNum(u.percent),
+  state: u.state === 'warning' || u.state === 'exceeded' ? u.state : 'normal',
+  basis: u.basis === 'estimated' ? 'estimated' : 'measured',
 })
 const toPlan = (r: Raw): Plan => ({
   id: asStr(r.id),
@@ -407,7 +578,13 @@ const toMe = (r: Raw): Me => {
   return {
     plan: p,
     limits: toLimits(r.limits ?? r.plan),
-    usage: { tokens_month: asNum(u.tokens_month), bots: asNum(u.bots), groups: asNum(u.groups), active_runs: asNum(u.active_runs) },
+    usage: {
+      tokens_month: asNum(u.tokens_month),
+      bots: asNum(u.bots),
+      groups: asNum(u.groups),
+      active_runs: asNum(u.active_runs),
+      ...toLimitInfo(u),
+    },
   }
 }
 const toGroup = (r: Raw): Group => {
@@ -429,8 +606,62 @@ export const toGroupMsg = (r: Raw): GroupMsg => {
     text: asStr(r.text ?? r.content),
     run_id: asStr(r.run_id),
     created_at: epoch(r.created_at ?? r.time),
+    plan: r.plan ? toContentPlan(r.plan) : undefined,
   }
 }
+const toContentPlan = (p: Raw): ContentPlan => ({
+  title: asStr(p.title),
+  days: list(p.days).map((d) => ({ date: asStr(d.date), theme: asStr(d.theme), products: list(d.products).map((x) => asStr(x)), brief: asStr(d.brief), time: asStr(d.time, '09:00') })),
+  schedule_id: p.schedule_id ? asStr(p.schedule_id) : null,
+})
+const OCC_STATUS = ['planned', 'running', 'done', 'skipped', 'failed', 'cancelled'] as const
+const toSchedule = (r: Raw): Schedule => ({
+  id: asStr(r.id),
+  kind: r.kind === 'plan' ? 'plan' : 'recurring',
+  title: asStr(r.title),
+  status: r.status === 'paused' ? 'paused' : r.status === 'cancelled' ? 'cancelled' : 'active',
+  target: asStr(r.target),
+  bot_id: asStr(r.bot_id),
+  group_id: asStr(r.group_id),
+  prompt: asStr(r.prompt),
+  days: list(r.days).map((d) => asNum(d)),
+  time: asStr(r.time),
+  timezone: asStr(r.timezone),
+  next_at: epoch(r.next_at),
+  occurrences: list(r.occurrences).map((o) => ({
+    id: asStr(o.id),
+    schedule_id: asStr(o.schedule_id),
+    planned_at: epoch(o.planned_at),
+    title: asStr(o.title),
+    brief: asStr(o.brief),
+    status: OCC_STATUS.find((t) => t === o.status) ?? 'failed',
+    skip_reason: asStr(o.skip_reason),
+    agents: list(o.agents).map((x) => asStr(x)),
+    run_id: asStr(o.run_id),
+    cost: o.cost ? toMoney(o.cost) : null,
+    estimated: o.estimated === true,
+  })),
+})
+const KCOL: KanbanColumnId[] = ['todo', 'running', 'blocked', 'done']
+const toKanbanCard = (r: Raw): KanbanCard => ({
+  key: asStr(r.key),
+  source: (['chat', 'group', 'schedule', 'sequence', 'plan', 'hermes'] as const).find((x) => x === r.source) ?? 'chat',
+  title: asStr(r.title),
+  column: KCOL.find((x) => x === r.column) ?? 'done',
+  outcome: (['ok', 'failed', 'cancelled'] as const).find((x) => x === r.outcome) ?? null,
+  note: asStr(r.note),
+  agents: list(r.agents).map((a) => ({ id: asStr(a.id), name: asStr(a.name), color: asStr(a.color, 'slate') })),
+  group: r.group ? { id: asStr(r.group.id), name: asStr(r.group.name) } : null,
+  at: epoch(r.at),
+  link: asStr(r.link),
+  cost: r.cost ? toMoney(r.cost) : null,
+  estimated: r.estimated === true,
+})
+const toKanban = (r: Raw): KanbanBoard => ({
+  columns: list(r.columns).map((c) => ({ id: KCOL.find((x) => x === c.id) ?? 'done', label: asStr(c.label), total: asNum(c.total), cards: list(c.cards).map(toKanbanCard) })),
+  hermes: { state: (['ok', 'unavailable', 'pending'] as const).find((x) => x === r.hermes?.state) ?? 'unavailable', count: asNum(r.hermes?.count) },
+  period: asStr(r.period, '7d'),
+})
 export const toRun = (r: Raw): RunInfo => ({
   id: asStr(r.id),
   bot_id: asStr(r.bot_id),
@@ -533,6 +764,29 @@ export const api = {
   models: () => call<ModelCatalog>('GET', '/models'),
   security: () => call<Security>('GET', '/settings/security'),
   knowledge: () => call<KnowledgeInfo>('GET', '/settings/knowledge'),
+  kbItems: () => call<KbItem[]>('GET', '/kb/items'),
+  kbUpload: (file: File) => {
+    const f = new FormData()
+    f.append('file', file)
+    return call<KbItem>('POST', '/kb/files', f)
+  },
+  kbAddLink: (url: string) => call<KbItem>('POST', '/kb/links', { url }),
+  kbDelete: (id: string) => call<void>('DELETE', `/kb/items/${enc(id)}`),
+  kbRefresh: (id: string) => call<KbItem>('POST', `/kb/items/${enc(id)}/refresh`),
+  connections: () => call<Connection[]>('GET', '/connections'),
+  connectStart: (p: ConnProvider) => call<{ url: string }>('POST', `/connections/${p}/start`),
+  disconnect: (p: ConnProvider) => call<void>('DELETE', `/connections/${p}`),
+  driveFiles: async (q: string, page?: string | null): Promise<PickPage> => {
+    const r = await call<{ files: PickItem[]; next: string | null }>('GET', `/connections/gdrive/files?q=${enc(q)}${page ? `&page=${enc(page)}` : ''}`)
+    return { items: r.files, next: r.next }
+  },
+  driveImport: async (ids: string[]) => (await call<{ items: ImportResult[] }>('POST', '/connections/gdrive/import', { ids })).items,
+  notionPages: async (q: string, cursor?: string | null): Promise<PickPage> => {
+    const r = await call<{ pages: PickItem[]; next: string | null }>('GET', `/connections/notion/pages?q=${enc(q)}${cursor ? `&cursor=${enc(cursor)}` : ''}`)
+    return { items: r.pages, next: r.next }
+  },
+  notionImport: async (ids: string[]) => (await call<{ items: ImportResult[] }>('POST', '/connections/notion/import', { ids })).items,
+  gmailDraft: (d: { to: string; subject: string; body: string }) => call<{ draft_id: string | null; url: string; account: string | null }>('POST', '/connections/gmail/draft', d),
   exportHistory: async (): Promise<Blob> => {
     let res: Response
     try {
@@ -593,9 +847,9 @@ export const api = {
     foldMessages(list(await call('GET', `/bots/${enc(botId)}/sessions/${enc(sid)}/messages`, undefined, signal))),
   renameSession: (botId: string, sid: string, title: string) => call<void>('PATCH', `/bots/${enc(botId)}/sessions/${enc(sid)}`, { title }),
   deleteSession: (botId: string, sid: string) => call<void>('DELETE', `/bots/${enc(botId)}/sessions/${enc(sid)}`),
-  startRun: async (botId: string, input: string, session_id?: string, instructions?: string, ctx?: RunCtx) => {
-    const r = await call<Raw>('POST', `/bots/${enc(botId)}/runs`, { input, ...(session_id ? { session_id } : {}), ...(instructions ? { instructions } : {}), ...(ctx?.workflow ? { workflow: ctx.workflow, ...(ctx.stage ? { stage: ctx.stage } : {}), ...(ctx.test_mode ? { test_mode: true } : {}) } : {}) })
-    return { run: toRun(r.run ?? r), session_id: asStr(r.session_id ?? r.run?.session_id) }
+  startRun: async (botId: string, input: string, session_id?: string, instructions?: string, ctx?: RunCtx, kb_items?: string[]) => {
+    const r = await call<Raw>('POST', `/bots/${enc(botId)}/runs`, { input, ...(kb_items?.length ? { kb_items } : {}), ...(session_id ? { session_id } : {}), ...(instructions ? { instructions } : {}), ...(ctx?.workflow ? { workflow: ctx.workflow, ...(ctx.stage ? { stage: ctx.stage } : {}), ...(ctx.test_mode ? { test_mode: true } : {}) } : {}) })
+    return { run: toRun(r.run ?? r), session_id: asStr(r.session_id ?? r.run?.session_id), kb: (Array.isArray(r.kb) ? r.kb : []) as KbItem[] }
   },
   runs: async (status: 'active' | 'recent', limit?: number, bot?: string) => list(await call('GET', `/runs${q({ status, limit, bot })}`)).map(toRun),
   run: async (id: string) => {
@@ -631,16 +885,25 @@ export const api = {
     const t = (await call<Raw>('GET', `/groups/${enc(id)}/live`)).turn as Raw | null // the bot turn on screen, if any
     return t ? { bot: asStr(t.bot_id), run: asStr(t.run_id) } : null
   },
-  sendGroup: async (id: string, text: string, mode: 'queue' | 'steer') => {
-    const r = await call<Raw>('POST', `/groups/${enc(id)}/messages`, { text, mode })
+  sendGroup: async (id: string, text: string, mode: 'queue' | 'steer', kb_items?: string[]) => {
+    const r = await call<Raw>('POST', `/groups/${enc(id)}/messages`, { text, mode, ...(kb_items?.length ? { kb_items } : {}) })
     return { message: toGroupMsg(r.message ?? {}), queued: r.queued === true }
   },
   deleteGroup: (id: string) => call<void>('DELETE', `/groups/${enc(id)}`),
   stopGroup: (id: string) => call<void>('POST', `/groups/${enc(id)}/stop`),
+  approvePlan: async (gid: string, messageId: string) => toSchedule(await call<Raw>('POST', `/groups/${enc(gid)}/plans/${enc(messageId)}/approve`)),
+  revisePlan: (gid: string, messageId: string, feedback: string) => call<void>('POST', `/groups/${enc(gid)}/plans/${enc(messageId)}/revise`, { feedback }),
+  kanban: async (f: KanbanFilter) => toKanban(await call<Raw>('GET', `/kanban${q({ ...f })}`)),
+  schedules: async () => list(await call('GET', '/schedules')).map(toSchedule),
+  createSchedule: async (b: ScheduleInput) => toSchedule(await call<Raw>('POST', '/schedules', b)),
+  scheduleAction: async (id: string, what: 'pause' | 'resume' | 'cancel') => toSchedule(await call<Raw>('POST', `/schedules/${enc(id)}/${what}`)),
+  deleteSchedule: (id: string) => call<void>('DELETE', `/schedules/${enc(id)}`),
+  stopOccurrence: (id: string) => call<void>('POST', `/schedule-occurrences/${enc(id)}/stop`),
   usage: async (s: Scope): Promise<Usage> => {
     const u = await call<Usage>('GET', `/usage${q({ ...s })}`)
     return { ...u, turns: u.turns.map((t) => ({ ...t, created_at: epoch(t.created_at) })) }
   },
+  usageMonth: () => call<MonthUsage>('GET', '/usage'),
   usageBots: (period: 'month' | 'all') => call<BotUsage[]>('GET', `/usage/bots${q({ period })}`),
   thinking: async (s: Scope): Promise<Thought[]> =>
     list(await call('GET', `/thinking${q({ ...s })}`)).map((r) => ({

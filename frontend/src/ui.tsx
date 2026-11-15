@@ -27,7 +27,7 @@ export const COLORS: Record<string, string> = Object.fromEntries(['amber', 'teal
 export const botColor = (b?: Pick<Bot, 'color'>) => (b ? (COLORS[b.color.toLowerCase()] ?? (/^#[0-9a-f]{3,8}$/i.test(b.color) ? b.color : 'var(--c-slate)')) : 'var(--c-slate)')
 
 // Team ids arrive as slugs ("customer_support"); show them as words.
-const TEAM_LABELS: Record<string, string> = { marketing: 'Marketing', customer_support: 'Customer Service' }
+const TEAM_LABELS: Record<string, string> = { marketing: 'Marketing', customer_support: 'Layanan pelanggan' }
 export const teamLabel = (t: string) => TEAM_LABELS[t] ?? (t ? t.charAt(0).toUpperCase() + t.slice(1).replace(/_/g, ' ') : 'Tanpa tim')
 
 export function BotAvatar({ bot, size = 32 }: { bot?: Pick<Bot, 'name' | 'color'>; size?: number }) {
@@ -57,10 +57,12 @@ export const I = {
   test: 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 3h6v4H9zM9 14l2 2 4-4',
   log: 'M22 12h-4l-3 9L9 3l-3 9H2',
   agent: 'M12 8V4H8M4 8h16v12H4zM2 14h2M20 14h2M15 13v2M9 13v2',
+  apps: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
   skills: 'm12 2 10 5-10 5L2 7zM2 17l10 5 10-5M2 12l10 5 10-5',
   settings: 'M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0M16 4v4M8 10v4M18 16v4',
   down: 'M6 9l6 6 6-6',
   check: 'M20 6 9 17l-5-5',
+  board: 'M4 4h5v16H4zM10 4h5v10h-5zM16 4h4v13h-4z',
 }
 export const PENCIL = 'M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4'
 export const TRASH = 'M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13'

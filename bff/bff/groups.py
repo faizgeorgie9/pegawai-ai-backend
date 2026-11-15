@@ -3,8 +3,10 @@ import asyncio
 import re
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
-from . import db, engine
+from . import db, engine, kb, plan_schema, settings
 from .engine import hub
 from .errors import ApiError
 
@@ -77,7 +79,7 @@ async def create_group(user_id: str, name, bot_ids) -> dict:
     plan = await engine.get_plan(user_id)
     n = (await db.q1("select count(*)::int as n from groups where user_id = %s and deleted_at is null", user_id))["n"]
     if n >= plan["max_groups"]:
-        raise ApiError(402, "Batas jumlah grup di paket Anda tercapai. Naikkan paket untuk menambah grup.", upgrade=True)
+        raise ApiError(402, "Batas jumlah grup di paket Anda tercapai. Hapus grup yang tidak dipakai, atau hubungi tim AITopTrends untuk menaikkan paket.", upgrade=True)
     gid = str(uuid.uuid4())
     await db.ex("insert into groups (id, user_id, name) values (%s, %s, %s)", gid, user_id, name)
     await _set_members(gid, ids)
@@ -108,9 +110,24 @@ async def list_groups(user_id: str) -> list[dict]:
 async def list_messages(user_id: str, gid: str, before: int | None, limit: int) -> list[dict]:
     await get_group(user_id, gid)
     limit = max(1, min(limit, 200))
-    return await db.q("select * from (select id, group_id, author, bot_id, text, run_id, created_at from group_messages "
+    rows = await db.q("select * from (select id, group_id, author, bot_id, text, run_id, created_at from group_messages "
                       "where group_id = %s and (%s::bigint is null or id < %s) order by id desc limit %s) t order by id",
                       gid, before, before, limit)
+    return await with_plans(rows)
+
+
+async def with_plans(rows: list[dict]) -> list[dict]:
+    """Adds `plan` to a bot message that ends with a valid plan block (see plan_schema): the plan, its errors never. `plan` has
+    `schedule_id` (the schedule created when the user approved it, else null). Invalid or absent: the message is plain text."""
+    found = {}
+    for r in rows:
+        if r["author"] == "bot":
+            p, _ = plan_schema.parse(r["text"])
+            if p:
+                found[r["id"]] = p
+    sched = {r["source_message_id"]: str(r["id"]) for r in await db.q(
+        "select id, source_message_id from schedules where source_message_id = any(%s)", list(found))} if found else {}
+    return [{**r, "plan": {**found[r["id"]], "schedule_id": sched.get(r["id"])}} if r["id"] in found else r for r in rows]
 
 
 async def remove_bot_from_groups(bot_id: str) -> None:
@@ -119,10 +136,12 @@ async def remove_bot_from_groups(bot_id: str) -> None:
 
 # ---------- messages ----------
 
-async def post(gid: str, author: str, text: str, bot_id: str | None = None, run_id=None, send_id=None) -> dict:
-    row = await db.q1("insert into group_messages (group_id, author, bot_id, text, run_id, send_id) "
-                      "values (%s, %s, %s, %s, %s, %s) returning id, group_id, author, bot_id, text, run_id, created_at",
-                      gid, author, bot_id, text, run_id, send_id)
+async def post(gid: str, author: str, text: str, bot_id: str | None = None, run_id=None, send_id=None,
+               kb_items: list[str] | None = None) -> dict:
+    row = await db.q1("insert into group_messages (group_id, author, bot_id, text, run_id, send_id, kb_items) "
+                      "values (%s, %s, %s, %s, %s, %s, %s) returning id, group_id, author, bot_id, text, run_id, created_at",
+                      gid, author, bot_id, text, run_id, send_id, kb_items or None)
+    row = (await with_plans([row]))[0]
     hub.publish("*", "group_message", {"group_id": gid, "message": row})
     return row
 
@@ -146,7 +165,7 @@ def _group_event(gid: str, status: str) -> None:
 
 # ---------- send ----------
 
-async def send(user_id: str, gid: str, text, mode: str) -> dict:
+async def send(user_id: str, gid: str, text, mode: str, kb_items=None) -> dict:
     g = await get_group(user_id, gid)
     if not isinstance(text, str) or not 1 <= len(text.strip()) <= 4000:
         raise ApiError(400, "Pesan wajib diisi (maksimal 4000 karakter)")
@@ -157,7 +176,11 @@ async def send(user_id: str, gid: str, text, mode: str) -> dict:
     text = text.strip()
     if gid not in ACTIVE:
         await engine.check_quota(user_id)  # refuse up front, with the upgrade hint
-    msg = await post(gid, "user", text)
+    attached = await kb.owned_ids(user_id, kb_items)
+    saved = await kb.save_links(user_id, text)  # links the message asks to save are ingested before the bots read it
+    msg = await post(gid, "user", text, kb_items=attached)
+    if saved:  # a system line: the user sees the result inline and the bots read it as context (see _turn)
+        await post(gid, "system", kb.saved_note(saved))
     st = ACTIVE.get(gid)
     if st is None:
         _start_loop(user_id, gid, [(msg["id"], text)])
@@ -197,13 +220,18 @@ async def stop(user_id: str, gid: str) -> dict:
     return {"stopping": bool(st)}
 
 
-def _instructions(group_name: str, mems: list[dict]) -> str:
+def _instructions(group_name: str, mems: list[dict], today: str | None = None) -> str:
     roster = "; ".join(f"{m['name']} ({m['role']})" for m in mems)
     return (f"Kamu sedang berdiskusi di grup \"{group_name}\". Anggota grup: {roster}.\n"
+            + (f"Hari ini: {today}.\n" if today else "") +
             "Balas singkat sesuai peranmu.\n"
             f"Jika tidak ada yang perlu kamu tambahkan, balas persis {SILENT}.\n"
             "Sebut @nama untuk meminta anggota lain.\n"
-            "Jangan mengulang pesan anggota lain.")
+            "Jangan mengulang pesan anggota lain.\n"
+            "Jika diminta menyusun rencana konten beberapa hari: tulis satu ringkasan singkat, lalu akhiri pesanmu dengan satu blok ```json "
+            "berformat {\"plan\":{\"title\":\"...\",\"days\":[{\"date\":\"YYYY-MM-DD\",\"theme\":\"...\",\"products\":[\"...\"],"
+            "\"brief\":\"...\",\"time\":\"09:00\"}]}} (tanggal berurutan, maksimal 14 hari). Jangan menyebut @nama lain di pesan yang berisi rencana; "
+            "pengguna akan menyetujuinya dulu.")
 
 
 def _mentioned(text: str, mems: list[dict]) -> set[str]:
@@ -214,23 +242,31 @@ def _mentioned(text: str, mems: list[dict]) -> set[str]:
 async def _turn(gid: str, st: SendState, bot: dict, g: dict, mems: list[dict]) -> dict | None:
     """One bot turn. Returns the finished run row, or None when the bot had nothing new to read."""
     cur = await db.q1("select last_message_id from group_cursors where group_id = %s and bot_id = %s", gid, bot["bot_id"])
-    new = await db.q("select gm.id, gm.author, gm.bot_id, gm.text, b.name, b.role from group_messages gm "
+    new = await db.q("select gm.id, gm.author, gm.bot_id, gm.text, gm.kb_items, b.name, b.role from group_messages gm "
                      "left join bots b on b.id = gm.bot_id where gm.group_id = %s and gm.id > %s order by gm.id",
                      gid, cur["last_message_id"] if cur else 0)
     if not new:
         return None
     lines = [f"User: {m['text']}" if m["author"] == "user" else f"{m['name']} ({m['role']}): {m['text']}"
              for m in new if m["author"] != "system" and m["bot_id"] != bot["bot_id"]]
+    lines += [f"Sistem: {m['text']}" for m in new if m["author"] == "system" and m["text"].startswith("Knowledge Base:")]
     await db.ex("insert into group_cursors (group_id, bot_id, last_message_id) values (%s, %s, %s) "
                 "on conflict (group_id, bot_id) do update set last_message_id = excluded.last_message_id",
                 gid, bot["bot_id"], new[-1]["id"])
     if not lines:
         return None
+    tz = ZoneInfo((await settings.get(st.user_id))["timezone"])
+    today = datetime.now(tz).date().isoformat()
     st.turn_bot = bot["bot_id"]
     _typing(gid, bot["bot_id"], True, phase="thinking")
+    ins = _instructions(g["name"], mems, today)
+    user_text = "\n".join(m["text"] for m in new if m["author"] == "user")
+    block = await kb.retrieve(st.user_id, user_text, [str(i) for m in new for i in m["kb_items"] or []], [])
+    if block:
+        ins += "\n\n" + block
     try:
         run = await engine.start_run(st.user_id, bot["bot_id"], f"grup-{gid}-{bot['bot_id']}", "\n".join(lines),
-                                     "group", gid, _instructions(g["name"], mems))
+                                     "group", gid, ins)
         st.run_id, st.bot = str(run["id"]), bot["bot_id"]
         # the client follows the run's own stream (text, steps) from here: `on` is sent again, now with the run id
         _typing(gid, bot["bot_id"], True, phase="thinking", run_id=st.run_id)

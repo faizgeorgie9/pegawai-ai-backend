@@ -19,7 +19,7 @@ import { useFollow, useRun } from './useRun'
 import type { RunStatus } from './useRun'
 import { OpenInChat, RunBar } from './ws-common'
 
-const ROUTE = 'UI → BFF → Hermes'
+const ROUTE = 'Tampilan → server → mesin agen'
 const VERDICT_LABEL = { pass: 'Lulus', fail: 'Gagal', blocked: 'Nonaktif' } as const
 type Verdict = keyof typeof VERDICT_LABEL
 type Sc = { v: string; reason: string } // v: '' | '1'..'5' | 'na'
@@ -361,12 +361,12 @@ export default function Uji() {
                 {compare && (
                   <div className="cmp-opts">
                     <div className="seg" role="tablist" aria-label="Cara membandingkan">
-                      <button role="tab" aria-selected={kind === 'repeat'} disabled={busy} onClick={() => setKind('repeat')}>Ulang N kali</button>
+                      <button role="tab" aria-selected={kind === 'repeat'} disabled={busy} onClick={() => setKind('repeat')}>Diulang beberapa kali</button>
                       <button role="tab" aria-selected={kind === 'agents'} disabled={busy} onClick={() => setKind('agents')}>Dua agen</button>
                     </div>
                     {kind === 'repeat' ? (
                       <label className="field">
-                        <span>Jumlah run</span>
+                        <span>Jumlah percobaan</span>
                         <select value={times} disabled={busy} onChange={(e) => setTimes(Number(e.target.value) === 3 ? 3 : 2)}>
                           <option value={2}>2 kali</option>
                           <option value={3}>3 kali</option>
@@ -381,7 +381,7 @@ export default function Uji() {
                         </select>
                       </label>
                     )}
-                    <p className="quiet small">Tiap run memakai sesi baru, dijalankan satu per satu.</p>
+                    <p className="quiet small">Tiap percobaan memakai percakapan baru, dijalankan satu per satu.</p>
                   </div>
                 )}
                 {problem && <ErrorLine text={problem} />}
@@ -404,7 +404,7 @@ export default function Uji() {
                 </header>
                 <RunBar
                   busy={busy}
-                  detail={[cmp ? `Run ${liveIdx + 1} dari ${cmp.cols.length}: ${cmp.cols[liveIdx].botName}` : '', sc.turns.length > 1 ? `giliran ${cmp ? turnNo : seq?.current_turn ?? 1} dari ${sc.turns.length}` : ''].filter(Boolean).join(', ') || undefined}
+                  detail={[cmp ? `Percobaan ${liveIdx + 1} dari ${cmp.cols.length}: ${cmp.cols[liveIdx].botName}` : '', sc.turns.length > 1 ? `giliran ${cmp ? turnNo : seq?.current_turn ?? 1} dari ${sc.turns.length}` : ''].filter(Boolean).join(', ') || undefined}
                   onStop={stop}
                   clarify={cmp ? run.clarify : undefined}
                   onAnswer={run.answer}
@@ -522,7 +522,7 @@ function EvalForm({ sc, turns, botId, sid, snap, meta, cmp, onSaved }: { sc: Sce
       </label>
       {cmp ? (
         <fieldset className="verdicts">
-          <legend>Konsistensi antar run</legend>
+          <legend>Konsistensi antar percobaan</legend>
           {([['konsisten', 'Konsisten'], ['tidak_konsisten', 'Tidak konsisten']] as const).map(([v, l]) => (
             <label key={v} className="ws-switch">
               <input type="radio" name="consistency" checked={consistency === v} onChange={() => setConsistency(v)} />
@@ -539,7 +539,7 @@ function EvalForm({ sc, turns, botId, sid, snap, meta, cmp, onSaved }: { sc: Sce
       )}
       {cmp && <label className="field"><span>Catatan konsistensi <Opt /></span><textarea rows={2} value={consNote} maxLength={2000} onChange={(e) => setConsNote(e.target.value)} /></label>}
       <Versions items={cmp ? cmp.cols.map((c, i) => ({ label: `Run ${i + 1} · ${c.botName}`, meta: c.meta })) : [{ label: 'Run', meta }]} />
-      <p className="quiet small">Versi dicatat otomatis oleh BFF saat run dimulai.</p>
+      <p className="quiet small">Versi dicatat otomatis oleh server saat tugas dimulai.</p>
       <fieldset className="rubric">
         <legend>{sc.group === 'cs' ? 'Rubrik CS (6 kriteria), skor 1 sampai 5' : 'Rubrik, skor 1 sampai 5'}</legend>
         {dims.map((d) => {
@@ -620,7 +620,7 @@ function LogTable({ rows }: { rows: Evaluation[] }) {
     case_id: e.case_id, agent: name(e.bot_id), date: new Date(e.created_at * 1000).toISOString(), status: VERDICT_LABEL[e.verdict], average_score: avgOf(e)?.toFixed(2) ?? '', route: ROUTE,
     run_id: e.run_id ?? '', session_id: e.session_id ?? '', reviewer: e.reviewer, critical_failure: e.notes.critical, errors: e.notes.errors, improvements: e.notes.improvements,
     prompt_modified: promptChanged(e) ? 'Ya' : 'Tidak', prompt: e.prompt, expected: e.expected, actual: e.actual, ...Object.fromEntries(ALL_DIMENSIONS.map((d) => [`score_${d.key}`, d.key in e.scores ? (e.scores[d.key].score ?? 'N/A') : ''])),
-    comparison_mode: e.comparison ? (e.comparison.mode === 'repeat' ? 'Ulang N kali' : 'Dua agen') : '',
+    comparison_mode: e.comparison ? (e.comparison.mode === 'repeat' ? 'Diulang beberapa kali' : 'Dua agen') : '',
     comparison_run_ids: e.comparison ? e.comparison.runs.map((r) => r.run_id).join(' | ') : '',
     comparison_consistency: e.comparison ? (e.comparison.consistency === 'konsisten' ? 'Konsisten' : 'Tidak konsisten') : '',
     comparison_note: e.comparison?.note ?? '',
@@ -672,7 +672,7 @@ function LogTable({ rows }: { rows: Evaluation[] }) {
                   <Versions items={e.comparison ? e.comparison.runs.map((r, i) => ({ label: `Run ${i + 1} · ${name(r.bot_id)}`, meta: r.meta })) : [{ label: 'Run', meta: e.meta }]} />
                   {e.comparison && (
                     <p className="quiet small cmp-sum">
-                      {e.comparison.mode === 'repeat' ? 'Ulang N kali' : 'Dua agen'}: <b>{e.comparison.consistency === 'konsisten' ? 'Konsisten' : 'Tidak konsisten'}</b>. Run: {e.comparison.runs.map((r) => r.run_id.slice(0, 8)).join(', ')}.{e.comparison.note ? ` ${e.comparison.note}` : ''}
+                      {e.comparison.mode === 'repeat' ? 'Diulang beberapa kali' : 'Dua agen'}: <b>{e.comparison.consistency === 'konsisten' ? 'Konsisten' : 'Tidak konsisten'}</b>. ID tugas: {e.comparison.runs.map((r) => r.run_id.slice(0, 8)).join(', ')}.{e.comparison.note ? ` ${e.comparison.note}` : ''}
                     </p>
                   )}
                 </td>

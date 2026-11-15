@@ -4,10 +4,14 @@ import type { Bot, GroupMsg, ToolChip } from './bff'
 import { LiveSteps } from './LiveSteps'
 import { applyTool, settle, toolsFrom } from './steps'
 import { useSmoothText } from './useSmoothText'
-import { Md } from './Chat'
+import { MentionsCtx, Md } from './rich'
 import { useData } from './data'
+import { PlanCard, withoutPlanBlock } from './PlanCard'
 import { PanelButtons, SidePanel, Split } from './Panel'
+import { GmailDraftButton } from './gmail-ui'
+import { KbAttach, KbLines, KbTrayView, asksToSave, useKbTray } from './kb-ui'
 import { groupPath } from './router'
+import { CopyButton } from './ui-extra'
 import { BotAvatar, ErrorLine, PENCIL, Icon, ThinkingBlock, botColor, clock, teamLabel } from './ui'
 
 const sameId = (a: string, b: string) => a === b
@@ -35,8 +39,10 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
   const [thoughts, setThoughts] = useState<Record<string, { text: string; seconds?: number }>>({}) // run_id -> reasoning
   const [pv, setPv] = useState(0) // bumped whenever the side panel's data may have changed
   const [pending, setPending] = useState<string[]>([]) // ids of queued user messages
+  const [kbBusy, setKbBusy] = useState(false) // the BFF is reading a link this message asked to save
   const [problem, setProblem] = useState<Problem>(null)
   const [draft, setDraft] = useState('')
+  const kb = useKbTray(draft)
   const [mention, setMention] = useState<{ start: number; query: string } | null>(null)
   const [pick, setPick] = useState(0)
   const [renaming, setRenaming] = useState<string | null>(null)
@@ -186,8 +192,10 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
     setProblem(null)
     askNotify()
     stick.current = true
+    const ids = kb.take()
+    setKbBusy(asksToSave(text))
     try {
-      const r = await api.sendGroup(id, text, mode)
+      const r = await api.sendGroup(id, text, mode, ids)
       if (r.message.id) {
         setMsgs((cur) => (cur.some((x) => sameId(x.id, r.message.id)) ? cur : [...cur, r.message]))
         if (r.queued) setPending((p) => [...p, r.message.id])
@@ -196,6 +204,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
       setDraft((d) => d || text)
       setProblem({ text: errText(e), upgrade: e instanceof ApiError && e.upgrade })
     }
+    setKbBusy(false)
   }
 
   async function stop() {
@@ -303,6 +312,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
           if (el.scrollTop < 60) void loadOlder()
         }}
       >
+        <MentionsCtx.Provider value={members}>
         <div className="thread group-thread" aria-live="polite">
           {state === 'loading' && <p className="quiet center">Memuat pesan...</p>}
           {state === 'error' && <ErrorLine text={error} onRetry={load} />}
@@ -323,10 +333,11 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
             </div>
           )}
           {msgs.map((m) => (
-            <GroupBubble key={m.id} m={m} bot={bots.find((b) => b.id === m.bot_id)} queued={pending.includes(m.id)} thought={thoughts[m.run_id ?? '']} />
+            <GroupBubble key={m.id} m={m} bot={bots.find((b) => b.id === m.bot_id)} queued={pending.includes(m.id)} thought={thoughts[m.run_id ?? '']} onApproved={(sid) => setMsgs((cur) => cur.map((x) => (x.id === m.id && x.plan ? { ...x, plan: { ...x.plan, schedule_id: sid } } : x)))} />
           ))}
           {turn && <LiveBubble t={turn} bot={bots.find((b) => b.id === turn.bot)} />}
         </div>
+        </MentionsCtx.Provider>
       </div>
 
       <div className="composer-wrap">
@@ -360,6 +371,8 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
               ))}
             </ul>
           )}
+          <KbTrayView kb={kb} />
+          {kbBusy && <KbLines busy />}
           <label className="sr" htmlFor="gmsg">
             Pesan untuk grup {group.name}
           </label>
@@ -397,6 +410,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
             }}
           />
           <div className="composer-actions">
+            <KbAttach kb={kb} />
             {running && (
               <>
                 <button type="button" className="btn stop" onClick={() => void stop()}>
@@ -420,7 +434,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
   )
 }
 
-function GroupBubble({ m, bot, queued, thought }: { m: GroupMsg; bot?: Bot; queued: boolean; thought?: { text: string; seconds?: number } }) {
+function GroupBubble({ m, bot, queued, thought, onApproved }: { m: GroupMsg; bot?: Bot; queued: boolean; thought?: { text: string; seconds?: number }; onApproved: (scheduleId: string) => void }) {
   if (m.role === 'system') return <p className="sys-msg">{m.text}</p>
   if (m.role === 'user') {
     return (
@@ -435,15 +449,22 @@ function GroupBubble({ m, bot, queued, thought }: { m: GroupMsg; bot?: Bot; queu
       <BotAvatar bot={bot ?? { name: '?', color: '' }} size={32} />
       <div className="msg-body">
         <p className="gmsg-who">
-          <b>{bot?.name ?? 'Bot'}</b>
+          <b>{bot?.name ?? 'Agen'}</b>
           {bot?.role && <span>{bot.role}</span>}
           {bot?.team && <span className="team-tag" data-team={bot.team}>{teamLabel(bot.team)}</span>}
           <time>{clock(m.created_at)}</time>
         </p>
         {thought?.text && <ThinkingBlock text={thought.text} running={false} seconds={thought.seconds} />}
         <div className="bubble">
-          <Md text={m.text} />
+          <Md text={m.plan ? withoutPlanBlock(m.text) : m.text} />
         </div>
+        {m.text.trim() && (
+          <div className="msg-tools">
+            <CopyButton text={m.plan ? withoutPlanBlock(m.text) : m.text} what="jawaban" />
+            <GmailDraftButton text={m.plan ? withoutPlanBlock(m.text) : m.text} />
+          </div>
+        )}
+        {m.plan && <PlanCard groupId={m.group_id} messageId={m.id} plan={m.plan} onApproved={onApproved} />}
       </div>
     </div>
   )
@@ -457,7 +478,7 @@ function LiveBubble({ t, bot }: { t: Turn; bot?: Bot }) {
       <BotAvatar bot={bot ?? { name: '?', color: '' }} size={32} />
       <div className="msg-body">
         <p className="gmsg-who">
-          <b>{bot?.name ?? 'Bot'}</b>
+          <b>{bot?.name ?? 'Agen'}</b>
           {bot?.role && <span>{bot.role}</span>}
           {bot?.team && <span className="team-tag">{teamLabel(bot.team)}</span>}
         </p>

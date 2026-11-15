@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from './bff'
 import { ErrorLine } from './ui'
-import { BlockedBanner, CapChip, Empty, Loading, OFF_WHY, PageHead, SampleBadge, useLoad } from './ui-extra'
+import { BlockedBanner, CapChip, Empty, Loading, OFF_WHY, PageHead, SampleBadge, toolsetText, useLoad } from './ui-extra'
+import { Scheduler } from './Scheduler'
+import { AppsLink, forwardOldConnectLink } from './connections'
 import { go } from './router'
 import type { Route } from './router'
 
@@ -11,6 +13,7 @@ const clean = (s: string) => s.replace(/^[^\p{L}\p{N}]+/u, '').trim()
 export function Tools() {
   const fn = useCallback(() => api.tools(), [])
   const t = useLoad(fn)
+  useEffect(forwardOldConnectLink, [])
   const [slow, setSlow] = useState(false) // Hermes can be slow: after a while say so instead of loading for ever
   useEffect(() => {
     if (t.state !== 'loading') return setSlow(false)
@@ -25,7 +28,8 @@ export function Tools() {
   const failed = t.data?.bots.filter((b) => !b.ok) ?? []
   for (const b of answered)
     for (const ts of b.toolsets) {
-      const r = rows.get(ts.name) ?? { name: ts.name, label: clean(ts.label), description: ts.description, users: [], seen: 0 }
+      const [label, description] = toolsetText(ts.name, clean(ts.label), ts.description)
+      const r = rows.get(ts.name) ?? { name: ts.name, label, description, users: [], seen: 0 }
       r.seen++
       if (ts.enabled) r.users.push(b.name)
       rows.set(ts.name, r)
@@ -35,19 +39,20 @@ export function Tools() {
 
   return (
     <div className="tab-body">
-      <p className="note-box">Pengaturan per agen: perlu disepakati dengan backend. Halaman ini hanya untuk melihat.</p>
-      {t.state === 'loading' && !slow && <Loading text="Memuat toolset dari Hermes..." shape="ledger" />}
-      {t.state === 'loading' && slow && <ErrorLine text="Hermes belum menjawab. Toolset belum bisa ditampilkan." onRetry={t.retry} />}
+      <AppsLink />
+      <p className="note-box">Pengaturan alat per agen belum tersedia. Halaman ini hanya untuk melihat.</p>
+      {t.state === 'loading' && !slow && <Loading text="Memuat daftar alat..." shape="ledger" />}
+      {t.state === 'loading' && slow && <ErrorLine text="Daftar alat belum bisa ditampilkan. Coba lagi sebentar." onRetry={t.retry} />}
       {t.state === 'error' && <ErrorLine text={t.error} onRetry={t.retry} />}
       {t.state === 'ok' && failed.length > 0 && (
         <div className="state error" role="alert">
-          <p>Hermes tidak menjawab untuk: {failed.map((b) => b.name).join(', ')}. Status toolset agen itu tidak diketahui.</p>
+          <p>Tidak ada jawaban untuk: {failed.map((b) => b.name).join(', ')}. Alat agen itu tidak diketahui.</p>
           <button className="btn link" onClick={t.retry}>
             Coba lagi
           </button>
         </div>
       )}
-      {t.state === 'ok' && list.length === 0 && failed.length === 0 && <Empty title="Belum ada toolset">Belum ada agen yang bisa ditanya.</Empty>}
+      {t.state === 'ok' && list.length === 0 && failed.length === 0 && <Empty title="Belum ada alat">Belum ada agen yang bisa ditanya.</Empty>}
       {t.state === 'ok' && list.length === 0 && failed.length > 0 && (
         <p>
           <CapChip cap="unknown" /> Tidak ada data toolset yang bisa ditampilkan.
@@ -58,8 +63,8 @@ export function Tools() {
           <thead><tr><th>Kemampuan platform</th><th>Isi</th><th>Status</th></tr></thead>
           <tbody>
             <tr>
-              <td data-label="Kemampuan platform" className="rich"><b>Pencarian katalog dan knowledge (BFF)</b></td>
-              <td data-label="Isi"><div className="clamp2">BFF mencari 1.206 produk katalog dan knowledge Colorbox sebelum agen menjawab, lalu mencatat sumbernya per run.</div></td>
+              <td data-label="Kemampuan platform" className="rich"><b>Pencarian katalog dan pengetahuan</b></td>
+              <td data-label="Isi"><div className="clamp2">Server kami mencari 1.206 produk katalog dan pengetahuan Colorbox sebelum agen menjawab, lalu mencatat sumbernya per tugas.</div></td>
               <td className="st-col" data-label="Status"><CapChip cap="ok" label="Berfungsi" /></td>
             </tr>
           </tbody>
@@ -70,7 +75,7 @@ export function Tools() {
           <table className="plain">
             <thead>
               <tr>
-                <th>Toolset</th>
+                <th>Alat</th>
                 <th>Isi</th>
                 <th>Status</th>
                 <th>Dipakai agen</th>
@@ -79,7 +84,7 @@ export function Tools() {
             <tbody>
               {list.map((r) => (
                 <tr key={r.name}>
-                  <td data-label="Toolset" className="rich">
+                  <td data-label="Alat" className="rich">
                     <b>{r.label}</b>
                     <div className="quiet small">{r.name}</div>
                   </td>
@@ -160,63 +165,11 @@ export function ComputerUse() {
   )
 }
 
-// ---------- Scheduler ----------
-export function Scheduler() {
-  return (
-    <div className="tab-body">
-      <BlockedBanner title="Scheduler belum dibuka" reason="Sampai dibuka, tidak ada job terjadwal yang bisa dijalankan." />
-      <div className="cbox">
-        <h2>Yang akan tampil di sini</h2>
-        <ul className="plain">
-          <li>Daftar job: nama, jadwal, dan agen yang menjalankan.</li>
-          <li>Status tiap job: aktif, dijeda, atau gagal.</li>
-        </ul>
-      </div>
-      <div className="block">
-        <header>
-          <h2>Daftar job</h2>
-        </header>
-        <Empty title="Belum ada job">Tidak ada job terjadwal selama fitur ini nonaktif.</Empty>
-      </div>
-      <div className="sample-box">
-        <header>
-          <SampleBadge />
-          <b>Contoh tampilan</b>
-        </header>
-        <p>Dua baris contoh agar bentuk halaman terlihat. Bukan job nyata.</p>
-        <div className="table-wrap">
-          <table className="plain">
-            <thead>
-              <tr>
-                <th>Job</th>
-                <th>Jadwal</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td data-label="Job">Rangkuman harian tim</td>
-                <td data-label="Jadwal">Setiap hari, 08.00</td>
-                <td data-label="Status">Aktif</td>
-              </tr>
-              <tr>
-                <td data-label="Job">Cek draf mingguan</td>
-                <td data-label="Jadwal">Setiap Senin, 09.00</td>
-                <td data-label="Status">Dijeda</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ---------- Kemampuan: one page, three tabs ----------
 const TABS = [
-  { name: 'tools', label: 'Tools', path: '/tools' },
+  { name: 'tools', label: 'Alat', path: '/tools' },
   { name: 'computer-use', label: 'Computer Use', path: '/computer-use' },
-  { name: 'scheduler', label: 'Scheduler', path: '/scheduler' },
+  { name: 'scheduler', label: 'Jadwal', path: '/scheduler' },
 ] as const
 
 export function Kemampuan({ tab }: { tab: Extract<Route['name'], 'tools' | 'computer-use' | 'scheduler'> }) {
@@ -236,7 +189,7 @@ export function Kemampuan({ tab }: { tab: Extract<Route['name'], 'tools' | 'comp
         {TABS.map((t) => (
           <a key={t.name} id={'tab-' + t.name} role="tab" href={'#' + t.path} aria-selected={t.name === tab} aria-controls="tabpanel" tabIndex={t.name === tab ? 0 : -1}>
             {t.label}
-            {t.name !== 'tools' && <span className="tab-tag">Nonaktif</span>}
+            {t.name === 'computer-use' && <span className="tab-tag">Nonaktif</span>}
           </a>
         ))}
       </div>

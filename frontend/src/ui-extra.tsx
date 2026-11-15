@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { api, errText } from './bff'
 import { ErrorLine, I, Icon } from './ui'
-import type { Bot, Clarify } from './bff'
+import type { Bot, Clarify, EstimateReason, LimitInfo } from './bff'
 
 // Shared page pieces for the Sprint 3 pages.
 
@@ -58,9 +58,41 @@ export function ModelSelect({ value, onChange, disabled, label = 'Model' }: { va
 
 const EFFORT_WORD: Record<string, string> = { none: 'Tidak berpikir', minimal: 'Minimal', low: 'Rendah', medium: 'Sedang', high: 'Tinggi', xhigh: 'Sangat tinggi', max: 'Maksimal', ultra: 'Ultra' }
 export const effortWord = (v: string | null | undefined) => (v ? EFFORT_WORD[v] ?? v : '')
-// What "Default" resolves to, shown next to the word everywhere: the profile's own value, else "ikut provider" (value unknown).
-export const defaultEffortLabel = (cat?: { default: { reasoning_effort?: string | null } } | null) => `Default (${effortWord(cat?.default.reasoning_effort) || 'ikut provider'})`
-export const defaultModelLabel = (cat?: { default: { model: string | null } } | null) => `Default${cat?.default.model ? ` (${cat.default.model})` : ''}`
+
+// Plain Indonesian names for the agent tools (Hermes toolsets). Unknown ones fall back to the engine's own label.
+// shortcut: fixed list of known toolsets, add a line here when Hermes ships a new one.
+const TOOLSET_TEXT: Record<string, [string, string]> = {
+  web: ['Pencarian web', 'Mencari dan membaca halaman web.'],
+  browser: ['Peramban otomatis', 'Membuka halaman web, mengklik, dan mengetik.'],
+  terminal: ['Perintah komputer', 'Menjalankan perintah di komputer server.'],
+  file: ['Berkas', 'Membaca dan menulis berkas.'],
+  code_execution: ['Menjalankan kode', 'Menjalankan program kecil, misalnya untuk menghitung.'],
+  vision: ['Membaca gambar', 'Memahami isi gambar.'],
+  video: ['Membaca video', 'Memahami isi video.'],
+  image_gen: ['Membuat gambar', 'Membuat gambar dari deskripsi.'],
+  video_gen: ['Membuat video', 'Membuat video dari deskripsi.'],
+  x_search: ['Pencarian X (Twitter)', 'Mencari kiriman di X.'],
+  tts: ['Teks jadi suara', 'Membacakan teks dengan suara.'],
+  stt: ['Suara jadi teks', 'Menulis ulang pesan suara.'],
+  skills: ['Keahlian tambahan', 'Panduan kerja khusus yang bisa dipakai agen.'],
+  todo: ['Daftar langkah', 'Menyusun langkah kerja sebelum mengerjakan.'],
+  kanban: ['Papan tugas', 'Mengelola tugas di papan Kanban.'],
+  memory: ['Ingatan', 'Mengingat hal penting antar percakapan.'],
+  context_engine: ['Pengelola konteks', 'Menjaga isi percakapan panjang tetap muat.'],
+  session_search: ['Cari percakapan lama', 'Mencari isi percakapan sebelumnya.'],
+  connections: ['Sambungan aplikasi', 'Terhubung ke aplikasi lain dan meminta izin akun.'],
+  clarify: ['Pertanyaan balik', 'Bertanya kepada Anda saat informasi kurang.'],
+  delegation: ['Membagi tugas', 'Menyerahkan sub-tugas ke agen lain.'],
+  cronjob: ['Tugas terjadwal', 'Membuat dan mengatur tugas berulang.'],
+  discord: ['Discord', 'Membaca dan ikut percakapan di Discord.'],
+  discord_admin: ['Admin Discord', 'Mengatur kanal dan peran di server Discord.'],
+  computer_use: ['Kontrol komputer', 'Mengendalikan komputer secara otomatis.'],
+  a2a: ['Agen ke agen', 'Berkomunikasi dengan agen dari sistem lain.'],
+}
+export const toolsetText = (name: string, label: string, description: string): [string, string] => TOOLSET_TEXT[name] ?? [label || name, description]
+// What "Default" resolves to, shown next to the word everywhere: the profile's own value, else "ikut bawaan penyedia" (value unknown).
+export const defaultEffortLabel = (cat?: { default: { reasoning_effort?: string | null } } | null) => `Bawaan (${effortWord(cat?.default.reasoning_effort) || 'ikut bawaan penyedia'})`
+export const defaultModelLabel = (cat?: { default: { model: string | null } } | null) => `Bawaan${cat?.default.model ? ` (${cat.default.model})` : ''}`
 const EFFORT_MAIN: [string, string][] = [['low', 'Rendah'], ['medium', 'Sedang'], ['high', 'Tinggi']]
 const EFFORT_ADV: [string, string][] = [['none', 'Tidak berpikir'], ['minimal', 'Minimal'], ['xhigh', 'Sangat tinggi']]
 export function EffortSelect({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
@@ -97,6 +129,54 @@ export function EffortSelect({ value, onChange, disabled }: { value: string; onC
 }
 
 // Marks an optional field label. Forms where most fields are required mark only the optional ones.
+// USD usage. Amounts come formatted from the BFF (Money.label: "$0" / "< $0.01" / rounded to cents). A cost with unverified or
+// missing prices is an estimate and is always labeled "perkiraan"; the reasons are the hover text.
+const REASON: Record<EstimateReason['code'], (m: string) => string> = {
+  unverified_price: (m) => `Harga ${m} belum diverifikasi dari halaman resmi penyedia.`,
+  model_not_recorded: () => 'Sebagian tugas tidak mencatat modelnya, jadi dihitung dengan model bawaan agen.',
+  no_price: (m) => `Belum ada harga untuk ${m}, jadi belum dihitung.`,
+}
+export const reasonText = (r: EstimateReason[] = []) => r.map((x) => REASON[x.code](x.models.join(', '))).join(' ')
+
+export function Perkiraan({ reasons, why }: { reasons?: EstimateReason[]; why?: string }) {
+  return (
+    <span className="pill warn est" title={why ?? (reasonText(reasons) || 'Biaya ini perkiraan.')}>
+      perkiraan
+    </span>
+  )
+}
+
+const STATE_TEXT = { normal: 'Aman', warning: 'Hampir habis', exceeded: 'Batas tercapai' } as const
+
+// Spent / limit / remaining with the three states: normal, warning (>= 80%), exceeded (new tasks are refused).
+export function CostMeter({ u, reasons, plan }: { u: LimitInfo; reasons?: EstimateReason[]; plan?: string }) {
+  const pct = u.percent ?? 0
+  return (
+    <div className="cost-meter" data-state={u.limit ? u.state : 'none'}>
+      <div className="cost-head">
+        <span className="cost-spent num">{u.cost.label}</span>
+        <span className="quiet">{u.limit ? `dari ${u.limit.label} bulan ini${plan ? ` (paket ${plan})` : ''}` : 'bulan ini, tanpa batas biaya'}</span>
+        {u.basis === 'estimated' && <Perkiraan reasons={reasons} />}
+        {u.limit && <span className={`pill ${u.state === 'normal' ? 'ok' : u.state === 'warning' ? 'warn' : 'bad'}`}>{STATE_TEXT[u.state]}</span>}
+      </div>
+      {u.limit && (
+        <span className="set-meter" role="img" aria-label={`${pct} persen dari batas biaya bulan ini`}>
+          <span style={{ width: `${Math.min(100, pct)}%` }} />
+        </span>
+      )}
+      {u.limit && u.remaining && (
+        <small className="quiet">
+          {u.state === 'exceeded'
+            ? 'Tugas baru ditolak sampai bulan depan atau paket dinaikkan.'
+            : u.state === 'warning'
+              ? `Sisa ${u.remaining.label}. Naikkan paket sebelum tugas mulai ditolak.`
+              : `Sisa ${u.remaining.label}.`}
+        </small>
+      )}
+    </div>
+  )
+}
+
 export const Opt = () => <em className="req">(opsional)</em>
 
 export type Cap = 'ok' | 'mock' | 'none' | 'blocked' | 'unknown'
@@ -281,8 +361,8 @@ export function ClarifyCard({ c, onAnswer }: { c: Clarify; onAnswer: (text: stri
     }
   }
   return (
-    <form className="approval clarify" role="group" aria-label="Bot bertanya" onSubmit={(e) => { e.preventDefault(); void send(text) }}>
-      <p className="approval-title">Bot bertanya</p>
+    <form className="approval clarify" role="group" aria-label="Agen bertanya" onSubmit={(e) => { e.preventDefault(); void send(text) }}>
+      <p className="approval-title">Agen bertanya</p>
       <p>{c.question}</p>
       {c.choices.length > 0 && (
         <div className="approval-actions">

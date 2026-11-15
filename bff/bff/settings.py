@@ -125,7 +125,7 @@ async def catalog(user_id: str) -> dict:
     except (ValueError, KeyError, TypeError):
         provs = None
     if r.status_code != 200 or provs is None:
-        raise ApiError(502, "Daftar model belum bisa dibaca dari Hermes")
+        raise ApiError(502, "Daftar model belum bisa dibaca. Coba lagi sebentar")
     data = {"default": {"model": d.get("model"), "provider": d.get("provider"), "reasoning_effort": profile_effort(bot["id"])},
             "providers": provs}
     _cache.update(at=time.monotonic(), data=data)

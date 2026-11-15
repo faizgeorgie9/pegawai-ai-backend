@@ -274,7 +274,7 @@ export function Provenance({ refs, workflow }: { refs: ContextRef[]; workflow: '
   return (
     <details className="prov">
       <summary>Sumber jawaban <span className="quiet small">({refs.length})</span></summary>
-      <p className="quiet small">Konteks yang diberikan ke agen untuk run ini, belum tentu semuanya dikutip di jawaban. ID SRC-xx hanya berlaku di {reg}.</p>
+      <p className="quiet small">Konteks yang diberikan ke agen untuk tugas ini, belum tentu semuanya dikutip di jawaban. ID SRC-xx hanya berlaku di {reg}.</p>
       {(['knowledge', 'product', 'fixture'] as const).map((t) => {
         const list = refs.filter((x) => x.type === t)
         if (!list.length) return null

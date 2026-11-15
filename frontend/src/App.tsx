@@ -4,9 +4,11 @@ import { AgentDetail, AgentEdit, AgentList, AgentNew } from './Agents'
 import { api, errText } from './bff'
 import { ChatLayout, GroupLayout } from './ChatLayout'
 import Dashboard from './Dashboard'
+import Kanban from './Kanban'
 import { DataProvider, useData } from './data'
 import { Dialogs } from './Dialogs'
 import { Kemampuan } from './Platform'
+import { AppsPage } from './connections'
 import CS from './CS'
 import Marketing from './Marketing'
 import Settings from './Settings'
@@ -66,12 +68,14 @@ function Shell() {
         {(route.name === 'bot' || route.name === 'chat') && <ChatLayout route={route} />}
         {(route.name === 'grup' || route.name === 'grup-list') && <GroupLayout route={route} />}
         {route.name === 'aktivitas' && <Activity />}
+        {route.name === 'kanban' && <Kanban />}
         {route.name === 'home' && <Dashboard />}
         {route.name === 'agen' && <AgentList />}
         {route.name === 'agen-baru' && <AgentNew />}
         {route.name === 'agen-detail' && <AgentDetail key={route.id} id={route.id} />}
         {route.name === 'agen-ubah' && <AgentEdit key={route.id} id={route.id} />}
         {(route.name === 'tools' || route.name === 'computer-use' || route.name === 'scheduler') && <Kemampuan tab={route.name} />}
+        {route.name === 'aplikasi' && <AppsPage />}
         {route.name === 'marketing' && <Marketing />}
         {route.name === 'cs' && <CS />}
         {route.name === 'uji' && <Uji />}
@@ -81,7 +85,7 @@ function Shell() {
       <div className="toasts" aria-live="polite">
         {notifyAsk && (
           <div className="toast ask">
-            <p>Mau diberi tahu saat bot selesai, walau tab ini tidak dibuka?</p>
+            <p>Mau diberi tahu saat agen selesai, walau tab ini tidak dibuka?</p>
             <div className="toast-actions">
               <button className="btn primary" onClick={() => answerNotify(true)}>
                 Aktifkan
@@ -144,20 +148,23 @@ function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
           <NavItem href="#/grup" icon={I.group} current={route.name === 'grup-list' || route.name === 'grup'}>
             Grup
           </NavItem>
+          <NavItem href="#/kanban" icon={I.board} current={route.name === 'kanban'}>
+            Kanban
+          </NavItem>
         </NavGroup>
 
-        <NavGroup label="Workflow">
+        <NavGroup label="Alur kerja">
           <NavItem href="#/marketing" team="marketing" icon={I.marketing} current={route.name === 'marketing'}>
             Marketing
           </NavItem>
           <NavItem href="#/cs" team="customer_support" icon={I.support} current={route.name === 'cs'}>
-            CS
+            Layanan pelanggan
           </NavItem>
         </NavGroup>
 
         <NavGroup label="Pengujian">
           <NavItem href="#/uji" icon={I.test} current={route.name === 'uji'}>
-            Uji
+            Evaluasi
           </NavItem>
           <NavItem href="#/aktivitas" icon={I.log} current={route.name === 'aktivitas'}>
             Aktivitas
@@ -170,6 +177,9 @@ function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
           </NavItem>
           <NavItem href="#/tools" icon={I.skills} current={route.name === 'tools' || route.name === 'computer-use' || route.name === 'scheduler'}>
             Kemampuan
+          </NavItem>
+          <NavItem href="#/aplikasi" icon={I.apps} current={route.name === 'aplikasi'}>
+            Aplikasi
           </NavItem>
           <NavItem href="#/pengaturan" icon={I.settings} current={route.name === 'pengaturan'}>
             Pengaturan
@@ -255,7 +265,7 @@ function RunsPill() {
               const b = bots.find((x) => x.id === r.bot_id)
               const o = r.origin
               const href = r.group_id ? groupPath(r.group_id) : o.type === 'evaluasi' ? `/uji${o.case_id ? `?case=${encodeURIComponent(o.case_id)}` : ''}` : o.type === 'cs' ? '/cs' : o.type === 'marketing' ? '/marketing' : botPath(r.bot_id, r.session_id)
-              const where = o.type === 'evaluasi' ? ['Evaluasi', o.case_id, o.of > 1 ? `giliran ${o.turn} dari ${o.of}` : ''].filter(Boolean).join(' · ') : o.type === 'cs' ? 'Customer Service' : o.type === 'marketing' ? 'Marketing' : ''
+              const where = o.type === 'evaluasi' ? ['Evaluasi', o.case_id, o.of > 1 ? `giliran ${o.turn} dari ${o.of}` : ''].filter(Boolean).join(' · ') : o.type === 'cs' ? 'Layanan pelanggan' : o.type === 'marketing' ? 'Marketing' : ''
               return (
                 <li key={r.id} className="run-row">
                   <BotAvatar bot={b ?? { name: r.bot_name || '?', color: '' }} size={28} />

@@ -348,7 +348,7 @@ function Workspace({ bot, onDirty }: { bot: Bot; onDirty: (v: boolean) => void }
       <details className="opts">
         <summary>Opsi lanjutan</summary>
         <div className="opts-body">
-          <Switch checked={structured} onChange={setStructured} label="Hasil terstruktur (eksperimen)" hint="Agen diminta menutup jawaban dengan satu blok JSON untuk kartu hasil. Skema ini usulan frontend dan belum divalidasi backend." />
+          <Switch checked={structured} onChange={setStructured} label="Hasil terstruktur (eksperimen)" hint="Jawaban agen ditampilkan sebagai kartu yang rapi (judul, bagian, daftar). Masih percobaan: bentuk kartunya belum dipastikan tim AITopTrends." />
           <p className="quiet small">Jika blok tidak terbaca, jawaban teks tetap ditampilkan.</p>
           <Switch checked={sample} onChange={setSample} label="Tampilkan contoh hasil" hint="Contoh bentuk kartu dari requirement. Bukan output agen." />
         </div>

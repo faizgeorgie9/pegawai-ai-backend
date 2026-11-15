@@ -99,3 +99,4 @@
 }
 @keyframes sheet { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 .danger-zone .btn.danger-text { padding: 0 12px; margin-left: -12px; }
+.cost-line { margin: 0; font-size: 13px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }

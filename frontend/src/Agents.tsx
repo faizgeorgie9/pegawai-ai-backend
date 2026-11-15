@@ -4,7 +4,7 @@ import type { Bot, BotDetail } from './bff'
 import { useData } from './data'
 import { agenPath, botPath, go } from './router'
 import { BotAvatar, COLORS, ErrorLine, botColor, nf, stamp, teamLabel } from './ui'
-import { CapChip, Empty, EffortSelect, Loading, ModelSelect, PageHead, Opt, defaultEffortLabel, defaultModelLabel, effortWord, modelKey, splitModel, statusText, useLoad } from './ui-extra'
+import { CapChip, Empty, EffortSelect, Loading, ModelSelect, PageHead, Opt, defaultEffortLabel, defaultModelLabel, effortWord, modelKey, splitModel, statusText, toolsetText, useLoad } from './ui-extra'
 
 // ---------- Daftar ----------
 export function AgentList() {
@@ -196,11 +196,11 @@ export function AgentDetail({ id }: { id: string }) {
               <dd className="num">{nf.format(sessions.length)}</dd>
             </div>
             <div>
-              <dt>Token bulan ini</dt>
+              <dt>Pemakaian bulan ini (token)</dt>
               <dd className="num">{nf.format(month?.total ?? 0)}</dd>
             </div>
             <div>
-              <dt>Token total</dt>
+              <dt>Pemakaian total (token)</dt>
               <dd className="num">{nf.format(all?.total ?? 0)}</dd>
             </div>
             <div>
@@ -210,19 +210,19 @@ export function AgentDetail({ id }: { id: string }) {
           </dl>
 
           <div className="cbox">
-            <h2>Toolset aktif</h2>
+            <h2>Alat yang aktif</h2>
             {!tools || !tools.ok ? (
               <p className="quiet">
-                <CapChip cap="unknown" /> Daftar toolset belum bisa dimuat dari Hermes.
+                <CapChip cap="unknown" /> Daftar alat belum bisa dimuat. Coba lagi sebentar.
               </p>
             ) : (
               <div className="chip-row">
                 {tools.toolsets.filter((t) => t.enabled).map((t) => (
-                  <span key={t.name} className="chip" title={t.description}>
-                    {t.name}
+                  <span key={t.name} className="chip" title={toolsetText(t.name, '', t.description)[1]}>
+                    {toolsetText(t.name, '', t.description)[0]}
                   </span>
                 ))}
-                {tools.toolsets.every((t) => !t.enabled) && <span className="quiet">Tidak ada toolset aktif.</span>}
+                {tools.toolsets.every((t) => !t.enabled) && <span className="quiet">Tidak ada alat aktif.</span>}
               </div>
             )}
           </div>
@@ -341,7 +341,7 @@ export function AgentEdit({ id }: { id: string }) {
       </a>
       <PageHead title={`Ubah ${d.name}`} />
       <form className="form-page" onSubmit={(e) => void submit(e)} noValidate>
-        {ro && <p className="note-box">Agen sistem: nama, peran, tim, dan persona dikelola tim backend. Warna, model, dan tingkat berpikir bisa diubah.</p>}
+        {ro && <p className="note-box">Agen sistem: nama, peran, tim, dan persona dikelola tim AITopTrends. Warna, model, dan tingkat berpikir bisa diubah.</p>}
         <fieldset disabled={busy} className="form-page">
           <label className="field">
             <span>Nama</span>
@@ -387,7 +387,7 @@ export function AgentEdit({ id }: { id: string }) {
           </label>
           <ModelSelect value={f.model} onChange={(v) => set('model', v)} />
           <EffortSelect value={f.effort} onChange={(v) => set('effort', v)} />
-          <small className="quiet">Default memakai model default profil di Hermes. Pilihan baru berlaku di tugas berikutnya.</small>
+          <small className="quiet">Bawaan memakai model standar agen ini. Pilihan baru berlaku di tugas berikutnya.</small>
         </fieldset>
         {problem && (
           <p className="problem-bar" role="alert">
