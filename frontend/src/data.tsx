@@ -167,7 +167,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (asStr(d.kind) === 'group' || notified.current.has(id)) return
       if (!['completed', 'done', 'finished', 'failed'].includes(status)) return
       notified.current.add(id)
-      const botName = botsRef.current.find((b) => b.id === asStr(d.bot_id))?.name ?? 'Bot'
+      const botName = botsRef.current.find((b) => b.id === asStr(d.bot_id))?.name ?? 'Agen'
       void api.run(id).then(
         (r) => toast(status === 'failed' ? `${botName} gagal` : `${botName} selesai: ${clip(csPreview(r.meta) ?? (r.output || r.input))}`, botPath(r.bot_id || asStr(d.bot_id), r.session_id), status === 'failed' ? 'failed' : 'done'),
         () => toast(`${botName} selesai`, botPath(asStr(d.bot_id)), status === 'failed' ? 'failed' : 'done'),
@@ -179,7 +179,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         run: runChanged,
         run_input: (d) => {
           if (asStr(d.kind) === 'group') return
-          const botName = botsRef.current.find((b) => b.id === asStr(d.bot_id))?.name ?? 'Bot'
+          const botName = botsRef.current.find((b) => b.id === asStr(d.bot_id))?.name ?? 'Agen'
           toast(`${botName} ${asStr(d.what) === 'clarify' ? 'butuh jawaban Anda' : 'butuh izin Anda'}`, botPath(asStr(d.bot_id)), 'input')
         },
         bot_status: (d) =>

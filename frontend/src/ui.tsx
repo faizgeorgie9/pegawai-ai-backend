@@ -27,7 +27,7 @@ export const COLORS: Record<string, string> = Object.fromEntries(['amber', 'teal
 export const botColor = (b?: Pick<Bot, 'color'>) => (b ? (COLORS[b.color.toLowerCase()] ?? (/^#[0-9a-f]{3,8}$/i.test(b.color) ? b.color : 'var(--c-slate)')) : 'var(--c-slate)')
 
 // Team ids arrive as slugs ("customer_support"); show them as words.
-const TEAM_LABELS: Record<string, string> = { marketing: 'Marketing', customer_support: 'Customer Service' }
+const TEAM_LABELS: Record<string, string> = { marketing: 'Marketing', customer_support: 'Layanan pelanggan' }
 export const teamLabel = (t: string) => TEAM_LABELS[t] ?? (t ? t.charAt(0).toUpperCase() + t.slice(1).replace(/_/g, ' ') : 'Tanpa tim')
 
 export function BotAvatar({ bot, size = 32 }: { bot?: Pick<Bot, 'name' | 'color'>; size?: number }) {

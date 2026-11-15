@@ -53,7 +53,7 @@ const ICONS: Record<Tab, string> = {
   aktivitas: 'M3 12h4l3-8 4 16 3-8h4',
   info: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 8h.01',
 }
-const LABEL: Record<Tab, string> = { token: 'Token', aktivitas: 'Aktivitas', info: 'Info' }
+const LABEL: Record<Tab, string> = { token: 'Biaya', aktivitas: 'Aktivitas', info: 'Info' }
 const TABS: Tab[] = ['info', 'token', 'aktivitas']
 
 // One button in the conversation header opens the panel; its Info, Token and Aktivitas tabs are inside the panel.
@@ -219,20 +219,20 @@ function Tokens({ scope, version, bot, members, group }: Scoped) {
         <h3 id="pt1">Percakapan ini</h3>
         {u.loading && <p className="quiet">Memuat...</p>}
         {u.error && !u.data && <ErrorLine text={u.error} onRetry={u.retry} />}
-        {u.data && u.data.total.runs === 0 && <p className="quiet">Belum ada pemakaian token di percakapan ini.</p>}
+        {u.data && u.data.total.runs === 0 && <p className="quiet">Belum ada biaya di percakapan ini.</p>}
         {u.data && u.data.total.runs > 0 && (
           <>
             <dl className="stats num">
               <div>
-                <dt>Masuk</dt>
+                <dt>Teks masuk</dt>
                 <dd>{dash(u.data.total.input)}</dd>
               </div>
               <div>
-                <dt>Keluar</dt>
+                <dt>Teks keluar</dt>
                 <dd>{dash(u.data.total.output)}</dd>
               </div>
               <div>
-                <dt>Cache</dt>
+                <dt>Diingat ulang</dt>
                 <dd>{dash(u.data.total.cache_read)}</dd>
               </div>
               <div>
@@ -242,6 +242,7 @@ function Tokens({ scope, version, bot, members, group }: Scoped) {
                 </dd>
               </div>
             </dl>
+            <p className="quiet small">Angka di atas dalam token: potongan kecil teks yang dibaca dan ditulis agen. Biaya dihitung dari jumlahnya.</p>
             <p className="cost-line">
               Biaya percakapan ini <b className="num">{u.data.cost.label}</b> {u.data.basis === 'estimated' && <Perkiraan reasons={u.data.estimate_reasons} />}
             </p>
@@ -258,19 +259,19 @@ function Tokens({ scope, version, bot, members, group }: Scoped) {
                     <span className="bar-top">
                       <span>{b.name}</span>
                       <span className="num">
-                        {dash(b.total)} <small className="quiet">· {b.runs} giliran</small>
+                        {dash(b.total)} <small className="quiet">· {b.runs} tugas</small>
                       </span>
                     </span>
                     <Bar ratio={b.total / Math.max(1, u.data!.by_bot[0].total)} color="var(--accent)" />
                     <small className="quiet num">
-                      {dash(b.input)} masuk, {dash(b.output)} keluar · {b.cost.label}
+                      {dash(b.input)} teks masuk, {dash(b.output)} teks keluar · {b.cost.label}
                       {b.estimated && ' (perkiraan)'}
                     </small>
                   </li>
                 )
               })}
             </ul>
-            <h4>Giliran terbaru</h4>
+            <h4>Tugas terbaru</h4>
             <ul className="turn-list num">
               {u.data.turns.map((t) => (
                 <li key={t.run_id} data-bad={t.status === 'failed' || undefined}>

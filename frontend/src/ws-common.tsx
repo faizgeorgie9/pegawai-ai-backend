@@ -42,7 +42,7 @@ export function ConfirmSwitch({ onYes, onNo }: { onYes: () => void; onNo: () => 
   return (
     <Dialog title="Ganti agen?" onClose={onNo}>
       <div className="dlg-body">
-        <p>Ada pekerjaan yang belum disimpan di workspace ini. Jika agen diganti, sesi baru dimulai dan semua tahap serta hasil di layar ini dikosongkan. Riwayat chat agen lama tetap ada.</p>
+        <p>Ada pekerjaan yang belum disimpan di halaman ini. Jika agen diganti, percakapan baru dimulai dan semua tahap serta hasil di layar ini dikosongkan. Riwayat chat agen lama tetap ada.</p>
         <div className="dlg-foot">
           <button className="btn soft" onClick={onNo}>
             Tetap di agen ini

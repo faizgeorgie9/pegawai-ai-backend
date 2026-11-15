@@ -37,15 +37,15 @@ export default function Dashboard() {
   const toolsets = tools.data ? new Set(tools.data.bots.flatMap((b) => b.toolsets.filter((t) => t.enabled).map((t) => t.name))).size : 0
   const toolsOk = !!tools.data && tools.data.bots.some((b) => b.ok)
   const toolsRow: Row = toolsOk
-    ? { href: '#/tools', name: 'Tools', detail: `${toolsets} toolset aktif`, cap: 'ok' }
+    ? { href: '#/tools', name: 'Alat', detail: `${toolsets} alat aktif`, cap: 'ok' }
     : tools.state === 'loading' && !slow
-      ? { href: '#/tools', name: 'Tools', detail: 'Memeriksa ke Hermes...', cap: 'unknown', label: 'Memeriksa' }
-      : { href: '#/tools', name: 'Tools', detail: 'Hermes belum menjawab. Buka Kemampuan untuk mencoba lagi.', cap: 'unknown', label: 'Belum terjawab' }
+      ? { href: '#/tools', name: 'Alat', detail: 'Memeriksa...', cap: 'unknown', label: 'Memeriksa' }
+      : { href: '#/tools', name: 'Alat', detail: 'Belum terjawab. Buka Kemampuan untuk mencoba lagi.', cap: 'unknown', label: 'Belum terjawab' }
   const caps: Row[] = [
     { href: '#/agen', name: 'Agen', detail: 'Daftar, buat, ubah, hapus', cap: 'ok' },
     toolsRow,
     { href: '#/marketing', name: 'Marketing', detail: 'Memakai knowledge dan katalog Colorbox', cap: 'ok' },
-    { href: '#/cs', name: 'Customer Service', detail: 'CS v2.1, perlu tinjauan manusia', cap: 'ok' },
+    { href: '#/cs', name: 'Layanan pelanggan', detail: 'Jawaban perlu ditinjau manusia', cap: 'ok' },
     { href: '#/computer-use', name: 'Computer Use', detail: 'Belum dibuka', cap: 'blocked' },
     { href: '#/scheduler', name: 'Scheduler', detail: 'Jadwal berulang dan rencana konten', cap: 'ok' },
   ]
@@ -97,7 +97,7 @@ export default function Dashboard() {
           <dd className="num">{recent.state === 'ok' ? `${nf.format(todayRuns)}${capped ? '+' : ''}` : '–'}</dd>
         </div>
         <div>
-          <dt>Token bulan ini</dt>
+          <dt>Pemakaian bulan ini (token)</dt>
           <dd className="num">{me ? nf.format(me.usage.tokens_month) : '–'}</dd>
         </div>
         <div>

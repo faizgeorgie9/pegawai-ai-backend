@@ -196,11 +196,11 @@ export function AgentDetail({ id }: { id: string }) {
               <dd className="num">{nf.format(sessions.length)}</dd>
             </div>
             <div>
-              <dt>Token bulan ini</dt>
+              <dt>Pemakaian bulan ini (token)</dt>
               <dd className="num">{nf.format(month?.total ?? 0)}</dd>
             </div>
             <div>
-              <dt>Token total</dt>
+              <dt>Pemakaian total (token)</dt>
               <dd className="num">{nf.format(all?.total ?? 0)}</dd>
             </div>
             <div>
@@ -210,10 +210,10 @@ export function AgentDetail({ id }: { id: string }) {
           </dl>
 
           <div className="cbox">
-            <h2>Toolset aktif</h2>
+            <h2>Alat yang aktif</h2>
             {!tools || !tools.ok ? (
               <p className="quiet">
-                <CapChip cap="unknown" /> Daftar toolset belum bisa dimuat dari Hermes.
+                <CapChip cap="unknown" /> Daftar alat belum bisa dimuat. Coba lagi sebentar.
               </p>
             ) : (
               <div className="chip-row">
@@ -222,7 +222,7 @@ export function AgentDetail({ id }: { id: string }) {
                     {t.name}
                   </span>
                 ))}
-                {tools.toolsets.every((t) => !t.enabled) && <span className="quiet">Tidak ada toolset aktif.</span>}
+                {tools.toolsets.every((t) => !t.enabled) && <span className="quiet">Tidak ada alat aktif.</span>}
               </div>
             )}
           </div>
@@ -387,7 +387,7 @@ export function AgentEdit({ id }: { id: string }) {
           </label>
           <ModelSelect value={f.model} onChange={(v) => set('model', v)} />
           <EffortSelect value={f.effort} onChange={(v) => set('effort', v)} />
-          <small className="quiet">Default memakai model default profil di Hermes. Pilihan baru berlaku di tugas berikutnya.</small>
+          <small className="quiet">Bawaan memakai model standar agen ini. Pilihan baru berlaku di tugas berikutnya.</small>
         </fieldset>
         {problem && (
           <p className="problem-bar" role="alert">

@@ -39,18 +39,18 @@ export function Tools() {
     <div className="tab-body">
       <ConnectApps />
       <p className="note-box">Pengaturan per agen: perlu disepakati dengan backend. Halaman ini hanya untuk melihat.</p>
-      {t.state === 'loading' && !slow && <Loading text="Memuat toolset dari Hermes..." shape="ledger" />}
-      {t.state === 'loading' && slow && <ErrorLine text="Hermes belum menjawab. Toolset belum bisa ditampilkan." onRetry={t.retry} />}
+      {t.state === 'loading' && !slow && <Loading text="Memuat daftar alat..." shape="ledger" />}
+      {t.state === 'loading' && slow && <ErrorLine text="Daftar alat belum bisa ditampilkan. Coba lagi sebentar." onRetry={t.retry} />}
       {t.state === 'error' && <ErrorLine text={t.error} onRetry={t.retry} />}
       {t.state === 'ok' && failed.length > 0 && (
         <div className="state error" role="alert">
-          <p>Hermes tidak menjawab untuk: {failed.map((b) => b.name).join(', ')}. Status toolset agen itu tidak diketahui.</p>
+          <p>Tidak ada jawaban untuk: {failed.map((b) => b.name).join(', ')}. Alat agen itu tidak diketahui.</p>
           <button className="btn link" onClick={t.retry}>
             Coba lagi
           </button>
         </div>
       )}
-      {t.state === 'ok' && list.length === 0 && failed.length === 0 && <Empty title="Belum ada toolset">Belum ada agen yang bisa ditanya.</Empty>}
+      {t.state === 'ok' && list.length === 0 && failed.length === 0 && <Empty title="Belum ada alat">Belum ada agen yang bisa ditanya.</Empty>}
       {t.state === 'ok' && list.length === 0 && failed.length > 0 && (
         <p>
           <CapChip cap="unknown" /> Tidak ada data toolset yang bisa ditampilkan.
@@ -61,8 +61,8 @@ export function Tools() {
           <thead><tr><th>Kemampuan platform</th><th>Isi</th><th>Status</th></tr></thead>
           <tbody>
             <tr>
-              <td data-label="Kemampuan platform" className="rich"><b>Pencarian katalog dan knowledge (BFF)</b></td>
-              <td data-label="Isi"><div className="clamp2">BFF mencari 1.206 produk katalog dan knowledge Colorbox sebelum agen menjawab, lalu mencatat sumbernya per run.</div></td>
+              <td data-label="Kemampuan platform" className="rich"><b>Pencarian katalog dan pengetahuan</b></td>
+              <td data-label="Isi"><div className="clamp2">Server kami mencari 1.206 produk katalog dan pengetahuan Colorbox sebelum agen menjawab, lalu mencatat sumbernya per tugas.</div></td>
               <td className="st-col" data-label="Status"><CapChip cap="ok" label="Berfungsi" /></td>
             </tr>
           </tbody>
@@ -73,7 +73,7 @@ export function Tools() {
           <table className="plain">
             <thead>
               <tr>
-                <th>Toolset</th>
+                <th>Alat</th>
                 <th>Isi</th>
                 <th>Status</th>
                 <th>Dipakai agen</th>
@@ -82,7 +82,7 @@ export function Tools() {
             <tbody>
               {list.map((r) => (
                 <tr key={r.name}>
-                  <td data-label="Toolset" className="rich">
+                  <td data-label="Alat" className="rich">
                     <b>{r.label}</b>
                     <div className="quiet small">{r.name}</div>
                   </td>
@@ -165,9 +165,9 @@ export function ComputerUse() {
 
 // ---------- Kemampuan: one page, three tabs ----------
 const TABS = [
-  { name: 'tools', label: 'Tools', path: '/tools' },
+  { name: 'tools', label: 'Alat', path: '/tools' },
   { name: 'computer-use', label: 'Computer Use', path: '/computer-use' },
-  { name: 'scheduler', label: 'Scheduler', path: '/scheduler' },
+  { name: 'scheduler', label: 'Jadwal', path: '/scheduler' },
 ] as const
 
 export function Kemampuan({ tab }: { tab: Extract<Route['name'], 'tools' | 'computer-use' | 'scheduler'> }) {

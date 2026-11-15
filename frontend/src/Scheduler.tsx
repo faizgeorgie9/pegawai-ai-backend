@@ -236,7 +236,7 @@ export function Scheduler() {
 
   return (
     <div className="tab-body">
-      <p className="note-box">Jadwal dijalankan oleh server kami sendiri, bukan oleh Hermes. Setiap jalan tercatat sebagai run biasa. Rencana konten dibuat dari kartu persetujuan di chat grup.</p>
+      <p className="note-box">Jadwal dijalankan oleh server kami sendiri, bukan oleh mesin agen. Setiap jalan tercatat sebagai tugas biasa. Rencana konten dibuat dari kartu persetujuan di chat grup.</p>
       <div className="sched-bar">
         <h2>Jadwal</h2>
         {!creating && (

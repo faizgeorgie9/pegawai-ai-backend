@@ -199,7 +199,7 @@ function Security() {
                   <td data-label="Agen">{b.name}</td>
                   <td data-label="Alat yang dimatikan">
                     {!b.ok ? (
-                      <span className="quiet">Belum terbaca dari Hermes</span>
+                      <span className="quiet">Belum terbaca</span>
                     ) : b.blocked.length === 0 ? (
                       <span className="pill warn">Tidak ada</span>
                     ) : (
@@ -403,7 +403,7 @@ function Split({ title, rows }: { title: string; rows: { key: string; name: Reac
             <span className="bar-sm" aria-hidden="true">
               <span style={{ width: `${top > 0 ? Math.max(2, (Number(r.cost.usd) / top) * 100) : 2}%` }} />
             </span>
-            <small className="quiet num">{nf.format(r.tokens)} token</small>
+            <small className="quiet num">{nf.format(r.tokens)} token (satuan teks)</small>
           </li>
         ))}
       </ul>
@@ -460,7 +460,7 @@ function Plan() {
         <dd>
           <CostMeter u={u} reasons={d?.estimate_reasons} />
         </dd>
-        <dt>Token bulan ini</dt>
+        <dt>Pemakaian bulan ini (token)</dt>
         <dd>
           <span className="num">{nf.format(u.tokens_month)}</span>
         </dd>
@@ -481,8 +481,7 @@ function Plan() {
       {d && (
         <p className="quiet small">
           {new Date(d.period.start).toLocaleDateString('id-ID', { month: 'long', year: 'numeric', timeZone: d.period.timezone })} ({d.period.timezone}), diperbarui{' '}
-          {new Date(d.updated_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: d.period.timezone })}. Dihitung dari token sebenarnya dikali harga model per 1 juta token (masuk,
-          keluar, cache). {d.basis === 'estimated' ? 'Angka berlabel "perkiraan" memakai harga yang belum diverifikasi.' : 'Semua harga sudah diverifikasi dari halaman resmi penyedia.'}
+          {new Date(d.updated_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: d.period.timezone })}. Dihitung dari token yang benar-benar terpakai (teks masuk, teks keluar, dan teks yang diingat ulang) dikali harga model per 1 juta token. Token adalah potongan kecil teks yang dibaca dan ditulis model. {d.basis === 'estimated' ? 'Angka berlabel "perkiraan" memakai harga yang belum diverifikasi.' : 'Semua harga sudah diverifikasi dari halaman resmi penyedia.'}
         </p>
       )}
       {m.state === 'loading' && !d && <Loading text="Memuat rincian..." />}

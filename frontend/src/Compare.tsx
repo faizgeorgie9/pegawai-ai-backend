@@ -45,16 +45,16 @@ export function CompareColumns({ cols, live }: { cols: Col[]; live: string }) {
           <article key={i} className={`rcard${c.status === 'running' ? ' live' : ''}`}>
             <header>
               <b>{c.botName}</b>
-              <span className="pill plain">Run {i + 1}</span>
+              <span className="pill plain">Percobaan {i + 1}</span>
               {i === 0 && cols.length > 1 && <span className="pill origin">Acuan</span>}
             </header>
             <div className="rbody">
               <dl className="cmp-meta">
-                <dt>Run ID</dt>
+                <dt>ID tugas</dt>
                 <dd className="num" title={c.runId}>{c.runId ? c.runId.slice(0, 8) : '–'}</dd>
                 <dt>Waktu</dt>
                 <dd className="num">{clock(c.startedAt)}{c.seconds !== null ? ` · ${c.seconds < 10 ? c.seconds.toFixed(1) : Math.round(c.seconds)} dtk` : ''}</dd>
-                <dt>Token</dt>
+                <dt>Token (satuan teks)</dt>
                 <dd className="num">{c.status === 'done' ? c.tokens.toLocaleString('id-ID') : '–'}</dd>
               </dl>
               {c.status === 'pending' && <p className="quiet">Menunggu giliran.</p>}
@@ -78,14 +78,14 @@ export function CompareColumns({ cols, live }: { cols: Col[]; live: string }) {
 
 const MODE_LABEL: Record<string, string> = { plain: 'Biasa (plain)', terstruktur: 'Eksperimen terstruktur' }
 const ROWS: { key: keyof RunMeta; label: string }[] = [
-  { key: 'hermes_version', label: 'Versi Hermes' },
+  { key: 'hermes_version', label: 'Versi mesin agen' },
   { key: 'model', label: 'Model' },
-  { key: 'provider', label: 'Penyedia' },
+  { key: 'provider', label: 'Penyedia model' },
   { key: 'bot_id', label: 'Agen' },
   { key: 'soul_hash', label: 'Hash persona' },
-  { key: 'toolsets', label: 'Toolset aktif' },
+  { key: 'toolsets', label: 'Alat aktif' },
   { key: 'instructions_mode', label: 'Mode instruksi' },
-  { key: 'bff_commit', label: 'Commit BFF' },
+  { key: 'bff_commit', label: 'Versi server' },
 ]
 const UNKNOWN = 'tidak diketahui'
 

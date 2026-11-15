@@ -250,7 +250,7 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
                 {picked.length} / 6 dipilih, minimal 2
               </small>
             </span>
-            {bots.length === 0 && <p className="quiet state">Belum ada bot. Buat bot dulu.</p>}
+            {bots.length === 0 && <p className="quiet state">Belum ada agen. Buat agen dulu.</p>}
             <div className="picker">
               {Object.entries(byTeam).map(([team, list]) => (
                 <div key={team} className="picker-team">
@@ -342,7 +342,7 @@ function PlanDialog({ onClose }: { onClose: () => void }) {
                 {p.price && <p className="plan-price">{p.price}</p>}
                 <ul className="plan-limits num">
                   <li>{p.monthly_usd === null ? 'Biaya tanpa batas' : `Batas biaya ${p.monthly_usd.label} per bulan`}</li>
-                  <li>{p.max_bots} bot</li>
+                  <li>{p.max_bots} agen</li>
                   <li>{p.max_groups} grup</li>
                   <li>{p.max_concurrent_runs} tugas berjalan bersamaan</li>
                 </ul>

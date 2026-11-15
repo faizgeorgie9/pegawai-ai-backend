@@ -447,7 +447,7 @@ function GroupBubble({ m, bot, queued, thought, onApproved }: { m: GroupMsg; bot
       <BotAvatar bot={bot ?? { name: '?', color: '' }} size={32} />
       <div className="msg-body">
         <p className="gmsg-who">
-          <b>{bot?.name ?? 'Bot'}</b>
+          <b>{bot?.name ?? 'Agen'}</b>
           {bot?.role && <span>{bot.role}</span>}
           {bot?.team && <span className="team-tag" data-team={bot.team}>{teamLabel(bot.team)}</span>}
           <time>{clock(m.created_at)}</time>
@@ -470,7 +470,7 @@ function LiveBubble({ t, bot }: { t: Turn; bot?: Bot }) {
       <BotAvatar bot={bot ?? { name: '?', color: '' }} size={32} />
       <div className="msg-body">
         <p className="gmsg-who">
-          <b>{bot?.name ?? 'Bot'}</b>
+          <b>{bot?.name ?? 'Agen'}</b>
           {bot?.role && <span>{bot.role}</span>}
           {bot?.team && <span className="team-tag">{teamLabel(bot.team)}</span>}
         </p>

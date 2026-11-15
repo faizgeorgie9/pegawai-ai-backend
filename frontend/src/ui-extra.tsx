@@ -58,9 +58,9 @@ export function ModelSelect({ value, onChange, disabled, label = 'Model' }: { va
 
 const EFFORT_WORD: Record<string, string> = { none: 'Tidak berpikir', minimal: 'Minimal', low: 'Rendah', medium: 'Sedang', high: 'Tinggi', xhigh: 'Sangat tinggi', max: 'Maksimal', ultra: 'Ultra' }
 export const effortWord = (v: string | null | undefined) => (v ? EFFORT_WORD[v] ?? v : '')
-// What "Default" resolves to, shown next to the word everywhere: the profile's own value, else "ikut provider" (value unknown).
-export const defaultEffortLabel = (cat?: { default: { reasoning_effort?: string | null } } | null) => `Default (${effortWord(cat?.default.reasoning_effort) || 'ikut provider'})`
-export const defaultModelLabel = (cat?: { default: { model: string | null } } | null) => `Default${cat?.default.model ? ` (${cat.default.model})` : ''}`
+// What "Default" resolves to, shown next to the word everywhere: the profile's own value, else "ikut bawaan penyedia" (value unknown).
+export const defaultEffortLabel = (cat?: { default: { reasoning_effort?: string | null } } | null) => `Bawaan (${effortWord(cat?.default.reasoning_effort) || 'ikut bawaan penyedia'})`
+export const defaultModelLabel = (cat?: { default: { model: string | null } } | null) => `Bawaan${cat?.default.model ? ` (${cat.default.model})` : ''}`
 const EFFORT_MAIN: [string, string][] = [['low', 'Rendah'], ['medium', 'Sedang'], ['high', 'Tinggi']]
 const EFFORT_ADV: [string, string][] = [['none', 'Tidak berpikir'], ['minimal', 'Minimal'], ['xhigh', 'Sangat tinggi']]
 export function EffortSelect({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
@@ -329,8 +329,8 @@ export function ClarifyCard({ c, onAnswer }: { c: Clarify; onAnswer: (text: stri
     }
   }
   return (
-    <form className="approval clarify" role="group" aria-label="Bot bertanya" onSubmit={(e) => { e.preventDefault(); void send(text) }}>
-      <p className="approval-title">Bot bertanya</p>
+    <form className="approval clarify" role="group" aria-label="Agen bertanya" onSubmit={(e) => { e.preventDefault(); void send(text) }}>
+      <p className="approval-title">Agen bertanya</p>
       <p>{c.question}</p>
       {c.choices.length > 0 && (
         <div className="approval-actions">

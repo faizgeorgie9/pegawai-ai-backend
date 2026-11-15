@@ -134,7 +134,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
             approval: undefined,
             tools: settle(m.tools),
             stopped: /stop|cancel|interrupt/.test(status) || undefined,
-            error: /fail|error/.test(status) ? asStr(d.error) || 'Bot belum berhasil menyelesaikan tugas ini.' : undefined,
+            error: /fail|error/.test(status) ? asStr(d.error) || 'Agen belum berhasil menyelesaikan tugas ini.' : undefined,
           }))
           finish()
         },
@@ -442,7 +442,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
             ref={box}
             rows={1}
             value={draft}
-            placeholder={running ? `Bot sedang bekerja. Pesan baru masuk antrean.` : `Tulis pesan untuk ${bot.name}`}
+            placeholder={running ? `Agen sedang bekerja. Pesan baru masuk antrean.` : `Tulis pesan untuk ${bot.name}`}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -542,8 +542,8 @@ function Message(p: {
         )}
         {m.approval && (
           <div className="approval" role="group" aria-label="Butuh izin">
-            <p className="approval-title">Bot meminta izin</p>
-            <p>{m.approval.description || 'Bot ingin menjalankan satu tindakan.'}</p>
+            <p className="approval-title">Agen meminta izin</p>
+            <p>{m.approval.description || 'Agen ingin menjalankan satu tindakan.'}</p>
             <div className="approval-actions">
               <button className="btn primary" onClick={() => p.onApprove(false)}>
                 Izinkan sekali

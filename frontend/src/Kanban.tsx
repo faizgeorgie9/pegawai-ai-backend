@@ -5,7 +5,7 @@ import { useData } from './data'
 import { BotAvatar, ErrorLine, botColor, stamp } from './ui'
 import { Empty, Loading } from './ui-extra'
 
-const SOURCE: Record<KanbanCard['source'], string> = { chat: 'Chat', group: 'Grup', schedule: 'Jadwal', sequence: 'Evaluasi', plan: 'Rencana', hermes: 'Kanban Hermes' }
+const SOURCE: Record<KanbanCard['source'], string> = { chat: 'Chat', group: 'Grup', schedule: 'Jadwal', sequence: 'Evaluasi', plan: 'Rencana', hermes: 'Papan agen' }
 const OUTCOME = { failed: 'Gagal', cancelled: 'Dibatalkan' } as const
 const COLUMN_HINT: Record<string, string> = {
   todo: 'Menunggu giliran atau waktunya',
@@ -171,10 +171,10 @@ export default function Kanban() {
 
       {board && board.hermes.state !== 'ok' && (
         <p className="note-box" role="status">
-          {board.hermes.state === 'pending' ? 'Kanban Hermes sedang dicek.' : 'Kanban Hermes belum terhubung.'} Papan ini memakai data dari server kami sendiri.
+          {board.hermes.state === 'pending' ? 'Papan agen sedang dicek.' : 'Papan agen belum terhubung.'} Papan ini memakai data dari server kami sendiri.
         </p>
       )}
-      {board?.hermes.state === 'ok' && <p className="quiet small">Kanban Hermes terhubung (hanya dibaca){board.hermes.count ? `: ${board.hermes.count} tugas ikut tampil` : ', belum ada tugas'}.</p>}
+      {board?.hermes.state === 'ok' && <p className="quiet small">Papan agen terhubung (hanya dibaca){board.hermes.count ? `: ${board.hermes.count} tugas ikut tampil` : ', belum ada tugas'}.</p>}
 
       {state === 'loading' && <Loading text="Memuat papan..." shape="ledger" />}
       {state === 'error' && <ErrorLine text={error} onRetry={() => load()} />}

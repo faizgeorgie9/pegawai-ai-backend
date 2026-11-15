@@ -12,7 +12,7 @@ const APPS = [
     id: 'gmail',
     name: 'Gmail',
     enables: 'Agen bisa membaca email yang Anda pilih dan menyiapkan draf balasan. Draf tetap Anda tinjau sendiri.',
-    where: 'Daftar toolset agen di tab Tools ini, dan draf balasan di chat agen.',
+    where: 'Daftar alat agen di tab Alat ini, dan draf balasan di chat agen.',
   },
   {
     id: 'notion',
