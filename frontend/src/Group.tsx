@@ -8,8 +8,10 @@ import { MentionsCtx, Md } from './rich'
 import { useData } from './data'
 import { PlanCard, withoutPlanBlock } from './PlanCard'
 import { PanelButtons, SidePanel, Split } from './Panel'
+import { GmailDraftButton } from './gmail-ui'
 import { KbAttach, KbLines, KbTrayView, asksToSave, useKbTray } from './kb-ui'
 import { groupPath } from './router'
+import { CopyButton } from './ui-extra'
 import { BotAvatar, ErrorLine, PENCIL, Icon, ThinkingBlock, botColor, clock, teamLabel } from './ui'
 
 const sameId = (a: string, b: string) => a === b
@@ -456,6 +458,12 @@ function GroupBubble({ m, bot, queued, thought, onApproved }: { m: GroupMsg; bot
         <div className="bubble">
           <Md text={m.plan ? withoutPlanBlock(m.text) : m.text} />
         </div>
+        {m.text.trim() && (
+          <div className="msg-tools">
+            <CopyButton text={m.plan ? withoutPlanBlock(m.text) : m.text} what="jawaban" />
+            <GmailDraftButton text={m.plan ? withoutPlanBlock(m.text) : m.text} />
+          </div>
+        )}
         {m.plan && <PlanCard groupId={m.group_id} messageId={m.id} plan={m.plan} onApproved={onApproved} />}
       </div>
     </div>

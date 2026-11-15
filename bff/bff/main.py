@@ -8,10 +8,10 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, Depends, FastAPI, File, Header, Request, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bots, catalog, config, costs, db, engine, evaluations, groups, harden, hermes, kanban, kb, scheduler, sequences, settings, usage
+from . import bots, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kanban, kb, scheduler, sequences, settings, usage
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -468,6 +468,62 @@ async def kb_add_link(request: Request):
 @api.delete("/kb/items/{item_id}", status_code=204)
 async def kb_delete(item_id: str):
     await kb.delete_item(current_user(), item_id)
+
+
+@api.post("/kb/items/{item_id}/refresh")
+async def kb_refresh(item_id: str):
+    return await integrations.refresh_item(current_user(), item_id)
+
+
+# ---------- connections (Google Drive, Gmail, Notion) ----------
+
+@api.get("/connections")
+async def connections_list():
+    return await connections.list_all(current_user())
+
+
+@api.post("/connections/{provider}/start")
+async def connections_start(provider: str):
+    return await connections.start(current_user(), provider)
+
+
+@api.get("/connections/{family}/callback")
+async def connections_callback(family: str, request: Request):
+    """The provider sends the browser here after consent (through the same proxy as the app, so the key header is present)."""
+    if family not in ("google", "notion"):
+        raise ApiError(404, "Tidak ditemukan")
+    return RedirectResponse(await connections.callback(current_user(), family, dict(request.query_params)), status_code=303)
+
+
+@api.delete("/connections/{provider}", status_code=204)
+async def connections_disconnect(provider: str):
+    await connections.disconnect(current_user(), provider)
+
+
+@api.get("/connections/gdrive/files")
+async def drive_files(q: str = "", page: str | None = None):
+    return await integrations.drive_list(current_user(), q, page)
+
+
+@api.post("/connections/gdrive/import")
+async def drive_import(request: Request):
+    return {"items": await integrations.drive_import(current_user(), (await body_of(request)).get("ids"))}
+
+
+@api.get("/connections/notion/pages")
+async def notion_pages(q: str = "", cursor: str | None = None):
+    return await integrations.notion_pages(current_user(), q, cursor)
+
+
+@api.post("/connections/notion/import")
+async def notion_import(request: Request):
+    return {"items": await integrations.notion_import(current_user(), (await body_of(request)).get("ids"))}
+
+
+@api.post("/connections/gmail/draft", status_code=201)
+async def gmail_draft(request: Request):
+    b = await body_of(request)
+    return await integrations.gmail_draft(current_user(), b.get("to"), b.get("subject"), b.get("body"))
 
 
 @api.get("/export/history")

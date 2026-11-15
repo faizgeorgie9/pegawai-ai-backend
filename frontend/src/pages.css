@@ -311,3 +311,16 @@ td.st-col { min-width: 170px; }
 .connect-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s-2); }
 .connect-act { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: auto; padding-top: var(--s-2); }
 .connect-act .btn:disabled { cursor: not-allowed; }
+.connect-act { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--s-3); }
+.connect-card[data-s="connected"] { border-style: solid; }
+.connect-acct { overflow-wrap: anywhere; color: var(--ok-ink); }
+.connect-warn { color: var(--warn-ink); }
+.connect-ok { color: var(--ok-ink); background: var(--ok-bg); }
+/* Source picker (Drive / Notion) */
+.src-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 46vh; overflow-y: auto; border: 1px solid var(--rule); border-radius: var(--radius-card); }
+.src-row { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2) var(--s-3); cursor: pointer; min-width: 0; border-bottom: 1px solid var(--rule); }
+.src-list li:last-child .src-row { border-bottom: 0; }
+.src-row:hover { background: var(--raised); }
+.src-row input { flex: none; width: 18px; height: 18px; }
+.src-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.src-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }

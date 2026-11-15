@@ -286,7 +286,7 @@ def _charset_text(r: httpx.Response, body: bytes) -> str:
 
 
 DRIVE_NEEDS_CONNECT = ("Dokumen ini tidak bisa dibuka tanpa login. Bagikan sebagai \"siapa saja yang memiliki link\" "
-                       "atau tunggu sambungan Google Drive (belum tersedia).")
+                       "atau hubungkan Google Drive di Kemampuan > Alat.")
 
 
 def drive_target(url: str) -> tuple[str, str] | None:
@@ -319,7 +319,7 @@ def drive_target(url: str) -> tuple[str, str] | None:
 
 def view(row: dict) -> dict:
     return {**{k: row[k] for k in ("kind", "name", "source", "status", "error", "size_bytes", "chars", "created_at")},
-            "id": str(row["id"])}
+            "id": str(row["id"]), "refreshable": bool(row.get("ext_id"))}
 
 
 async def _new_item(user_id: str, kind: str, name: str, source: str | None, size: int | None) -> dict:
@@ -378,7 +378,7 @@ async def _download(url: str) -> tuple[str, str, str]:
     """(kind, name, text) of a link. Raises Blocked with a plain reason."""
     drive = drive_target(url)
     if drive and drive[0] == "folder":
-        raise Blocked("Folder Google Drive belum bisa dibaca. Kirim link ke satu dokumen. Sambungan Google Drive belum tersedia.")
+        raise Blocked("Folder Google Drive belum bisa dibaca. Kirim link ke satu dokumen.")
     try:
         r, body = await fetch(drive[0] if drive else url)
     except Blocked:
@@ -413,6 +413,16 @@ async def ingest_url(user_id: str, url: str) -> dict:
     u = urlsplit(url)
     if u.scheme not in ("http", "https") or not u.hostname or len(url) > 2000:
         raise ApiError(400, "Masukkan alamat web yang diawali http:// atau https://")
+    drive = drive_target(url)
+    if drive and drive[0] != "folder":  # a private Drive file opens through the user's connection when there is one
+        from . import connections, integrations
+        fid = integrations.drive_file_id(url)
+        if fid and await connections.is_connected(user_id, "gdrive"):
+            try:
+                return await integrations.drive_import_one(user_id, fid)
+            except ApiError as e:
+                item = await _new_item(user_id, "gdrive", _label(url), url, None)
+                return await _fail(item, e.message)
     await db.ex("delete from kb_items where user_id = %s and source = %s", user_id, url)  # adding again refreshes the item
     item = await _new_item(user_id, "gdrive" if drive_target(url) else "url", _label(url), url, None)
     try:

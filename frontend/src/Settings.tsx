@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { api, errText } from './bff'
 import type { KbItem, Money, MonthUsage } from './bff'
 import { useData } from './data'
+import { SourcePicker } from './pick-ui'
 import { DriveLink, KB_ACCEPT, KB_KIND, KB_TYPES_TEXT, bytes, needsDrive } from './kb-ui'
 import { ErrorLine, nf } from './ui'
 import { CostMeter, Loading, PageHead, Perkiraan, useLoad } from './ui-extra'
@@ -239,6 +240,8 @@ function MySources() {
   const [busy, setBusy] = useState('')
   const [problem, setProblem] = useState('')
   const [asking, setAsking] = useState<string | null>(null)
+  const [picker, setPicker] = useState<'gdrive' | 'notion' | null>(null)
+  const [refreshing, setRefreshing] = useState<string | null>(null)
   async function add(label: string, work: () => Promise<KbItem>) {
     setBusy(label)
     setProblem('')
@@ -250,6 +253,17 @@ function MySources() {
       setProblem(errText(e))
     }
     setBusy('')
+    setN((x) => x + 1)
+  }
+  async function refresh(id: string) {
+    setRefreshing(id)
+    setProblem('')
+    try {
+      await api.kbRefresh(id)
+    } catch (e) {
+      setProblem(errText(e))
+    }
+    setRefreshing(null)
     setN((x) => x + 1)
   }
   async function remove(id: string) {
@@ -283,6 +297,12 @@ function MySources() {
         <button className="btn outline" disabled={!!busy} onClick={() => file.current?.click()}>
           Unggah berkas
         </button>
+        <button className="btn outline" disabled={!!busy} onClick={() => setPicker('gdrive')}>
+          Pilih dari Drive
+        </button>
+        <button className="btn outline" disabled={!!busy} onClick={() => setPicker('notion')}>
+          Pilih dari Notion
+        </button>
         <form
           className="set-inline"
           onSubmit={(e) => {
@@ -296,7 +316,7 @@ function MySources() {
           </button>
         </form>
       </div>
-      <p className="meta">Berkas: {KB_TYPES_TEXT}. Google Drive hanya untuk dokumen yang dibagikan ke &ldquo;siapa saja yang memiliki link&rdquo;. Sambungan ke Drive pribadi belum tersedia.</p>
+      <p className="meta">Berkas: {KB_TYPES_TEXT}. Link Google Drive tanpa login hanya untuk dokumen yang dibagikan ke &ldquo;siapa saja yang memiliki link&rdquo;. Untuk Drive pribadi atau Notion, hubungkan akun lebih dulu di Kemampuan &gt; Alat.</p>
       {problem && (
         <p className="problem-bar small" role="alert">
           {problem}
@@ -330,6 +350,11 @@ function MySources() {
               {i.status === 'failed' && <span className="meta bad kb-why">{i.error}</span>}
             </div>
             <span className={`pill ${i.status === 'ready' ? 'cap-ok' : i.status === 'failed' ? 'cap-blocked' : 'cap-mock'}`}>{STATUS_TEXT[i.status]}</span>
+            {i.refreshable && asking !== i.id && (
+              <button className="btn quiet-btn sm" disabled={refreshing === i.id} aria-label={`Perbarui ${i.name} dari ${KB_KIND[i.kind]}`} onClick={() => void refresh(i.id as string)}>
+                {refreshing === i.id ? 'Memperbarui...' : 'Perbarui'}
+              </button>
+            )}
             {asking === i.id ? (
               <span className="confirm-actions" role="alert">
                 <button className="btn danger sm" onClick={() => void remove(i.id as string)}>
@@ -347,6 +372,7 @@ function MySources() {
           </li>
         ))}
       </ul>
+      {picker && <SourcePicker provider={picker} onClose={() => setPicker(null)} onDone={() => setN((x) => x + 1)} />}
     </div>
   )
 }

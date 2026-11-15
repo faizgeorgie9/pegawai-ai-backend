@@ -134,7 +134,7 @@ export interface KnowledgeInfo {
 // Knowledge Base item (a file or link the user added; the BFF extracts the text and keeps it per user).
 export interface KbItem {
   id: string | null // null: a link that could not even be stored (e.g. the Knowledge Base is full)
-  kind: 'file' | 'gdrive' | 'url'
+  kind: 'file' | 'gdrive' | 'url' | 'notion'
   name: string
   source: string | null
   status: 'processing' | 'ready' | 'failed'
@@ -142,6 +142,34 @@ export interface KbItem {
   size_bytes: number | null
   chars: number | null
   created_at: string | null
+  refreshable?: boolean // imported through a connection (Drive / Notion): can be fetched again
+}
+// Connections (Google Drive, Gmail, Notion). not_configured: the administrator has not set up the app yet.
+export type ConnProvider = 'gdrive' | 'gmail' | 'notion'
+export interface Connection {
+  provider: ConnProvider
+  name: string
+  status: 'not_configured' | 'disconnected' | 'connected' | 'reconnect'
+  account: string | null
+  connected_at: string | null
+}
+// A file or page the user can pick from Drive / Notion.
+export interface PickItem {
+  id: string
+  name: string
+  type: string | null
+  modified: string | null
+  size: number | null
+}
+export interface PickPage {
+  items: PickItem[]
+  next: string | null
+}
+export interface ImportResult {
+  id: string | null
+  name: string
+  status: 'ready' | 'failed' | 'processing'
+  error?: string | null
 }
 export interface Template {
   id: string
@@ -742,6 +770,21 @@ export const api = {
   },
   kbAddLink: (url: string) => call<KbItem>('POST', '/kb/links', { url }),
   kbDelete: (id: string) => call<void>('DELETE', `/kb/items/${enc(id)}`),
+  kbRefresh: (id: string) => call<KbItem>('POST', `/kb/items/${enc(id)}/refresh`),
+  connections: () => call<Connection[]>('GET', '/connections'),
+  connectStart: (p: ConnProvider) => call<{ url: string }>('POST', `/connections/${p}/start`),
+  disconnect: (p: ConnProvider) => call<void>('DELETE', `/connections/${p}`),
+  driveFiles: async (q: string, page?: string | null): Promise<PickPage> => {
+    const r = await call<{ files: PickItem[]; next: string | null }>('GET', `/connections/gdrive/files?q=${enc(q)}${page ? `&page=${enc(page)}` : ''}`)
+    return { items: r.files, next: r.next }
+  },
+  driveImport: async (ids: string[]) => (await call<{ items: ImportResult[] }>('POST', '/connections/gdrive/import', { ids })).items,
+  notionPages: async (q: string, cursor?: string | null): Promise<PickPage> => {
+    const r = await call<{ pages: PickItem[]; next: string | null }>('GET', `/connections/notion/pages?q=${enc(q)}${cursor ? `&cursor=${enc(cursor)}` : ''}`)
+    return { items: r.pages, next: r.next }
+  },
+  notionImport: async (ids: string[]) => (await call<{ items: ImportResult[] }>('POST', '/connections/notion/import', { ids })).items,
+  gmailDraft: (d: { to: string; subject: string; body: string }) => call<{ draft_id: string | null; url: string; account: string | null }>('POST', '/connections/gmail/draft', d),
   exportHistory: async (): Promise<Blob> => {
     let res: Response
     try {

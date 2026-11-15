@@ -10,6 +10,7 @@ import { useSmoothText } from './useSmoothText'
 import { Md } from './rich'
 import type { Cs21 } from './results'
 import { go, botPath } from './router'
+import { GmailDraftButton } from './gmail-ui'
 import { KbAttach, KbLines, KbTrayView, asksToSave, useKbTray } from './kb-ui'
 import { ClarifyCard, CopyButton, RunProgress, statusText } from './ui-extra'
 import { PanelButtons, SidePanel, Split } from './Panel'
@@ -538,6 +539,7 @@ function Message(p: {
         {!live && (cs?.reply || m.content) && (
           <div className="msg-tools">
             <CopyButton text={cs ? cs.reply : m.content} what={cs ? 'draf balasan' : 'jawaban'} />
+            <GmailDraftButton text={cs ? cs.reply : m.content} />
           </div>
         )}
         {m.approval && (

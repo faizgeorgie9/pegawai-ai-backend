@@ -1,6 +1,8 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { api, errText } from './bff'
-import type { KbItem } from './bff'
+import type { ImportResult, KbItem } from './bff'
+import { SourcePicker } from './pick-ui'
 import { CLOSE, Icon } from './ui'
 
 // Knowledge Base in the composer (shared by Chat and Group): an attachment icon for files, a chip under a pasted link,
@@ -23,7 +25,7 @@ export function urlsIn(text: string): string[] {
 }
 export const asksToSave = (text: string) => urlsIn(text).length > 0 && INTENT_RE.test(text.replace(URL_RE, ' '))
 
-export const KB_KIND: Record<KbItem['kind'], string> = { file: 'Berkas', url: 'Website', gdrive: 'Google Drive' }
+export const KB_KIND: Record<KbItem['kind'], string> = { file: 'Berkas', url: 'Website', gdrive: 'Google Drive', notion: 'Notion' }
 export function bytes(n: number | null): string {
   if (n == null) return '–'
   return n < 1024 ? `${n} B` : n < 1024 * 1024 ? `${Math.round(n / 1024)} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`
@@ -54,6 +56,9 @@ export function useKbTray(draft: string) {
   return {
     tray,
     addFiles: (files: FileList | File[]) => Array.from(files).forEach((f) => track(f.name, api.kbUpload(f))),
+    // items the Drive picker already imported: they are ready, so they can be attached right away
+    addImported: (items: ImportResult[]) =>
+      setTray((cur) => [...cur, ...items.map((i) => ({ key: `kb${++n.current}`, label: i.name, state: 'ready' as const, id: i.id ?? undefined }))]),
     saveLink: (url: string) => track(url.replace(/^https?:\/\//, ''), api.kbAddLink(url), url),
     // detected links that were neither saved from here nor dismissed
     links: urlsIn(draft).slice(0, 3).filter((u) => !skipped.includes(u) && !tray.some((t) => t.url === u)),
@@ -71,8 +76,22 @@ export type KbTray = ReturnType<typeof useKbTray>
 
 export function KbAttach({ kb }: { kb: KbTray }) {
   const input = useRef<HTMLInputElement>(null)
+  const box = useRef<HTMLSpanElement>(null)
+  const [menu, setMenu] = useState(false)
+  const [drive, setDrive] = useState(false)
+  useEffect(() => {
+    if (!menu) return
+    const off = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setMenu(false)
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setMenu(false)
+    document.addEventListener('mousedown', off)
+    document.addEventListener('keydown', esc)
+    return () => {
+      document.removeEventListener('mousedown', off)
+      document.removeEventListener('keydown', esc)
+    }
+  }, [menu])
   return (
-    <>
+    <span className="kb-attach" ref={box}>
       <input
         ref={input}
         type="file"
@@ -85,10 +104,23 @@ export function KbAttach({ kb }: { kb: KbTray }) {
           e.target.value = ''
         }}
       />
-      <button type="button" className="icon-btn kb-attach" aria-label="Lampirkan berkas ke Knowledge Base" title={`Lampirkan berkas: ${KB_TYPES_TEXT}`} onClick={() => input.current?.click()}>
+      <button type="button" className="icon-btn" aria-label="Lampirkan ke Knowledge Base" aria-haspopup="menu" aria-expanded={menu} title={`Lampirkan: ${KB_TYPES_TEXT}`} onClick={() => setMenu((m) => !m)}>
         <Icon d={PAPERCLIP} size={18} />
       </button>
-    </>
+      {menu && (
+        <div className="kb-menu" role="menu">
+          <button type="button" role="menuitem" onClick={() => { setMenu(false); input.current?.click() }}>
+            Unggah berkas
+            <span className="meta">{KB_TYPES_TEXT}</span>
+          </button>
+          <button type="button" role="menuitem" onClick={() => { setMenu(false); setDrive(true) }}>
+            Pilih dari Google Drive
+          </button>
+        </div>
+      )}
+      {/* portal: the composer is a <form>, a dialog with its own search form cannot sit inside it */}
+      {drive && createPortal(<SourcePicker provider="gdrive" onClose={() => setDrive(false)} onDone={kb.addImported} />, document.body)}
+    </span>
   )
 }
 
@@ -97,7 +129,7 @@ export const needsDrive = (e?: string | null) => !!e && e.includes('Google Drive
 export const DriveLink = () => (
   <>
     {' '}
-    <a className="kb-drive-link" href="#/tools">Lihat Hubungkan aplikasi</a>
+    <a className="kb-drive-link" href="#/tools">Buka Hubungkan aplikasi</a>
   </>
 )
 const STATE_TEXT = { processing: 'memproses…', ready: 'tersimpan', failed: 'gagal' } as const
