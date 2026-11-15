@@ -33,8 +33,8 @@ async function call<T>(method: string, path: string, body?: unknown, signal?: Ab
     res = await fetch(BASE + path, {
       method,
       signal,
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: body === undefined || body instanceof FormData ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
     })
   } catch (e) {
     if (signal?.aborted) throw e
@@ -131,6 +131,18 @@ export interface Security {
 export interface KnowledgeInfo {
   retention_days: number
   docs: { id: string; title: string; workflow: string; version: string | null; date: string | null; files: { name: string; title: string }[] }[]
+}
+// Knowledge Base item (a file or link the user added; the BFF extracts the text and keeps it per user).
+export interface KbItem {
+  id: string | null // null: a link that could not even be stored (e.g. the Knowledge Base is full)
+  kind: 'file' | 'gdrive' | 'url'
+  name: string
+  source: string | null
+  status: 'processing' | 'ready' | 'failed'
+  error: string | null
+  size_bytes: number | null
+  chars: number | null
+  created_at: string | null
 }
 export interface Template {
   id: string
@@ -396,6 +408,8 @@ export interface ChatMessage {
   approval?: Approval
   clarify?: Clarify
   notes?: string[]
+  kb?: KbItem[] // Knowledge Base items saved from this message's links (result), shown under the bubble
+  kbBusy?: boolean // the message asks to save a link and the BFF is still reading it
 }
 export interface ActivityRow {
   id: string
@@ -721,6 +735,14 @@ export const api = {
   models: () => call<ModelCatalog>('GET', '/models'),
   security: () => call<Security>('GET', '/settings/security'),
   knowledge: () => call<KnowledgeInfo>('GET', '/settings/knowledge'),
+  kbItems: () => call<KbItem[]>('GET', '/kb/items'),
+  kbUpload: (file: File) => {
+    const f = new FormData()
+    f.append('file', file)
+    return call<KbItem>('POST', '/kb/files', f)
+  },
+  kbAddLink: (url: string) => call<KbItem>('POST', '/kb/links', { url }),
+  kbDelete: (id: string) => call<void>('DELETE', `/kb/items/${enc(id)}`),
   exportHistory: async (): Promise<Blob> => {
     let res: Response
     try {
@@ -781,9 +803,9 @@ export const api = {
     foldMessages(list(await call('GET', `/bots/${enc(botId)}/sessions/${enc(sid)}/messages`, undefined, signal))),
   renameSession: (botId: string, sid: string, title: string) => call<void>('PATCH', `/bots/${enc(botId)}/sessions/${enc(sid)}`, { title }),
   deleteSession: (botId: string, sid: string) => call<void>('DELETE', `/bots/${enc(botId)}/sessions/${enc(sid)}`),
-  startRun: async (botId: string, input: string, session_id?: string, instructions?: string, ctx?: RunCtx) => {
-    const r = await call<Raw>('POST', `/bots/${enc(botId)}/runs`, { input, ...(session_id ? { session_id } : {}), ...(instructions ? { instructions } : {}), ...(ctx?.workflow ? { workflow: ctx.workflow, ...(ctx.stage ? { stage: ctx.stage } : {}), ...(ctx.test_mode ? { test_mode: true } : {}) } : {}) })
-    return { run: toRun(r.run ?? r), session_id: asStr(r.session_id ?? r.run?.session_id) }
+  startRun: async (botId: string, input: string, session_id?: string, instructions?: string, ctx?: RunCtx, kb_items?: string[]) => {
+    const r = await call<Raw>('POST', `/bots/${enc(botId)}/runs`, { input, ...(kb_items?.length ? { kb_items } : {}), ...(session_id ? { session_id } : {}), ...(instructions ? { instructions } : {}), ...(ctx?.workflow ? { workflow: ctx.workflow, ...(ctx.stage ? { stage: ctx.stage } : {}), ...(ctx.test_mode ? { test_mode: true } : {}) } : {}) })
+    return { run: toRun(r.run ?? r), session_id: asStr(r.session_id ?? r.run?.session_id), kb: (Array.isArray(r.kb) ? r.kb : []) as KbItem[] }
   },
   runs: async (status: 'active' | 'recent', limit?: number, bot?: string) => list(await call('GET', `/runs${q({ status, limit, bot })}`)).map(toRun),
   run: async (id: string) => {
@@ -819,8 +841,8 @@ export const api = {
     const t = (await call<Raw>('GET', `/groups/${enc(id)}/live`)).turn as Raw | null // the bot turn on screen, if any
     return t ? { bot: asStr(t.bot_id), run: asStr(t.run_id) } : null
   },
-  sendGroup: async (id: string, text: string, mode: 'queue' | 'steer') => {
-    const r = await call<Raw>('POST', `/groups/${enc(id)}/messages`, { text, mode })
+  sendGroup: async (id: string, text: string, mode: 'queue' | 'steer', kb_items?: string[]) => {
+    const r = await call<Raw>('POST', `/groups/${enc(id)}/messages`, { text, mode, ...(kb_items?.length ? { kb_items } : {}) })
     return { message: toGroupMsg(r.message ?? {}), queued: r.queued === true }
   },
   deleteGroup: (id: string) => call<void>('DELETE', `/groups/${enc(id)}`),

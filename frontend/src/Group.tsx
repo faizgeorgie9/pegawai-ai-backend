@@ -8,6 +8,7 @@ import { Md } from './Chat'
 import { useData } from './data'
 import { PlanCard, withoutPlanBlock } from './PlanCard'
 import { PanelButtons, SidePanel, Split } from './Panel'
+import { KbAttach, KbLines, KbTrayView, asksToSave, useKbTray } from './kb-ui'
 import { groupPath } from './router'
 import { BotAvatar, ErrorLine, PENCIL, Icon, ThinkingBlock, botColor, clock, teamLabel } from './ui'
 
@@ -36,8 +37,10 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
   const [thoughts, setThoughts] = useState<Record<string, { text: string; seconds?: number }>>({}) // run_id -> reasoning
   const [pv, setPv] = useState(0) // bumped whenever the side panel's data may have changed
   const [pending, setPending] = useState<string[]>([]) // ids of queued user messages
+  const [kbBusy, setKbBusy] = useState(false) // the BFF is reading a link this message asked to save
   const [problem, setProblem] = useState<Problem>(null)
   const [draft, setDraft] = useState('')
+  const kb = useKbTray(draft)
   const [mention, setMention] = useState<{ start: number; query: string } | null>(null)
   const [pick, setPick] = useState(0)
   const [renaming, setRenaming] = useState<string | null>(null)
@@ -187,8 +190,10 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
     setProblem(null)
     askNotify()
     stick.current = true
+    const ids = kb.take()
+    setKbBusy(asksToSave(text))
     try {
-      const r = await api.sendGroup(id, text, mode)
+      const r = await api.sendGroup(id, text, mode, ids)
       if (r.message.id) {
         setMsgs((cur) => (cur.some((x) => sameId(x.id, r.message.id)) ? cur : [...cur, r.message]))
         if (r.queued) setPending((p) => [...p, r.message.id])
@@ -197,6 +202,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
       setDraft((d) => d || text)
       setProblem({ text: errText(e), upgrade: e instanceof ApiError && e.upgrade })
     }
+    setKbBusy(false)
   }
 
   async function stop() {
@@ -361,6 +367,8 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
               ))}
             </ul>
           )}
+          <KbTrayView kb={kb} />
+          {kbBusy && <KbLines busy />}
           <label className="sr" htmlFor="gmsg">
             Pesan untuk grup {group.name}
           </label>
@@ -398,6 +406,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
             }}
           />
           <div className="composer-actions">
+            <KbAttach kb={kb} />
             {running && (
               <>
                 <button type="button" className="btn stop" onClick={() => void stop()}>

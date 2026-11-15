@@ -5,13 +5,13 @@ import json
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, Depends, FastAPI, Header, Request
+from fastapi import APIRouter, Depends, FastAPI, File, Header, Request, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bots, catalog, config, costs, db, engine, evaluations, groups, harden, hermes, kanban, scheduler, sequences, settings, usage
+from . import bots, catalog, config, costs, db, engine, evaluations, groups, harden, hermes, kanban, kb, scheduler, sequences, settings, usage
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -25,6 +25,7 @@ async def lifespan(app: FastAPI):
     await groups.recover()
     await sequences.recover()
     await scheduler.recover()
+    await kb.recover()
     await bots.adopt_sessions()
     cleaner = asyncio.create_task(db.cleanup_loop())
     sched = asyncio.create_task(scheduler.loop())
@@ -279,6 +280,7 @@ async def create_run(bot_id: str, request: Request):
     text, sid = b.get("input"), b.get("session_id")
     if not isinstance(text, str) or not 1 <= len(text.strip()) <= 20000:
         raise ApiError(400, "Pesan wajib diisi (maksimal 20000 karakter)")
+    kb_ids = await kb.owned_ids(uid, b.get("kb_items"))
     if sid is not None:
         await _owned_session(bot_id, str(sid))
     else:
@@ -299,8 +301,13 @@ async def create_run(bot_id: str, request: Request):
     context = None
     if workflow:
         ins, context = await engine.workflow_context(bot, workflow, stage, test_mode, text, ins)
+    saved = []
+    if workflow != "cs":  # CS runs only see the authorized CS evidence (knowledge v2.1), never the user's own files
+        saved = await kb.save_links(uid, text)
+        if block := await kb.retrieve(uid, text, kb_ids, saved):
+            ins = f"{ins}\n\n{block}" if ins else block
     run = await engine.start_run(uid, bot_id, sid, text.strip(), "chat", instructions=ins, context=context, origin=origin)
-    return {"run": engine.run_view(run), "session_id": sid}
+    return {"run": engine.run_view(run), "session_id": sid, "kb": saved}
 
 
 @api.get("/products/search")
@@ -435,6 +442,34 @@ async def settings_knowledge():
     return {"retention_days": settings.RETENTION_DAYS, "docs": settings.knowledge_docs()}
 
 
+# ---------- knowledge base (the user's own files and links) ----------
+
+@api.get("/kb/items")
+async def kb_items():
+    return await kb.list_items(current_user())
+
+
+@api.post("/kb/files", status_code=201)
+async def kb_upload(request: Request, file: UploadFile = File(...)):
+    if int(request.headers.get("content-length") or 0) > kb.MAX_FILE_BYTES + 1024 * 1024:  # before reading the whole body
+        raise ApiError(413, f"Berkas terlalu besar (maksimal {kb.MAX_FILE_BYTES // (1024 * 1024)} MB).")
+    data = await file.read(kb.MAX_FILE_BYTES + 1)
+    return await kb.ingest_file(current_user(), file.filename or "", data)
+
+
+@api.post("/kb/links", status_code=201)
+async def kb_add_link(request: Request):
+    url = (await body_of(request)).get("url")
+    if not isinstance(url, str):
+        raise ApiError(400, "Alamat web wajib diisi")
+    return await kb.ingest_url(current_user(), url.strip())
+
+
+@api.delete("/kb/items/{item_id}", status_code=204)
+async def kb_delete(item_id: str):
+    await kb.delete_item(current_user(), item_id)
+
+
 @api.get("/export/history")
 async def export_history():
     data = await settings.export_history(current_user())
@@ -558,7 +593,7 @@ async def group_messages(gid: str, before: int | None = None, limit: int = 50):
 @api.post("/groups/{gid}/messages", status_code=202)
 async def send_group_message(gid: str, request: Request):
     b = await body_of(request)
-    return await groups.send(current_user(), _uuid(gid), b.get("text"), b.get("mode") or "queue")
+    return await groups.send(current_user(), _uuid(gid), b.get("text"), b.get("mode") or "queue", b.get("kb_items"))
 
 
 @api.post("/groups/{gid}/plans/{message_id}/approve")

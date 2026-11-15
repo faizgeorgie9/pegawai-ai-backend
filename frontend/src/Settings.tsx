@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { api, errText } from './bff'
-import type { Money, MonthUsage } from './bff'
+import type { KbItem, Money, MonthUsage } from './bff'
 import { useData } from './data'
+import { KB_ACCEPT, KB_KIND, KB_TYPES_TEXT, bytes } from './kb-ui'
 import { ErrorLine, nf } from './ui'
 import { CostMeter, Loading, PageHead, Perkiraan, useLoad } from './ui-extra'
 
@@ -222,13 +223,141 @@ function Security() {
   )
 }
 
-// ---------- Knowledge base (hanya baca) ----------
+// ---------- Knowledge base ----------
+const STATUS_TEXT = { processing: 'Memproses', ready: 'Tersimpan', failed: 'Gagal' } as const
+const dayOf = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '–')
+
+// The user's own sources (files and links added here or from the chat). The BFF keeps them per user and gives the best
+// matching excerpts to every agent, citing the source name.
+function MySources() {
+  const [n, setN] = useState(0)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const fn = useCallback(() => api.kbItems(), [n])
+  const items = useLoad(fn)
+  const file = useRef<HTMLInputElement>(null)
+  const [url, setUrl] = useState('')
+  const [busy, setBusy] = useState('')
+  const [problem, setProblem] = useState('')
+  const [asking, setAsking] = useState<string | null>(null)
+  async function add(label: string, work: () => Promise<KbItem>) {
+    setBusy(label)
+    setProblem('')
+    try {
+      const i = await work()
+      if (i.status === 'failed') setProblem(`${i.source ?? i.name}: ${i.error ?? 'gagal diproses.'}`)
+      else if (i.kind !== 'file') setUrl('')
+    } catch (e) {
+      setProblem(errText(e))
+    }
+    setBusy('')
+    setN((x) => x + 1)
+  }
+  async function remove(id: string) {
+    try {
+      await api.kbDelete(id)
+    } catch (e) {
+      setProblem(errText(e))
+    }
+    setAsking(null)
+    setN((x) => x + 1)
+  }
+  return (
+    <div className="kb-sec">
+      <h3>Sumber milikmu</h3>
+      <p className="quiet">
+        Berkas dan link yang kamu simpan. Semua agenmu bisa memakainya dan menyebut nama sumbernya. Bisa juga ditambah langsung dari chat: klik ikon klip, atau tempel link dan tulis &ldquo;simpan&rdquo;. Pencarian memakai kata kunci.
+      </p>
+      <div className="kb-add">
+        <input
+          ref={file}
+          type="file"
+          hidden
+          accept={KB_ACCEPT}
+          aria-label="Pilih berkas"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            e.target.value = ''
+            if (f) void add(f.name, () => api.kbUpload(f))
+          }}
+        />
+        <button className="btn outline" disabled={!!busy} onClick={() => file.current?.click()}>
+          Unggah berkas
+        </button>
+        <form
+          className="set-inline"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (url.trim()) void add(url.trim(), () => api.kbAddLink(url.trim()))
+          }}
+        >
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://… (website atau Google Drive)" aria-label="Alamat web atau link Google Drive" inputMode="url" />
+          <button className="btn outline" type="submit" disabled={!!busy || !url.trim()}>
+            Tambah link
+          </button>
+        </form>
+      </div>
+      <p className="meta">Berkas: {KB_TYPES_TEXT}. Google Drive hanya untuk dokumen yang dibagikan ke &ldquo;siapa saja yang memiliki link&rdquo;. Sambungan ke Drive pribadi belum tersedia.</p>
+      {problem && (
+        <p className="problem-bar small" role="alert">
+          {problem}
+        </p>
+      )}
+      {items.state === 'loading' && !items.data && <Loading text="Memuat sumber..." shape="lines" />}
+      {items.state === 'error' && !items.data && <ErrorLine text={items.error} onRetry={items.retry} />}
+      {busy && (
+        <div className="kb-row" data-s="processing" aria-live="polite">
+          <span className="pill cap-mock">Memproses</span>
+          <b className="kb-rname">{busy}</b>
+        </div>
+      )}
+      {items.data?.length === 0 && !busy && (
+        <div className="kb-empty">
+          <b>Belum ada sumber.</b>
+          <p className="quiet">Unggah berkas atau tempel link di atas, atau tambahkan dari chat.</p>
+        </div>
+      )}
+      <ul className="kb-list">
+        {items.data?.map((i) => (
+          <li key={i.id} className="kb-row" data-s={i.status}>
+            <span className="pill">{KB_KIND[i.kind]}</span>
+            <div className="kb-rtext">
+              <b className="kb-rname">{i.name}</b>
+              {i.source && <span className="meta kb-src">{i.source}</span>}
+              <span className="meta">
+                {[i.size_bytes != null && bytes(i.size_bytes), dayOf(i.created_at)].filter(Boolean).join(' · ')}
+              </span>
+              {i.status === 'failed' && <span className="meta bad kb-why">{i.error}</span>}
+            </div>
+            <span className={`pill ${i.status === 'ready' ? 'cap-ok' : i.status === 'failed' ? 'cap-blocked' : 'cap-mock'}`}>{STATUS_TEXT[i.status]}</span>
+            {asking === i.id ? (
+              <span className="confirm-actions" role="alert">
+                <button className="btn danger sm" onClick={() => void remove(i.id as string)}>
+                  Hapus
+                </button>
+                <button className="btn quiet-btn sm" onClick={() => setAsking(null)}>
+                  Batal
+                </button>
+              </span>
+            ) : (
+              <button className="btn quiet-btn danger-text sm" aria-label={`Hapus ${i.name}`} onClick={() => setAsking(i.id)}>
+                Hapus
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 function Knowledge() {
   const fn = useCallback(() => api.knowledge(), [])
   const k = useLoad(fn)
   return (
     <div className="set-sec">
       <h2>Knowledge base</h2>
+      <MySources />
+      <h3>Dokumen bawaan</h3>
       <p className="quiet">Dokumen yang dimuat ke tugas Marketing dan CS. Mengganti dokumen belum bisa dari sini.</p>
       {k.state === 'loading' && <Loading text="Memuat dokumen..." shape="lines" />}
       {k.state === 'error' && <ErrorLine text={k.error} onRetry={k.retry} />}

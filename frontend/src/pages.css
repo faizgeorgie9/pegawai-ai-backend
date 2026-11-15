@@ -279,3 +279,25 @@ td.st-col { min-width: 170px; }
 @media (max-width: 1100px) { .kb-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .kb-grid { grid-template-columns: minmax(0, 1fr); } .kb-col { padding: var(--s-2); } .kc-time { margin-left: 0; } }
 @media (prefers-reduced-motion: reduce) { .kcard { transition: none; } .kcard:hover { transform: none; } }
+
+/* Knowledge Base list (Pengaturan) */
+.kb-sec { display: flex; flex-direction: column; gap: var(--s-3); }
+.kb-sec h3, .set-sec > h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.kb-add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); }
+.kb-add .set-inline { flex: 1 1 280px; min-width: 0; }
+.kb-add .set-inline input { flex: 1 1 0; width: auto; }
+.kb-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.kb-row { display: flex; align-items: center; gap: var(--s-3); min-width: 0; padding: var(--s-3) 0; border-bottom: 1px solid var(--rule); }
+.kb-rtext { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 0; }
+.kb-rname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.kb-src { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kb-row .pill { flex: none; }
+.kb-why { white-space: normal; }
+.kb-empty { padding: var(--s-4); border: 1px dashed var(--control); border-radius: var(--radius-card); display: flex; flex-direction: column; gap: 4px; }
+@media (max-width: 640px) {
+  .kb-row { flex-wrap: wrap; row-gap: 6px; }
+  .kb-rtext { flex: 1 1 100%; order: 1; }
+  .kb-row > .pill:first-child { order: 0; }
+  .kb-row > .pill:nth-child(3) { order: 0; }
+  .kb-row > button, .kb-row > .confirm-actions { order: 0; margin-left: auto; }
+}
