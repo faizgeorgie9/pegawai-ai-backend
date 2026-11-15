@@ -30,7 +30,7 @@ PROVIDERS = {
     "notion": ("notion", [], None),
 }
 NAMES = {"gdrive": "Google Drive", "gmail": "Gmail", "notion": "Notion"}
-RECONNECT_MSG = "Sambungan {name} perlu disambungkan ulang. Buka Kemampuan > Alat, lalu pilih Hubungkan ulang."
+RECONNECT_MSG = "Sambungan {name} perlu disambungkan ulang. Buka Aplikasi, lalu pilih Hubungkan ulang."
 
 
 def _client_creds(provider: str) -> tuple[str, str]:
@@ -45,12 +45,26 @@ def configured(provider: str) -> bool:
     return bool(cid and secret and config.CONNECTIONS_KEY)
 
 
+# What the administrator must fill in, per OAuth family: (env name, plain label). Only "filled or not" is ever reported, never a value.
+SETUP = {
+    "google": [("GOOGLE_CLIENT_ID", "ID klien Google"), ("GOOGLE_CLIENT_SECRET", "Rahasia klien Google")],
+    "notion": [("NOTION_CLIENT_ID", "ID klien Notion"), ("NOTION_CLIENT_SECRET", "Rahasia klien Notion")],
+}
+KEY_SETUP = ("CONNECTIONS_KEY", "Kunci enkripsi penyimpanan akun")
+
+
+def setup_items(provider: str) -> list[dict]:
+    """Each value the provider needs and whether it is filled (True/False only; no values, no validity check)."""
+    items = SETUP[PROVIDERS[provider][0]] + [KEY_SETUP]
+    return [{"env": env, "label": label, "filled": bool(getattr(config, env))} for env, label in items]
+
+
 def redirect_uri(provider: str) -> str:
     return f"{config.PUBLIC_BASE_URL}/bff/api/connections/{PROVIDERS[provider][0]}/callback"
 
 
 def app_url(query: dict) -> str:
-    return f"{config.PUBLIC_BASE_URL}/#/tools?{urlencode(query)}"
+    return f"{config.PUBLIC_BASE_URL}/#/aplikasi?{urlencode(query)}"
 
 
 def _fernet() -> Fernet:
@@ -102,7 +116,8 @@ async def list_all(user_id: str) -> list[dict]:
         if not configured(p) and not r:
             status = "not_configured"
         out.append({"provider": p, "name": NAMES[p], "status": status, "configured": configured(p),
-                    "account": r["account"] if r else None, "connected_at": r["created_at"] if r else None})
+                    "account": r["account"] if r else None, "connected_at": r["created_at"] if r else None,
+                    "redirect_uri": redirect_uri(p), "setup": setup_items(p)})
     return out
 
 
@@ -209,7 +224,7 @@ async def access_token(user_id: str, provider: str) -> str:
     _provider(provider)
     row = await db.q1("select * from connections where user_id = %s and provider = %s", user_id, provider)
     if not row:
-        raise ApiError(409, f"{NAMES[provider]} belum tersambung. Buka Kemampuan > Alat untuk menghubungkannya.", needs="connect")
+        raise ApiError(409, f"{NAMES[provider]} belum tersambung. Buka Aplikasi untuk menghubungkannya.", needs="connect")
     if row["status"] == "reconnect":
         raise ApiError(409, RECONNECT_MSG.format(name=NAMES[provider]), needs="reconnect")
     if not row["expires_at"] or row["expires_at"] - _now() > timedelta(seconds=60):  # Notion tokens never expire

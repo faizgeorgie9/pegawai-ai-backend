@@ -8,6 +8,7 @@ import Kanban from './Kanban'
 import { DataProvider, useData } from './data'
 import { Dialogs } from './Dialogs'
 import { Kemampuan } from './Platform'
+import { AppsPage } from './connections'
 import CS from './CS'
 import Marketing from './Marketing'
 import Settings from './Settings'
@@ -74,6 +75,7 @@ function Shell() {
         {route.name === 'agen-detail' && <AgentDetail key={route.id} id={route.id} />}
         {route.name === 'agen-ubah' && <AgentEdit key={route.id} id={route.id} />}
         {(route.name === 'tools' || route.name === 'computer-use' || route.name === 'scheduler') && <Kemampuan tab={route.name} />}
+        {route.name === 'aplikasi' && <AppsPage />}
         {route.name === 'marketing' && <Marketing />}
         {route.name === 'cs' && <CS />}
         {route.name === 'uji' && <Uji />}
@@ -175,6 +177,9 @@ function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
           </NavItem>
           <NavItem href="#/tools" icon={I.skills} current={route.name === 'tools' || route.name === 'computer-use' || route.name === 'scheduler'}>
             Kemampuan
+          </NavItem>
+          <NavItem href="#/aplikasi" icon={I.apps} current={route.name === 'aplikasi'}>
+            Aplikasi
           </NavItem>
           <NavItem href="#/pengaturan" icon={I.settings} current={route.name === 'pengaturan'}>
             Pengaturan

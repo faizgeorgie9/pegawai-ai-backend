@@ -95,6 +95,20 @@ async def test_list_states_and_start_refuses_when_not_configured(db):
         await connections.start(u, "dropbox")
 
 
+@with_db
+async def test_list_tells_the_admin_what_is_missing_without_exposing_values(db):
+    config.GOOGLE_CLIENT_ID = ""
+    config.CONNECTIONS_KEY = ""
+    got = {c["provider"]: c for c in await connections.list_all(uid())}
+    g, n = got["gdrive"], got["notion"]
+    assert g["redirect_uri"] == got["gmail"]["redirect_uri"] == "http://localhost:5173/bff/api/connections/google/callback"
+    assert n["redirect_uri"] == "http://localhost:5173/bff/api/connections/notion/callback"
+    filled = lambda c: {i["env"]: i["filled"] for i in c["setup"]}  # noqa: E731
+    assert filled(g) == {"GOOGLE_CLIENT_ID": False, "GOOGLE_CLIENT_SECRET": True, "CONNECTIONS_KEY": False}
+    assert filled(n) == {"NOTION_CLIENT_ID": True, "NOTION_CLIENT_SECRET": True, "CONNECTIONS_KEY": False}
+    assert "gsecret" not in json.dumps(got) and "nsecret" not in json.dumps(got)  # only filled / not filled
+
+
 # ---------- start: consent address, state, PKCE ----------
 
 @with_db
@@ -163,7 +177,7 @@ async def test_callback_stores_encrypted_tokens_with_pkce_verifier(db):
         tok = respx.post(connections.GOOGLE_TOKEN).respond(json=google_ok(DRIVE_SCOPE))
         info = respx.get(connections.GOOGLE_USERINFO).respond(json={"email": "owner@example.com"})
         url = await connections.callback(u, "google", {"code": "the-code", "state": state})
-    assert "connect=ok" in url and "app=gdrive" in url
+    assert url.startswith("http://localhost:5173/#/aplikasi?") and "connect=ok" in url and "app=gdrive" in url
     sent = parse_qs(tok.calls[0].request.content.decode())
     assert sent["code_verifier"] == [verifier] and sent["code"] == ["the-code"] and sent["grant_type"] == ["authorization_code"]
     assert info.calls[0].request.headers["authorization"] == "Bearer at-1"

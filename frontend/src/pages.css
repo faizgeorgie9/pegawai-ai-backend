@@ -302,20 +302,41 @@ td.st-col { min-width: 170px; }
   .kb-row > button, .kb-row > .confirm-actions { order: 0; margin-left: auto; }
 }
 
-/* Tools > Hubungkan aplikasi (draft, connections.tsx) */
-.connect { display: flex; flex-direction: column; gap: var(--s-3); }
-.connect-head { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-2); }
-.connect-head h2 { font-size: 16px; font-weight: 600; }
-.connect-grid { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: var(--s-3); }
-.connect-card { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; padding: var(--pad-panel); border: 1px dashed var(--border); border-radius: var(--radius-card); background: var(--surface); }
-.connect-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s-2); }
-.connect-act { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: auto; padding-top: var(--s-2); }
-.connect-act .btn:disabled { cursor: not-allowed; }
-.connect-act { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--s-3); }
-.connect-card[data-s="connected"] { border-style: solid; }
+/* Aplikasi page (connections.tsx): grouped rows one tone step off the ground, status as pills. */
+.apps-group { display: flex; flex-direction: column; gap: var(--s-3); }
+.apps-group > header h2 { font-size: 16px; font-weight: 600; }
+.apps-group > header p { margin-top: 2px; }
+.apps-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.app-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) minmax(168px, auto); gap: var(--s-4); align-items: start; padding: var(--pad-panel); border-radius: var(--radius-card); background: var(--surface); }
+.app-mark { width: 44px; height: 44px; display: grid; place-items: center; border-radius: var(--radius-control); background: var(--raised); }
+.app-body { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; }
+.app-top { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-2); }
+.app-top h3 { font-size: 16px; font-weight: 600; }
+.app-act { display: flex; flex-direction: column; align-items: stretch; gap: var(--s-2); }
+.app-act .btn.link { align-self: flex-start; }
+.app-act .btn:disabled { cursor: not-allowed; }
+.app-act .confirm-actions { flex-wrap: wrap; align-items: center; }
+.app-ask { flex-basis: 100%; font-weight: 500; }
+.app-row.soon { background: transparent; box-shadow: inset 0 0 0 1px var(--rule); }
+.app-row.soon .app-mark { filter: grayscale(1); opacity: .7; }
+.app-admin { margin-top: var(--s-1); border-radius: var(--radius-control); background: var(--raised); }
+.app-admin summary { padding: var(--s-2) var(--s-3); font-weight: 500; cursor: pointer; }
+.app-admin-in { display: flex; flex-direction: column; gap: var(--s-2); padding: 0 var(--s-3) var(--s-3); }
+.app-admin code { font: inherit; font-weight: 600; overflow-wrap: anywhere; }
+.app-uri { display: block; padding: var(--s-2) var(--s-3); border-radius: var(--radius-control); background: var(--surface); }
+.app-setup { list-style: none; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.app-setup li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s-2); }
+.apps-link { padding: var(--s-3) var(--s-4); border-radius: var(--radius-control); background: var(--surface); }
+.apps-link a { color: var(--link); font-weight: 500; }
 .connect-acct { overflow-wrap: anywhere; color: var(--ok-ink); }
 .connect-warn { color: var(--warn-ink); }
 .connect-ok { color: var(--ok-ink); background: var(--ok-bg); }
+@media (max-width: 640px) {
+  .app-row { grid-template-columns: 40px minmax(0, 1fr); padding: var(--s-4); gap: var(--s-3); }
+  .app-mark { width: 40px; height: 40px; }
+  .app-act { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .app-act .btn:not(.link) { flex: 1 1 140px; }
+}
 /* Source picker (Drive / Notion) */
 .src-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 46vh; overflow-y: auto; border: 1px solid var(--rule); border-radius: var(--radius-card); }
 .src-row { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2) var(--s-3); cursor: pointer; min-width: 0; border-bottom: 1px solid var(--rule); }

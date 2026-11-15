@@ -79,8 +79,8 @@ export function SourcePicker({ provider, onClose, onDone }: { provider: Extract<
               {status === 'reconnect' && `Sambungan ${t.name} perlu disambungkan ulang.`}
             </p>
             {status !== 'not_configured' && (
-              <a className="btn soft" href="#/tools">
-                Buka Hubungkan aplikasi
+              <a className="btn soft" href="#/aplikasi">
+                Buka Aplikasi
               </a>
             )}
           </div>

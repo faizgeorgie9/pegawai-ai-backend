@@ -316,7 +316,7 @@ function MySources() {
           </button>
         </form>
       </div>
-      <p className="meta">Berkas: {KB_TYPES_TEXT}. Link Google Drive tanpa login hanya untuk dokumen yang dibagikan ke &ldquo;siapa saja yang memiliki link&rdquo;. Untuk Drive pribadi atau Notion, hubungkan akun lebih dulu di Kemampuan &gt; Alat.</p>
+      <p className="meta">Berkas: {KB_TYPES_TEXT}. Link Google Drive tanpa login hanya untuk dokumen yang dibagikan ke &ldquo;siapa saja yang memiliki link&rdquo;. Untuk Drive pribadi atau Notion, hubungkan akun lebih dulu di Aplikasi.</p>
       {problem && (
         <p className="problem-bar small" role="alert">
           {problem}

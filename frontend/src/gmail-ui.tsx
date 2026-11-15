@@ -64,8 +64,8 @@ function DraftDialog({ text, onClose }: { text: string; onClose: () => void }) {
               Tutup
             </button>
             {status !== 'not_configured' && (
-              <a className="btn primary" href="#/tools" onClick={onClose}>
-                Buka Hubungkan aplikasi
+              <a className="btn primary" href="#/aplikasi" onClick={onClose}>
+                Buka Aplikasi
               </a>
             )}
           </div>

@@ -3,7 +3,7 @@ import { api } from './bff'
 import { ErrorLine } from './ui'
 import { BlockedBanner, CapChip, Empty, Loading, OFF_WHY, PageHead, SampleBadge, toolsetText, useLoad } from './ui-extra'
 import { Scheduler } from './Scheduler'
-import { ConnectApps } from './connections'
+import { AppsLink, forwardOldConnectLink } from './connections'
 import { go } from './router'
 import type { Route } from './router'
 
@@ -13,6 +13,7 @@ const clean = (s: string) => s.replace(/^[^\p{L}\p{N}]+/u, '').trim()
 export function Tools() {
   const fn = useCallback(() => api.tools(), [])
   const t = useLoad(fn)
+  useEffect(forwardOldConnectLink, [])
   const [slow, setSlow] = useState(false) // Hermes can be slow: after a while say so instead of loading for ever
   useEffect(() => {
     if (t.state !== 'loading') return setSlow(false)
@@ -38,7 +39,7 @@ export function Tools() {
 
   return (
     <div className="tab-body">
-      <ConnectApps />
+      <AppsLink />
       <p className="note-box">Pengaturan alat per agen belum tersedia. Halaman ini hanya untuk melihat.</p>
       {t.state === 'loading' && !slow && <Loading text="Memuat daftar alat..." shape="ledger" />}
       {t.state === 'loading' && slow && <ErrorLine text="Daftar alat belum bisa ditampilkan. Coba lagi sebentar." onRetry={t.retry} />}

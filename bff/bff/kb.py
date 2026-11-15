@@ -286,7 +286,7 @@ def _charset_text(r: httpx.Response, body: bytes) -> str:
 
 
 DRIVE_NEEDS_CONNECT = ("Dokumen ini tidak bisa dibuka tanpa login. Bagikan sebagai \"siapa saja yang memiliki link\" "
-                       "atau hubungkan Google Drive di Kemampuan > Alat.")
+                       "atau hubungkan Google Drive di Aplikasi.")
 
 
 def drive_target(url: str) -> tuple[str, str] | None:

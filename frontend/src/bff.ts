@@ -152,6 +152,8 @@ export interface Connection {
   status: 'not_configured' | 'disconnected' | 'connected' | 'reconnect'
   account: string | null
   connected_at: string | null
+  redirect_uri: string // what the administrator registers at the provider
+  setup: { env: string; label: string; filled: boolean }[] // which admin values are filled (never the values)
 }
 // A file or page the user can pick from Drive / Notion.
 export interface PickItem {

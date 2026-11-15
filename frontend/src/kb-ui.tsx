@@ -124,12 +124,12 @@ export function KbAttach({ kb }: { kb: KbTray }) {
   )
 }
 
-// The BFF's "needs Drive" failure (kb.py DRIVE_NEEDS_CONNECT) links to the draft connection cards in Kemampuan > Tools.
+// The BFF's "needs Drive" failure (kb.py DRIVE_NEEDS_CONNECT) links to the Aplikasi page.
 export const needsDrive = (e?: string | null) => !!e && e.includes('Google Drive') && e.includes('tanpa login')
 export const DriveLink = () => (
   <>
     {' '}
-    <a className="kb-drive-link" href="#/tools">Buka Hubungkan aplikasi</a>
+    <a className="kb-drive-link" href="#/aplikasi">Buka Aplikasi</a>
   </>
 )
 const STATE_TEXT = { processing: 'memproses…', ready: 'tersimpan', failed: 'gagal' } as const
