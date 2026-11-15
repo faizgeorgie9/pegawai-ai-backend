@@ -192,6 +192,56 @@ export interface GroupMsg {
   text: string
   run_id: string
   created_at: number
+  plan?: ContentPlan // the message ends with a valid content plan (the BFF validated it): shown as an approval card
+}
+export interface PlanDay {
+  date: string // YYYY-MM-DD
+  theme: string
+  products: string[]
+  brief: string
+  time: string // HH:MM
+}
+export interface ContentPlan {
+  title: string
+  days: PlanDay[]
+  schedule_id: string | null // set once the user approved it
+}
+export type OccStatus = 'planned' | 'running' | 'done' | 'skipped' | 'failed' | 'cancelled'
+export interface Occurrence {
+  id: string
+  schedule_id: string
+  planned_at: number // epoch seconds
+  title: string
+  brief: string
+  status: OccStatus
+  skip_reason: string
+  agents: string[] // plan days: writer, visual; empty = the schedule's own target
+  run_id: string
+  cost: Money | null
+  estimated: boolean
+}
+export interface Schedule {
+  id: string
+  kind: 'recurring' | 'plan'
+  title: string
+  status: 'active' | 'paused' | 'cancelled'
+  target: string // agent or group name
+  bot_id: string
+  group_id: string
+  prompt: string
+  days: number[] // 0 = Monday
+  time: string
+  timezone: string
+  next_at: number // 0 when none
+  occurrences: Occurrence[]
+}
+export interface ScheduleInput {
+  title: string
+  prompt: string
+  days: number[]
+  time: string
+  bot_id?: string
+  group_id?: string
 }
 export interface Thought {
   run_id: string
@@ -487,8 +537,42 @@ export const toGroupMsg = (r: Raw): GroupMsg => {
     text: asStr(r.text ?? r.content),
     run_id: asStr(r.run_id),
     created_at: epoch(r.created_at ?? r.time),
+    plan: r.plan ? toContentPlan(r.plan) : undefined,
   }
 }
+const toContentPlan = (p: Raw): ContentPlan => ({
+  title: asStr(p.title),
+  days: list(p.days).map((d) => ({ date: asStr(d.date), theme: asStr(d.theme), products: list(d.products).map((x) => asStr(x)), brief: asStr(d.brief), time: asStr(d.time, '09:00') })),
+  schedule_id: p.schedule_id ? asStr(p.schedule_id) : null,
+})
+const OCC_STATUS = ['planned', 'running', 'done', 'skipped', 'failed', 'cancelled'] as const
+const toSchedule = (r: Raw): Schedule => ({
+  id: asStr(r.id),
+  kind: r.kind === 'plan' ? 'plan' : 'recurring',
+  title: asStr(r.title),
+  status: r.status === 'paused' ? 'paused' : r.status === 'cancelled' ? 'cancelled' : 'active',
+  target: asStr(r.target),
+  bot_id: asStr(r.bot_id),
+  group_id: asStr(r.group_id),
+  prompt: asStr(r.prompt),
+  days: list(r.days).map((d) => asNum(d)),
+  time: asStr(r.time),
+  timezone: asStr(r.timezone),
+  next_at: epoch(r.next_at),
+  occurrences: list(r.occurrences).map((o) => ({
+    id: asStr(o.id),
+    schedule_id: asStr(o.schedule_id),
+    planned_at: epoch(o.planned_at),
+    title: asStr(o.title),
+    brief: asStr(o.brief),
+    status: OCC_STATUS.find((t) => t === o.status) ?? 'failed',
+    skip_reason: asStr(o.skip_reason),
+    agents: list(o.agents).map((x) => asStr(x)),
+    run_id: asStr(o.run_id),
+    cost: o.cost ? toMoney(o.cost) : null,
+    estimated: o.estimated === true,
+  })),
+})
 export const toRun = (r: Raw): RunInfo => ({
   id: asStr(r.id),
   bot_id: asStr(r.bot_id),
@@ -695,6 +779,13 @@ export const api = {
   },
   deleteGroup: (id: string) => call<void>('DELETE', `/groups/${enc(id)}`),
   stopGroup: (id: string) => call<void>('POST', `/groups/${enc(id)}/stop`),
+  approvePlan: async (gid: string, messageId: string) => toSchedule(await call<Raw>('POST', `/groups/${enc(gid)}/plans/${enc(messageId)}/approve`)),
+  revisePlan: (gid: string, messageId: string, feedback: string) => call<void>('POST', `/groups/${enc(gid)}/plans/${enc(messageId)}/revise`, { feedback }),
+  schedules: async () => list(await call('GET', '/schedules')).map(toSchedule),
+  createSchedule: async (b: ScheduleInput) => toSchedule(await call<Raw>('POST', '/schedules', b)),
+  scheduleAction: async (id: string, what: 'pause' | 'resume' | 'cancel') => toSchedule(await call<Raw>('POST', `/schedules/${enc(id)}/${what}`)),
+  deleteSchedule: (id: string) => call<void>('DELETE', `/schedules/${enc(id)}`),
+  stopOccurrence: (id: string) => call<void>('POST', `/schedule-occurrences/${enc(id)}/stop`),
   usage: async (s: Scope): Promise<Usage> => {
     const u = await call<Usage>('GET', `/usage${q({ ...s })}`)
     return { ...u, turns: u.turns.map((t) => ({ ...t, created_at: epoch(t.created_at) })) }

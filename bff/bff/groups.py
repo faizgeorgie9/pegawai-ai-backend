@@ -3,8 +3,10 @@ import asyncio
 import re
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
-from . import db, engine
+from . import db, engine, plan_schema, settings
 from .engine import hub
 from .errors import ApiError
 
@@ -108,9 +110,24 @@ async def list_groups(user_id: str) -> list[dict]:
 async def list_messages(user_id: str, gid: str, before: int | None, limit: int) -> list[dict]:
     await get_group(user_id, gid)
     limit = max(1, min(limit, 200))
-    return await db.q("select * from (select id, group_id, author, bot_id, text, run_id, created_at from group_messages "
+    rows = await db.q("select * from (select id, group_id, author, bot_id, text, run_id, created_at from group_messages "
                       "where group_id = %s and (%s::bigint is null or id < %s) order by id desc limit %s) t order by id",
                       gid, before, before, limit)
+    return await with_plans(rows)
+
+
+async def with_plans(rows: list[dict]) -> list[dict]:
+    """Adds `plan` to a bot message that ends with a valid plan block (see plan_schema): the plan, its errors never. `plan` has
+    `schedule_id` (the schedule created when the user approved it, else null). Invalid or absent: the message is plain text."""
+    found = {}
+    for r in rows:
+        if r["author"] == "bot":
+            p, _ = plan_schema.parse(r["text"])
+            if p:
+                found[r["id"]] = p
+    sched = {r["source_message_id"]: str(r["id"]) for r in await db.q(
+        "select id, source_message_id from schedules where source_message_id = any(%s)", list(found))} if found else {}
+    return [{**r, "plan": {**found[r["id"]], "schedule_id": sched.get(r["id"])}} if r["id"] in found else r for r in rows]
 
 
 async def remove_bot_from_groups(bot_id: str) -> None:
@@ -123,6 +140,7 @@ async def post(gid: str, author: str, text: str, bot_id: str | None = None, run_
     row = await db.q1("insert into group_messages (group_id, author, bot_id, text, run_id, send_id) "
                       "values (%s, %s, %s, %s, %s, %s) returning id, group_id, author, bot_id, text, run_id, created_at",
                       gid, author, bot_id, text, run_id, send_id)
+    row = (await with_plans([row]))[0]
     hub.publish("*", "group_message", {"group_id": gid, "message": row})
     return row
 
@@ -226,11 +244,13 @@ async def _turn(gid: str, st: SendState, bot: dict, g: dict, mems: list[dict]) -
                 gid, bot["bot_id"], new[-1]["id"])
     if not lines:
         return None
+    tz = ZoneInfo((await settings.get(st.user_id))["timezone"])
+    today = datetime.now(tz).date().isoformat()
     st.turn_bot = bot["bot_id"]
     _typing(gid, bot["bot_id"], True, phase="thinking")
     try:
         run = await engine.start_run(st.user_id, bot["bot_id"], f"grup-{gid}-{bot['bot_id']}", "\n".join(lines),
-                                     "group", gid, _instructions(g["name"], mems))
+                                     "group", gid, _instructions(g["name"], mems, today))
         st.run_id, st.bot = str(run["id"]), bot["bot_id"]
         # the client follows the run's own stream (text, steps) from here: `on` is sent again, now with the run id
         _typing(gid, bot["bot_id"], True, phase="thinking", run_id=st.run_id)

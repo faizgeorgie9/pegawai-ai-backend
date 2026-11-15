@@ -6,6 +6,7 @@ import { applyTool, settle, toolsFrom } from './steps'
 import { useSmoothText } from './useSmoothText'
 import { Md } from './Chat'
 import { useData } from './data'
+import { PlanCard, withoutPlanBlock } from './PlanCard'
 import { PanelButtons, SidePanel, Split } from './Panel'
 import { groupPath } from './router'
 import { BotAvatar, ErrorLine, PENCIL, Icon, ThinkingBlock, botColor, clock, teamLabel } from './ui'
@@ -323,7 +324,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
             </div>
           )}
           {msgs.map((m) => (
-            <GroupBubble key={m.id} m={m} bot={bots.find((b) => b.id === m.bot_id)} queued={pending.includes(m.id)} thought={thoughts[m.run_id ?? '']} />
+            <GroupBubble key={m.id} m={m} bot={bots.find((b) => b.id === m.bot_id)} queued={pending.includes(m.id)} thought={thoughts[m.run_id ?? '']} onApproved={(sid) => setMsgs((cur) => cur.map((x) => (x.id === m.id && x.plan ? { ...x, plan: { ...x.plan, schedule_id: sid } } : x)))} />
           ))}
           {turn && <LiveBubble t={turn} bot={bots.find((b) => b.id === turn.bot)} />}
         </div>
@@ -420,7 +421,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
   )
 }
 
-function GroupBubble({ m, bot, queued, thought }: { m: GroupMsg; bot?: Bot; queued: boolean; thought?: { text: string; seconds?: number } }) {
+function GroupBubble({ m, bot, queued, thought, onApproved }: { m: GroupMsg; bot?: Bot; queued: boolean; thought?: { text: string; seconds?: number }; onApproved: (scheduleId: string) => void }) {
   if (m.role === 'system') return <p className="sys-msg">{m.text}</p>
   if (m.role === 'user') {
     return (
@@ -442,8 +443,9 @@ function GroupBubble({ m, bot, queued, thought }: { m: GroupMsg; bot?: Bot; queu
         </p>
         {thought?.text && <ThinkingBlock text={thought.text} running={false} seconds={thought.seconds} />}
         <div className="bubble">
-          <Md text={m.text} />
+          <Md text={m.plan ? withoutPlanBlock(m.text) : m.text} />
         </div>
+        {m.plan && <PlanCard groupId={m.group_id} messageId={m.id} plan={m.plan} onApproved={onApproved} />}
       </div>
     </div>
   )

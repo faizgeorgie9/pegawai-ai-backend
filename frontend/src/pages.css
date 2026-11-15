@@ -233,3 +233,19 @@ td.st-col { min-width: 170px; }
   .set-ctl .field { min-width: 0; }
   .set-inline input { flex: 1; width: auto; }
 }
+
+/* Scheduler */
+.sched-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sched-bar h2 { font-size: 16px; font-weight: 600; }
+.sched { gap: var(--s-3); border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); min-width: 0; }
+.sched-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.sched-head h3 { font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.sched-head > div { min-width: 0; }
+.sched-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.sched-form { border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); max-width: 640px; gap: var(--s-3); }
+.sched-form textarea { width: 100%; padding: 8px 12px; resize: vertical; }
+.sched-form select, .sched-form input:not([type="checkbox"]) { width: 100%; }
+.sched-form fieldset { border: 0; padding: 0; min-width: 0; }
+.day-row { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.chk { display: inline-flex; align-items: center; gap: 6px; }
+.chk input { width: auto; height: auto; }

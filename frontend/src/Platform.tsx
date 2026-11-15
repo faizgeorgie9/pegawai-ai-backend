@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { api } from './bff'
 import { ErrorLine } from './ui'
 import { BlockedBanner, CapChip, Empty, Loading, OFF_WHY, PageHead, SampleBadge, useLoad } from './ui-extra'
+import { Scheduler } from './Scheduler'
 import { go } from './router'
 import type { Route } from './router'
 
@@ -160,58 +161,6 @@ export function ComputerUse() {
   )
 }
 
-// ---------- Scheduler ----------
-export function Scheduler() {
-  return (
-    <div className="tab-body">
-      <BlockedBanner title="Scheduler belum dibuka" reason="Sampai dibuka, tidak ada job terjadwal yang bisa dijalankan." />
-      <div className="cbox">
-        <h2>Yang akan tampil di sini</h2>
-        <ul className="plain">
-          <li>Daftar job: nama, jadwal, dan agen yang menjalankan.</li>
-          <li>Status tiap job: aktif, dijeda, atau gagal.</li>
-        </ul>
-      </div>
-      <div className="block">
-        <header>
-          <h2>Daftar job</h2>
-        </header>
-        <Empty title="Belum ada job">Tidak ada job terjadwal selama fitur ini nonaktif.</Empty>
-      </div>
-      <div className="sample-box">
-        <header>
-          <SampleBadge />
-          <b>Contoh tampilan</b>
-        </header>
-        <p>Dua baris contoh agar bentuk halaman terlihat. Bukan job nyata.</p>
-        <div className="table-wrap">
-          <table className="plain">
-            <thead>
-              <tr>
-                <th>Job</th>
-                <th>Jadwal</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td data-label="Job">Rangkuman harian tim</td>
-                <td data-label="Jadwal">Setiap hari, 08.00</td>
-                <td data-label="Status">Aktif</td>
-              </tr>
-              <tr>
-                <td data-label="Job">Cek draf mingguan</td>
-                <td data-label="Jadwal">Setiap Senin, 09.00</td>
-                <td data-label="Status">Dijeda</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ---------- Kemampuan: one page, three tabs ----------
 const TABS = [
   { name: 'tools', label: 'Tools', path: '/tools' },
@@ -236,7 +185,7 @@ export function Kemampuan({ tab }: { tab: Extract<Route['name'], 'tools' | 'comp
         {TABS.map((t) => (
           <a key={t.name} id={'tab-' + t.name} role="tab" href={'#' + t.path} aria-selected={t.name === tab} aria-controls="tabpanel" tabIndex={t.name === tab ? 0 : -1}>
             {t.label}
-            {t.name !== 'tools' && <span className="tab-tag">Nonaktif</span>}
+            {t.name === 'computer-use' && <span className="tab-tag">Nonaktif</span>}
           </a>
         ))}
       </div>

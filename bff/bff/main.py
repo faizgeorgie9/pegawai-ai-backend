@@ -11,7 +11,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bots, catalog, config, costs, db, engine, evaluations, groups, harden, hermes, sequences, settings, usage
+from . import bots, catalog, config, costs, db, engine, evaluations, groups, harden, hermes, scheduler, sequences, settings, usage
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -24,10 +24,13 @@ async def lifespan(app: FastAPI):
     await engine.recover()
     await groups.recover()
     await sequences.recover()
+    await scheduler.recover()
     await bots.adopt_sessions()
     cleaner = asyncio.create_task(db.cleanup_loop())
+    sched = asyncio.create_task(scheduler.loop())
     yield
     cleaner.cancel()
+    sched.cancel()
     await hermes.stop_client()
     await db.close_pool()
 
@@ -467,6 +470,50 @@ def _seq_id(v: str) -> str:
         raise ApiError(404, "Urutan tidak ditemukan")
 
 
+# ---------- schedules ----------
+
+@api.get("/schedules")
+async def list_schedules():
+    return await scheduler.views(current_user())
+
+
+@api.post("/schedules", status_code=201)
+async def create_schedule(request: Request):
+    return await scheduler.create(current_user(), await body_of(request))
+
+
+@api.post("/schedules/{sid}/pause")
+async def pause_schedule(sid: str):
+    return await scheduler.pause(current_user(), _sched_id(sid))
+
+
+@api.post("/schedules/{sid}/resume")
+async def resume_schedule(sid: str):
+    return await scheduler.resume(current_user(), _sched_id(sid))
+
+
+@api.post("/schedules/{sid}/cancel")
+async def cancel_schedule(sid: str):
+    return await scheduler.cancel(current_user(), _sched_id(sid))
+
+
+@api.delete("/schedules/{sid}", status_code=204)
+async def delete_schedule(sid: str):
+    await scheduler.delete(current_user(), _sched_id(sid))
+
+
+@api.post("/schedule-occurrences/{oid}/stop")
+async def stop_occurrence(oid: str):
+    return await scheduler.stop(current_user(), _sched_id(oid))
+
+
+def _sched_id(v: str) -> str:
+    try:
+        return str(uuid.UUID(v))
+    except ValueError:
+        raise ApiError(404, "Jadwal tidak ditemukan")
+
+
 # ---------- groups ----------
 
 @api.get("/groups")
@@ -512,6 +559,16 @@ async def group_messages(gid: str, before: int | None = None, limit: int = 50):
 async def send_group_message(gid: str, request: Request):
     b = await body_of(request)
     return await groups.send(current_user(), _uuid(gid), b.get("text"), b.get("mode") or "queue")
+
+
+@api.post("/groups/{gid}/plans/{message_id}/approve")
+async def approve_plan(gid: str, message_id: int):
+    return await scheduler.approve_plan(current_user(), _uuid(gid), message_id)
+
+
+@api.post("/groups/{gid}/plans/{message_id}/revise", status_code=202)
+async def revise_plan(gid: str, message_id: int, request: Request):
+    return await scheduler.request_revision(current_user(), _uuid(gid), message_id, (await body_of(request)).get("feedback"))
 
 
 @api.post("/groups/{gid}/stop")
