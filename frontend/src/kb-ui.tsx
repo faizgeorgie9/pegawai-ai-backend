@@ -92,6 +92,14 @@ export function KbAttach({ kb }: { kb: KbTray }) {
   )
 }
 
+// The BFF's "needs Drive" failure (kb.py DRIVE_NEEDS_CONNECT) links to the draft connection cards in Kemampuan > Tools.
+export const needsDrive = (e?: string | null) => !!e && e.includes('Google Drive') && e.includes('tanpa login')
+export const DriveLink = () => (
+  <>
+    {' '}
+    <a className="kb-drive-link" href="#/tools">Lihat Hubungkan aplikasi</a>
+  </>
+)
 const STATE_TEXT = { processing: 'memproses…', ready: 'tersimpan', failed: 'gagal' } as const
 
 export function KbTrayView({ kb }: { kb: KbTray }) {
@@ -105,6 +113,7 @@ export function KbTrayView({ kb }: { kb: KbTray }) {
           <span className="kb-state">
             {STATE_TEXT[t.state]}
             {t.state === 'failed' && t.error ? `: ${t.error}` : ''}
+            {t.state === 'failed' && needsDrive(t.error) && <DriveLink />}
           </span>
           <button type="button" className="icon-btn tiny" aria-label={`Lepas ${t.label}`} onClick={() => kb.remove(t.key)}>
             <Icon d={CLOSE} size={12} />
@@ -135,6 +144,7 @@ export function KbLines({ items, busy }: { items?: KbItem[]; busy?: boolean }) {
       {items?.map((i, n) => (
         <p key={n} className="kb-line" data-s={i.status} role={i.status === 'failed' ? 'alert' : undefined}>
           Knowledge Base: {i.status === 'ready' ? `tersimpan, ${i.name}` : `gagal menyimpan ${i.source ?? i.name}. ${i.error ?? ''}`}
+          {i.status === 'failed' && needsDrive(i.error) && <DriveLink />}
         </p>
       ))}
     </div>

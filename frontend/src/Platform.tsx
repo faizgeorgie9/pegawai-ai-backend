@@ -3,6 +3,7 @@ import { api } from './bff'
 import { ErrorLine } from './ui'
 import { BlockedBanner, CapChip, Empty, Loading, OFF_WHY, PageHead, SampleBadge, useLoad } from './ui-extra'
 import { Scheduler } from './Scheduler'
+import { ConnectApps } from './connections'
 import { go } from './router'
 import type { Route } from './router'
 
@@ -36,6 +37,7 @@ export function Tools() {
 
   return (
     <div className="tab-body">
+      <ConnectApps />
       <p className="note-box">Pengaturan per agen: perlu disepakati dengan backend. Halaman ini hanya untuk melihat.</p>
       {t.state === 'loading' && !slow && <Loading text="Memuat toolset dari Hermes..." shape="ledger" />}
       {t.state === 'loading' && slow && <ErrorLine text="Hermes belum menjawab. Toolset belum bisa ditampilkan." onRetry={t.retry} />}

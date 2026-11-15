@@ -301,3 +301,13 @@ td.st-col { min-width: 170px; }
   .kb-row > .pill:nth-child(3) { order: 0; }
   .kb-row > button, .kb-row > .confirm-actions { order: 0; margin-left: auto; }
 }
+
+/* Tools > Hubungkan aplikasi (draft, connections.tsx) */
+.connect { display: flex; flex-direction: column; gap: var(--s-3); }
+.connect-head { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-2); }
+.connect-head h2 { font-size: 16px; font-weight: 600; }
+.connect-grid { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: var(--s-3); }
+.connect-card { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; padding: var(--pad-panel); border: 1px dashed var(--border); border-radius: var(--radius-card); background: var(--surface); }
+.connect-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s-2); }
+.connect-act { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: auto; padding-top: var(--s-2); }
+.connect-act .btn:disabled { cursor: not-allowed; }

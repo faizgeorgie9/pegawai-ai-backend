@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { api, errText } from './bff'
 import type { KbItem, Money, MonthUsage } from './bff'
 import { useData } from './data'
-import { KB_ACCEPT, KB_KIND, KB_TYPES_TEXT, bytes } from './kb-ui'
+import { DriveLink, KB_ACCEPT, KB_KIND, KB_TYPES_TEXT, bytes, needsDrive } from './kb-ui'
 import { ErrorLine, nf } from './ui'
 import { CostMeter, Loading, PageHead, Perkiraan, useLoad } from './ui-extra'
 
@@ -300,6 +300,7 @@ function MySources() {
       {problem && (
         <p className="problem-bar small" role="alert">
           {problem}
+          {needsDrive(problem) && <DriveLink />}
         </p>
       )}
       {items.state === 'loading' && !items.data && <Loading text="Memuat sumber..." shape="lines" />}
