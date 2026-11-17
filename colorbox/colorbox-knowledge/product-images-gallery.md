@@ -207,3 +207,184 @@ Dokumen ini menyediakan aset visual foto produk riil Colorbox yang telah diekstr
 2. **`@sketchwriter` (Bram):** Menggunakan fitur visual (seperti *white contrast stitching*, *barrel curved leg*, *ecru canvas graphic illustration*) sebagai atribut wajib pada prompt FLUX/Midjourney.
 3. **`@visualcarousel` (Vina):** Menempatkan thumbnail referensi gambar dan chip harga langsung pada wireframe layout per slide.
 
+
+
+## 2b. Tabel 10 Produk Baru (Multi-Angle Scraping Terverifikasi)
+
+| ID Asset | Foto Preview (Multi-Angle) | Nama Produk Resmi | Kategori | Varian Sudut | Harga Resmi | Tautan Produk | Berkas Lokal |
+|:---|:---:|:---|:---|:---:|:---|:---:|:---|
+| **CBX-IMG-11** | ![A](images/cbx-11a-oversize-checks-blazer-dusty-olive-front.jpg) ![B](images/cbx-11b-oversize-checks-blazer-dusty-olive-back.jpg) ![C](images/cbx-11c-oversize-checks-blazer-dusty-olive-detail.jpg) | **Oversize Long Sleeve Checks Blazer** | OUTERWEAR | Multi-angle (3 views) | Rp 299.900 | [Katalog Web](https://colorbox.co.id/products/oversize-long-sleeve-checks-blazer-dusty-olive-26i) | • `cbx-11a-oversize-checks-blazer-dusty-olive-front.jpg` (front)<br>• `cbx-11b-oversize-checks-blazer-dusty-olive-back.jpg` (back)<br>• `cbx-11c-oversize-checks-blazer-dusty-olive-detail.jpg` (detail) |
+| **CBX-IMG-12** | ![A](images/cbx-12a-double-breasted-crop-jacket-lt-grey-front.jpg) ![B](images/cbx-12b-double-breasted-crop-jacket-lt-grey-back.jpg) ![C](images/cbx-12c-double-breasted-crop-jacket-lt-grey-detail.jpg) | **Double Breasted Crop Jacket** | OUTERWEAR | Multi-angle (3 views) | Rp 329.900 | [Katalog Web](https://colorbox.co.id/products/double-breasted-crop-jacket-lt-grey-26j) | • `cbx-12a-double-breasted-crop-jacket-lt-grey-front.jpg` (front)<br>• `cbx-12b-double-breasted-crop-jacket-lt-grey-back.jpg` (back)<br>• `cbx-12c-double-breasted-crop-jacket-lt-grey-detail.jpg` (detail) |
+| **CBX-IMG-13** | ![A](images/cbx-13a-contrast-detail-denim-jacket-dark-brown-front.jpg) ![B](images/cbx-13b-contrast-detail-denim-jacket-dark-brown-back.jpg) ![C](images/cbx-13c-contrast-detail-denim-jacket-dark-brown-detail.jpg) | **Contrast Detail Denim Jacket** | BLOUSESHIRT | Multi-angle (3 views) | Rp 359.900 | [Katalog Web](https://colorbox.co.id/products/contrast-detail-denim-jacket-dark-brown-26g) | • `cbx-13a-contrast-detail-denim-jacket-dark-brown-front.jpg` (front)<br>• `cbx-13b-contrast-detail-denim-jacket-dark-brown-back.jpg` (back)<br>• `cbx-13c-contrast-detail-denim-jacket-dark-brown-detail.jpg` (detail) |
+| **CBX-IMG-14** | ![A](images/cbx-14a-oversize-collared-leather-jacket-dark-red-front.jpg) ![B](images/cbx-14b-oversize-collared-leather-jacket-dark-red-back.jpg) ![C](images/cbx-14c-oversize-collared-leather-jacket-dark-red-detail.jpg) | **Oversize Collared Leather Jacket** | BLOUSESHIRT | Multi-angle (3 views) | Rp 599.900 | [Katalog Web](https://colorbox.co.id/products/oversize-collared-leather-jacket-dark-red-226) | • `cbx-14a-oversize-collared-leather-jacket-dark-red-front.jpg` (front)<br>• `cbx-14b-oversize-collared-leather-jacket-dark-red-back.jpg` (back)<br>• `cbx-14c-oversize-collared-leather-jacket-dark-red-detail.jpg` (detail) |
+| **CBX-IMG-15** | ![A](images/cbx-15a-bubble-hem-hoodie-ecru-front.jpg) ![B](images/cbx-15b-bubble-hem-hoodie-ecru-back.jpg) ![C](images/cbx-15c-bubble-hem-hoodie-ecru-detail.jpg) | **Bubble Hem Long Sleeve Hoodie** | OUTERWEAR | Multi-angle (3 views) | Rp 299.900 | [Katalog Web](https://colorbox.co.id/products/bubble-hem-long-sleeve-hoodie-ecru-26j) | • `cbx-15a-bubble-hem-hoodie-ecru-front.jpg` (front)<br>• `cbx-15b-bubble-hem-hoodie-ecru-back.jpg` (back)<br>• `cbx-15c-bubble-hem-hoodie-ecru-detail.jpg` (detail) |
+| **CBX-IMG-16** | ![A](images/cbx-16a-suede-mini-skirt-navy-front.jpg) ![B](images/cbx-16b-suede-mini-skirt-navy-back.jpg) ![C](images/cbx-16c-suede-mini-skirt-navy-detail.jpg) | **Suede Mini Skirt** | DENIM | Multi-angle (3 views) | Rp 249.900 | [Katalog Web](https://colorbox.co.id/products/suede-mini-skirt-navy-26g) | • `cbx-16a-suede-mini-skirt-navy-front.jpg` (front)<br>• `cbx-16b-suede-mini-skirt-navy-back.jpg` (back)<br>• `cbx-16c-suede-mini-skirt-navy-detail.jpg` (detail) |
+| **CBX-IMG-17** | ![A](images/cbx-17a-jeans-overlap-micro-skirt-dark-navy-front.jpg) ![B](images/cbx-17b-jeans-overlap-micro-skirt-dark-navy-back.jpg) ![C](images/cbx-17c-jeans-overlap-micro-skirt-dark-navy-detail.jpg) | **Jeans with Overlap Micro Skirt Details** | DENIM | Multi-angle (3 views) | Rp 237.528 | [Katalog Web](https://colorbox.co.id/products/jeans-with-overlap-micro-skirt-details-dark-navy-26j) | • `cbx-17a-jeans-overlap-micro-skirt-dark-navy-front.jpg` (front)<br>• `cbx-17b-jeans-overlap-micro-skirt-dark-navy-back.jpg` (back)<br>• `cbx-17c-jeans-overlap-micro-skirt-dark-navy-detail.jpg` (detail) |
+| **CBX-IMG-18** | ![A](images/cbx-18a-wide-leg-drawstring-pants-navy-front.jpg) ![B](images/cbx-18b-wide-leg-drawstring-pants-navy-back.jpg) ![C](images/cbx-18c-wide-leg-drawstring-pants-navy-detail.jpg) | **Wide Leg Drawstring Pants** | BOTTOMS | Multi-angle (3 views) | Rp 199.900 | [Katalog Web](https://colorbox.co.id/products/wide-leg-drawstring-pants-navy-26k) | • `cbx-18a-wide-leg-drawstring-pants-navy-front.jpg` (front)<br>• `cbx-18b-wide-leg-drawstring-pants-navy-back.jpg` (back)<br>• `cbx-18c-wide-leg-drawstring-pants-navy-detail.jpg` (detail) |
+| **CBX-IMG-19** | ![A](images/cbx-19a-denim-sling-bag-denim-front.jpg) ![B](images/cbx-19b-denim-sling-bag-denim-side.jpg) ![C](images/cbx-19c-denim-sling-bag-denim-detail.jpg) | **Denim Sling Bag** | BAGS | Multi-angle (3 views) | Rp 129.900 | [Katalog Web](https://colorbox.co.id/products/denim-sling-bag-denim-26f) | • `cbx-19a-denim-sling-bag-denim-front.jpg` (front)<br>• `cbx-19b-denim-sling-bag-denim-side.jpg` (side)<br>• `cbx-19c-denim-sling-bag-denim-detail.jpg` (detail) |
+| **CBX-IMG-20** | ![A](images/cbx-20a-lace-sneakers-navy-front-pair.jpg) ![B](images/cbx-20b-lace-sneakers-navy-side-profile.jpg) ![C](images/cbx-20c-lace-sneakers-navy-top-down.jpg) | **Lace Sneakers** | LIFESTYLE SHOES | Multi-angle (3 views) | Rp 299.900 | [Katalog Web](https://colorbox.co.id/products/lace-sneakers-navy-26g) | • `cbx-20a-lace-sneakers-navy-front-pair.jpg` (front-pair)<br>• `cbx-20b-lace-sneakers-navy-side-profile.jpg` (side-profile)<br>• `cbx-20c-lace-sneakers-navy-top-down.jpg` (top-down) |
+
+---
+
+## 3b. Detail Profil Visual Produk Baru (Multi-Angle Dossier)
+
+### Oversize Long Sleeve Checks Blazer (CBX-IMG-11)
+- **Nama Produk Resmi:** Oversize Long Sleeve Checks Blazer
+- **Kategori:** OUTERWEAR
+- **Harga Resmi:** Rp 299.900
+- **Tautan Resmi:** [oversize-long-sleeve-checks-blazer-dusty-olive-26i](https://colorbox.co.id/products/oversize-long-sleeve-checks-blazer-dusty-olive-26i)
+- **Aset Sudut Pandang (Multi-angle Images):**
+  - **Sudut FRONT (A):** [`cbx-11a-oversize-checks-blazer-dusty-olive-front.jpg`](images/cbx-11a-oversize-checks-blazer-dusty-olive-front.jpg) — Dimensi: 554x800 px (58.3 KB)
+  - **Sudut BACK (B):** [`cbx-11b-oversize-checks-blazer-dusty-olive-back.jpg`](images/cbx-11b-oversize-checks-blazer-dusty-olive-back.jpg) — Dimensi: 554x800 px (46.8 KB)
+  - **Sudut DETAIL (C):** [`cbx-11c-oversize-checks-blazer-dusty-olive-detail.jpg`](images/cbx-11c-oversize-checks-blazer-dusty-olive-detail.jpg) — Dimensi: 554x800 px (87.8 KB)
+- **Karakteristik Visual & Rekomendasi Styling:**
+  - Potongan dan siluet otentik dari koleksi resmi Colorbox dengan rasio aspek asli (tidak terdistorsi/stretch).
+  - Dilengkapi 3 sudut pandang berbeda: tampilan depan (front), tampilan belakang/samping (back/side), dan foto detail tekstur/fitur khusus (detail close-up).
+  - Sangat ideal untuk materi carousel Instagram (@colorbox style), breakdown OOTD Gen-Z, dan multi-frame showcase.
+
+---
+
+### Double Breasted Crop Jacket (CBX-IMG-12)
+- **Nama Produk Resmi:** Double Breasted Crop Jacket
+- **Kategori:** OUTERWEAR
+- **Harga Resmi:** Rp 329.900
+- **Tautan Resmi:** [double-breasted-crop-jacket-lt-grey-26j](https://colorbox.co.id/products/double-breasted-crop-jacket-lt-grey-26j)
+- **Aset Sudut Pandang (Multi-angle Images):**
+  - **Sudut FRONT (A):** [`cbx-12a-double-breasted-crop-jacket-lt-grey-front.jpg`](images/cbx-12a-double-breasted-crop-jacket-lt-grey-front.jpg) — Dimensi: 554x800 px (51.7 KB)
+  - **Sudut BACK (B):** [`cbx-12b-double-breasted-crop-jacket-lt-grey-back.jpg`](images/cbx-12b-double-breasted-crop-jacket-lt-grey-back.jpg) — Dimensi: 554x800 px (48.8 KB)
+  - **Sudut DETAIL (C):** [`cbx-12c-double-breasted-crop-jacket-lt-grey-detail.jpg`](images/cbx-12c-double-breasted-crop-jacket-lt-grey-detail.jpg) — Dimensi: 554x800 px (130.5 KB)
+- **Karakteristik Visual & Rekomendasi Styling:**
+  - Potongan dan siluet otentik dari koleksi resmi Colorbox dengan rasio aspek asli (tidak terdistorsi/stretch).
+  - Dilengkapi 3 sudut pandang berbeda: tampilan depan (front), tampilan belakang/samping (back/side), dan foto detail tekstur/fitur khusus (detail close-up).
+  - Sangat ideal untuk materi carousel Instagram (@colorbox style), breakdown OOTD Gen-Z, dan multi-frame showcase.
+
+---
+
+### Contrast Detail Denim Jacket (CBX-IMG-13)
+- **Nama Produk Resmi:** Contrast Detail Denim Jacket
+- **Kategori:** BLOUSESHIRT
+- **Harga Resmi:** Rp 359.900
+- **Tautan Resmi:** [contrast-detail-denim-jacket-dark-brown-26g](https://colorbox.co.id/products/contrast-detail-denim-jacket-dark-brown-26g)
+- **Aset Sudut Pandang (Multi-angle Images):**
+  - **Sudut FRONT (A):** [`cbx-13a-contrast-detail-denim-jacket-dark-brown-front.jpg`](images/cbx-13a-contrast-detail-denim-jacket-dark-brown-front.jpg) — Dimensi: 554x800 px (59.6 KB)
+  - **Sudut BACK (B):** [`cbx-13b-contrast-detail-denim-jacket-dark-brown-back.jpg`](images/cbx-13b-contrast-detail-denim-jacket-dark-brown-back.jpg) — Dimensi: 554x800 px (56.4 KB)
+  - **Sudut DETAIL (C):** [`cbx-13c-contrast-detail-denim-jacket-dark-brown-detail.jpg`](images/cbx-13c-contrast-detail-denim-jacket-dark-brown-detail.jpg) — Dimensi: 554x800 px (105.9 KB)
+- **Karakteristik Visual & Rekomendasi Styling:**
+  - Potongan dan siluet otentik dari koleksi resmi Colorbox dengan rasio aspek asli (tidak terdistorsi/stretch).
+  - Dilengkapi 3 sudut pandang berbeda: tampilan depan (front), tampilan belakang/samping (back/side), dan foto detail tekstur/fitur khusus (detail close-up).
+  - Sangat ideal untuk materi carousel Instagram (@colorbox style), breakdown OOTD Gen-Z, dan multi-frame showcase.
+
+---
+
+### Oversize Collared Leather Jacket (CBX-IMG-14)
+- **Nama Produk Resmi:** Oversize Collared Leather Jacket
+- **Kategori:** BLOUSESHIRT
+- **Harga Resmi:** Rp 599.900
+- **Tautan Resmi:** [oversize-collared-leather-jacket-dark-red-226](https://colorbox.co.id/products/oversize-collared-leather-jacket-dark-red-226)
+- **Aset Sudut Pandang (Multi-angle Images):**
+  - **Sudut FRONT (A):** [`cbx-14a-oversize-collared-leather-jacket-dark-red-front.jpg`](images/cbx-14a-oversize-collared-leather-jacket-dark-red-front.jpg) — Dimensi: 554x800 px (59.9 KB)
+  - **Sudut BACK (B):** [`cbx-14b-oversize-collared-leather-jacket-dark-red-back.jpg`](images/cbx-14b-oversize-collared-leather-jacket-dark-red-back.jpg) — Dimensi: 554x800 px (46.3 KB)
+  - **Sudut DETAIL (C):** [`cbx-14c-oversize-collared-leather-jacket-dark-red-detail.jpg`](images/cbx-14c-oversize-collared-leather-jacket-dark-red-detail.jpg) — Dimensi: 554x800 px (105.7 KB)
+- **Karakteristik Visual & Rekomendasi Styling:**
+  - Potongan dan siluet otentik dari koleksi resmi Colorbox dengan rasio aspek asli (tidak terdistorsi/stretch).
+  - Dilengkapi 3 sudut pandang berbeda: tampilan depan (front), tampilan belakang/samping (back/side), dan foto detail tekstur/fitur khusus (detail close-up).
+  - Sangat ideal untuk materi carousel Instagram (@colorbox style), breakdown OOTD Gen-Z, dan multi-frame showcase.
+
+---
+
+### Bubble Hem Long Sleeve Hoodie (CBX-IMG-15)
+- **Nama Produk Resmi:** Bubble Hem Long Sleeve Hoodie
+- **Kategori:** OUTERWEAR
+- **Harga Resmi:** Rp 299.900
+- **Tautan Resmi:** [bubble-hem-long-sleeve-hoodie-ecru-26j](https://colorbox.co.id/products/bubble-hem-long-sleeve-hoodie-ecru-26j)
+- **Aset Sudut Pandang (Multi-angle Images):**
+  - **Sudut FRONT (A):** [`cbx-15a-bubble-hem-hoodie-ecru-front.jpg`](images/cbx-15a-bubble-hem-hoodie-ecru-front.jpg) — Dimensi: 554x800 px (45.5 KB)
+  - **Sudut BACK (B):** [`cbx-15b-bubble-hem-hoodie-ecru-back.jpg`](images/cbx-15b-bubble-hem-hoodie-ecru-back.jpg) — Dimensi: 554x800 px (31.9 KB)
+  - **Sudut DETAIL (C):** [`cbx-15c-bubble-hem-hoodie-ecru-detail.jpg`](images/cbx-15c-bubble-hem-hoodie-ecru-detail.jpg) — Dimensi: 554x800 px (63.6 KB)
+- **Karakteristik Visual & Rekomendasi Styling:**
+  - Potongan dan siluet otentik dari koleksi resmi Colorbox dengan rasio aspek asli (tidak terdistorsi/stretch).
+  - Dilengkapi 3 sudut pandang berbeda: tampilan depan (front), tampilan belakang/samping (back/side), dan foto detail tekstur/fitur khusus (detail close-up).
+  - Sangat ideal untuk materi carousel Instagram (@colorbox style), breakdown OOTD Gen-Z, dan multi-frame showcase.
+
+---
+
+### Suede Mini Skirt (CBX-IMG-16)
+- **Nama Produk Resmi:** Suede Mini Skirt
+- **Kategori:** DENIM
+- **Harga Resmi:** Rp 249.900
+- **Tautan Resmi:** [suede-mini-skirt-navy-26g](https://colorbox.co.id/products/suede-mini-skirt-navy-26g)
+- **Aset Sudut Pandang (Multi-angle Images):**
+  - **Sudut FRONT (A):** [`cbx-16a-suede-mini-skirt-navy-front.jpg`](images/cbx-16a-suede-mini-skirt-navy-front.jpg) — Dimensi: 554x800 px (41.9 KB)
+  - **Sudut BACK (B):** [`cbx-16b-suede-mini-skirt-navy-back.jpg`](images/cbx-16b-suede-mini-skirt-navy-back.jpg) — Dimensi: 554x800 px (37.2 KB)
+  - **Sudut DETAIL (C):** [`cbx-16c-suede-mini-skirt-navy-detail.jpg`](images/cbx-16c-suede-mini-skirt-navy-detail.jpg) — Dimensi: 554x800 px (71.7 KB)
+- **Karakteristik Visual & Rekomendasi Styling:**
+  - Potongan dan siluet otentik dari koleksi resmi Colorbox dengan rasio aspek asli (tidak terdistorsi/stretch).
+  - Dilengkapi 3 sudut pandang berbeda: tampilan depan (front), tampilan belakang/samping (back/side), dan foto detail tekstur/fitur khusus (detail close-up).
+  - Sangat ideal untuk materi carousel Instagram (@colorbox style), breakdown OOTD Gen-Z, dan multi-frame showcase.
+
+---
+
+### Jeans with Overlap Micro Skirt Details (CBX-IMG-17)
+- **Nama Produk Resmi:** Jeans with Overlap Micro Skirt Details
+- **Kategori:** DENIM
+- **Harga Resmi:** Rp 237.528
+- **Tautan Resmi:** [jeans-with-overlap-micro-skirt-details-dark-navy-26j](https://colorbox.co.id/products/jeans-with-overlap-micro-skirt-details-dark-navy-26j)
+- **Aset Sudut Pandang (Multi-angle Images):**
+  - **Sudut FRONT (A):** [`cbx-17a-jeans-overlap-micro-skirt-dark-navy-front.jpg`](images/cbx-17a-jeans-overlap-micro-skirt-dark-navy-front.jpg) — Dimensi: 554x800 px (70.0 KB)
+  - **Sudut BACK (B):** [`cbx-17b-jeans-overlap-micro-skirt-dark-navy-back.jpg`](images/cbx-17b-jeans-overlap-micro-skirt-dark-navy-back.jpg) — Dimensi: 554x800 px (40.6 KB)
+  - **Sudut DETAIL (C):** [`cbx-17c-jeans-overlap-micro-skirt-dark-navy-detail.jpg`](images/cbx-17c-jeans-overlap-micro-skirt-dark-navy-detail.jpg) — Dimensi: 554x800 px (104.4 KB)
+- **Karakteristik Visual & Rekomendasi Styling:**
+  - Potongan dan siluet otentik dari koleksi resmi Colorbox dengan rasio aspek asli (tidak terdistorsi/stretch).
+  - Dilengkapi 3 sudut pandang berbeda: tampilan depan (front), tampilan belakang/samping (back/side), dan foto detail tekstur/fitur khusus (detail close-up).
+  - Sangat ideal untuk materi carousel Instagram (@colorbox style), breakdown OOTD Gen-Z, dan multi-frame showcase.
+
+---
+
+### Wide Leg Drawstring Pants (CBX-IMG-18)
+- **Nama Produk Resmi:** Wide Leg Drawstring Pants
+- **Kategori:** BOTTOMS
+- **Harga Resmi:** Rp 199.900
+- **Tautan Resmi:** [wide-leg-drawstring-pants-navy-26k](https://colorbox.co.id/products/wide-leg-drawstring-pants-navy-26k)
+- **Aset Sudut Pandang (Multi-angle Images):**
+  - **Sudut FRONT (A):** [`cbx-18a-wide-leg-drawstring-pants-navy-front.jpg`](images/cbx-18a-wide-leg-drawstring-pants-navy-front.jpg) — Dimensi: 554x800 px (43.2 KB)
+  - **Sudut BACK (B):** [`cbx-18b-wide-leg-drawstring-pants-navy-back.jpg`](images/cbx-18b-wide-leg-drawstring-pants-navy-back.jpg) — Dimensi: 554x800 px (32.0 KB)
+  - **Sudut DETAIL (C):** [`cbx-18c-wide-leg-drawstring-pants-navy-detail.jpg`](images/cbx-18c-wide-leg-drawstring-pants-navy-detail.jpg) — Dimensi: 554x800 px (50.0 KB)
+- **Karakteristik Visual & Rekomendasi Styling:**
+  - Potongan dan siluet otentik dari koleksi resmi Colorbox dengan rasio aspek asli (tidak terdistorsi/stretch).
+  - Dilengkapi 3 sudut pandang berbeda: tampilan depan (front), tampilan belakang/samping (back/side), dan foto detail tekstur/fitur khusus (detail close-up).
+  - Sangat ideal untuk materi carousel Instagram (@colorbox style), breakdown OOTD Gen-Z, dan multi-frame showcase.
+
+---
+
+### Denim Sling Bag (CBX-IMG-19)
+- **Nama Produk Resmi:** Denim Sling Bag
+- **Kategori:** BAGS
+- **Harga Resmi:** Rp 129.900
+- **Tautan Resmi:** [denim-sling-bag-denim-26f](https://colorbox.co.id/products/denim-sling-bag-denim-26f)
+- **Aset Sudut Pandang (Multi-angle Images):**
+  - **Sudut FRONT (A):** [`cbx-19a-denim-sling-bag-denim-front.jpg`](images/cbx-19a-denim-sling-bag-denim-front.jpg) — Dimensi: 762x1100 px (130.1 KB)
+  - **Sudut SIDE (B):** [`cbx-19b-denim-sling-bag-denim-side.jpg`](images/cbx-19b-denim-sling-bag-denim-side.jpg) — Dimensi: 762x1100 px (66.2 KB)
+  - **Sudut DETAIL (C):** [`cbx-19c-denim-sling-bag-denim-detail.jpg`](images/cbx-19c-denim-sling-bag-denim-detail.jpg) — Dimensi: 762x1100 px (48.8 KB)
+- **Karakteristik Visual & Rekomendasi Styling:**
+  - Potongan dan siluet otentik dari koleksi resmi Colorbox dengan rasio aspek asli (tidak terdistorsi/stretch).
+  - Dilengkapi 3 sudut pandang berbeda: tampilan depan (front), tampilan belakang/samping (back/side), dan foto detail tekstur/fitur khusus (detail close-up).
+  - Sangat ideal untuk materi carousel Instagram (@colorbox style), breakdown OOTD Gen-Z, dan multi-frame showcase.
+
+---
+
+### Lace Sneakers (CBX-IMG-20)
+- **Nama Produk Resmi:** Lace Sneakers
+- **Kategori:** LIFESTYLE SHOES
+- **Harga Resmi:** Rp 299.900
+- **Tautan Resmi:** [lace-sneakers-navy-26g](https://colorbox.co.id/products/lace-sneakers-navy-26g)
+- **Aset Sudut Pandang (Multi-angle Images):**
+  - **Sudut FRONT-PAIR (A):** [`cbx-20a-lace-sneakers-navy-front-pair.jpg`](images/cbx-20a-lace-sneakers-navy-front-pair.jpg) — Dimensi: 762x1100 px (73.7 KB)
+  - **Sudut SIDE-PROFILE (B):** [`cbx-20b-lace-sneakers-navy-side-profile.jpg`](images/cbx-20b-lace-sneakers-navy-side-profile.jpg) — Dimensi: 762x1100 px (52.4 KB)
+  - **Sudut TOP-DOWN (C):** [`cbx-20c-lace-sneakers-navy-top-down.jpg`](images/cbx-20c-lace-sneakers-navy-top-down.jpg) — Dimensi: 762x1100 px (32.2 KB)
+- **Karakteristik Visual & Rekomendasi Styling:**
+  - Potongan dan siluet otentik dari koleksi resmi Colorbox dengan rasio aspek asli (tidak terdistorsi/stretch).
+  - Dilengkapi 3 sudut pandang berbeda: tampilan depan (front), tampilan belakang/samping (back/side), dan foto detail tekstur/fitur khusus (detail close-up).
+  - Sangat ideal untuk materi carousel Instagram (@colorbox style), breakdown OOTD Gen-Z, dan multi-frame showcase.
+
+---
+
