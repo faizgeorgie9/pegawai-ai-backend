@@ -5,6 +5,7 @@ import { LiveSteps } from './LiveSteps'
 import { applyTool, settle, toolsFrom } from './steps'
 import { useSmoothText } from './useSmoothText'
 import { MentionsCtx, Md } from './rich'
+import { ActionCard, useVisibleActions } from './ActionCard'
 import { useData } from './data'
 import { PlanCard, withoutPlanBlock } from './PlanCard'
 import { PanelButtons, SidePanel, Split } from './Panel'
@@ -29,6 +30,7 @@ interface Turn {
 export default function GroupChat({ id, onRail }: { id: string; onRail: () => void }) {
   const { groups, bots, loadState, on, setDialog, setGroup, askNotify, viewing, reload } = useData()
   const group = groups.find((g) => g.id === id)
+  const asked = useVisibleActions((a) => a.source?.group_id === id) // cards for what this team's agents asked here
   const members = (group?.members ?? []).map((m) => bots.find((b) => b.id === m)).filter((b): b is Bot => !!b)
   const [msgs, setMsgs] = useState<GroupMsg[]>([])
   const [state, setState] = useState<'loading' | 'ok' | 'error'>('loading')
@@ -355,6 +357,9 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
             <GroupBubble key={m.id} m={m} bot={bots.find((b) => b.id === m.bot_id)} queued={pending.includes(m.id)} thought={thoughts[m.run_id ?? '']} onApproved={(sid) => setMsgs((cur) => cur.map((x) => (x.id === m.id && x.plan ? { ...x, plan: { ...x.plan, schedule_id: sid } } : x)))} />
           ))}
           {turn && <LiveBubble t={turn} bot={bots.find((b) => b.id === turn.bot)} />}
+          {asked.map((a) => (
+            <ActionCard key={a.id} action={a} />
+          ))}
         </div>
         </MentionsCtx.Provider>
       </div>

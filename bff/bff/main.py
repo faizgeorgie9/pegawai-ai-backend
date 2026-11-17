@@ -12,7 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse, Response, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import apps, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kanban, kb, scheduler, sequences, settings, usage
+from . import actions, apps, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kanban, kb, scheduler, sequences, settings, usage
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -572,6 +572,23 @@ async def drive_import(request: Request):
 async def gmail_draft(request: Request):
     b = await body_of(request)
     return await integrations.gmail_draft(current_user(), b.get("to"), b.get("subject"), b.get("body"))
+
+
+# ---------- approvals of risky agent actions ----------
+
+@api.get("/actions")
+async def list_actions(status: str | None = None):
+    return await actions.list_actions(current_user(), status)
+
+
+@api.post("/actions/{aid}/approve")
+async def approve_action(aid: str):
+    return await actions.approve(current_user(), aid)
+
+
+@api.post("/actions/{aid}/reject")
+async def reject_action(aid: str):
+    return await actions.reject(current_user(), aid)
 
 
 @api.get("/export/history")

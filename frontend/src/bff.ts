@@ -146,6 +146,19 @@ export interface KbItem {
   has_file?: boolean // the original upload was kept (uploads from 17 Nov 2026 on): it can be opened and downloaded
 }
 // Connections (Google Drive, Gmail). not_configured: the administrator has not set up the app yet.
+// A risky agent action that waits for the user (BFF: bff/actions.py). source says where the agent asked, when known.
+export interface PendingAction {
+  id: string
+  short_id: string
+  kind: string
+  summary: string
+  payload: { link?: string; preview?: string; [k: string]: unknown }
+  status: 'pending' | 'approved' | 'rejected' | 'done' | 'failed' | 'expired'
+  result: string | null
+  source: { bot_id?: string; run_id?: string; session_id?: string | null; group_id?: string | null } | null
+  created_at: string
+  decided_at: string | null
+}
 export type ConnProvider = 'gdrive' | 'gmail'
 export interface Connection {
   provider: ConnProvider
@@ -788,6 +801,9 @@ export const api = {
     if (!res.ok) throw new ApiError(res.status === 404 ? 'Berkas asli tidak tersimpan.' : fallbackMessage(res.status), res.status)
     return res.blob()
   },
+  actions: (pendingOnly = false) => call<PendingAction[]>('GET', `/actions${pendingOnly ? '?status=pending' : ''}`),
+  approveAction: (id: string) => call<PendingAction>('POST', `/actions/${enc(id)}/approve`),
+  rejectAction: (id: string) => call<PendingAction>('POST', `/actions/${enc(id)}/reject`),
   connections: (fresh = false) => call<Connection[]>('GET', `/connections${fresh ? '?fresh=1' : ''}`),
   connectStart: (p: ConnProvider) => call<{ url: string }>('POST', `/connections/${p}/start`),
   disconnect: (p: ConnProvider) => call<void>('DELETE', `/connections/${p}`),

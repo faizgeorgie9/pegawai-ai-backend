@@ -22,8 +22,8 @@ GOOGLE_USERINFO = "https://openidconnect.googleapis.com/v1/userinfo"
 
 # provider -> (OAuth family, scopes asked, scope that must be granted)
 PROVIDERS = {
-    "gdrive": ("google", ["openid", "email", "https://www.googleapis.com/auth/drive.readonly"], "https://www.googleapis.com/auth/drive.readonly"),
-    "gmail": ("google", ["openid", "email", "https://www.googleapis.com/auth/gmail.compose", "https://www.googleapis.com/auth/gmail.readonly"], "https://www.googleapis.com/auth/gmail.compose"),
+    "gdrive": ("google", ["openid", "email", "https://www.googleapis.com/auth/drive"], "https://www.googleapis.com/auth/drive"),  # connections made with the old drive.readonly still read (import, drive_read); only writes ask to reconnect
+    "gmail": ("google", ["openid", "email", "https://www.googleapis.com/auth/gmail.compose", "https://www.googleapis.com/auth/gmail.readonly", "https://www.googleapis.com/auth/gmail.modify", "https://www.googleapis.com/auth/gmail.send"], "https://www.googleapis.com/auth/gmail.compose"),
 }
 NAMES = {"gdrive": "Google Drive", "gmail": "Gmail"}
 RECONNECT_MSG = "Sambungan {name} perlu disambungkan ulang. Buka Aplikasi, lalu pilih Hubungkan ulang."

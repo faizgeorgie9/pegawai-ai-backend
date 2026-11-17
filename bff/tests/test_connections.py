@@ -45,7 +45,7 @@ def google_ok(scope, refresh="rt-1", expires_in=3600):
     return {"access_token": "at-1", "refresh_token": refresh, "expires_in": expires_in, "scope": scope}
 
 
-DRIVE_SCOPE = "openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/drive.readonly"
+DRIVE_SCOPE = "openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/drive"
 GMAIL_SCOPE = "openid https://www.googleapis.com/auth/gmail.compose"
 
 
@@ -115,14 +115,15 @@ async def test_google_consent_url_has_state_pkce_and_exact_scopes(db):
     q = qs((await connections.start(u, "gdrive"))["url"])
     assert q["client_id"] == "gid" and q["response_type"] == "code" and q["access_type"] == "offline"
     assert q["redirect_uri"] == "http://localhost:5173/bff/api/connections/google/callback"
-    assert q["scope"].split() == ["openid", "email", "https://www.googleapis.com/auth/drive.readonly"]
+    assert q["scope"].split() == ["openid", "email", "https://www.googleapis.com/auth/drive"]
     assert q["code_challenge_method"] == "S256" and len(q["state"]) >= 40
     row = await db.q1("select * from oauth_states where user_id = %s", u)
     assert row["state_hash"] != q["state"] and row["provider"] == "gdrive"  # only the hash is stored
     expected = base64.urlsafe_b64encode(hashlib.sha256(row["verifier"].encode()).digest()).rstrip(b"=").decode()
     assert q["code_challenge"] == expected
     gm = qs((await connections.start(u, "gmail"))["url"])
-    assert gm["scope"].split() == ["openid", "email", "https://www.googleapis.com/auth/gmail.compose", "https://www.googleapis.com/auth/gmail.readonly"]
+    assert gm["scope"].split() == ["openid", "email", "https://www.googleapis.com/auth/gmail.compose", "https://www.googleapis.com/auth/gmail.readonly",
+                              "https://www.googleapis.com/auth/gmail.modify", "https://www.googleapis.com/auth/gmail.send"]
 
 
 # ---------- callback: state ----------
@@ -175,7 +176,7 @@ async def test_callback_stores_encrypted_tokens_with_pkce_verifier(db):
     row = await db.q1("select * from connections where user_id = %s", u)
     assert "at-1" not in json.dumps(row, default=str) and "rt-1" not in json.dumps(row, default=str)  # no plaintext in the database
     assert connections.decrypt(row["access_enc"]) == "at-1" and connections.decrypt(row["refresh_enc"]) == "rt-1"
-    assert row["account"] == "owner@example.com" and "https://www.googleapis.com/auth/drive.readonly" in row["scopes"]
+    assert row["account"] == "owner@example.com" and "https://www.googleapis.com/auth/drive" in row["scopes"]
     assert row["expires_at"] > datetime.now(timezone.utc) + timedelta(minutes=50)
     got = {c["provider"]: c for c in await connections.list_all(u)}
     assert got["gdrive"]["status"] == "connected" and got["gdrive"]["account"] == "owner@example.com"

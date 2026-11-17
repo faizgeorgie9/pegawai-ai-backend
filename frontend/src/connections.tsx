@@ -15,12 +15,12 @@ type AppDef = { name: string; enables: string; where: string }
 const APPS: Record<ConnProvider, AppDef> = {
   gdrive: {
     name: 'Google Drive',
-    enables: 'Agen bisa mencari dan membaca berkas Drive Anda (hanya baca).',
+    enables: 'Agen bisa mencari, membaca, membuat, mengubah, mengganti nama, dan memindahkan berkas Drive Anda; menghapus berkas selalu menunggu persetujuan Anda.',
     where: 'Halaman Pengetahuan dan lampiran chat.',
   },
   gmail: {
     name: 'Gmail',
-    enables: 'Agen bisa membaca email dan membuat draf; email tidak pernah dikirim otomatis.',
+    enables: 'Agen bisa membaca email, membuat draf, memberi label, mengarsipkan, dan memindahkan email ke Sampah; mengirim email selalu menunggu persetujuan Anda.',
     where: 'Tombol "Simpan sebagai draf Gmail" di bawah jawaban agen.',
   },
 }

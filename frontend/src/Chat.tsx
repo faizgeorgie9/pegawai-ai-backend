@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError, api, asStr, errText, isAbort, newKey, subscribe, toClarify, usageOf } from './bff'
 import type { Bot, ChatMessage, Session, SseState } from './bff'
+import { ActionCard, useVisibleActions } from './ActionCard'
 import { useAdminMode } from './adminMode'
 import { useData } from './data'
 import { Cs21Card } from './ResultCards'
@@ -341,6 +342,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
   }
 
   const running = !!run
+  const asked = useVisibleActions((a) => !!sid && a.source?.session_id === sid) // cards for what this agent asked in this chat
 
   return (
     <Split panel={<SidePanel scope={sid ? { session_id: sid } : null} version={pv} bot={bot} />}>
@@ -408,6 +410,9 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
               onApprove={(deny) => void approve(m, deny)}
               onAnswer={(t) => answer(m, t)}
             />
+          ))}
+          {asked.map((a) => (
+            <ActionCard key={a.id} action={a} />
           ))}
         </div>
       </div>

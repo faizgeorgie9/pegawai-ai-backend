@@ -488,3 +488,16 @@ textarea ~ .counter { align-self: flex-end; }
 .queue-row small { flex: none; color: var(--muted); font-size: 12px; }
 @media (max-width: 480px) { .queue-row small { display: none; } }
 @media (max-width: 480px) { .composer-actions kbd { display: none; } }
+
+/* approval card for a risky agent action (ActionCard.tsx), on Beranda and in chats */
+.action-card { align-self: stretch; gap: 8px; background: var(--raised); color: var(--text); border: 1px solid var(--border); margin-top: 6px; }
+.action-card[data-s="pending"] { background: var(--warn-bg); color: var(--warn-ink); border-color: transparent; }
+.action-preview { padding: 8px 10px; background: var(--surface); color: var(--text); border-radius: var(--radius-control); font-size: 13px; white-space: pre-wrap; max-height: 160px; overflow: auto; }
+.mail-preview { max-height: 260px; }
+.mail-body { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.action-link { font-size: 13px; color: inherit; text-decoration: underline; text-underline-offset: 3px; align-self: flex-start; }
+.action-result { padding: 8px 10px; background: var(--plain-bg); color: var(--plain-ink); border-radius: var(--radius-control); }
+.action-card[data-s="failed"] .action-result { background: var(--bad-bg); color: var(--bad-ink); }
+.action-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: var(--s-3, 12px); }
+.action-list .action-card { margin-top: 0; }
+.nav-badge { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 12px; font-weight: 600; line-height: 20px; text-align: center; font-variant-numeric: tabular-nums; }

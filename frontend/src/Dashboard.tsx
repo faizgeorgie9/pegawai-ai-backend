@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { ActionCard, useVisibleActions } from './ActionCard'
 import { useAdminMode } from './adminMode'
 import { api } from './bff'
 import type { Group, GroupMsg, Schedule } from './bff'
@@ -67,6 +68,7 @@ export default function Dashboard() {
   const act = useLoad(actFn)
   const tools = useLoad(toolsFn)
   const [slow, setSlow] = useState(false)
+  const approvals = useVisibleActions() // risky agent actions waiting for the user (and the ones just decided)
 
   useEffect(() => {
     if (tools.state !== 'loading') return setSlow(false)
@@ -130,7 +132,14 @@ export default function Dashboard() {
           <h2 id="need-h">Perlu persetujuan Anda</h2>
           {work.state === 'loading' && <Loading text="Memuat..." shape="ledger" rows={2} />}
           {work.state === 'error' && <ErrorLine text={work.error} onRetry={work.retry} />}
-          {w && w.pending.length === 0 && <p className="quiet state-note">Tidak ada yang menunggu.</p>}
+          {approvals.length > 0 && (
+            <div className="action-list">
+              {approvals.map((a) => (
+                <ActionCard key={a.id} action={a} />
+              ))}
+            </div>
+          )}
+          {w && w.pending.length === 0 && approvals.length === 0 && <p className="quiet state-note">Tidak ada yang menunggu.</p>}
           {w && w.pending.length > 0 && (
             <ul className="ledger">
               {w.pending.map((p) => (

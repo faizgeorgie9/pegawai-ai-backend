@@ -185,6 +185,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         bot_status: (d) =>
           setBots((cur) => cur.map((b) => (b.id === asStr(d.bot_id) ? { ...b, status: (['working', 'discussing'].includes(asStr(d.status)) ? asStr(d.status) : 'idle') as BotStatus, activity: asStr(d.activity) } : b))),
         group_message: (d) => emit('group_message', { ...d, message: toGroupMsg((d.message ?? {}) as Raw), group_id: asStr(d.group_id) }),
+        action: (d) => emit('action', d),
         group_typing: (d) => emit('group_typing', d),
         group_reasoning: (d) => emit('group_reasoning', d),
         group_send: (d) => {

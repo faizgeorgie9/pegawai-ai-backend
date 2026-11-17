@@ -1,6 +1,7 @@
 """Internal MCP server ("pegawai") for the Hermes agents: BFF-provided tools, served as Streamable HTTP at /mcp.
 
-Tools: `ping`, read-only Google Drive search/read, and Gmail search/read/create-draft (never send), through the workspace owner's connections. Add tools inside build(). Auth: `Authorization: Bearer <MCP_BRIDGE_KEY>`, loopback clients only.
+Tools: `ping`, Google Drive search/read/create/update/rename/move, `drive_trash` (only asks the user: see actions.py), `action_status`, and Gmail search/read/create-draft/label/trash plus send and send-draft (these only ask, see actions.py), through the workspace owner's connections. Add tools inside build().
+A tool that is risky does not act: it stores a pending action (actions.ask) for the user to approve in the app. Each Hermes profile sends `X-Pegawai-Bot: <slug>` so the card can find the chat it came from. Auth: `Authorization: Bearer <MCP_BRIDGE_KEY>`, loopback clients only.
 ensure_registered() makes every Hermes profile list this server (mcp_servers.pegawai) at BFF startup, idempotently.
 """
 import hmac
@@ -14,19 +15,20 @@ import shutil
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from ruamel.yaml import YAML
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from . import config, integrations
+from . import actions, config, db, integrations
 from .errors import ApiError
 
 log = logging.getLogger("bff.bridge")
 NAME = "pegawai"
 URL = os.environ.get("MCP_BRIDGE_URL", "http://127.0.0.1:8090/mcp")
 ENV_KEY = "MCP_BRIDGE_KEY"
+BOT_HEADER = "X-Pegawai-Bot"
 PROFILE_ENV_KEY = "MCP_PEGAWAI_API_KEY"  # where the key sits in each profile .env (the name `hermes mcp add --auth header` uses)
 
 DRIVE_MAX_CHARS = 50_000
@@ -76,6 +78,91 @@ async def drive_read(file_id: str) -> str:
     return f"# {name}\n\n{text}"
 
 
+def _link(name: str, d: dict) -> str:
+    return f"{name}: {d['name']} | id: {d['id']} | link: {d['link'] or '-'}"
+
+
+async def drive_create(name: str, content: str, folder_id: str = "", kind: str = "doc") -> str:
+    try:
+        return _link("Dibuat", await integrations.drive_create(_user(), name, content, folder_id, kind))
+    except ApiError as e:
+        return _drive_error(e)
+
+
+async def drive_update(file_id: str, content: str) -> str:
+    try:
+        return _link("Isi diganti", await integrations.drive_update(_user(), file_id, content))
+    except ApiError as e:
+        return _drive_error(e)
+
+
+async def drive_rename(file_id: str, new_name: str) -> str:
+    try:
+        return _link("Nama diganti", await integrations.drive_rename(_user(), file_id, new_name))
+    except ApiError as e:
+        return _drive_error(e)
+
+
+async def drive_move(file_id: str, folder_id: str) -> str:
+    try:
+        return _link("Dipindahkan", await integrations.drive_move(_user(), file_id, folder_id))
+    except ApiError as e:
+        return _drive_error(e)
+
+
+async def _source(ctx: Context | None) -> dict | None:
+    """Where the agent is asking: the profile's bot (header) and the run it is busy with now, so the card can show up in that chat or team."""
+    from .engine import ACTIVE  # late import: engine imports harden, which imports this module
+    try:
+        bot = ctx.request_context.request.headers.get(BOT_HEADER, "") if ctx else ""
+        if not re.fullmatch(r"[\w-]{1,64}", bot):
+            return None
+        run = await db.q1("select id, session_id, group_id from runs where user_id = %s and bot_id = %s and status = any(%s) "
+                          "order by created_at desc limit 1", _user(), bot, list(ACTIVE))
+        return {"bot_id": bot, **({"run_id": str(run["id"]), "session_id": run["session_id"],
+                                  "group_id": str(run["group_id"]) if run["group_id"] else None} if run else {})}
+    except Exception:
+        log.warning("could not tell where the approval request came from", exc_info=True)
+        return None
+
+
+async def drive_trash(file_id: str, file_name: str = "", ctx: Context = None) -> str:  # type: ignore[assignment]
+    """Does not trash anything: asks the user (card in the app). The real call happens in actions after Setujui.
+    The card shows the name and owner/folder read from Drive now; file_name (from the agent) is only a marked fallback."""
+    file_id = file_id.strip()
+    if not integrations.ID_RE.fullmatch(file_id):
+        return "Error: invalid file_id (use the id from drive_search)."
+    try:
+        await integrations.drive_can_write(_user())
+    except ApiError as e:
+        return _drive_error(e)
+    agent_name = re.sub(r"\s+", " ", file_name).strip()[:120]
+    try:
+        info = await integrations.drive_card_info(_user(), file_id)
+    except ApiError as e:
+        if e.extra.get("needs"):
+            return _drive_error(e)
+        info = None  # Drive could not tell now: fall back to the agent's name, marked as such
+    if info and info["trashed"]:
+        return "Error: berkas ini sudah ada di Sampah Drive."
+    payload: dict = {"file_id": file_id, "link": f"https://drive.google.com/open?id={file_id}"}
+    if info and info["name"]:
+        payload.update(file_name=info["name"], owner=info["owner"], folder=info["folder"])
+        summary = f"Pindahkan '{info['name']}' ke Sampah Drive"
+        payload["preview"] = "\n".join(x for x in (f"Pemilik: {info['owner']}" if info["owner"] else "", f"Folder: {info['folder']}" if info["folder"] else "") if x)
+    else:
+        payload.update(file_name=agent_name, name_from_agent=True, preview="Nama ini dari agen; Drive belum bisa memastikannya.")
+        summary = f"Pindahkan '{agent_name}' (nama dari agen) ke Sampah Drive" if agent_name else f"Pindahkan berkas Drive (id {file_id}) ke Sampah Drive"
+    if not payload["preview"]:
+        del payload["preview"]
+    a = await actions.ask(_user(), "drive_trash", summary, payload, await _source(ctx))
+    return actions.WAITING.format(id=a["short_id"])
+
+
+async def action_status(id: str) -> str:
+    return await actions.status_text(_user(), id)
+
+
 def _gmail_error(e: ApiError) -> str:
     return GMAIL_NOT_CONNECTED if e.extra.get("needs") == "connect" else f"Error: {e.message}"
 
@@ -119,6 +206,40 @@ async def gmail_create_draft(to: str, subject: str, body: str) -> str:
     return f"Draf dibuat di Gmail pengguna (belum terkirim; pengguna mengirimnya sendiri). Buka: {d['url']}"
 
 
+async def gmail_label(message_id: str, add: list[str] | None = None, remove: list[str] | None = None) -> str:
+    try:
+        return await integrations.gmail_label(_user(), message_id, add, remove)
+    except ApiError as e:
+        return _gmail_error(e)
+
+
+async def gmail_trash(message_id: str) -> str:
+    try:
+        return await integrations.gmail_trash(_user(), message_id)
+    except ApiError as e:
+        return _gmail_error(e)
+
+
+async def gmail_send(to: str, subject: str, body: str, reply_to_message_id: str = "", ctx: Context = None) -> str:  # type: ignore[assignment]
+    """Does not send anything: stores what would be sent and asks the user. The card shows this stored payload; approve sends exactly it."""
+    try:
+        p = await integrations.gmail_prepare_send(_user(), to, subject, body, reply_to_message_id)
+    except ApiError as e:
+        return _gmail_error(e)
+    a = await actions.ask(_user(), "gmail_send", f"Kirim email ke {', '.join(p['to'])} — Subjek: {p['subject']}", p, await _source(ctx))
+    return actions.WAITING.format(id=a["short_id"])
+
+
+async def gmail_send_draft(draft_id: str, ctx: Context = None) -> str:  # type: ignore[assignment]
+    """Does not send anything: reads the draft from Gmail now and asks the user to approve sending that content."""
+    try:
+        p = await integrations.gmail_prepare_send_draft(_user(), draft_id)
+    except ApiError as e:
+        return _gmail_error(e)
+    a = await actions.ask(_user(), "gmail_send_draft", f"Kirim draf ke {p['to']} — Subjek: {p['subject'] or '(tanpa subjek)'}", p, await _source(ctx))
+    return actions.WAITING.format(id=a["short_id"])
+
+
 def build() -> FastMCP:
     """The tool server. Register new tools here."""
     # shortcut: DNS-rebinding protection is off because the loopback check in BridgeApp already limits callers; revisit with a non-loopback bind
@@ -132,9 +253,19 @@ def build() -> FastMCP:
 
     mcp.tool(description="Search the user's Google Drive by file name or content (read-only). Returns up to 10 files: name, id, type, modified date, link.")(drive_search)
     mcp.tool(description="Read the plain text of one Google Drive file by id (read-only; Docs, Sheets, Slides, PDF, Word, TXT, MD, CSV). Long files are truncated.")(drive_read)
+    mcp.tool(description="Create a new Google Doc (kind='doc', from plain text) or a plain text file (kind='text') in the user's Drive; optional folder_id. Max 1 MB of text. Returns name, id, link.")(drive_create)
+    mcp.tool(description="Replace the whole content of a Google Doc or plain text file by id (not PDF or binary files). Max 1 MB of text.")(drive_update)
+    mcp.tool(description="Rename a Drive file by id.")(drive_rename)
+    mcp.tool(description="Move a Drive file by id into another folder (folder_id, or 'root' for My Drive).")(drive_move)
+    mcp.tool(description="Ask to move a Drive file to the Drive trash (restorable for 30 days). Nothing happens until the user approves in the app: the tool only returns a waiting message with an id; do not repeat the request. Pass file_name (from drive_search) so the user sees which file.")(drive_trash)
+    mcp.tool(description="Check what happened to a request that waited for the user's approval (id from the 'Menunggu persetujuan' message): waiting, rejected, done or failed.")(action_status)
     mcp.tool(description="Search the user's Gmail with a Gmail search query, e.g. 'from:ani newer_than:7d' (read-only). Returns up to 10 emails: id, from, subject, date, short snippet.")(gmail_search)
     mcp.tool(description="Read one Gmail email by id from gmail_search (read-only): from, to, subject, date and plain-text body; long bodies are truncated.")(gmail_read)
-    mcp.tool(description="Create a DRAFT email in the user's Gmail. It is never sent: there is no send tool, the user reviews and sends it themselves.")(gmail_create_draft)
+    mcp.tool(description="Create a DRAFT email in the user's Gmail. Creating a draft sends nothing; to send it use gmail_send_draft, which asks the user first.")(gmail_create_draft)
+    mcp.tool(description="Add and/or remove labels on one Gmail email by id from gmail_search. Use label ids: system ones such as UNREAD (remove it to mark as read, add it for unread), INBOX (remove it to archive), STARRED, IMPORTANT, or a user label id. Happens at once and is reversible.")(gmail_label)
+    mcp.tool(description="Move one Gmail email to the Gmail trash by id (restorable for 30 days; never a permanent delete). Happens at once.")(gmail_trash)
+    mcp.tool(description="Ask to send an email (to: up to 10 addresses separated by commas; subject; plain-text body; optional reply_to_message_id from gmail_search to reply in that thread). Nothing is sent until the user approves in the app: the tool only returns a waiting message with an id; do not repeat the request. Write the final text in body: the user sees and approves exactly it.")(gmail_send)
+    mcp.tool(description="Ask to send an existing Gmail draft by draft id. Nothing is sent until the user approves the draft content shown in the app; the tool only returns a waiting message with an id; do not repeat the request.")(gmail_send_draft)
     return mcp
 
 
@@ -231,7 +362,7 @@ def register_profile(profile: Path, key: str, url: str = URL) -> bool:
     servers = data.get("mcp_servers")
     if servers is None:
         servers = data["mcp_servers"] = {}
-    want = {"url": url, "headers": {"Authorization": f"Bearer ${{{PROFILE_ENV_KEY}}}"}, "enabled": True}
+    want = {"url": url, "headers": {"Authorization": f"Bearer ${{{PROFILE_ENV_KEY}}}", BOT_HEADER: profile.name}, "enabled": True}
     cur = servers.get(NAME)
     changed = False
     if cur is None:

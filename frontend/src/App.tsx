@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Activity from './Activity'
+import { useActions } from './ActionCard'
 import { AgentDetail, AgentEdit, AgentList, AgentNew } from './Agents'
 import { useAdminMode } from './adminMode'
 import { api, errText } from './bff'
@@ -126,6 +127,7 @@ function Shell() {
 function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
   const { settings } = useData()
   const admin = useAdminMode()
+  const waiting = useActions().filter((a) => a.status === 'pending').length // risky agent actions (delete a file, send an email) waiting for the user
   return (
     <aside className="side" aria-label="Menu utama">
       <div className="side-top">
@@ -143,7 +145,7 @@ function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
 
       <nav className="side-scroll" aria-label="Halaman">
         <NavGroup>
-          <NavItem href="#/" icon={I.home} current={route.name === 'home'}>
+          <NavItem href="#/" icon={I.home} current={route.name === 'home'} badge={waiting}>
             Beranda
           </NavItem>
           <NavItem href="#/grup" icon={I.group} current={route.name === 'grup-list' || route.name === 'grup'}>
@@ -199,11 +201,16 @@ function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
   )
 }
 
-function NavItem({ href, icon, current, team, children }: { href: string; icon: string; current: boolean; team?: string; children: React.ReactNode }) {
+function NavItem({ href, icon, current, team, badge, children }: { href: string; icon: string; current: boolean; team?: string; badge?: number; children: React.ReactNode }) {
   return (
     <a className="nav-link" data-team={team} href={href} aria-current={current ? 'page' : undefined}>
       <Icon d={icon} size={16} />
       {children}
+      {!!badge && (
+        <span className="nav-badge" aria-label={`${badge} menunggu persetujuan`}>
+          {badge}
+        </span>
+      )}
     </a>
   )
 }
