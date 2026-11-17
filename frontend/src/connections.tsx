@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { AppLogo } from './app-logos'
 import { createPortal } from 'react-dom'
 import { api, errText } from './bff'
 import { useAdminMode } from './adminMode'
@@ -302,7 +303,7 @@ export function AppsPage() {
       <li key={id} className="app-card" data-app={id} data-s={status}>
         <div className="app-card-head">
           <div className="app-mark">
-            <Mark id={id} />
+            <AppLogo id={id} name={name} size={32} fallback={<Mark id={id} />} />
           </div>
           <div className="app-top">
             <h3>{name}</h3>
@@ -395,7 +396,7 @@ export function AppsPage() {
       <li key={a.id} className="app-card" data-app={a.id} data-s={on ? 'connected' : 'disconnected'}>
         <div className="app-card-head">
           <div className="app-mark">
-            <Initial name={a.name} />
+            <AppLogo id={a.id} name={a.name} size={32} fallback={<Initial name={a.name} />} />
           </div>
           <div className="app-top">
             <h3>{a.name}</h3>
@@ -493,13 +494,13 @@ export function AppsPage() {
               <ul className="apps-linked">
                 {linkedOauth.map((id) => (
                   <li key={id}>
-                    <Mark id={id} />
+                    <AppLogo id={id} name={OAUTH_NAME[id]} size={24} fallback={<Mark id={id} />} />
                     <span>{OAUTH_NAME[id]}</span>
                   </li>
                 ))}
                 {linkedHermes.map((a) => (
                   <li key={a.id}>
-                    <Initial name={a.name} />
+                    <AppLogo id={a.id} name={a.name} size={24} fallback={<Initial name={a.name} />} />
                     <span>{a.name}</span>
                   </li>
                 ))}
