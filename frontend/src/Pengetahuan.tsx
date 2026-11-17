@@ -3,7 +3,7 @@ import { api, errText } from './bff'
 import type { KbItem } from './bff'
 import { useAdminMode } from './adminMode'
 import { SourcePicker } from './pick-ui'
-import { DriveLink, KB_ACCEPT, KB_KIND, KB_TYPES_TEXT, bytes, needsDrive } from './kb-ui'
+import { DriveLink, KB_ACCEPT, KB_KIND, KB_TYPES_TEXT, KbPreview, bytes, needsDrive } from './kb-ui'
 import { ErrorLine } from './ui'
 import { Loading, PageHead, useLoad } from './ui-extra'
 
@@ -30,6 +30,7 @@ export function MySources() {
   const [asking, setAsking] = useState<string | null>(null)
   const [picker, setPicker] = useState<'gdrive' | 'notion' | null>(null)
   const [refreshing, setRefreshing] = useState<string | null>(null)
+  const [viewing, setViewing] = useState<KbItem | null>(null)
   async function add(label: string, work: () => Promise<KbItem>) {
     setBusy(label)
     setProblem('')
@@ -132,7 +133,13 @@ export function MySources() {
           <li key={i.id} className="kb-row" data-s={i.status}>
             <span className="pill">{KB_KIND[i.kind]}</span>
             <div className="kb-rtext">
-              <b className="kb-rname">{i.name}</b>
+              {i.status === 'ready' && i.id ? (
+                <button className="kb-rname kb-open" onClick={() => setViewing(i)}>
+                  {i.name}
+                </button>
+              ) : (
+                <b className="kb-rname">{i.name}</b>
+              )}
               {i.source && <span className="meta kb-src">{i.source}</span>}
               <span className="meta">
                 {[i.size_bytes != null && bytes(i.size_bytes), dayOf(i.created_at)].filter(Boolean).join(' · ')}
@@ -140,6 +147,11 @@ export function MySources() {
               {i.status === 'failed' && <span className="meta bad kb-why">{i.error}</span>}
             </div>
             <span className={`pill ${i.status === 'ready' ? 'cap-ok' : i.status === 'failed' ? 'cap-blocked' : 'cap-mock'}`}>{STATUS_TEXT[i.status]}</span>
+            {i.status === 'ready' && i.id && (
+              <button className="btn quiet-btn sm" aria-label={`Lihat ${i.name}`} onClick={() => setViewing(i)}>
+                Lihat
+              </button>
+            )}
             {i.refreshable && asking !== i.id && (
               <button className="btn quiet-btn sm" disabled={refreshing === i.id} aria-label={`Perbarui ${i.name} dari ${KB_KIND[i.kind]}`} onClick={() => void refresh(i.id as string)}>
                 {refreshing === i.id ? 'Memperbarui...' : 'Perbarui'}
@@ -162,6 +174,7 @@ export function MySources() {
           </li>
         ))}
       </ul>
+      {viewing && <KbPreview item={viewing} onClose={() => setViewing(null)} />}
       {picker && <SourcePicker provider={picker} onClose={() => setPicker(null)} onDone={() => setN((x) => x + 1)} />}
     </div>
   )

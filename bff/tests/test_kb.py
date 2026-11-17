@@ -288,3 +288,59 @@ async def test_prepare_saves_only_on_intent_and_builds_context(db):
     text = await kb.retrieve(u, "jam buka toko kapan?", [], saved)
     assert "Tersimpan: " in text and "Jam buka toko" in text
     assert "Jam buka toko" in await kb.retrieve(u, "jam buka toko kapan?", [], [])  # later messages find it by keywords
+
+
+# ---------- original files (open / download again) ----------
+
+@with_db
+async def test_original_file_is_kept_and_returned_to_its_owner_only(db):
+    a, b = uid(), uid()
+    data = "Kebijakan retur tujuh hari.".encode()
+    item = await kb.ingest_file(a, "retur.txt", data)
+    assert item["has_file"] is True
+    assert [i["has_file"] for i in await kb.list_items(a)] == [True]
+    name, mime, got = await kb.get_file(a, item["id"])
+    assert (name, got) == ("retur.txt", data) and mime.startswith("text/plain")
+    assert (await kb.get_text(a, item["id"]))["text"] == "Kebijakan retur tujuh hari."
+    for who in (b,):  # another user gets the same 404 as a missing item
+        with pytest.raises(ApiError) as e:
+            await kb.get_file(who, item["id"])
+        assert e.value.status == 404
+        with pytest.raises(ApiError) as e:
+            await kb.get_text(who, item["id"])
+        assert e.value.status == 404
+    await kb.delete_item(a, item["id"])
+    assert not await db.q1("select 1 as x from kb_files where item_id = %s", item["id"])  # the file goes with the item
+
+
+@with_db
+async def test_item_without_original_gives_404_but_keeps_its_text(db):
+    u = uid()
+    item = await kb.ingest_file(u, "lama.txt", b"Berkas yang diunggah sebelum penyimpanan asli.")
+    await db.ex("delete from kb_files where item_id = %s", item["id"])  # like an upload from before 17 Nov
+    assert [i["has_file"] for i in await kb.list_items(u)] == [False]
+    with pytest.raises(ApiError) as e:
+        await kb.get_file(u, item["id"])
+    assert e.value.status == 404
+    assert "sebelum" in (await kb.get_text(u, item["id"]))["text"]
+    with pytest.raises(ApiError):
+        await kb.get_file(u, "bukan-uuid")
+
+
+@with_db
+async def test_file_endpoint_sends_safe_headers(db):
+    from bff import main
+    u = uid()
+    pdf_like = await kb.ingest_file(u, "Laporan Q3 é.md", b"# Judul\n\nIsi laporan.")
+    word = await kb.ingest_file(u, "surat.docx", docx_bytes(["Isi surat"]))
+    real, main.current_user = main.current_user, lambda: u  # call the handlers directly, no app startup
+    try:
+        r = await main.kb_file(pdf_like["id"])
+        assert r.headers["x-content-type-options"] == "nosniff"
+        assert r.headers["content-disposition"].startswith("inline; filename*=UTF-8''Laporan%20Q3%20%C3%A9.md")
+        assert r.media_type.startswith("text/plain")
+        r = await main.kb_file(word["id"])
+        assert r.headers["content-disposition"].startswith("attachment;")
+    finally:
+        main.current_user = real
+

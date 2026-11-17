@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api, errText } from './bff'
 import { useAdminMode } from './adminMode'
-import type { ConnProvider, Connection } from './bff'
+import type { ConnProvider, Connection, HermesApp } from './bff'
 import { go } from './router'
 import { SourcePicker } from './pick-ui'
-import { ErrorLine } from './ui'
+import { SkillsSection } from './skills-ui'
+import { Dialog, ErrorLine } from './ui'
 import { CapChip, Loading, PageHead, useLoad } from './ui-extra'
 
 // Real per-user connections (BFF: bff/connections.py). The state comes from the BFF; nothing here pretends to be connected.
@@ -27,15 +28,6 @@ const APPS: Record<ConnProvider, AppDef> = {
     where: 'Halaman Pengetahuan.',
   },
 }
-const GROUPS: { id: string; title: string; note: string; apps: ConnProvider[] }[] = [
-  { id: 'google', title: 'Google Workspace', note: 'Satu akun Google, dua izin terpisah.', apps: ['gdrive', 'gmail'] },
-  { id: 'notion', title: 'Notion', note: 'Hanya halaman yang Anda bagikan yang bisa dibaca.', apps: ['notion'] },
-]
-const SOON = [
-  { id: 'whatsapp', name: 'WhatsApp', text: 'Ngobrol dengan agen lewat WhatsApp.' },
-  { id: 'telegram', name: 'Telegram', text: 'Ngobrol dengan agen lewat Telegram.' },
-]
-
 const WHY: Record<string, string> = {
   denied: 'Izin tidak diberikan, jadi akun belum tersambung.',
   state: 'Permintaan sambungan sudah kedaluwarsa atau tidak dikenal. Coba hubungkan lagi.',
@@ -138,16 +130,112 @@ function AdminHint({ c }: { c: Connection }) {
   )
 }
 
+// Initial in a soft circle for Hermes apps (no official logos); the colour comes from the name so it stays the same.
+function Initial({ name }: { name: string }) {
+  let h = 0
+  for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360
+  return (
+    <span className="app-initial" style={{ ['--hue' as string]: h }} aria-hidden="true">
+      {name.charAt(0).toUpperCase()}
+    </span>
+  )
+}
+
+const OAUTH_CAT: Record<ConnProvider, string> = { gdrive: 'docs', gmail: 'comms', notion: 'docs' }
+const OAUTH_NAME: Record<ConnProvider, string> = { gdrive: 'Google Drive', gmail: 'Gmail', notion: 'Notion (Pengetahuan)' }
+
+// Guided connect: explain, open the login page in a new tab, then wait until the app shows up as connected (max 3 minutes).
+function ConnectDialog({ app, onClose, onDone }: { app: HermesApp; onClose: () => void; onDone: () => void }) {
+  const [phase, setPhase] = useState<'intro' | 'starting' | 'waiting' | 'late' | 'error'>('intro')
+  const [url, setUrl] = useState('')
+  const [problem, setProblem] = useState('')
+  const live = useRef(true)
+  useEffect(() => {
+    live.current = true // StrictMode runs the cleanup once before the real mount
+    return () => {
+      live.current = false
+    }
+  }, [])
+  async function start() {
+    setPhase('starting')
+    setProblem('')
+    try {
+      const r = await api.appConnect(app.id)
+      if (!live.current) return
+      if (r.connected || !r.url) return onDone()
+      setUrl(r.url)
+      window.open(r.url, '_blank', 'noopener,noreferrer') // may be blocked by the browser: the link below is the fallback
+      setPhase('waiting')
+      const end = Date.now() + 180_000
+      while (live.current && Date.now() < end) {
+        await new Promise((res) => setTimeout(res, 4000))
+        if (!live.current) return
+        try {
+          if ((await api.appStatus(app.id)).status === 'connected') return onDone()
+        } catch {
+          /* one failed check is not the end: keep waiting */
+        }
+      }
+      if (live.current) setPhase('late')
+    } catch (e) {
+      if (!live.current) return
+      setProblem(errText(e))
+      setPhase('error')
+    }
+  }
+  return (
+    <Dialog title={`Hubungkan ${app.name}`} onClose={onClose}>
+      <div className="dlg-body">
+      <ol className="connect-steps">
+        <li>Anda akan diarahkan ke halaman login {app.name}.</li>
+        <li>Masuk dan setujui izin yang diminta.</li>
+        <li>Setelah selesai, kembali ke sini. Halaman ini akan memberi tahu bila sudah tersambung.</li>
+      </ol>
+      {phase === 'waiting' && (
+        <p className="note-box" role="status">
+          Menunggu Anda menyelesaikan login... <a href={url} target="_blank" rel="noopener noreferrer">Buka halaman login lagi</a>
+        </p>
+      )}
+      {phase === 'late' && (
+        <p className="problem-bar" role="alert">
+          Waktu habis sebelum login selesai. Tutup dialog ini lalu coba hubungkan lagi.
+        </p>
+      )}
+      {phase === 'error' && (
+        <p className="problem-bar" role="alert">
+          {problem}
+        </p>
+      )}
+      <div className="dlg-actions">
+        <button type="button" className="btn quiet-btn" onClick={onClose}>
+          {phase === 'waiting' ? 'Batal' : 'Tutup'}
+        </button>
+        {(phase === 'intro' || phase === 'error' || phase === 'starting') && (
+          <button type="button" className="btn primary" disabled={phase === 'starting'} onClick={() => void start()}>
+            {phase === 'starting' ? 'Menyiapkan...' : 'Lanjut ke halaman login'}
+          </button>
+        )}
+      </div>
+      </div>
+    </Dialog>
+  )
+}
+
 export function AppsPage() {
   const conns = useConnections()
+  const catFn = useCallback(() => api.appsCatalog(), [])
+  const cat = useLoad(catFn)
   const admin = useAdminMode()
   const [result] = useState(readResult)
   const [problem, setProblem] = useState('')
-  const [busy, setBusy] = useState<ConnProvider | null>(null)
-  const [asking, setAsking] = useState<ConnProvider | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [asking, setAsking] = useState<string | null>(null)
   const [picker, setPicker] = useState<'gdrive' | 'notion' | null>(null)
   const [saved, setSaved] = useState('')
   const [how, setHow] = useState(false)
+  const [q, setQ] = useState('')
+  const [only, setOnly] = useState('')
+  const [connecting, setConnecting] = useState<HermesApp | null>(null)
   useEffect(() => {
     if (result) go('/aplikasi', true) // drop the flag so a refresh does not show the banner again
   }, [result])
@@ -174,6 +262,18 @@ export function AppsPage() {
     }
     setBusy(null)
   }
+  async function disconnectApp(a: HermesApp) {
+    setBusy(a.id)
+    setProblem('')
+    setAsking(null)
+    try {
+      await api.appDisconnect(a.id)
+      cat.retry()
+    } catch (e) {
+      setProblem(errText(e))
+    }
+    setBusy(null)
+  }
 
   async function recheck(id: ConnProvider) {
     setBusy(id)
@@ -187,56 +287,55 @@ export function AppsPage() {
   }
 
   const by = new Map<string, Connection>((conns.data ?? []).map((c) => [c.provider, c]))
+  const term = q.trim().toLowerCase()
+  const hit = (name: string, text: string, category: string) => (!term || `${name} ${text}`.toLowerCase().includes(term)) && (!only || only === category)
 
-  function row(id: ConnProvider) {
+  function oauthCard(id: ConnProvider) {
     const a = APPS[id]
     const c = by.get(id)
     if (!c) return null
+    const name = OAUTH_NAME[id]
     const status = c.status
     const soon = status === 'not_configured' && !admin // not set up by the admin: users only see "Segera hadir"
     const mustAsk = status === 'broken' && c.needs === 'admin'
     return (
-      <li key={id} className="app-row" data-app={id} data-s={status}>
-        <div className="app-mark">
-          <Mark id={id} />
-        </div>
-        <div className="app-body">
+      <li key={id} className="app-card" data-app={id} data-s={status}>
+        <div className="app-card-head">
+          <div className="app-mark">
+            <Mark id={id} />
+          </div>
           <div className="app-top">
-            <h3>{a.name}</h3>
+            <h3>{name}</h3>
             {status === 'connected' && <CapChip cap="ok" label="Tersambung" />}
             {status === 'reconnect' && <CapChip cap="mock" label="Perlu disambungkan ulang" />}
             {status === 'broken' && <CapChip cap="mock" label="Perlu perbaikan" />}
-            {status === 'disconnected' && <CapChip cap="unknown" label="Belum tersambung" />}
             {status === 'not_configured' && <CapChip cap="none" label={soon ? 'Segera hadir' : 'Belum diatur admin'} />}
           </div>
-          <p>{a.enables}</p>
-          <p className="quiet small">
-            <b>Dipakai di:</b> {a.where}
-          </p>
-          {status === 'connected' && c.account && (
-            <p className="connect-acct">
-              Tersambung sebagai <b>{c.account}</b>
-            </p>
-          )}
-          {status === 'reconnect' && <p className="connect-warn">Izin akses sudah tidak berlaku. Hubungkan ulang agar bisa dipakai lagi.</p>}
-          {status === 'broken' && (
-            <p className="connect-warn" role="status">
-              {c.reason ?? `${a.name} sedang bermasalah.`}
-            </p>
-          )}
-          {status === 'not_configured' && admin && (
-            <p className="quiet small" id={`why-${id}`}>
-              Administrator belum mengatur {a.name}, jadi belum bisa disambungkan.
-            </p>
-          )}
-          {id === 'gmail' && how && (
-            <p className="note-box" id="how-gmail">
-              Di bawah setiap jawaban agen ada tombol &ldquo;Simpan sebagai draf Gmail&rdquo;. Anda bisa mengubah penerima, subjek, dan isinya dulu. Hasilnya hanya draf di Gmail Anda. Anda sendiri yang membuka dan mengirimnya.
-            </p>
-          )}
-          {status === 'not_configured' && admin && <AdminHint c={c} />}
         </div>
-        <div className="app-act">
+        <p>{a.enables}</p>
+        {status === 'connected' && c.account && (
+          <p className="connect-acct">
+            Tersambung sebagai <b>{c.account}</b>
+          </p>
+        )}
+        {status === 'reconnect' && <p className="connect-warn">Izin akses sudah tidak berlaku. Hubungkan ulang agar bisa dipakai lagi.</p>}
+        {status === 'broken' && (
+          <p className="connect-warn" role="status">
+            {c.reason ?? `${a.name} sedang bermasalah.`}
+          </p>
+        )}
+        {status === 'not_configured' && admin && (
+          <p className="quiet small" id={`why-${id}`}>
+            Administrator belum mengatur {a.name}, jadi belum bisa disambungkan.
+          </p>
+        )}
+        {id === 'gmail' && how && (
+          <p className="note-box" id="how-gmail">
+            Di bawah setiap jawaban agen ada tombol &ldquo;Simpan sebagai draf Gmail&rdquo;. Anda bisa mengubah penerima, subjek, dan isinya dulu. Hasilnya hanya draf di Gmail Anda. Anda sendiri yang membuka dan mengirimnya.
+          </p>
+        )}
+        {status === 'not_configured' && admin && <AdminHint c={c} />}
+        <div className="app-card-act">
           {asking === id ? (
             <span className="confirm-actions" role="alert">
               <span className="app-ask">Putuskan {a.name}?</span>
@@ -290,9 +389,69 @@ export function AppsPage() {
     )
   }
 
+  function appCard(a: HermesApp) {
+    const on = a.status === 'connected'
+    return (
+      <li key={a.id} className="app-card" data-app={a.id} data-s={on ? 'connected' : 'disconnected'}>
+        <div className="app-card-head">
+          <div className="app-mark">
+            <Initial name={a.name} />
+          </div>
+          <div className="app-top">
+            <h3>{a.name}</h3>
+            {on && <CapChip cap="ok" label="Tersambung" />}
+          </div>
+        </div>
+        <p>{a.description}</p>
+        {on && a.accounts.length > 0 && (
+          <p className="connect-acct">
+            Akun: <b>{a.accounts.join(', ')}</b>
+          </p>
+        )}
+        {admin && <p className="quiet small">Kode: <code>{a.id}</code></p>}
+        <div className="app-card-act">
+          {asking === a.id ? (
+            <span className="confirm-actions" role="alert">
+              <span className="app-ask">Putuskan {a.name}?</span>
+              <button type="button" className="btn danger" disabled={busy === a.id} onClick={() => void disconnectApp(a)}>
+                Putuskan
+              </button>
+              <button type="button" className="btn quiet-btn" onClick={() => setAsking(null)}>
+                Batal
+              </button>
+            </span>
+          ) : on ? (
+            <button type="button" className="btn soft" disabled={busy === a.id} onClick={() => setAsking(a.id)}>
+              Putuskan
+            </button>
+          ) : (
+            <button type="button" className="btn soft" disabled={busy === a.id} onClick={() => setConnecting(a)}>
+              Hubungkan
+            </button>
+          )}
+        </div>
+      </li>
+    )
+  }
+
+  // Everything in one list, grouped by category. Drive, Gmail and Notion (our own sign-in) sit next to the Hermes apps.
+  const apps = (cat.data?.apps ?? []).filter((a) => admin || !a.technical)
+  const cats = (cat.data?.categories ?? []).filter((c) => admin || c.id !== 'dev')
+  const oauthIds = (['gdrive', 'gmail', 'notion'] as ConnProvider[]).filter((id) => by.has(id))
+  const linkedHermes = apps.filter((a) => a.status === 'connected')
+  const linkedOauth = oauthIds.filter((id) => by.get(id)?.status === 'connected')
+  const groups = cats
+    .map((c) => ({
+      c,
+      oauth: oauthIds.filter((id) => OAUTH_CAT[id] === c.id && hit(OAUTH_NAME[id], APPS[id].enables, c.id)),
+      apps: apps.filter((a) => a.category === c.id && hit(a.name, a.description, c.id)),
+    }))
+    .filter((g) => g.oauth.length + g.apps.length > 0)
+  const ready = (conns.data || conns.state === 'error') && (cat.data || cat.state === 'error')
+
   return (
     <section className="page apps">
-      <PageHead title="Aplikasi" sub="Sambungkan akun Anda agar agen bisa memakai berkas dan email Anda sendiri. Anda yang memegang kendali: izin sekecil mungkin, dan bisa diputus kapan saja." />
+      <PageHead title="Aplikasi" sub="Hubungkan aplikasi yang Anda pakai agar agen bisa membantu di sana." />
       {result && (
         <p className={result.ok ? 'note-box connect-ok' : 'problem-bar'} role={result.ok ? 'status' : 'alert'}>
           {result.text}
@@ -308,41 +467,74 @@ export function AppsPage() {
           {problem}
         </p>
       )}
-      {conns.state === 'loading' && !conns.data && <Loading text="Memuat sambungan..." shape="ledger" />}
+      {!ready && <Loading text="Memuat aplikasi..." shape="ledger" />}
       {conns.state === 'error' && !conns.data && <ErrorLine text={conns.error} onRetry={conns.retry} />}
-      {conns.data &&
-        GROUPS.map((g) => (
-          <section key={g.id} className="apps-group" aria-labelledby={`g-${g.id}`}>
-            <header>
-              <h2 id={`g-${g.id}`}>{g.title}</h2>
-              <p className="quiet small">{g.note}</p>
-            </header>
-            <ul className="apps-list">{g.apps.map(row)}</ul>
-          </section>
-        ))}
-      <section className="apps-group" aria-labelledby="g-soon">
-        <header>
-          <h2 id="g-soon">Segera hadir</h2>
-          <p className="quiet small">Saluran yang direncanakan. Belum bisa dipakai.</p>
-        </header>
-        <ul className="apps-list">
-          {SOON.map((s) => (
-            <li key={s.id} className="app-row soon" data-app={s.id}>
-              <div className="app-mark">
-                <Mark id={s.id} />
-              </div>
-              <div className="app-body">
-                <div className="app-top">
-                  <h3>{s.name}</h3>
-                  <CapChip cap="none" label="Belum tersedia" />
-                </div>
-                <p>{s.text}</p>
-              </div>
-            </li>
+      {cat.state === 'error' && !cat.data && <ErrorLine text={cat.error} onRetry={cat.retry} />}
+      {ready && (
+        <>
+          <div className="apps-tools">
+            <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari aplikasi" aria-label="Cari aplikasi" />
+            <div className="apps-cats" role="group" aria-label="Kategori">
+              <button type="button" aria-pressed={only === ''} onClick={() => setOnly('')}>
+                Semua
+              </button>
+              {cats.map((c) => (
+                <button key={c.id} type="button" aria-pressed={only === c.id} onClick={() => setOnly(only === c.id ? '' : c.id)}>
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </div>
+          {linkedHermes.length + linkedOauth.length > 0 && (
+            <section className="apps-group" aria-labelledby="g-linked">
+              <header>
+                <h2 id="g-linked">Tersambung</h2>
+              </header>
+              <ul className="apps-linked">
+                {linkedOauth.map((id) => (
+                  <li key={id}>
+                    <Mark id={id} />
+                    <span>{OAUTH_NAME[id]}</span>
+                  </li>
+                ))}
+                {linkedHermes.map((a) => (
+                  <li key={a.id}>
+                    <Initial name={a.name} />
+                    <span>{a.name}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {groups.map((g) => (
+            <section key={g.c.id} className="apps-group" aria-labelledby={`g-${g.c.id}`}>
+              <header>
+                <h2 id={`g-${g.c.id}`}>{g.c.name}</h2>
+              </header>
+              <ul className="app-grid">
+                {g.oauth.map(oauthCard)}
+                {g.apps.map(appCard)}
+              </ul>
+            </section>
           ))}
-        </ul>
-      </section>
+          {groups.length === 0 && <p className="quiet">Tidak ada aplikasi yang cocok dengan pencarian Anda.</p>}
+        </>
+      )}
+      <SkillsSection />
       {picker && createPortal(<SourcePicker provider={picker} onClose={() => setPicker(null)} onDone={(ok) => setSaved(`${ok.length} item disimpan ke Pengetahuan.`)} />, document.body)}
+      {connecting && (
+        <ConnectDialog
+          app={connecting}
+          onClose={() => {
+            setConnecting(null)
+            cat.retry()
+          }}
+          onDone={() => {
+            setConnecting(null)
+            void api.appsCatalog(true).finally(cat.retry)
+          }}
+        />
+      )}
     </section>
   )
 }

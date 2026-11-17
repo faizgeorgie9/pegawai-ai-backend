@@ -4,14 +4,15 @@ import hmac
 import json
 import uuid
 from contextlib import asynccontextmanager
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, FastAPI, File, Header, Request, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bots, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kanban, kb, scheduler, sequences, settings, usage
+from . import apps, bots, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kanban, kb, scheduler, sequences, settings, usage
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -208,6 +209,43 @@ async def tools(bot: str | None = None):
         if not rows:
             raise ApiError(404, "Bot tidak ditemukan")
     return {"deny": sorted(harden.DENY), "bots": await asyncio.gather(*(one(b) for b in rows))}
+
+
+# ---- Aplikasi: Hermes connector catalog and per-agent skills (apps.py) ----
+@api.get("/apps/catalog")
+async def apps_catalog(fresh: int = 0):
+    return {"categories": [{"id": i, "name": n} for i, n in apps.CATEGORIES], "apps": await apps.catalog(bool(fresh))}
+
+
+@api.post("/apps/{app_id}/connect")
+async def apps_connect(app_id: str):
+    return await apps.connect(app_id)
+
+
+@api.get("/apps/{app_id}/status")
+async def apps_status(app_id: str):
+    return await apps.status(app_id)
+
+
+@api.post("/apps/{app_id}/disconnect", status_code=204)
+async def apps_disconnect(app_id: str):
+    await apps.disconnect(app_id)
+
+
+@api.get("/skills")
+async def skills_all():
+    return await apps.all_skills(current_user())
+
+
+@api.get("/agents/{slug}/skills")
+async def agent_skills(slug: str):
+    return {"skills": await apps.agent_skills(current_user(), slug)}
+
+
+@api.put("/agents/{slug}/skills")
+async def agent_skill_set(slug: str, request: Request):
+    b = await body_of(request)
+    return {"skills": await apps.set_skill(current_user(), slug, b.get("name"), b.get("enabled") is True)}
 
 
 @api.delete("/bots/{bot_id}", status_code=204)
@@ -468,6 +506,20 @@ async def kb_add_link(request: Request):
 @api.delete("/kb/items/{item_id}", status_code=204)
 async def kb_delete(item_id: str):
     await kb.delete_item(current_user(), item_id)
+
+
+@api.get("/kb/{item_id}/file")
+async def kb_file(item_id: str):
+    name, mime, data = await kb.get_file(current_user(), item_id)
+    disp = "attachment" if mime.endswith("wordprocessingml.document") else "inline"  # Word cannot be shown by a browser
+    return Response(data, media_type=mime, headers={
+        "Content-Disposition": f"{disp}; filename*=UTF-8''{quote(name, safe='')}",
+        "X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store"})
+
+
+@api.get("/kb/{item_id}/text")
+async def kb_text(item_id: str):
+    return await kb.get_text(current_user(), item_id)
 
 
 @api.post("/kb/items/{item_id}/refresh")

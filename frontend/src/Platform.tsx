@@ -41,7 +41,7 @@ export function Tools() {
   return (
     <div className="tab-body">
       <AppsLink />
-      <p className="note-box">Pengaturan alat per agen belum tersedia. Halaman ini hanya untuk melihat.</p>
+      <p className="note-box">Halaman ini hanya untuk melihat. Untuk mengatur keahlian tiap agen, buka <a href="#/aplikasi">Aplikasi</a> atau detail agennya.</p>
       {t.state === 'loading' && !slow && <Loading text="Memuat daftar alat..." shape="ledger" />}
       {t.state === 'loading' && slow && <ErrorLine text="Daftar alat belum bisa ditampilkan. Coba lagi sebentar." onRetry={t.retry} />}
       {t.state === 'error' && <ErrorLine text={t.error} onRetry={t.retry} />}

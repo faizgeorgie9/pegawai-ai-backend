@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom'
 import { api, errText } from './bff'
 import type { ImportResult, KbItem } from './bff'
 import { SourcePicker } from './pick-ui'
-import { CLOSE, Icon } from './ui'
+import { Md } from './rich'
+import { CLOSE, Dialog, ErrorLine, Icon } from './ui'
 
 // Knowledge Base in the composer (shared by Chat and Group): an attachment icon for files, a chip under a pasted link,
 // and an inline status line per item. The BFF does the work (bff/kb.py); this file only shows it.
@@ -180,5 +181,137 @@ export function KbLines({ items, busy }: { items?: KbItem[]; busy?: boolean }) {
         </p>
       ))}
     </div>
+  )
+}
+
+// ---- open a saved item again (Pengetahuan page) ----
+
+const extOf = (name: string) => (name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : '')
+const OLD_FILE_NOTE = 'Berkas asli tidak disimpan untuk unggahan sebelum 17 Nov. Unggah ulang bila perlu.'
+
+// Small CSV as rows of cells (quotes and commas handled); null when it is too big to show as a table.
+function csvRows(text: string): string[][] | null {
+  const rows: string[][] = []
+  let row: string[] = []
+  let cell = ''
+  let quoted = false
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]
+    if (quoted) {
+      if (c === '"' && text[i + 1] === '"') {
+        cell += '"'
+        i++
+      } else if (c === '"') quoted = false
+      else cell += c
+    } else if (c === '"') quoted = true
+    else if (c === ',') {
+      row.push(cell)
+      cell = ''
+    } else if (c === '\n') {
+      row.push(cell)
+      rows.push(row)
+      row = []
+      cell = ''
+      if (rows.length > 100) return null
+    } else cell += c
+  }
+  if (cell || row.length) {
+    row.push(cell)
+    rows.push(row)
+  }
+  return rows.length && rows.every((r) => r.length <= 12) ? rows : null
+}
+
+function download(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+export function KbPreview({ item, onClose }: { item: KbItem; onClose: () => void }) {
+  const id = item.id as string
+  const ext = item.kind === 'file' ? extOf(item.name) : ''
+  const isPdf = ext === 'pdf' && !!item.has_file
+  const [text, setText] = useState<{ text: string; truncated: boolean } | null>(null)
+  const [pdf, setPdf] = useState('')
+  const [problem, setProblem] = useState('')
+  const [saving, setSaving] = useState(false)
+  useEffect(() => {
+    let off = false
+    let url = ''
+    api.kbText(id).then((t) => !off && setText(t), (e) => !off && setProblem(errText(e)))
+    if (isPdf)
+      api.kbFile(id).then(
+        (b) => {
+          url = URL.createObjectURL(b)
+          if (off) URL.revokeObjectURL(url)
+          else setPdf(url)
+        },
+        (e) => !off && setProblem(errText(e)),
+      )
+    return () => {
+      off = true
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [id, isPdf])
+  async function save() {
+    setSaving(true)
+    try {
+      download(await api.kbFile(id), item.name)
+    } catch (e) {
+      setProblem(errText(e))
+    }
+    setSaving(false)
+  }
+  const rows = ext === 'csv' && text ? csvRows(text.text) : null
+  const open = item.source && /^https?:\/\//i.test(item.source) ? item.source : null
+  return (
+    <Dialog title={item.name} onClose={onClose} wide>
+      <div className="dlg-body kb-view">
+        <div className="kb-view-bar">
+          {open && (
+            <a className="btn outline sm" href={open} target="_blank" rel="noopener noreferrer">
+              Buka sumber
+            </a>
+          )}
+          {item.has_file && (
+            <button className="btn outline sm" disabled={saving} onClick={() => void save()}>
+              {ext === 'docx' ? 'Unduh berkas asli' : 'Unduh'}
+            </button>
+          )}
+        </div>
+        {item.kind === 'file' && !item.has_file && <p className="quiet small">{OLD_FILE_NOTE}</p>}
+        {problem && <ErrorLine text={problem} />}
+        {isPdf && (pdf ? <iframe className="kb-pdf" src={pdf} title={`Pratinjau ${item.name}`} /> : !problem && <p className="quiet">Membuka berkas...</p>)}
+        {!isPdf && !text && !problem && <p className="quiet">Memuat isi...</p>}
+        {!isPdf && text && (
+          <>
+            {ext === 'docx' && <p className="quiet small">Teks hasil baca:</p>}
+            {item.kind !== 'file' && <p className="quiet small">Teks yang tersimpan:</p>}
+            {ext === 'md' ? (
+              <div className="kb-text">
+                <Md text={text.text} />
+              </div>
+            ) : rows ? (
+              <div className="kb-table">
+                <table>
+                  <tbody>
+                    {rows.map((r, i) => (
+                      <tr key={i}>{r.map((c, j) => (i === 0 ? <th key={j}>{c}</th> : <td key={j}>{c}</td>))}</tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <pre className="kb-text">{text.text}</pre>
+            )}
+            {text.truncated && <p className="meta">Hanya bagian awal yang ditampilkan.</p>}
+          </>
+        )}
+      </div>
+    </Dialog>
   )
 }

@@ -143,6 +143,7 @@ export interface KbItem {
   chars: number | null
   created_at: string | null
   refreshable?: boolean // imported through a connection (Drive / Notion): can be fetched again
+  has_file?: boolean // the original upload was kept (uploads from 17 Nov 2026 on): it can be opened and downloaded
 }
 // Connections (Google Drive, Gmail, Notion). not_configured: the administrator has not set up the app yet.
 export type ConnProvider = 'gdrive' | 'gmail' | 'notion'
@@ -775,9 +776,29 @@ export const api = {
   kbAddLink: (url: string) => call<KbItem>('POST', '/kb/links', { url }),
   kbDelete: (id: string) => call<void>('DELETE', `/kb/items/${enc(id)}`),
   kbRefresh: (id: string) => call<KbItem>('POST', `/kb/items/${enc(id)}/refresh`),
+  kbText: (id: string) => call<{ text: string; truncated: boolean }>('GET', `/kb/${enc(id)}/text`),
+  // original file as a Blob (a plain link cannot be used: the key never goes into a URL)
+  kbFile: async (id: string): Promise<Blob> => {
+    let res: Response
+    try {
+      res = await fetch(`${BASE}/kb/${enc(id)}/file`)
+    } catch {
+      throw new ApiError('Server belum terjangkau. Pastikan BFF menyala, lalu coba lagi.')
+    }
+    if (!res.ok) throw new ApiError(res.status === 404 ? 'Berkas asli tidak tersimpan.' : fallbackMessage(res.status), res.status)
+    return res.blob()
+  },
   connections: (fresh = false) => call<Connection[]>('GET', `/connections${fresh ? '?fresh=1' : ''}`),
   connectStart: (p: ConnProvider) => call<{ url: string }>('POST', `/connections/${p}/start`),
   disconnect: (p: ConnProvider) => call<void>('DELETE', `/connections/${p}`),
+  // Aplikasi: Hermes connector catalog and per-agent skills
+  appsCatalog: (fresh = false) => call<AppsCatalog>('GET', `/apps/catalog${fresh ? '?fresh=1' : ''}`),
+  appConnect: (id: string) => call<{ url?: string; connected?: boolean }>('POST', `/apps/${enc(id)}/connect`),
+  appStatus: (id: string) => call<{ status: 'connected' | 'not_connected'; waiting: boolean }>('GET', `/apps/${enc(id)}/status`),
+  appDisconnect: (id: string) => call<void>('POST', `/apps/${enc(id)}/disconnect`),
+  skillsAll: () => call<{ agents: AgentSkills[] }>('GET', '/skills'),
+  agentSkills: async (slug: string) => (await call<{ skills: Skill[] }>('GET', `/agents/${enc(slug)}/skills`)).skills,
+  setSkill: async (slug: string, name: string, enabled: boolean) => (await call<{ skills: Skill[] }>('PUT', `/agents/${enc(slug)}/skills`, { name, enabled })).skills,
   driveFiles: async (q: string, page?: string | null): Promise<PickPage> => {
     const r = await call<{ files: PickItem[]; next: string | null }>('GET', `/connections/gdrive/files?q=${enc(q)}${page ? `&page=${enc(page)}` : ''}`)
     return { items: r.files, next: r.next }
@@ -966,6 +987,35 @@ export function subscribe(path: string, on: Record<string, (data: Raw) => void>,
     window.clearTimeout(timer)
     es?.close()
   }
+}
+
+// Aplikasi (apps.py): Hermes connector catalog and built-in skills per agent
+export interface HermesApp {
+  id: string
+  name: string
+  category: string
+  category_name: string
+  description: string
+  status: 'connected' | 'not_connected'
+  accounts: string[]
+  technical: boolean
+}
+export interface AppsCatalog {
+  categories: { id: string; name: string }[]
+  apps: HermesApp[]
+}
+export interface Skill {
+  name: string
+  label: string
+  description: string
+  enabled: boolean
+  technical: boolean
+}
+export interface AgentSkills {
+  id: string
+  name: string
+  ok: boolean
+  skills: Skill[]
 }
 
 export const usageOf = (u: Raw | undefined) => ({ input: asNum(u?.input_tokens ?? u?.prompt_tokens), output: asNum(u?.output_tokens ?? u?.completion_tokens) })
