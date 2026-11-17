@@ -47,7 +47,7 @@ export default function Dashboard() {
     { href: '#/marketing', name: 'Marketing', detail: 'Memakai knowledge dan katalog Colorbox', cap: 'ok' },
     { href: '#/cs', name: 'Customer Service', detail: 'CS v2.1, perlu tinjauan manusia', cap: 'ok' },
     { href: '#/computer-use', name: 'Computer Use', detail: 'Belum dibuka', cap: 'blocked' },
-    { href: '#/scheduler', name: 'Scheduler', detail: 'Belum dibuka', cap: 'blocked' },
+    { href: '#/scheduler', name: 'Scheduler', detail: 'Aktif · Colorbox 5-Agent Automation', cap: 'ok' },
   ]
 
   return (
