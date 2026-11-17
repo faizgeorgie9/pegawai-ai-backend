@@ -2,6 +2,7 @@
 Provider calls go through _request: it adds the user's token and turns provider failures into plain Indonesian errors."""
 import asyncio
 import base64
+import html
 import json as jsonlib
 import logging
 import re
@@ -183,15 +184,16 @@ def _q_escape(s: str) -> str:
     return s.replace("\\", "\\\\").replace("'", "\\'")
 
 
-async def drive_list(user_id: str, query: str = "", page: str | None = None) -> dict:
+async def drive_list(user_id: str, query: str = "", page: str | None = None, *, size: int = DRIVE_PAGE, content: bool = False) -> dict:
+    """`content` also matches inside the files (fullText, which includes the name); default is the name only."""
     mimes = " or ".join(f"mimeType = '{m}'" for m in [*GOOGLE_EXPORT, *UPLOADED])
-    q = f"trashed = false and ({mimes})" + (f" and name contains '{_q_escape(query.strip()[:100])}'" if query.strip() else "")
+    q = f"trashed = false and ({mimes})" + (f" and {'fullText' if content else 'name'} contains '{_q_escape(query.strip()[:100])}'" if query.strip() else "")
     r = await _request(user_id, "gdrive", "GET", f"{DRIVE_API}/files", params={
-        "q": q, "pageSize": DRIVE_PAGE, "orderBy": "modifiedTime desc", **({"pageToken": page} if page else {}),
+        "q": q, "pageSize": size, "orderBy": "modifiedTime desc", **({"pageToken": page} if page else {}),
         "fields": "nextPageToken,files(id,name,mimeType,modifiedTime,size,webViewLink)"})
     d = r.json()
     files = [{"id": f["id"], "name": f.get("name") or "Tanpa nama", "type": drive_kind(f.get("mimeType", "")),
-              "modified": f.get("modifiedTime"), "size": int(f["size"]) if str(f.get("size", "")).isdigit() else None}
+              "modified": f.get("modifiedTime"), "link": f.get("webViewLink"), "size": int(f["size"]) if str(f.get("size", "")).isdigit() else None}
              for f in d.get("files", []) if drive_kind(f.get("mimeType", ""))]
     return {"files": files, "next": d.get("nextPageToken")}
 
@@ -283,3 +285,65 @@ async def gmail_draft(user_id: str, to, subject, body) -> dict:
     account = await connections.account_of(user_id, "gmail")
     url = "https://mail.google.com/mail/" + (f"?authuser={quote(account)}" if account else "u/0/") + "#drafts"
     return {"draft_id": d.get("id"), "url": url, "account": account}
+
+
+# ---------- Gmail read (agents; needs the gmail.readonly scope) ----------
+
+GMAIL_READ_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
+GMAIL_NEED_READ = "Sambungkan ulang Gmail di halaman Aplikasi untuk memberi izin membaca."
+GMAIL_MAX_BODY = 20_000
+
+
+async def _gmail_get(user_id: str, path: str, params=None) -> dict:
+    await connections.access_token(user_id, "gmail")  # not connected / reconnect errors first
+    if not await connections.has_scope(user_id, "gmail", GMAIL_READ_SCOPE):
+        raise ApiError(403, GMAIL_NEED_READ, needs="reconnect")
+    r = await _request(user_id, "gmail", "GET", f"{GMAIL_API}/users/me/{path}", params=params)
+    try:
+        return r.json()
+    except ValueError:
+        raise ApiError(502, "Gmail menjawab dengan format yang tidak dikenal.")
+
+
+def _header(msg: dict, name: str) -> str:
+    for h in (msg.get("payload") or {}).get("headers") or []:
+        if str(h.get("name", "")).lower() == name:
+            return re.sub(r"\s+", " ", str(h.get("value", ""))).strip()
+    return ""
+
+
+async def gmail_search(user_id: str, query: str, limit: int = 10) -> list[dict]:
+    found = await _gmail_get(user_id, "messages", {"q": query, "maxResults": limit})
+    out = []
+    for m in (found.get("messages") or [])[:limit]:
+        d = await _gmail_get(user_id, f"messages/{quote(str(m['id']), safe='')}",
+                             [("format", "metadata"), ("metadataHeaders", "From"), ("metadataHeaders", "Subject"), ("metadataHeaders", "Date")])
+        out.append({"id": d.get("id") or m["id"], "from": _header(d, "from"), "subject": _header(d, "subject"),
+                    "date": _header(d, "date"), "snippet": html.unescape(d.get("snippet") or "")[:160]})
+    return out
+
+
+def _walk(part: dict):
+    yield part
+    for p in part.get("parts") or []:
+        yield from _walk(p)
+
+
+def _decode(part: dict) -> str:
+    data = (part.get("body") or {}).get("data") or ""
+    return base64.urlsafe_b64decode(data + "=" * (-len(data) % 4)).decode("utf-8", "replace") if data else ""
+
+
+def _html_to_text(s: str) -> str:
+    s = re.sub(r"(?is)<(script|style|head)\b.*?</\1>", " ", s)
+    s = re.sub(r"(?i)<br\s*/?>|</(p|div|tr|li|h[1-6])>", "\n", s)
+    s = html.unescape(re.sub(r"<[^>]+>", "", s))
+    return re.sub(r"\n\s*\n+", "\n\n", re.sub(r"[ \t\r\f\v]+", " ", s)).strip()
+
+
+async def gmail_read(user_id: str, message_id: str) -> dict:
+    d = await _gmail_get(user_id, f"messages/{quote(message_id, safe='')}", {"format": "full"})
+    parts = [p for p in _walk(d.get("payload") or {}) if not p.get("filename")]
+    plain = "\n".join(_decode(p) for p in parts if p.get("mimeType") == "text/plain")
+    body = plain.strip() or _html_to_text("\n".join(_decode(p) for p in parts if p.get("mimeType") == "text/html"))
+    return {"from": _header(d, "from"), "to": _header(d, "to"), "subject": _header(d, "subject"), "date": _header(d, "date"), "body": body}

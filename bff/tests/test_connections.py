@@ -122,7 +122,7 @@ async def test_google_consent_url_has_state_pkce_and_exact_scopes(db):
     expected = base64.urlsafe_b64encode(hashlib.sha256(row["verifier"].encode()).digest()).rstrip(b"=").decode()
     assert q["code_challenge"] == expected
     gm = qs((await connections.start(u, "gmail"))["url"])
-    assert gm["scope"].split() == ["openid", "email", "https://www.googleapis.com/auth/gmail.compose"]
+    assert gm["scope"].split() == ["openid", "email", "https://www.googleapis.com/auth/gmail.compose", "https://www.googleapis.com/auth/gmail.readonly"]
 
 
 # ---------- callback: state ----------

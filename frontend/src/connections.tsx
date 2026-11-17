@@ -15,12 +15,12 @@ type AppDef = { name: string; enables: string; where: string }
 const APPS: Record<ConnProvider, AppDef> = {
   gdrive: {
     name: 'Google Drive',
-    enables: 'Agen membaca berkas Drive setelah Anda menambahkannya ke Pengetahuan; agen tidak membuka Drive sendiri.',
+    enables: 'Agen bisa mencari dan membaca berkas Drive Anda (hanya baca).',
     where: 'Halaman Pengetahuan dan lampiran chat.',
   },
   gmail: {
     name: 'Gmail',
-    enables: 'Simpan jawaban agen sebagai draf di Gmail Anda; email tidak pernah dikirim otomatis.',
+    enables: 'Agen bisa membaca email dan membuat draf; email tidak pernah dikirim otomatis.',
     where: 'Tombol "Simpan sebagai draf Gmail" di bawah jawaban agen.',
   },
 }
@@ -434,6 +434,9 @@ export function AppsPage() {
           <p className="quiet small" id={`why-${id}`}>
             Administrator belum mengatur {a.name}, jadi belum bisa disambungkan.
           </p>
+        )}
+        {id === 'gmail' && admin && (
+          <p className="quiet small">Google menganggap akses baca Drive dan Gmail sebagai izin terbatas (restricted scope), jadi pemakaian produksi di atas 100 pengguna perlu verifikasi aplikasi oleh Google.</p>
         )}
         {id === 'gmail' && how && (
           <p className="note-box" id="how-gmail">

@@ -61,3 +61,8 @@ Temuan C (17 Nov 2026, worker C):
 ## Keputusan 17 Nov (lanjutan)
 - Koneksi Notion milik kita DIHAPUS seluruhnya (provider, OAuth, impor halaman, kartu, tombol "Pilih dari Notion"). Notion hanya ditawarkan lewat konektor Hermes `notion` di katalog Aplikasi. Item Pengetahuan lama bertipe `notion` tetap ada (tidak ada migrasi data); nilai `notion` dibiarkan di constraint database.
 - Aturan satu kartu: bila sebuah aplikasi ada sebagai koneksi kita dan sebagai konektor Hermes, Aplikasi menampilkan SATU kartu. Peta eksplisit `OWN_AS_HERMES` di `frontend/src/connections.tsx` (`gdrive` ↔ `google_drive`/`googledrive`, `gmail` ↔ `gmail`); konektor Hermes dipilih, dan aksi tambahan kita (mis. "Pilih dari Drive") tetap di kartu itu bila koneksi kita juga tersambung. Saat ini katalog tidak punya yang tumpang tindih.
+
+## Catatan: halaman akhir Nous tidak bisa dihindari (17 Nov 2026)
+- Setelah login konektor, Nous Portal selalu menampilkan halamannya sendiri ("<App> connection finished"). `hermes connectors connect` hanya punya `--alias`, `--reconnect`, `--force`, dan URL login berupa token tanpa parameter alamat kembali, jadi kita tidak bisa mengarahkan balik ke Pegawai AI.
+- Mitigasi yang dipakai: app membuka tab login sendiri lalu menutupnya otomatis saat status menjadi tersambung, dan menampilkan "<Nama> tersambung." Bila tab tidak bisa ditutup, dialog meminta user menutupnya.
+- Upgrade bila Nous kelak mendukung `redirect_uri`/`return_to`: kirim `PUBLIC_BASE_URL/#/aplikasi?connect=ok&app=<id>`.

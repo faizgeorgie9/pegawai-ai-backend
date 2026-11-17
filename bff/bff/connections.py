@@ -23,7 +23,7 @@ GOOGLE_USERINFO = "https://openidconnect.googleapis.com/v1/userinfo"
 # provider -> (OAuth family, scopes asked, scope that must be granted)
 PROVIDERS = {
     "gdrive": ("google", ["openid", "email", "https://www.googleapis.com/auth/drive.readonly"], "https://www.googleapis.com/auth/drive.readonly"),
-    "gmail": ("google", ["openid", "email", "https://www.googleapis.com/auth/gmail.compose"], "https://www.googleapis.com/auth/gmail.compose"),
+    "gmail": ("google", ["openid", "email", "https://www.googleapis.com/auth/gmail.compose", "https://www.googleapis.com/auth/gmail.readonly"], "https://www.googleapis.com/auth/gmail.compose"),
 }
 NAMES = {"gdrive": "Google Drive", "gmail": "Gmail"}
 RECONNECT_MSG = "Sambungan {name} perlu disambungkan ulang. Buka Aplikasi, lalu pilih Hubungkan ulang."
@@ -244,6 +244,11 @@ async def mark_reconnect(user_id: str, provider: str) -> None:
 async def account_of(user_id: str, provider: str) -> str | None:
     row = await db.q1("select account from connections where user_id = %s and provider = %s", user_id, provider)
     return row["account"] if row else None
+
+
+async def has_scope(user_id: str, provider: str, scope: str) -> bool:
+    row = await db.q1("select scopes from connections where user_id = %s and provider = %s", user_id, provider)
+    return bool(row) and scope in (row["scopes"] or [])
 
 
 async def is_connected(user_id: str, provider: str) -> bool:

@@ -12,13 +12,18 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse, Response, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import apps, bots, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kanban, kb, scheduler, sequences, settings, usage
+from . import apps, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kanban, kb, scheduler, sequences, settings, usage
 from .engine import LIVE, hub
 from .errors import ApiError
 
 
+bridge_app = bridge.BridgeApp(bridge.build())  # MCP tools for the Hermes agents at /mcp (see bridge.py)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    bridge.ensure_key()
+    await asyncio.to_thread(bridge.ensure_registered)
     await db.open_pool()
     await catalog.sync()
     hermes.start_client()
@@ -30,7 +35,8 @@ async def lifespan(app: FastAPI):
     await bots.adopt_sessions()
     cleaner = asyncio.create_task(db.cleanup_loop())
     sched = asyncio.create_task(scheduler.loop())
-    yield
+    async with bridge_app.mcp.session_manager.run():
+        yield
     cleaner.cancel()
     sched.cancel()
     await hermes.stop_client()
@@ -358,16 +364,6 @@ async def products_search(q: str | None = None, category: str | None = None, max
         raise ApiError(400, "Parameter pencarian terlalu panjang")
     rows = await catalog.search_products(q, category, max_price, color, size, limit)
     return {"data": rows, "count": len(rows)}
-
-
-@api.post("/groups/{gid}/messages/{message_id}/steer")
-async def steer_group_message(gid: str, message_id: int):
-    return await groups.steer_queued(current_user(), _uuid(gid), message_id)
-
-
-@api.delete("/groups/{gid}/messages/{message_id}/queued")
-async def cancel_group_message(gid: str, message_id: int):
-    return await groups.cancel_queued(current_user(), _uuid(gid), message_id)
 
 
 @api.get("/runs")
@@ -704,6 +700,16 @@ async def send_group_message(gid: str, request: Request):
     return await groups.send(current_user(), _uuid(gid), b.get("text"), b.get("mode") or "queue", b.get("kb_items"))
 
 
+@api.post("/groups/{gid}/messages/{message_id}/steer")
+async def steer_group_message(gid: str, message_id: int):
+    return await groups.steer_queued(current_user(), _uuid(gid), message_id)
+
+
+@api.delete("/groups/{gid}/messages/{message_id}/queued")
+async def cancel_group_message(gid: str, message_id: int):
+    return await groups.cancel_queued(current_user(), _uuid(gid), message_id)
+
+
 @api.post("/groups/{gid}/plans/{message_id}/approve")
 async def approve_plan(gid: str, message_id: int):
     return await scheduler.approve_plan(current_user(), _uuid(gid), message_id)
@@ -836,3 +842,4 @@ async def update_evaluation(eid: str, request: Request):
 
 app.include_router(public)
 app.include_router(api)
+app.router.routes.append(bridge_app.route())

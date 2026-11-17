@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Bot } from './bff'
+import { useAdminMode } from './adminMode'
 
 export const nf = new Intl.NumberFormat('id-ID')
 const rtf = new Intl.RelativeTimeFormat('id', { numeric: 'auto' })
@@ -118,10 +119,12 @@ function thinkSummary(text: string): string {
 const dur = (s: number) => (s >= 60 ? `${Math.floor(s / 60)} mnt ${s % 60} dtk` : `${s} dtk`)
 export function ThinkingBlock({ text, running, seconds, defaultOpen }: { text: string; running: boolean; seconds?: number; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(!!defaultOpen)
+  const admin = useAdminMode()
   useEffect(() => setOpen(!!defaultOpen), [defaultOpen])
   const steps = text.split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean)
   if (!steps.length && !running) return null
-  const sum = thinkSummary(text)
+  // The collapsed line uses a fixed label for users; the free-text summary is shown only in admin mode.
+  const sum = admin ? thinkSummary(text) : ''
   const title = seconds ? `Berpikir selama ${dur(seconds)}` : 'Langkah kerja'
   return (
     <div className="thinking" data-running={running || undefined}>
