@@ -13,6 +13,7 @@ import type { Cs21 } from './results'
 import { go, botPath } from './router'
 import { GmailDraftButton } from './gmail-ui'
 import { KbAttach, KbLines, KbTrayView, asksToSave, useKbTray } from './kb-ui'
+import { RUNNING_HINT, RUNNING_PLACEHOLDER, STEER_KEY, STEER_TIP, isSteerKey } from './composerKeys'
 import { ClarifyCard, CopyButton, RunProgress, statusText } from './ui-extra'
 import { PanelButtons, SidePanel, Split } from './Panel'
 import { BotAvatar, CLOSE, Icon, ThinkingBlock, botColor, nf } from './ui'
@@ -282,10 +283,13 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
     else void startRun(text, ids)
   }
 
-  async function steer() {
-    const text = draft.trim()
+  // Sends text to the running agent now. From the composer (no argument) it uses the draft; from a queued chip it uses that chip's text.
+  async function steer(queuedAt?: number) {
+    const fromQueue = queuedAt !== undefined
+    const text = fromQueue ? queue[queuedAt]?.text : draft.trim()
     if (!text || !run) return
-    setDraft('')
+    if (fromQueue) setQueue((q) => q.filter((_, n) => n !== queuedAt))
+    else setDraft('')
     if (!run.id) return setQueue((q) => [...q, { text, kb: [] }])
     try {
       await api.steerRun(run.id, text)
@@ -295,7 +299,8 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
       if (e instanceof ApiError && e.status === 409) setQueue((q) => [...q, { text, kb: [] }])
       else {
         setProblem({ text: errText(e) })
-        setDraft(text)
+        if (fromQueue) setQueue((q) => [{ text, kb: [] }, ...q])
+        else setDraft(text)
       }
     }
   }
@@ -404,21 +409,26 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
               onAnswer={(t) => answer(m, t)}
             />
           ))}
-          {queue.map((t, i) => (
-            <div key={i} className="msg user pending">
-              <p>{t.text}</p>
-              <span className="pending-tag">
-                Antre
-                <button className="icon-btn tiny" aria-label="Batalkan pesan antre" onClick={() => setQueue((q) => q.filter((_, n) => n !== i))}>
-                  <Icon d={CLOSE} size={12} />
-                </button>
-              </span>
-            </div>
-          ))}
         </div>
       </div>
 
       <div className="composer-wrap">
+        {queue.length > 0 && (
+          <ul className="queue-rows" aria-label="Pesan menunggu giliran">
+            {queue.map((t, i) => (
+              <li key={i} className="queue-row">
+                <span className="queue-text">{t.text}</span>
+                <small>Menunggu giliran</small>
+                <button type="button" className="btn link" disabled={!run?.id} onClick={() => void steer(i)} title={STEER_TIP}>
+                  Kirim sekarang
+                </button>
+                <button type="button" className="icon-btn tiny" aria-label="Hapus pesan ini dari antrean" onClick={() => setQueue((q) => q.filter((_, n) => n !== i))}>
+                  <Icon d={CLOSE} size={12} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         {problem && (
           <p className="problem-bar" role="alert">
             {problem.text}
@@ -445,12 +455,13 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
             ref={box}
             rows={1}
             value={draft}
-            placeholder={running ? `Agen sedang bekerja. Pesan baru masuk antrean.` : `Tulis pesan untuk ${bot.name}`}
+            placeholder={running ? RUNNING_PLACEHOLDER : `Tulis pesan untuk ${bot.name}`}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault()
-                send()
+                if (running && isSteerKey(e)) void steer()
+                else send()
               }
             }}
           />
@@ -462,17 +473,17 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
                   <span className="square" aria-hidden="true" />
                   Berhenti
                 </button>
-                <button type="button" className="btn soft" onClick={() => void steer()} disabled={!draft.trim()}>
-                  Arahkan sekarang
+                <button type="button" className="btn soft" onClick={() => void steer()} disabled={!draft.trim()} title={STEER_TIP}>
+                  Kirim sekarang <kbd>{STEER_KEY}</kbd>
                 </button>
               </>
             )}
             <button type="submit" className="btn primary" disabled={!draft.trim()}>
-              {running ? 'Antre' : 'Kirim'}
+              {running ? <>Kirim setelah selesai <kbd>Enter</kbd></> : 'Kirim'}
             </button>
           </div>
         </form>
-        <p className="composer-note">Enter untuk kirim, Shift+Enter untuk baris baru.</p>
+        <p className="composer-note">{running ? RUNNING_HINT : 'Enter untuk kirim, Shift+Enter untuk baris baru.'}</p>
       </div>
     </section>
     </Split>

@@ -9,10 +9,11 @@ import { useData } from './data'
 import { PlanCard, withoutPlanBlock } from './PlanCard'
 import { PanelButtons, SidePanel, Split } from './Panel'
 import { GmailDraftButton } from './gmail-ui'
+import { RUNNING_HINT, STEER_KEY, STEER_TIP, isSteerKey } from './composerKeys'
 import { KbAttach, KbLines, KbTrayView, asksToSave, useKbTray } from './kb-ui'
 import { groupPath } from './router'
 import { CopyButton } from './ui-extra'
-import { BotAvatar, ErrorLine, PENCIL, Icon, ThinkingBlock, botColor, clock, teamLabel } from './ui'
+import { BotAvatar, CLOSE, ErrorLine, PENCIL, Icon, ThinkingBlock, botColor, clock, teamLabel } from './ui'
 
 const sameId = (a: string, b: string) => a === b
 type Problem = { text: string; upgrade?: boolean } | null
@@ -213,6 +214,18 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
     setKbBusy(false)
   }
 
+  // A queued message leaves the queue either way: delivered now, or removed. A 409 means the agent already picked it up.
+  async function queuedAction(mid: string, act: 'steer' | 'cancel') {
+    setProblem(null)
+    try {
+      await (act === 'steer' ? api.steerGroupMessage(id, mid) : api.cancelGroupMessage(id, mid))
+      if (act === 'cancel') setMsgs((cur) => cur.filter((x) => x.id !== mid))
+    } catch (e) {
+      setProblem({ text: errText(e) })
+    }
+    setPending((p) => p.filter((x) => x !== mid))
+  }
+
   async function stop() {
     try {
       await api.stopGroup(id)
@@ -338,7 +351,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
               <p>Tulis tugas untuk tim ini. Sebut @nama untuk bertanya ke satu anggota.</p>
             </div>
           )}
-          {msgs.map((m) => (
+          {msgs.filter((m) => !pending.includes(m.id)).map((m) => (
             <GroupBubble key={m.id} m={m} bot={bots.find((b) => b.id === m.bot_id)} queued={pending.includes(m.id)} thought={thoughts[m.run_id ?? '']} onApproved={(sid) => setMsgs((cur) => cur.map((x) => (x.id === m.id && x.plan ? { ...x, plan: { ...x.plan, schedule_id: sid } } : x)))} />
           ))}
           {turn && <LiveBubble t={turn} bot={bots.find((b) => b.id === turn.bot)} />}
@@ -347,6 +360,22 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
       </div>
 
       <div className="composer-wrap">
+        {pending.length > 0 && (
+          <ul className="queue-rows" aria-label="Pesan menunggu giliran">
+            {pending.map((mid) => (
+              <li key={mid} className="queue-row">
+                <span className="queue-text">{msgs.find((m) => m.id === mid)?.text ?? 'Pesan Anda'}</span>
+                <small>Menunggu giliran</small>
+                <button type="button" className="btn link" onClick={() => void queuedAction(mid, 'steer')} title={STEER_TIP}>
+                  Kirim sekarang
+                </button>
+                <button type="button" className="icon-btn tiny" aria-label="Hapus pesan ini dari antrean" onClick={() => void queuedAction(mid, 'cancel')}>
+                  <Icon d={CLOSE} size={12} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         {problem && (
           <p className="problem-bar" role="alert">
             {problem.text}
@@ -387,7 +416,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
             ref={box}
             rows={1}
             value={draft}
-            placeholder={running ? 'Diskusi berjalan. Pesan baru masuk antrean.' : 'Tulis pesan. Ketik @ untuk menyebut anggota.'}
+            placeholder={running ? 'Agen sedang bekerja. Pesan Anda akan dikirim setelah selesai.' : 'Tulis pesan. Ketik @ untuk menyebut anggota.'}
             onChange={(e) => {
               setDraft(e.target.value)
               track(e.target)
@@ -411,7 +440,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
               }
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault()
-                void send('queue')
+                void send(running && isSteerKey(e) ? 'steer' : 'queue')
               }
             }}
           />
@@ -423,18 +452,18 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
                   <span className="square" aria-hidden="true" />
                   Berhenti
                 </button>
-                <button type="button" className="btn soft" onClick={() => void send('steer')} disabled={!draft.trim()}>
-                  Arahkan sekarang
+                <button type="button" className="btn soft" onClick={() => void send('steer')} disabled={!draft.trim()} title={STEER_TIP}>
+                  Kirim sekarang <kbd>{STEER_KEY}</kbd>
                 </button>
               </>
             )}
             <button type="submit" className="btn primary" disabled={!draft.trim()}>
-              {running ? 'Antre' : 'Kirim'}
+              {running ? <>Kirim setelah selesai <kbd>Enter</kbd></> : 'Kirim'}
             </button>
           </div>
         </form>
         <p className="composer-note">
-          Enter untuk kirim, Shift+Enter untuk baris baru. <a href="#/marketing">Pakai formulir brief</a>
+          {running ? RUNNING_HINT : 'Enter untuk kirim, Shift+Enter untuk baris baru.'} <a href="#/marketing">Pakai formulir brief</a>
         </p>
       </div>
     </section>
@@ -448,7 +477,7 @@ function GroupBubble({ m, bot, queued, thought, onApproved }: { m: GroupMsg; bot
     return (
       <div className="msg user">
         <p>{m.text}</p>
-        {queued && <span className="pending-tag">Antre, dikirim setelah ronde selesai</span>}
+        {queued && <span className="pending-tag">Menunggu giliran, dikirim setelah ronde selesai</span>}
       </div>
     )
   }

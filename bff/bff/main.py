@@ -360,6 +360,16 @@ async def products_search(q: str | None = None, category: str | None = None, max
     return {"data": rows, "count": len(rows)}
 
 
+@api.post("/groups/{gid}/messages/{message_id}/steer")
+async def steer_group_message(gid: str, message_id: int):
+    return await groups.steer_queued(current_user(), _uuid(gid), message_id)
+
+
+@api.delete("/groups/{gid}/messages/{message_id}/queued")
+async def cancel_group_message(gid: str, message_id: int):
+    return await groups.cancel_queued(current_user(), _uuid(gid), message_id)
+
+
 @api.get("/runs")
 async def list_runs(status: str = "recent", limit: int = 30, bot: str | None = None):
     limit = max(1, min(limit, 100))

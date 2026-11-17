@@ -188,16 +188,55 @@ async def send(user_id: str, gid: str, text, mode: str, kb_items=None) -> dict:
     await db.ex("insert into group_sends (id, group_id, message_id, status) values (%s, %s, %s, 'queued')",
                 str(uuid.uuid4()), gid, msg["id"])
     if mode == "steer":
-        st.cancel_round = True
-        if st.run_id and st.bot:
-            try:
-                await engine.steer(user_id, st.run_id, f"User: {text}")
-                await db.ex("insert into group_cursors (group_id, bot_id, last_message_id) values (%s, %s, %s) "
-                            "on conflict (group_id, bot_id) do update set last_message_id = greatest("
-                            "group_cursors.last_message_id, excluded.last_message_id)", gid, st.bot, msg["id"])
-            except ApiError:
-                pass  # run just finished: the message waits for the next loop like a queued one
+        await _steer_now(user_id, gid, st, msg["id"], text)
     return {"message": msg, "queued": True}
+
+
+async def _steer_now(user_id: str, gid: str, st: SendState, message_id: int, text: str) -> None:
+    """Hand a message to the bot that is working right now, in the middle of its run."""
+    st.cancel_round = True
+    if st.run_id and st.bot:
+        try:
+            await engine.steer(user_id, st.run_id, f"User: {text}")
+            await db.ex("insert into group_cursors (group_id, bot_id, last_message_id) values (%s, %s, %s) "
+                        "on conflict (group_id, bot_id) do update set last_message_id = greatest("
+                        "group_cursors.last_message_id, excluded.last_message_id)", gid, st.bot, message_id)
+        except ApiError:
+            pass  # run just finished: the message waits for the next loop like a queued one
+
+
+def _check_message_id(message_id) -> int:
+    if isinstance(message_id, bool) or not isinstance(message_id, int) or message_id < 1:
+        raise ApiError(404, "Pesan tidak ditemukan")
+    return message_id
+
+
+TOO_LATE = "Pesan ini sudah dibaca agen, jadi tidak bisa diubah lagi."
+
+
+async def steer_queued(user_id: str, gid: str, message_id: int) -> dict:
+    """'Kirim sekarang' on a message waiting in the queue: same steer as sending with Ctrl+Enter."""
+    await get_group(user_id, gid)
+    mid = _check_message_id(message_id)
+    row = await db.q1("select gm.text from group_sends gs join group_messages gm on gm.id = gs.message_id "
+                      "where gs.group_id = %s and gs.message_id = %s and gs.status = 'queued' and gm.author = 'user'", gid, mid)
+    st = ACTIVE.get(gid)
+    if not row or st is None:
+        raise ApiError(409, TOO_LATE)
+    await _steer_now(user_id, gid, st, mid, row["text"])
+    return {"steered": True}
+
+
+async def cancel_queued(user_id: str, gid: str, message_id: int) -> dict:
+    """The x on a queued message: removes it from the queue and from the transcript, in one statement, only while still queued."""
+    await get_group(user_id, gid)
+    mid = _check_message_id(message_id)
+    gone = await db.q("with d as (delete from group_sends where group_id = %s and message_id = %s and status = 'queued' returning message_id) "
+                      "delete from group_messages where group_id = %s and author = 'user' and id in (select message_id from d) returning id",
+                      gid, mid, gid)
+    if not gone:
+        raise ApiError(409, TOO_LATE)
+    return {"deleted": True}
 
 
 def _start_loop(user_id: str, gid: str, msgs: list[tuple[int, str]]) -> None:

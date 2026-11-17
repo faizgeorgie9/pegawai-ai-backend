@@ -22,7 +22,8 @@ from .errors import ApiError
 _ID = re.compile(r"^[a-z0-9][a-z0-9_]{0,63}$")
 _CACHE_SECONDS = 60
 _CLI_TIMEOUT = 40
-_CONNECT_LIMIT = 180  # the user has 3 minutes to finish in the browser
+_CONNECT_LIMIT = 540  # the browser asks for the link as soon as its dialog opens; portal links last 10 minutes
+_REUSE_SECONDS = 300  # a login older than this is replaced by a fresh one instead of handing out its aging link
 
 CATEGORIES = [("docs", "Dokumen & catatan"), ("design", "Desain & konten"), ("marketing", "Pemasaran & SEO"),
               ("sales", "Penjualan & toko"), ("comms", "Komunikasi"), ("projects", "Proyek & tugas"),
@@ -207,7 +208,7 @@ def _start_connect(app: str) -> dict:
     old = _pending.get(app)
     if old and old.poll() is None:  # same login still open: hand the user the same link
         url = getattr(old, "login_url", None)
-        if url:
+        if url and time.monotonic() - getattr(old, "started", 0) < _REUSE_SECONDS:
             return {"url": url}
         old.kill()
     try:  # argument list, no shell; the id was validated against the portal's own list
@@ -229,6 +230,7 @@ def _start_connect(app: str) -> dict:
         time.sleep(0.2)
     if found:
         proc.login_url = found[0]  # type: ignore[attr-defined]
+        proc.started = time.monotonic()  # type: ignore[attr-defined]
         _pending[app] = proc
         threading.Thread(target=_reap, args=(app, proc), daemon=True).start()
         return {"url": found[0]}

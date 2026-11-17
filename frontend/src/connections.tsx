@@ -139,6 +139,9 @@ const OAUTH_NAME: Record<ConnProvider, string> = { gdrive: 'Google Drive', gmail
 // (our provider -> Hermes ids); the live catalog has no overlaps today.
 const OWN_AS_HERMES: Record<ConnProvider, string[]> = { gdrive: ['google_drive', 'googledrive'], gmail: ['gmail'] }
 
+// The CLI names accounts like canva_mcp_batty-rory: users only see a label that looks like an email address; admins see everything.
+const shownAccounts = (accounts: string[], admin: boolean) => (admin ? accounts : accounts.filter((a) => a.includes('@')))
+
 // Opened synchronously inside the click so the browser allows it; the BFF call takes seconds. Static page, no data interpolated.
 function openLoadingTab(): Window | null {
   const w = window.open('', '_blank')
@@ -162,40 +165,64 @@ function openLoadingTab(): Window | null {
   return w
 }
 
-// Guided connect: explain, open the login page in a new tab, then wait until the app shows up as connected (max 3 minutes).
-function ConnectDialog({ app, onClose, onDone }: { app: HermesApp; onClose: () => void; onDone: () => void }) {
-  const [phase, setPhase] = useState<'intro' | 'starting' | 'waiting' | 'late' | 'error'>('intro')
+// Login links last 10 minutes on the portal and the BFF keeps the pending login for 9: ask for a new one after 8.
+const LINK_MAX_AGE = 8 * 60_000
+type Link = { p: Promise<{ url?: string; connected?: boolean }>; at: number }
+
+// Guided connect: the login link is requested as soon as the dialog opens (the Hermes CLI needs seconds), the click opens the tab
+// at once and sends it to the link when it is there. Then wait until the app shows up as connected and close the login tab again.
+function ConnectDialog({ app, onClose, onDone }: { app: HermesApp; onClose: () => void; onDone: (message: string) => void }) {
+  const [phase, setPhase] = useState<'intro' | 'starting' | 'waiting' | 'late' | 'error' | 'done'>('intro')
   const [url, setUrl] = useState('')
   const [blocked, setBlocked] = useState(false)
   const [problem, setProblem] = useState('')
   const live = useRef(true)
   const tab = useRef<Window | null>(null)
+  const link = useRef<Link | null>(null)
+  const success = `${app.name} tersambung. Agen sekarang bisa memakainya.`
   const closeTab = () => {
     try {
       tab.current?.close()
     } catch {
       /* already gone */
     }
-    tab.current = null
+  }
+  function prefetch(force = false): Link {
+    if (!force && link.current && Date.now() - link.current.at < LINK_MAX_AGE) return link.current
+    const p = api.appConnect(app.id)
+    p.catch(() => {}) // the click handler reports it; no unhandled rejection before that
+    return (link.current = { p, at: Date.now() })
   }
   useEffect(() => {
     live.current = true // StrictMode runs the cleanup once before the real mount
+    prefetch() // the ref keeps the first request, so the remount does not start a second login
     return () => {
       live.current = false
-      closeTab() // cancelled or failed; a finished login clears tab.current first
+      closeTab() // cancelled or failed; after a finished login the tab is already closed
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  // Closing before the login is finished stops the pending login on the server (the app is not connected yet).
+  function cancel() {
+    if (phase !== 'done' && link.current) void link.current.p.then(() => api.appDisconnect(app.id), () => {}).catch(() => {})
+    onClose()
+  }
   async function start() {
     tab.current = openLoadingTab() // before any await: still counts as the user's click
     setBlocked(!tab.current) // pop-up blocked anyway: offer a real link once the URL is ready
     setPhase('starting')
     setProblem('')
     try {
-      const r = await api.appConnect(app.id)
+      let cur = prefetch()
+      let r = await cur.p.catch(() => null)
+      if (!r) {
+        cur = prefetch(true) // the early request failed: ask once more now that the user is waiting
+        r = await cur.p
+      }
       if (!live.current) return
       if (r.connected || !r.url) {
         closeTab()
-        return onDone()
+        return onDone(success)
       }
       let ok = false
       try {
@@ -208,15 +235,14 @@ function ConnectDialog({ app, onClose, onDone }: { app: HermesApp; onClose: () =
       if (tab.current) {
         tab.current.opener = null
         tab.current.location.replace(r.url)
-        tab.current = null // left open for the user; closed only by themselves
       }
       setPhase('waiting')
-      const end = Date.now() + 180_000
+      const end = Math.min(Date.now() + 180_000, cur.at + 530_000)
       while (live.current && Date.now() < end) {
         await new Promise((res) => setTimeout(res, 4000))
         if (!live.current) return
         try {
-          if ((await api.appStatus(app.id)).status === 'connected') return onDone()
+          if ((await api.appStatus(app.id)).status === 'connected') return finish()
         } catch {
           /* one failed check is not the end: keep waiting */
         }
@@ -225,18 +251,33 @@ function ConnectDialog({ app, onClose, onDone }: { app: HermesApp; onClose: () =
     } catch (e) {
       closeTab()
       if (!live.current) return
+      link.current = null // a failed or expired link is never reused
       setProblem(errText(e))
       setPhase('error')
     }
   }
+  // Back to our app: close the login tab we opened (allowed for script-opened tabs) and bring this one to the front.
+  function finish() {
+    const w = tab.current
+    closeTab()
+    window.focus()
+    if (!w || w.closed) return onDone(success)
+    setPhase('done') // the browser kept the tab open: tell the user
+  }
   return (
-    <Dialog title={`Hubungkan ${app.name}`} onClose={onClose}>
+    <Dialog title={`Hubungkan ${app.name}`} onClose={cancel}>
       <div className="dlg-body">
-      <ol className="connect-steps">
-        <li>Anda akan diarahkan ke halaman login {app.name}.</li>
-        <li>Masuk dan setujui izin yang diminta.</li>
-        <li>Setelah selesai, kembali ke sini. Halaman ini akan memberi tahu bila sudah tersambung.</li>
-      </ol>
+      {phase === 'done' ? (
+        <p className="note-box connect-ok" role="status">
+          {success} Anda boleh menutup tab login.
+        </p>
+      ) : (
+        <ol className="connect-steps">
+          <li>Anda akan diarahkan ke halaman login {app.name}.</li>
+          <li>Masuk dan setujui izin yang diminta.</li>
+          <li>Setelah selesai, kembali ke sini. Halaman ini akan memberi tahu bila sudah tersambung.</li>
+        </ol>
+      )}
       {phase === 'waiting' && (
         <p className="note-box" role="status">
           <span className="runprog-row"><Spinner /><span>Menunggu Anda menyelesaikan login di tab lain…</span></span>{' '}
@@ -254,17 +295,15 @@ function ConnectDialog({ app, onClose, onDone }: { app: HermesApp; onClose: () =
         </p>
       )}
       <div className="dlg-actions">
-        <button
-          type="button"
-          className="btn quiet-btn"
-          onClick={() => {
-            // Cancelling a waiting login stops the pending login on the server too (it is not connected yet).
-            if (phase === 'waiting') void api.appDisconnect(app.id).catch(() => {})
-            onClose()
-          }}
-        >
-          {phase === 'waiting' ? 'Batal' : 'Tutup'}
-        </button>
+        {phase === 'done' ? (
+          <button type="button" className="btn primary" onClick={() => onDone(success)}>
+            Selesai
+          </button>
+        ) : (
+          <button type="button" className="btn quiet-btn" onClick={cancel}>
+            {phase === 'waiting' ? 'Batal' : 'Tutup'}
+          </button>
+        )}
         {phase === 'waiting' && blocked && (
           <a className="btn primary" href={url} target="_blank" rel="noopener noreferrer">
             Buka halaman login
@@ -292,6 +331,7 @@ export function AppsPage() {
   const [asking, setAsking] = useState<string | null>(null)
   const [picker, setPicker] = useState<'gdrive' | null>(null)
   const [saved, setSaved] = useState('')
+  const [joined, setJoined] = useState('')
   const [how, setHow] = useState(false)
   const [q, setQ] = useState('')
   const [only, setOnly] = useState('')
@@ -466,9 +506,9 @@ export function AppsPage() {
           </div>
         </div>
         <p>{a.description}</p>
-        {on && a.accounts.length > 0 && (
+        {on && shownAccounts(a.accounts, admin).length > 0 && (
           <p className="connect-acct">
-            Akun: <b>{a.accounts.join(', ')}</b>
+            Akun: <b>{shownAccounts(a.accounts, admin).join(', ')}</b>
           </p>
         )}
         {admin && <p className="quiet small">Kode: <code>{a.id}</code></p>}
@@ -529,6 +569,11 @@ export function AppsPage() {
       {result && (
         <p className={result.ok ? 'note-box connect-ok' : 'problem-bar'} role={result.ok ? 'status' : 'alert'}>
           {result.text}
+        </p>
+      )}
+      {joined && (
+        <p className="note-box connect-ok" role="status">
+          {joined}
         </p>
       )}
       {saved && (
@@ -603,8 +648,9 @@ export function AppsPage() {
             setConnecting(null)
             cat.retry()
           }}
-          onDone={() => {
+          onDone={(message) => {
             setConnecting(null)
+            setJoined(message)
             void api.appsCatalog(true).finally(cat.retry)
           }}
         />

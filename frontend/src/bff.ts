@@ -908,6 +908,8 @@ export const api = {
     return { message: toGroupMsg(r.message ?? {}), queued: r.queued === true }
   },
   deleteGroup: (id: string) => call<void>('DELETE', `/groups/${enc(id)}`),
+  steerGroupMessage: (id: string, messageId: string) => call<void>('POST', `/groups/${enc(id)}/messages/${enc(messageId)}/steer`),
+  cancelGroupMessage: (id: string, messageId: string) => call<void>('DELETE', `/groups/${enc(id)}/messages/${enc(messageId)}/queued`),
   stopGroup: (id: string) => call<void>('POST', `/groups/${enc(id)}/stop`),
   approvePlan: async (gid: string, messageId: string) => toSchedule(await call<Raw>('POST', `/groups/${enc(gid)}/plans/${enc(messageId)}/approve`)),
   revisePlan: (gid: string, messageId: string, feedback: string) => call<void>('POST', `/groups/${enc(gid)}/plans/${enc(messageId)}/revise`, { feedback }),
