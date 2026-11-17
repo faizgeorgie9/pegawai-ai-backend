@@ -402,6 +402,7 @@ td.st-col { min-width: 170px; }
 .apps-linked { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .apps-linked li { display: inline-flex; align-items: center; gap: var(--s-2); padding: 6px 12px 6px 8px; border-radius: 999px; background: var(--surface); font-weight: 500; font-size: 14px; }
 .apps-linked li > svg, .apps-linked .app-initial { width: 22px; height: 22px; font-size: 12px; }
+.apps-linked .warn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn-ink); flex: none; }
 .connect-steps { padding-left: var(--s-5); display: flex; flex-direction: column; gap: var(--s-2); margin: 0 0 var(--s-3); }
 .dlg-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s-2); margin-top: var(--s-4); }
 .skill-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; }

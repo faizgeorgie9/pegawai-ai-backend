@@ -26,7 +26,7 @@ export function GmailDraftButton({ text }: { text: string }) {
 function DraftDialog({ text, onClose }: { text: string; onClose: () => void }) {
   const conns = useConnections()
   const conn = conns.data?.find((c) => c.provider === 'gmail')
-  const status = conn?.status
+  const status = conn?.status === 'needs_scope' ? 'connected' : conn?.status // reading and drafting still work without the newer permission
   const first = firstLine(text)
   const [to, setTo] = useState('')
   const [subject, setSubject] = useState(first.length <= 120 ? first : '')

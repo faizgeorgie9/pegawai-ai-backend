@@ -463,8 +463,13 @@ def fake_drive(monkeypatch):
     async def token(user_id, provider):
         return "at-1"
     monkeypatch.setattr(connections, "list_all", list_all)
+    async def missing(user_id, provider):
+        return list(missing_for.get(provider, []))
+    missing_for = {}
     monkeypatch.setattr(connections, "access_token", token)
+    monkeypatch.setattr(connections, "missing_scopes", missing)
     integrations._cache.clear()
+    return missing_for
 
 
 def test_disabled_api_makes_the_connection_broken_not_green(fake_drive):
@@ -502,3 +507,37 @@ async def _test_working_connection_is_checked_once_and_stays_connected():
         r.respond(403, content=google_err("insufficientPermissions"))
         c = {c["provider"]: c for c in await integrations.list_checked("u1", fresh=True)}["gdrive"]
     assert c["status"] == "broken" and c["needs"] == "reconnect" and "Sambungkan ulang" in c["reason"]
+
+
+def test_connected_without_the_new_permission_needs_scope_but_still_reads(fake_drive):
+    fake_drive["gdrive"] = ["https://www.googleapis.com/auth/drive"]
+    asyncio.run(_test_needs_scope(fake_drive))
+
+
+async def _test_needs_scope(missing_for):
+    with respx.mock:
+        respx.get(f"{integrations.DRIVE_API}/files").respond(json={"files": []})
+        d = {c["provider"]: c for c in await integrations.list_checked("u1")}["gdrive"]
+        assert d["status"] == "needs_scope" and d["reason"] == integrations.NEEDS_SCOPE_REASON["gdrive"] and "needs" not in d
+        assert "Agen tetap bisa mencari dan membaca" in d["reason"]
+        assert (await integrations.drive_list("u1"))["files"] == []  # reading still works
+        missing_for["gdrive"] = []  # reconnected with every permission
+        assert {c["provider"]: c["status"] for c in await integrations.list_checked("u1")}["gdrive"] == "connected"
+        missing_for["gdrive"] = ["x"]
+        respx.get(f"{integrations.DRIVE_API}/files").respond(403, content=google_err("accessNotConfigured"))
+        integrations._cache.clear()
+        assert {c["provider"]: c["status"] for c in await integrations.list_checked("u1")}["gdrive"] == "broken"  # a failed check wins
+
+
+def test_gmail_reason_and_missing_scopes_helper(monkeypatch):
+    assert "merapikan dan mengirim email" in integrations.NEEDS_SCOPE_REASON["gmail"]
+    rows = {"gdrive": {"scopes": ["openid", "https://www.googleapis.com/auth/drive.readonly"]},
+            "gmail": {"scopes": [s for s in connections.PROVIDERS["gmail"][1] if s.startswith("https://") and not s.endswith("gmail.send")]}}
+
+    async def q1(sql, user_id, provider):
+        return rows.get(provider)
+    monkeypatch.setattr(connections.db, "q1", q1)
+    assert asyncio.run(connections.missing_scopes("u1", "gdrive")) == ["https://www.googleapis.com/auth/drive"]
+    assert asyncio.run(connections.missing_scopes("u1", "gmail")) == ["https://www.googleapis.com/auth/gmail.send"]
+    rows.clear()
+    assert asyncio.run(connections.missing_scopes("u1", "gdrive")) == []

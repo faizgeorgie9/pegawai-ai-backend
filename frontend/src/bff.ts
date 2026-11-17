@@ -163,8 +163,8 @@ export type ConnProvider = 'gdrive' | 'gmail'
 export interface Connection {
   provider: ConnProvider
   name: string
-  status: 'not_configured' | 'disconnected' | 'connected' | 'reconnect' | 'broken' // broken: connected, but the last check at the provider failed
-  reason?: string // broken: friendly sentence for the user
+  status: 'not_configured' | 'disconnected' | 'connected' | 'reconnect' | 'broken' | 'needs_scope' // broken: connected, but the last check at the provider failed; needs_scope: works, but lacks a newer permission
+  reason?: string // broken / needs_scope: friendly sentence for the user
   needs?: 'reconnect' | 'admin' | 'retry' // broken: who can fix it
   account: string | null
   connected_at: string | null

@@ -87,7 +87,7 @@ export default function Dashboard() {
   const steps: Step[] = [
     { id: 'name', title: 'Isi nama bisnis', hint: 'Nama bisnis Anda tampil di menu samping.', done: hasName(settings.company_name), href: '#/pengaturan/umum', action: 'Isi nama' },
     { id: 'kb', title: 'Tambahkan pengetahuan bisnis', hint: 'Unggah berkas atau link agar agen mengenal bisnis Anda.', done: (kb.data?.length ?? 0) > 0, href: '#/pengetahuan', action: 'Tambah' },
-    { id: 'drive', title: 'Sambungkan Google Drive', hint: 'Ambil berkas langsung dari Drive.', done: !!conn.data?.some((c) => c.provider === 'gdrive' && c.status === 'connected'), href: '#/aplikasi', action: 'Sambungkan', optional: true },
+    { id: 'drive', title: 'Sambungkan Google Drive', hint: 'Ambil berkas langsung dari Drive.', done: !!conn.data?.some((c) => c.provider === 'gdrive' && (c.status === 'connected' || c.status === 'needs_scope')), href: '#/aplikasi', action: 'Sambungkan', optional: true },
     { id: 'plan', title: 'Minta rencana konten pertama', hint: 'Minta Tim Marketing menyusun rencana.', done: !!w?.anyPlan, href: ask, action: 'Minta tim' },
     { id: 'approve', title: 'Setujui rencana konten', hint: 'Tim mulai bekerja setelah Anda setuju.', done: !!w?.approved, href: w?.pending[0] ? `#${groupPath(w.pending[0].group.id)}` : ask, action: 'Tinjau' },
   ]

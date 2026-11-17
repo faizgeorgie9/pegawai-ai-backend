@@ -17,7 +17,7 @@ export function SourcePicker({ provider, onClose, onDone }: { provider: Extract<
   const t = COPY[provider]
   const conns = useConnections()
   const conn = conns.data?.find((c) => c.provider === provider)
-  const status = conn?.status
+  const status = conn?.status === 'needs_scope' ? 'connected' : conn?.status // reading and drafting still work without the newer permission
   const [q, setQ] = useState('')
   const [term, setTerm] = useState('')
   const [items, setItems] = useState<PickItem[]>([])

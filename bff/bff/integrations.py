@@ -134,6 +134,10 @@ _CHECKS = {
     "gdrive": ("GET", f"{DRIVE_API}/files", {"pageSize": 1, "fields": "files(id)"}, None),
     "gmail": ("GET", f"{GMAIL_API}/users/me/profile", None, None),
 }
+NEEDS_SCOPE_REASON = {
+    "gdrive": "Izin baru dibutuhkan agar agen bisa membuat, mengubah, dan memindahkan berkas. Agen tetap bisa mencari dan membaca.",
+    "gmail": "Izin baru dibutuhkan agar agen bisa merapikan dan mengirim email (dengan persetujuan Anda).",
+}
 _cache: dict[tuple, tuple[float, dict]] = {}  # shortcut: per process, lost on restart; fine for a 60 s cache
 
 
@@ -150,7 +154,8 @@ async def check(user_id: str, provider: str) -> dict:
 
 async def list_checked(user_id: str, fresh: bool = False) -> list[dict]:
     """connections.list_all, where every 'connected' entry has been checked at the provider (cached ~60 s).
-    A failed check turns it into status 'broken' with a friendly `reason`; green means the last check worked."""
+    A failed check turns it into status 'broken' with a friendly `reason`; green means the last check worked.
+    A working connection that lacks a permission the provider asks for now is 'needs_scope' (reads keep working)."""
     items = await connections.list_all(user_id)
 
     async def one(c: dict) -> None:
@@ -167,6 +172,8 @@ async def list_checked(user_id: str, fresh: bool = False) -> list[dict]:
         if not res["ok"]:
             c["status"] = "reconnect" if res.get("revoked") else "broken"
             c["reason"], c["needs"] = res["reason"], res["needs"]
+        elif await connections.missing_scopes(user_id, c["provider"]):  # still reads fine; only the newer write permissions are missing
+            c["status"], c["reason"] = "needs_scope", NEEDS_SCOPE_REASON[c["provider"]]
 
     await asyncio.gather(*(one(c) for c in items))
     return items

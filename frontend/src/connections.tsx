@@ -415,17 +415,18 @@ export function AppsPage() {
             {status === 'connected' && <CapChip cap="ok" label="Tersambung" />}
             {status === 'reconnect' && <CapChip cap="mock" label="Perlu disambungkan ulang" />}
             {status === 'broken' && <CapChip cap="mock" label="Perlu perbaikan" />}
+            {status === 'needs_scope' && <CapChip cap="mock" label="Perlu izin tambahan" />}
             {status === 'not_configured' && <CapChip cap="none" label={soon ? 'Segera hadir' : 'Belum diatur admin'} />}
           </div>
         </div>
         <p>{a.enables}</p>
-        {status === 'connected' && c.account && (
+        {(status === 'connected' || status === 'needs_scope') && c.account && (
           <p className="connect-acct">
             Tersambung sebagai <b>{c.account}</b>
           </p>
         )}
         {status === 'reconnect' && <p className="connect-warn">Izin akses sudah tidak berlaku. Hubungkan ulang agar bisa dipakai lagi.</p>}
-        {status === 'broken' && (
+        {(status === 'broken' || status === 'needs_scope') && (
           <p className="connect-warn" role="status">
             {c.reason ?? `${a.name} sedang bermasalah.`}
           </p>
@@ -468,20 +469,20 @@ export function AppsPage() {
               ) : (
                 <button
                   type="button"
-                  className={`btn ${status === 'reconnect' || status === 'broken' ? 'primary' : 'soft'}`}
+                  className={`btn ${status === 'reconnect' || status === 'broken' || status === 'needs_scope' ? 'primary' : 'soft'}`}
                   disabled={status === 'not_configured' || busy === id}
                   aria-describedby={status === 'not_configured' ? `why-${id}` : undefined}
                   onClick={() => void connect(id)}
                 >
-                  {status === 'reconnect' || status === 'broken' ? 'Sambungkan ulang' : 'Hubungkan'}
+                  {status === 'reconnect' || status === 'broken' || status === 'needs_scope' ? 'Sambungkan ulang' : 'Hubungkan'}
                 </button>
               )}
-              {(status === 'reconnect' || status === 'broken') && (
+              {(status === 'reconnect' || status === 'broken' || status === 'needs_scope') && (
                 <button type="button" className="btn link" disabled={busy === id} onClick={() => setAsking(id)}>
                   Putuskan
                 </button>
               )}
-              {status === 'connected' && id === 'gdrive' && pickDrive}
+              {(status === 'connected' || status === 'needs_scope') && id === 'gdrive' && pickDrive}
               {id === 'gmail' && (
                 <button type="button" className="btn link" aria-expanded={how} aria-controls="how-gmail" onClick={() => setHow((v) => !v)}>
                   {how ? 'Sembunyikan cara kerja' : 'Cara kerja tombol draf'}
@@ -496,7 +497,7 @@ export function AppsPage() {
 
   function appCard(a: HermesApp) {
     const on = a.status === 'connected'
-    const ownDrive = merged.get('gdrive') === a && by.get('gdrive')?.status === 'connected' // our Drive connection folded into this card
+    const ownDrive = merged.get('gdrive') === a && ['connected', 'needs_scope'].includes(by.get('gdrive')?.status ?? '') // our Drive connection folded into this card
     return (
       <li key={a.id} className="app-card" data-app={a.id} data-s={on ? 'connected' : 'disconnected'}>
         <div className="app-card-head">
@@ -556,7 +557,7 @@ export function AppsPage() {
   const oauthIds = (['gdrive', 'gmail'] as ConnProvider[]).filter((id) => by.has(id) && !merged.has(id))
   const linkedHermes = apps.filter((a) => a.status === 'connected')
   // an own connection folded into a Hermes card that is not itself connected still counts as linked, once
-  const linkedOauth = (Object.keys(OWN_AS_HERMES) as ConnProvider[]).filter((id) => by.get(id)?.status === 'connected' && (!merged.has(id) || merged.get(id)?.status !== 'connected') && by.has(id))
+  const linkedOauth = (Object.keys(OWN_AS_HERMES) as ConnProvider[]).filter((id) => ['connected', 'needs_scope'].includes(by.get(id)?.status ?? '') && (!merged.has(id) || merged.get(id)?.status !== 'connected') && by.has(id))
   const groups = cats
     .map((c) => ({
       c,
@@ -617,6 +618,7 @@ export function AppsPage() {
                   <li key={id}>
                     <AppLogo id={id} name={OAUTH_NAME[id]} size={24} fallback={<Mark id={id} />} />
                     <span>{OAUTH_NAME[id]}</span>
+                    {by.get(id)?.status === 'needs_scope' && <span className="warn-dot" role="img" aria-label="Perlu izin tambahan" title="Perlu izin tambahan" />}
                   </li>
                 ))}
                 {linkedHermes.map((a) => (

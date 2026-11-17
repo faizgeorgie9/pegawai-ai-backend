@@ -251,6 +251,15 @@ async def has_scope(user_id: str, provider: str, scope: str) -> bool:
     return bool(row) and scope in (row["scopes"] or [])
 
 
+async def missing_scopes(user_id: str, provider: str) -> list[str]:
+    """Permissions the provider asks for today that this saved consent lacks (empty when none, or when not connected)."""
+    row = await db.q1("select scopes from connections where user_id = %s and provider = %s", user_id, provider)
+    if not row:
+        return []
+    have = set(row["scopes"] or [])
+    return [s for s in PROVIDERS[provider][1] if s.startswith("https://") and s not in have]
+
+
 async def is_connected(user_id: str, provider: str) -> bool:
     return bool(await db.q1("select 1 as x from connections where user_id = %s and provider = %s and status = 'connected'", user_id, provider))
 
