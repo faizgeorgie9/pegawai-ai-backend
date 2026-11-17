@@ -54,6 +54,12 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
   const running = !!group?.running
 
   useEffect(() => {
+    if (!location.hash.includes('tulis=1')) return
+    const t = window.setTimeout(() => box.current?.focus(), 150) // "Minta tim Anda" on Beranda: the message box is ready
+    return () => window.clearTimeout(t)
+  }, [id, state])
+
+  useEffect(() => {
     viewing(groupPath(id))
     return () => viewing('')
   }, [id, viewing])
@@ -251,7 +257,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
     return (
       <section className="convo">
         <div className="page-state">
-          {loadState === 'loading' ? <p className="quiet">Memuat grup...</p> : loadState === 'error' ? <ErrorLine text="Grup belum bisa dimuat." onRetry={reload} /> : <p className="quiet">Grup tidak ditemukan. Mungkin sudah dihapus.</p>}
+          {loadState === 'loading' ? <p className="quiet">Memuat tim...</p> : loadState === 'error' ? <ErrorLine text="Tim belum bisa dimuat." onRetry={reload} /> : <p className="quiet">Tim tidak ditemukan. Mungkin sudah dihapus.</p>}
         </div>
       </section>
     )
@@ -259,10 +265,10 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
 
   return (
     <Split panel={<SidePanel scope={{ group_id: id }} version={pv} group={group} members={members} />}>
-    <section className="convo" aria-label={`Grup ${group.name}`}>
+    <section className="convo" aria-label={`Tim ${group.name}`}>
       <header className="convo-head">
         <button className="btn soft sm rail-open" onClick={onRail}>
-          Daftar grup
+          Daftar tim
         </button>
         <div className="convo-title">
           {renaming !== null ? (
@@ -271,7 +277,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
               autoFocus
               value={renaming}
               maxLength={60}
-              aria-label="Nama grup"
+              aria-label="Nama tim"
               onChange={(e) => setRenaming(e.target.value)}
               onBlur={() => void rename(renaming)}
               onKeyDown={(e) => {
@@ -281,7 +287,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
             />
           ) : (
             <h1>
-              <button className="title-btn" onClick={() => setRenaming(group.name)} aria-label={`Ubah nama grup ${group.name}`}>
+              <button className="title-btn" onClick={() => setRenaming(group.name)} aria-label={`Ubah nama tim ${group.name}`}>
                 {group.name}
                 <Icon d={PENCIL} size={14} />
               </button>
@@ -329,7 +335,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
                 ))}
               </span>
               <h2>Belum ada pesan</h2>
-              <p>Tulis tugas untuk grup ini. Sebut @nama untuk bertanya ke satu anggota; tanpa itu semua anggota ikut menjawab.</p>
+              <p>Tulis tugas untuk tim ini. Sebut @nama untuk bertanya ke satu anggota.</p>
             </div>
           )}
           {msgs.map((m) => (
@@ -359,7 +365,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
           }}
         >
           {options.length > 0 && (
-            <ul className="mention" role="listbox" aria-label="Anggota grup">
+            <ul className="mention" role="listbox" aria-label="Anggota tim">
               {options.map((b, i) => (
                 <li key={b.id} role="option" aria-selected={i === pick}>
                   <button type="button" className="mention-row" data-on={i === pick || undefined} onMouseDown={(e) => e.preventDefault()} onClick={() => choose(b)}>
@@ -374,7 +380,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
           <KbTrayView kb={kb} />
           {kbBusy && <KbLines busy />}
           <label className="sr" htmlFor="gmsg">
-            Pesan untuk grup {group.name}
+            Pesan untuk tim {group.name}
           </label>
           <textarea
             id="gmsg"
@@ -427,7 +433,9 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
             </button>
           </div>
         </form>
-        <p className="composer-note">Enter untuk kirim, Shift+Enter untuk baris baru.</p>
+        <p className="composer-note">
+          Enter untuk kirim, Shift+Enter untuk baris baru. <a href="#/marketing">Pakai formulir brief</a>
+        </p>
       </div>
     </section>
     </Split>

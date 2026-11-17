@@ -70,7 +70,7 @@ export function PlanCard({ groupId, messageId, plan, onApproved }: { groupId: st
           <b>Disetujui · terjadwal.</b> <a href="#/scheduler">Lihat jadwal</a>
         </p>
       ) : revised ? (
-        <p className="plan-done">Catatan revisi terkirim ke grup. Rencana baru akan muncul di sini.</p>
+        <p className="plan-done">Catatan revisi terkirim ke tim. Rencana baru akan muncul di sini.</p>
       ) : (
         <>
           <p className="plan-note">Setelah disetujui, hanya Writer dan Visual yang bekerja, satu hari satu kali sesuai jadwal.</p>

@@ -63,6 +63,7 @@ export const I = {
   down: 'M6 9l6 6 6-6',
   check: 'M20 6 9 17l-5-5',
   board: 'M4 4h5v16H4zM10 4h5v10h-5zM16 4h4v13h-4z',
+  book: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5zM4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5',
 }
 export const PENCIL = 'M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4'
 export const TRASH = 'M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13'
@@ -121,7 +122,7 @@ export function ThinkingBlock({ text, running, seconds, defaultOpen }: { text: s
   const steps = text.split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean)
   if (!steps.length && !running) return null
   const sum = thinkSummary(text)
-  const title = seconds ? `Berpikir selama ${dur(seconds)}` : 'Proses berpikir'
+  const title = seconds ? `Berpikir selama ${dur(seconds)}` : 'Langkah kerja'
   return (
     <div className="thinking" data-running={running || undefined}>
       <button type="button" className="thinking-head" aria-expanded={open} onClick={() => setOpen(!open)}>

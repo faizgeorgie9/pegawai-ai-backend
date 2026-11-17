@@ -149,7 +149,9 @@ export type ConnProvider = 'gdrive' | 'gmail' | 'notion'
 export interface Connection {
   provider: ConnProvider
   name: string
-  status: 'not_configured' | 'disconnected' | 'connected' | 'reconnect'
+  status: 'not_configured' | 'disconnected' | 'connected' | 'reconnect' | 'broken' // broken: connected, but the last check at the provider failed
+  reason?: string // broken: friendly sentence for the user
+  needs?: 'reconnect' | 'admin' | 'retry' // broken: who can fix it
   account: string | null
   connected_at: string | null
   redirect_uri: string // what the administrator registers at the provider
@@ -773,7 +775,7 @@ export const api = {
   kbAddLink: (url: string) => call<KbItem>('POST', '/kb/links', { url }),
   kbDelete: (id: string) => call<void>('DELETE', `/kb/items/${enc(id)}`),
   kbRefresh: (id: string) => call<KbItem>('POST', `/kb/items/${enc(id)}/refresh`),
-  connections: () => call<Connection[]>('GET', '/connections'),
+  connections: (fresh = false) => call<Connection[]>('GET', `/connections${fresh ? '?fresh=1' : ''}`),
   connectStart: (p: ConnProvider) => call<{ url: string }>('POST', `/connections/${p}/start`),
   disconnect: (p: ConnProvider) => call<void>('DELETE', `/connections/${p}`),
   driveFiles: async (q: string, page?: string | null): Promise<PickPage> => {

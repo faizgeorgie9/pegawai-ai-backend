@@ -17,7 +17,8 @@ const size = (n: number | null) => (n == null ? '' : n < 1024 * 1024 ? `${Math.m
 export function SourcePicker({ provider, onClose, onDone }: { provider: Extract<ConnProvider, 'gdrive' | 'notion'>; onClose: () => void; onDone: (ok: ImportResult[]) => void }) {
   const t = COPY[provider]
   const conns = useConnections()
-  const status = conns.data?.find((c) => c.provider === provider)?.status
+  const conn = conns.data?.find((c) => c.provider === provider)
+  const status = conn?.status
   const [q, setQ] = useState('')
   const [term, setTerm] = useState('')
   const [items, setItems] = useState<PickItem[]>([])
@@ -77,8 +78,9 @@ export function SourcePicker({ provider, onClose, onDone }: { provider: Extract<
               {status === 'not_configured' && `${t.name} belum diatur oleh administrator.`}
               {status === 'disconnected' && `${t.name} belum tersambung.`}
               {status === 'reconnect' && `Sambungan ${t.name} perlu disambungkan ulang.`}
+              {status === 'broken' && (conn?.reason ?? `${t.name} sedang bermasalah.`)}
             </p>
-            {status !== 'not_configured' && (
+            {status !== 'not_configured' && !(status === 'broken' && conn?.needs === 'admin') && (
               <a className="btn soft" href="#/aplikasi">
                 Buka Aplikasi
               </a>

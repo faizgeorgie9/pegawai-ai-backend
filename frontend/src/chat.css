@@ -475,3 +475,7 @@ textarea ~ .counter { align-self: flex-end; }
 .pcard-link { align-self: flex-start; font-size: 13px; color: var(--link); text-underline-offset: 3px; }
 .kb-chip[data-s="failed"] .kb-state { white-space: normal; }
 .kb-drive-link { color: inherit; text-underline-offset: 3px; font-weight: 500; }
+
+/* Chat list: the team's main contact and roles that wrap instead of being cut */
+.bot-text small.lead { align-self: flex-start; padding: 0 var(--s-2); margin: 1px 0; border-radius: 999px; background: var(--accent-wash); color: var(--accent-ink); font-size: 12px; font-weight: 600; }
+.bot-text small.st { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; line-height: 1.3; }

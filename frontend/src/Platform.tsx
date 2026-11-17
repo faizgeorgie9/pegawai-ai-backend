@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useAdminMode } from './adminMode'
 import { api } from './bff'
 import { ErrorLine } from './ui'
 import { BlockedBanner, CapChip, Empty, Loading, OFF_WHY, PageHead, SampleBadge, toolsetText, useLoad } from './ui-extra'
@@ -173,12 +174,14 @@ const TABS = [
 ] as const
 
 export function Kemampuan({ tab }: { tab: Extract<Route['name'], 'tools' | 'computer-use' | 'scheduler'> }) {
-  const i = TABS.findIndex((t) => t.name === tab)
+  const admin = useAdminMode()
+  const tabs = TABS.filter((t) => admin || t.name !== 'computer-use' || tab === 'computer-use') // Computer Use is an admin screen; a direct link still opens it
+  const i = tabs.findIndex((t) => t.name === tab)
   function onKey(e: React.KeyboardEvent) {
     const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
     if (!d) return
     e.preventDefault()
-    const n = TABS[(i + d + TABS.length) % TABS.length]
+    const n = tabs[(i + d + tabs.length) % tabs.length]
     go(n.path, true)
     document.getElementById('tab-' + n.name)?.focus()
   }
@@ -186,7 +189,7 @@ export function Kemampuan({ tab }: { tab: Extract<Route['name'], 'tools' | 'comp
     <section className="page">
       <PageHead title="Kemampuan" sub="Apa yang bisa dan belum bisa dipakai agen." />
       <div className="tabs" role="tablist" aria-label="Kemampuan" onKeyDown={onKey}>
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <a key={t.name} id={'tab-' + t.name} role="tab" href={'#' + t.path} aria-selected={t.name === tab} aria-controls="tabpanel" tabIndex={t.name === tab ? 0 : -1}>
             {t.label}
             {t.name === 'computer-use' && <span className="tab-tag">Nonaktif</span>}

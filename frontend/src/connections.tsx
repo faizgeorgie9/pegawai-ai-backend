@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api, errText } from './bff'
+import { useAdminMode } from './adminMode'
 import type { ConnProvider, Connection } from './bff'
 import { go } from './router'
 import { SourcePicker } from './pick-ui'
@@ -12,33 +13,33 @@ type AppDef = { name: string; enables: string; where: string }
 const APPS: Record<ConnProvider, AppDef> = {
   gdrive: {
     name: 'Google Drive',
-    enables: 'Pilih dokumen, spreadsheet, slide, atau PDF dari Drive Anda dan simpan ke Knowledge Base, tanpa harus dibagikan ke publik. Anda hanya memberi izin membaca.',
-    where: 'Pengaturan > Knowledge base (Pilih dari Drive), menu lampiran di chat, dan link Drive pribadi yang Anda tempel di chat.',
+    enables: 'Agen membaca berkas Drive setelah Anda menambahkannya ke Pengetahuan; agen tidak membuka Drive sendiri.',
+    where: 'Halaman Pengetahuan dan lampiran chat.',
   },
   gmail: {
     name: 'Gmail',
-    enables: 'Simpan jawaban agen sebagai draf di Gmail Anda. Anda memberi izin membuat draf saja. Email tidak pernah dikirim otomatis.',
-    where: 'Tombol "Simpan sebagai draf Gmail" di bawah jawaban agen, di chat dan di grup.',
+    enables: 'Simpan jawaban agen sebagai draf di Gmail Anda; email tidak pernah dikirim otomatis.',
+    where: 'Tombol "Simpan sebagai draf Gmail" di bawah jawaban agen.',
   },
   notion: {
     name: 'Notion',
-    enables: 'Pilih halaman Notion yang Anda bagikan ke aplikasi ini dan simpan ke Knowledge Base, seperti berkas biasa.',
-    where: 'Pengaturan > Knowledge base (Pilih dari Notion).',
+    enables: 'Simpan halaman Notion yang Anda bagikan ke Pengetahuan, seperti berkas biasa.',
+    where: 'Halaman Pengetahuan.',
   },
 }
 const GROUPS: { id: string; title: string; note: string; apps: ConnProvider[] }[] = [
-  { id: 'google', title: 'Google Workspace', note: 'Satu akun Google, dua izin terpisah. Anda boleh menyambungkan salah satunya saja.', apps: ['gdrive', 'gmail'] },
-  { id: 'notion', title: 'Notion', note: 'Hanya halaman yang Anda bagikan ke aplikasi ini yang bisa dibaca.', apps: ['notion'] },
+  { id: 'google', title: 'Google Workspace', note: 'Satu akun Google, dua izin terpisah.', apps: ['gdrive', 'gmail'] },
+  { id: 'notion', title: 'Notion', note: 'Hanya halaman yang Anda bagikan yang bisa dibaca.', apps: ['notion'] },
 ]
 const SOON = [
-  { id: 'whatsapp', name: 'WhatsApp', text: 'Ngobrol dengan agen lewat WhatsApp. Belum tersedia dan belum dikerjakan, jadi belum ada yang bisa disambungkan.' },
-  { id: 'telegram', name: 'Telegram', text: 'Ngobrol dengan agen lewat Telegram. Belum tersedia dan belum dikerjakan, jadi belum ada yang bisa disambungkan.' },
+  { id: 'whatsapp', name: 'WhatsApp', text: 'Ngobrol dengan agen lewat WhatsApp.' },
+  { id: 'telegram', name: 'Telegram', text: 'Ngobrol dengan agen lewat Telegram.' },
 ]
 
 const WHY: Record<string, string> = {
   denied: 'Izin tidak diberikan, jadi akun belum tersambung.',
   state: 'Permintaan sambungan sudah kedaluwarsa atau tidak dikenal. Coba hubungkan lagi.',
-  exchange: 'Aplikasi tidak menerima sambungan ini. Coba lagi. Jika terus gagal, hubungi administrator.',
+  exchange: 'Sambungan tidak diterima. Coba lagi; jika terus gagal, hubungi admin Anda.',
   scope: 'Izin yang diperlukan tidak dicentang. Hubungkan lagi dan centang semua izin yang diminta.',
 }
 
@@ -139,6 +140,7 @@ function AdminHint({ c }: { c: Connection }) {
 
 export function AppsPage() {
   const conns = useConnections()
+  const admin = useAdminMode()
   const [result] = useState(readResult)
   const [problem, setProblem] = useState('')
   const [busy, setBusy] = useState<ConnProvider | null>(null)
@@ -173,6 +175,17 @@ export function AppsPage() {
     setBusy(null)
   }
 
+  async function recheck(id: ConnProvider) {
+    setBusy(id)
+    try {
+      await api.connections(true) // bypass the 60 s cache, then reload the list (served from the fresh cache)
+    } catch {
+      /* the reload below shows the error */
+    }
+    conns.retry()
+    setBusy(null)
+  }
+
   const by = new Map<string, Connection>((conns.data ?? []).map((c) => [c.provider, c]))
 
   function row(id: ConnProvider) {
@@ -180,6 +193,8 @@ export function AppsPage() {
     const c = by.get(id)
     if (!c) return null
     const status = c.status
+    const soon = status === 'not_configured' && !admin // not set up by the admin: users only see "Segera hadir"
+    const mustAsk = status === 'broken' && c.needs === 'admin'
     return (
       <li key={id} className="app-row" data-app={id} data-s={status}>
         <div className="app-mark">
@@ -190,8 +205,9 @@ export function AppsPage() {
             <h3>{a.name}</h3>
             {status === 'connected' && <CapChip cap="ok" label="Tersambung" />}
             {status === 'reconnect' && <CapChip cap="mock" label="Perlu disambungkan ulang" />}
+            {status === 'broken' && <CapChip cap="mock" label="Perlu perbaikan" />}
             {status === 'disconnected' && <CapChip cap="unknown" label="Belum tersambung" />}
-            {status === 'not_configured' && <CapChip cap="none" label="Belum diatur admin" />}
+            {status === 'not_configured' && <CapChip cap="none" label={soon ? 'Segera hadir' : 'Belum diatur admin'} />}
           </div>
           <p>{a.enables}</p>
           <p className="quiet small">
@@ -203,7 +219,12 @@ export function AppsPage() {
             </p>
           )}
           {status === 'reconnect' && <p className="connect-warn">Izin akses sudah tidak berlaku. Hubungkan ulang agar bisa dipakai lagi.</p>}
-          {status === 'not_configured' && (
+          {status === 'broken' && (
+            <p className="connect-warn" role="status">
+              {c.reason ?? `${a.name} sedang bermasalah.`}
+            </p>
+          )}
+          {status === 'not_configured' && admin && (
             <p className="quiet small" id={`why-${id}`}>
               Administrator belum mengatur {a.name}, jadi belum bisa disambungkan.
             </p>
@@ -213,7 +234,7 @@ export function AppsPage() {
               Di bawah setiap jawaban agen ada tombol &ldquo;Simpan sebagai draf Gmail&rdquo;. Anda bisa mengubah penerima, subjek, dan isinya dulu. Hasilnya hanya draf di Gmail Anda. Anda sendiri yang membuka dan mengirimnya.
             </p>
           )}
-          {status === 'not_configured' && <AdminHint c={c} />}
+          {status === 'not_configured' && admin && <AdminHint c={c} />}
         </div>
         <div className="app-act">
           {asking === id ? (
@@ -232,18 +253,22 @@ export function AppsPage() {
                 <button type="button" className="btn soft" disabled={busy === id} onClick={() => setAsking(id)}>
                   Putuskan
                 </button>
+              ) : soon ? null : status === 'broken' && c.needs !== 'reconnect' ? (
+                <button type="button" className="btn primary" disabled={busy === id} onClick={() => void recheck(id)}>
+                  {mustAsk ? 'Sudah diaktifkan? Periksa lagi' : 'Periksa lagi'}
+                </button>
               ) : (
                 <button
                   type="button"
-                  className={`btn ${status === 'reconnect' ? 'primary' : 'soft'}`}
+                  className={`btn ${status === 'reconnect' || status === 'broken' ? 'primary' : 'soft'}`}
                   disabled={status === 'not_configured' || busy === id}
                   aria-describedby={status === 'not_configured' ? `why-${id}` : undefined}
                   onClick={() => void connect(id)}
                 >
-                  {status === 'reconnect' ? 'Hubungkan ulang' : 'Hubungkan'}
+                  {status === 'reconnect' || status === 'broken' ? 'Sambungkan ulang' : 'Hubungkan'}
                 </button>
               )}
-              {status === 'reconnect' && (
+              {(status === 'reconnect' || status === 'broken') && (
                 <button type="button" className="btn link" disabled={busy === id} onClick={() => setAsking(id)}>
                   Putuskan
                 </button>
@@ -275,7 +300,7 @@ export function AppsPage() {
       )}
       {saved && (
         <p className="note-box connect-ok" role="status">
-          {saved} <a href="#/pengaturan/knowledge">Lihat di Knowledge base</a>
+          {saved} <a href="#/pengetahuan">Lihat di Pengetahuan</a>
         </p>
       )}
       {problem && (
@@ -317,7 +342,7 @@ export function AppsPage() {
           ))}
         </ul>
       </section>
-      {picker && createPortal(<SourcePicker provider={picker} onClose={() => setPicker(null)} onDone={(ok) => setSaved(`${ok.length} item disimpan ke Knowledge base.`)} />, document.body)}
+      {picker && createPortal(<SourcePicker provider={picker} onClose={() => setPicker(null)} onDone={(ok) => setSaved(`${ok.length} item disimpan ke Pengetahuan.`)} />, document.body)}
     </section>
   )
 }

@@ -345,3 +345,25 @@ td.st-col { min-width: 170px; }
 .src-row input { flex: none; width: 18px; height: 18px; }
 .src-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .src-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+
+/* Beranda: onboarding checklist and the "today" panels */
+.onboard { gap: var(--s-3); padding-bottom: var(--s-4); }
+.onb-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); }
+.onb-head h2 { padding-bottom: 0; }
+.onb-list { display: flex; flex-direction: column; }
+.onb-step { display: flex; align-items: center; gap: var(--s-3); min-height: 52px; padding: var(--s-2) 0; }
+.onb-step + .onb-step { border-top: 1px solid var(--rule); }
+.onb-mark { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border: 1.5px solid var(--border); border-radius: 50%; color: var(--ok-ink); }
+.onb-step[data-done] .onb-mark { background: var(--ok-bg); border-color: transparent; }
+.onb-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.onb-text small { font-size: var(--t-small); color: var(--muted); }
+.onb-step[data-done] .onb-text b { color: var(--muted); font-weight: 500; text-decoration: line-through; }
+.today-main { display: flex; flex-direction: column; gap: var(--gap); }
+.cost-card { gap: var(--s-2); padding-bottom: var(--s-4); }
+.cost-card .cost-spent { font-size: 28px; font-weight: 500; line-height: 1.15; }
+.state-note { padding: var(--s-3) 0 var(--s-4); }
+
+/* Jadwal & tugas: Agen, Tim and Hasil sit behind the Filter button */
+.kb-more { flex-basis: 100%; justify-content: flex-end; }
+.kb-more[hidden] { display: none; }
+@media (max-width: 640px) { .kb-more { justify-content: flex-start; } }

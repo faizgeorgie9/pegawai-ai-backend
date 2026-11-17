@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError, api, asStr, errText, isAbort, newKey, subscribe, toClarify, usageOf } from './bff'
 import type { Bot, ChatMessage, Session, SseState } from './bff'
+import { useAdminMode } from './adminMode'
 import { useData } from './data'
 import { Cs21Card } from './ResultCards'
 import { partialReplyDraft, toCs21 } from './results'
@@ -30,6 +31,7 @@ type Problem = { text: string; upgrade?: boolean } | null
 export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: Bot; sid?: string; sessions: Session[]; onSessions: () => void; onRail: () => void }) {
   const [pv, setPv] = useState(0) // bumped whenever the side panel's data may have changed
   const bump = () => setPv((n) => n + 1)
+  const admin = useAdminMode()
   const { setDialog, askNotify, refreshMe, viewing, runs } = useData()
   const attached = useRef('') // last run this view followed, so a run is never attached twice
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -80,7 +82,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
           }),
         )
       },
-      () => {}, // optional: the block falls back to "Proses berpikir"
+      () => {}, // optional: the block falls back to "Tampilkan langkah kerja"
     )
   }
 
@@ -347,7 +349,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
           <h1>{bot.name}</h1>
           <p>
             {bot.role} · {statusText(bot)}
-            {active?.model && active.messageCount !== -1 ? ` · ${active.model}` : ''}
+            {admin && active?.model && active.messageCount !== -1 ? ` · ${active.model}` : ''}
           </p>
         </div>
         <button className="btn soft sm convo-new" title="Mulai percakapan baru, riwayat lama tetap ada" onClick={() => go(botPath(bot.id))}>
@@ -355,7 +357,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
         </button>
         <button className="switch" role="switch" aria-checked={showThink} onClick={toggleThink}>
           <span className="knob" aria-hidden="true" />
-          Proses berpikir
+          Tampilkan langkah kerja
         </button>
         <PanelButtons />
       </header>
@@ -501,6 +503,7 @@ function Message(p: {
   onAnswer: (text: string) => Promise<void>
 }) {
   const { m, bot, live } = p
+  const admin = useAdminMode() // model names and token counts are admin detail
   const cs = useMemo(() => (m.role === 'assistant' ? csFromText(m.content) : null), [m.role, m.content])
   const draft = useMemo(() => (live && m.role === 'assistant' ? partialReplyDraft(m.content) : null), [live, m.role, m.content]) // CS reply while its JSON is still open
   const sm = useSmoothText(m.content, live && m.role === 'assistant')
@@ -569,7 +572,7 @@ function Message(p: {
           </p>
         )}
         {m.stopped && <p className="meta">Dihentikan.</p>}
-        {m.tokens && !live && (
+        {admin && m.tokens && !live && (
           <p className="meta num">
             {[p.model, `${nf.format(m.tokens.input)} masuk, ${nf.format(m.tokens.output)} keluar`].filter(Boolean).join(' · ')}
           </p>

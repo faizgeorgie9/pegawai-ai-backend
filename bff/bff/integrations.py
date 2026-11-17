@@ -2,7 +2,10 @@
 Provider calls go through _request: it adds the user's token and turns provider failures into plain Indonesian errors."""
 import asyncio
 import base64
+import json as jsonlib
+import logging
 import re
+import time
 from email.message import EmailMessage
 from urllib.parse import quote
 
@@ -10,6 +13,8 @@ import httpx
 
 from . import connections, db, kb
 from .errors import ApiError
+
+log = logging.getLogger("bff.integrations")
 
 DRIVE_API = "https://www.googleapis.com/drive/v3"
 GMAIL_API = "https://gmail.googleapis.com/gmail/v1"
@@ -32,6 +37,32 @@ NOTION_MAX_REQUESTS = 60            # block-children calls per page (100 blocks 
 ID_RE = re.compile(r"[\w-]{5,200}")
 
 # ---------- shared request ----------
+
+
+def _reasons(body: bytes) -> set[str]:
+    """Machine reasons inside a Google / Notion error body (e.g. accessNotConfigured, SERVICE_DISABLED). Never the message or any data."""
+    try:
+        d = jsonlib.loads(body)
+    except ValueError:
+        return set()
+    e = d.get("error") if isinstance(d, dict) else None
+    out = {str(d.get("code"))} if isinstance(d, dict) and d.get("code") else set()
+    if isinstance(e, dict):
+        out |= {str(x.get("reason")) for x in [*(e.get("errors") or []), *(e.get("details") or [])] if isinstance(x, dict) and x.get("reason")}
+        if e.get("status"):
+            out.add(str(e["status"]))
+    return out
+
+
+def _denied(provider: str, name: str, body: bytes) -> ApiError:
+    """403 from the provider -> a plain message and what the user can do. The provider's own body is only logged (reasons, no data)."""
+    reasons = _reasons(body)
+    log.warning("%s answered 403: %s", provider, ", ".join(sorted(reasons)) or "no reason given")
+    if reasons & {"accessNotConfigured", "SERVICE_DISABLED"}:
+        return ApiError(503, f"Layanan {name} belum diaktifkan oleh admin. Hubungi admin Anda.", needs="admin")
+    if reasons & {"insufficientPermissions", "ACCESS_TOKEN_SCOPE_INSUFFICIENT"}:
+        return ApiError(403, f"Izin {name} kurang. Sambungkan ulang dan centang semua izin.", needs="reconnect")
+    return ApiError(403, f"{name} menolak permintaan ini. Periksa izin akun Anda atau hubungkan ulang.")
 
 
 async def _request(user_id: str, provider: str, method: str, url: str, *, params=None, json=None, headers=None, cap: int = kb.MAX_PAGE_BYTES,
@@ -60,7 +91,7 @@ async def _request(user_id: str, provider: str, method: str, url: str, *, params
         await connections.mark_reconnect(user_id, provider)
         raise ApiError(409, connections.RECONNECT_MSG.format(name=name), needs="reconnect")
     if status == 403:
-        raise ApiError(403, f"{name} menolak permintaan ini. Periksa izin akun Anda atau hubungkan ulang.")
+        raise _denied(provider, name, bytes(body))
     if status == 404:
         raise ApiError(404, f"Item tidak ditemukan di {name}. Mungkin sudah dihapus atau belum dibagikan ke aplikasi ini.")
     if status == 429:
@@ -97,6 +128,51 @@ async def _import_many(user_id: str, ids: list[str], one) -> list[dict]:
                 raise
             out.append({"id": None, "name": i, "status": "failed", "error": e.message})
     return out
+
+# ---------- honest connection status ----------
+
+CHECK_TTL = 60.0
+_CHECKS = {
+    "gdrive": ("GET", f"{DRIVE_API}/files", {"pageSize": 1, "fields": "files(id)"}, None),
+    "gmail": ("GET", f"{GMAIL_API}/users/me/profile", None, None),
+    "notion": ("GET", f"{NOTION_API}/users/me", None, {"Notion-Version": NOTION_VERSION}),
+}
+_cache: dict[tuple, tuple[float, dict]] = {}  # shortcut: per process, lost on restart; fine for a 60 s cache
+
+
+async def check(user_id: str, provider: str) -> dict:
+    """One light call to the provider: {"ok": True} or {"ok": False, "reason", "needs"}. needs: reconnect | admin | retry."""
+    method, url, params, headers = _CHECKS[provider]
+    try:
+        await _request(user_id, provider, method, url, params=params, headers=headers, cap=64 * 1024)
+    except ApiError as e:
+        return {"ok": False, "reason": e.message, "needs": e.extra.get("needs") if e.extra.get("needs") in ("reconnect", "admin") else "retry",
+                "revoked": e.status == 409}  # 409: the grant itself is gone (status 'reconnect', already saved by _request)
+    return {"ok": True}
+
+
+async def list_checked(user_id: str, fresh: bool = False) -> list[dict]:
+    """connections.list_all, where every 'connected' entry has been checked at the provider (cached ~60 s).
+    A failed check turns it into status 'broken' with a friendly `reason`; green means the last check worked."""
+    items = await connections.list_all(user_id)
+
+    async def one(c: dict) -> None:
+        if c["status"] != "connected":
+            return
+        key = (user_id, c["provider"], str(c["connected_at"]))  # a new consent changes connected_at, so it is checked again
+        hit = _cache.get(key)
+        if hit and not fresh and time.monotonic() - hit[0] < CHECK_TTL:
+            res = hit[1]
+        else:
+            res = await check(user_id, c["provider"])
+            if res.get("needs") != "retry":  # a timeout is not a verdict: ask again next time
+                _cache[key] = (time.monotonic(), res)
+        if not res["ok"]:
+            c["status"] = "reconnect" if res.get("revoked") else "broken"
+            c["reason"], c["needs"] = res["reason"], res["needs"]
+
+    await asyncio.gather(*(one(c) for c in items))
+    return items
 
 # ---------- Google Drive ----------
 

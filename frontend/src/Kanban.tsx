@@ -5,13 +5,13 @@ import { useData } from './data'
 import { BotAvatar, ErrorLine, botColor, stamp } from './ui'
 import { Empty, Loading } from './ui-extra'
 
-const SOURCE: Record<KanbanCard['source'], string> = { chat: 'Chat', group: 'Grup', schedule: 'Jadwal', sequence: 'Evaluasi', plan: 'Rencana', hermes: 'Papan agen' }
+const SOURCE: Record<KanbanCard['source'], string> = { chat: 'Chat', group: 'Tim', schedule: 'Jadwal', sequence: 'Evaluasi', plan: 'Rencana', hermes: 'Tugas agen' }
 const OUTCOME = { failed: 'Gagal', cancelled: 'Dibatalkan' } as const
 const COLUMN_HINT: Record<string, string> = {
-  todo: 'Menunggu giliran atau waktunya',
-  running: 'Sedang dikerjakan agen',
-  blocked: 'Butuh jawaban, persetujuan, atau jadwalnya terhenti',
-  done: 'Hasil yang sudah ada, termasuk yang gagal atau dibatalkan',
+  todo: 'Menunggu giliran',
+  running: 'Sedang dikerjakan',
+  blocked: 'Butuh Anda',
+  done: 'Sudah selesai',
 }
 const PERIODS: [string, string][] = [['today', 'Hari ini'], ['7d', '7 hari terakhir'], ['30d', '30 hari terakhir']]
 
@@ -64,6 +64,7 @@ export default function Kanban() {
   const [agent, setAgent] = useState('')
   const [group, setGroup] = useState('')
   const [period, setPeriod] = useState('7d')
+  const [filterOpen, setFilterOpen] = useState(false)
   const [result, setResult] = useState('') // '' | 'ok' | 'bad': what the Selesai column shows
   const [board, setBoard] = useState<KanbanBoard | null>(null)
   const [state, setState] = useState<'loading' | 'ok' | 'error'>('loading')
@@ -122,10 +123,25 @@ export default function Kanban() {
     <section className="page kanban" aria-labelledby="kb-h">
       <header className="page-head">
         <div>
-          <h1 id="kb-h">Kanban</h1>
-          <p className="quiet">Semua pekerjaan agen Anda dalam satu papan: chat, grup, jadwal, dan evaluasi. Papan ini hanya menampilkan, tidak mengubah apa pun.</p>
+          <h1 id="kb-h">Jadwal &amp; tugas</h1>
+          <p className="quiet">Semua pekerjaan agen Anda dalam satu papan.</p>
         </div>
         <div className="filters">
+          <label className="field inline">
+            <span>Periode</span>
+            <select value={period} onChange={(e) => setPeriod(e.target.value)}>
+              {PERIODS.map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button" className="btn outline" aria-expanded={filterOpen} aria-controls="kb-filters" onClick={() => setFilterOpen(!filterOpen)}>
+            Filter{agent || group || result ? ` (${[agent, group, result].filter(Boolean).length})` : ''}
+          </button>
+        </div>
+        <div className="filters kb-more" id="kb-filters" hidden={!filterOpen}>
           <label className="field inline">
             <span>Agen</span>
             <select value={agent} onChange={(e) => setAgent(e.target.value)}>
@@ -138,22 +154,12 @@ export default function Kanban() {
             </select>
           </label>
           <label className="field inline">
-            <span>Grup</span>
+            <span>Tim</span>
             <select value={group} onChange={(e) => setGroup(e.target.value)}>
-              <option value="">Semua grup</option>
+              <option value="">Semua tim</option>
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field inline">
-            <span>Periode</span>
-            <select value={period} onChange={(e) => setPeriod(e.target.value)}>
-              {PERIODS.map(([v, l]) => (
-                <option key={v} value={v}>
-                  {l}
                 </option>
               ))}
             </select>
@@ -169,18 +175,12 @@ export default function Kanban() {
         </div>
       </header>
 
-      {board && board.hermes.state !== 'ok' && (
-        <p className="note-box" role="status">
-          {board.hermes.state === 'pending' ? 'Papan agen sedang dicek.' : 'Papan agen belum terhubung.'} Papan ini memakai data dari server kami sendiri.
-        </p>
-      )}
-      {board?.hermes.state === 'ok' && <p className="quiet small">Papan agen terhubung (hanya dibaca){board.hermes.count ? `: ${board.hermes.count} tugas ikut tampil` : ', belum ada tugas'}.</p>}
 
       {state === 'loading' && <Loading text="Memuat papan..." shape="ledger" />}
       {state === 'error' && <ErrorLine text={error} onRetry={() => load()} />}
       {state === 'ok' && total === 0 && (
         <Empty title={filtered ? 'Tidak ada tugas yang cocok' : 'Belum ada tugas'}>
-          {filtered ? 'Coba ubah filter di atas.' : 'Saat Anda mengobrol dengan agen, memakai grup, atau membuat jadwal, pekerjaannya muncul di papan ini.'}
+          {filtered ? 'Coba ubah filter.' : 'Pekerjaan agen muncul di sini.'}
         </Empty>
       )}
       {state === 'ok' && total > 0 && (
@@ -202,7 +202,7 @@ export default function Kanban() {
                   ))}
                 </ul>
               )}
-              {c.total > c.cards.length && result === '' && <p className="quiet small">dan {c.total - c.cards.length} lainnya. Persempit dengan filter.</p>}
+              {c.total > c.cards.length && result === '' && <p className="quiet small">dan {c.total - c.cards.length} lainnya. Persempit dengan Filter.</p>}
             </section>
           ))}
         </div>

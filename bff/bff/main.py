@@ -478,8 +478,8 @@ async def kb_refresh(item_id: str):
 # ---------- connections (Google Drive, Gmail, Notion) ----------
 
 @api.get("/connections")
-async def connections_list():
-    return await connections.list_all(current_user())
+async def connections_list(fresh: bool = False):
+    return await integrations.list_checked(current_user(), fresh)
 
 
 @api.post("/connections/{provider}/start")

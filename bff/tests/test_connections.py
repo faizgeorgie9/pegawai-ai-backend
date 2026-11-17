@@ -525,3 +525,73 @@ async def test_gmail_draft_request(db):
     with pytest.raises(ApiError) as e:  # a Drive-only user has no Gmail connection
         await integrations.gmail_draft(uid(), "a@b.com", "s", "b")
     assert e.value.extra["needs"] == "connect"
+
+
+# ---------- provider errors and honest status ----------
+
+def google_err(*reasons, code=403):
+    return json.dumps({"error": {"code": code, "message": "secret detail", "errors": [{"reason": r} for r in reasons]}}).encode()
+
+
+def test_403_body_is_mapped_to_what_the_user_can_do(caplog):
+    e = integrations._denied("gdrive", "Google Drive", google_err("accessNotConfigured"))
+    assert e.status == 503 and e.extra["needs"] == "admin" and e.message == "Layanan Google Drive belum diaktifkan oleh admin. Hubungi admin Anda."
+    disabled = json.dumps({"error": {"status": "PERMISSION_DENIED", "details": [{"reason": "SERVICE_DISABLED"}]}}).encode()
+    assert integrations._denied("gmail", "Gmail", disabled).extra["needs"] == "admin"
+    e = integrations._denied("gdrive", "Google Drive", google_err("insufficientPermissions"))
+    assert e.status == 403 and e.extra["needs"] == "reconnect" and e.message == "Izin Google Drive kurang. Sambungkan ulang dan centang semua izin."
+    other = integrations._denied("gdrive", "Google Drive", google_err("rateLimitExceeded"))
+    assert other.status == 403 and "needs" not in other.extra
+    assert "menolak" in integrations._denied("notion", "Notion", b"not json").message
+    assert "secret detail" not in caplog.text and "accessNotConfigured" in caplog.text  # reason is logged, the Google message is not
+
+
+@pytest.fixture
+def fake_drive(monkeypatch):
+    """Drive connected for one user without a database: list_all and the token are stubbed, the provider call is real (respx)."""
+    async def list_all(user_id):
+        return [{"provider": "gdrive", "name": "Google Drive", "status": "connected", "connected_at": "t1"},
+                {"provider": "gmail", "name": "Gmail", "status": "disconnected", "connected_at": None}]
+
+    async def token(user_id, provider):
+        return "at-1"
+    monkeypatch.setattr(connections, "list_all", list_all)
+    monkeypatch.setattr(connections, "access_token", token)
+    integrations._cache.clear()
+
+
+def test_disabled_api_makes_the_connection_broken_not_green(fake_drive):
+    asyncio.run(_test_disabled_api_makes_the_connection_broken_not_green())
+
+
+async def _test_disabled_api_makes_the_connection_broken_not_green():
+    with respx.mock:
+        r = respx.get(f"{integrations.DRIVE_API}/files").respond(403, content=google_err("accessNotConfigured"))
+        got = {c["provider"]: c for c in await integrations.list_checked("u1")}
+        d = got["gdrive"]
+        assert d["status"] == "broken" and d["needs"] == "admin" and "belum diaktifkan oleh admin" in d["reason"]
+        assert "secret detail" not in json.dumps(got)
+        assert qs(str(r.calls[0].request.url))["pageSize"] == "1"
+        await integrations.list_checked("u1")
+        assert r.call_count == 1  # the verdict is cached for a minute
+        with pytest.raises(ApiError) as e:
+            await integrations.drive_list("u1")
+        assert e.value.status == 503 and e.value.extra["needs"] == "admin"
+    assert got["gmail"]["status"] == "disconnected"
+
+
+def test_working_connection_is_checked_once_and_stays_connected(fake_drive):
+    asyncio.run(_test_working_connection_is_checked_once_and_stays_connected())
+
+
+async def _test_working_connection_is_checked_once_and_stays_connected():
+    with respx.mock:
+        r = respx.get(f"{integrations.DRIVE_API}/files").respond(json={"files": []})
+        for _ in range(2):
+            assert {c["provider"]: c["status"] for c in await integrations.list_checked("u1")}["gdrive"] == "connected"
+        assert r.call_count == 1
+        await integrations.list_checked("u1", fresh=True)
+        assert r.call_count == 2
+        r.respond(403, content=google_err("insufficientPermissions"))
+        c = {c["provider"]: c for c in await integrations.list_checked("u1", fresh=True)}["gdrive"]
+    assert c["status"] == "broken" and c["needs"] == "reconnect" and "Sambungkan ulang" in c["reason"]
