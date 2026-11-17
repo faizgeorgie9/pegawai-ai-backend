@@ -1,7 +1,7 @@
 # Spec: Aplikasi mencakup Hermes + buka ulang berkas Pengetahuan (Sprint 4)
 
 Keputusan user (17 Nov 2026), jangan dibuka ulang:
-- Halaman Aplikasi = **gabungan**: katalog konektor Hermes (54 aplikasi lewat Nous Portal, `hermes connectors`) + koneksi OAuth milik kita (Drive, Gmail, Notion untuk Pengetahuan, tetap seperti sekarang).
+- Halaman Aplikasi = **gabungan**: katalog konektor Hermes (54 aplikasi lewat Nous Portal, `hermes connectors`) + koneksi OAuth milik kita (Drive dan Gmail, tetap seperti sekarang; Notion hanya lewat konektor Hermes).
 - Selain konektor, yang ditampilkan untuk user awam hanya **kemampuan bawaan** Hermes (toolset) sebagai "Keahlian agen". **Tidak** menampilkan kanal pesan (WhatsApp/Telegram/Slack/Discord) dan **tidak** ada MCP kustom.
 - Pengetahuan: berkas yang diunggah bisa dibuka lagi.
 
@@ -24,7 +24,7 @@ Fakta lingkungan: Hermes home `%LOCALAPPDATA%\hermes`, profil per agen di `profi
 3. Frontend halaman Aplikasi, urutan:
    - Judul "Aplikasi" + satu kalimat: "Hubungkan aplikasi yang Anda pakai agar agen bisa membantu di sana."
    - Kotak cari + chip kategori.
-   - "Tersambung" (kartu kecil) di atas, lalu katalog per kategori dalam grid kartu ringkas: logo/inisial, nama, satu kalimat, tombol "Hubungkan"/"Putuskan". Drive/Gmail/Notion yang OAuth kita tampil di grid yang sama (kategori Dokumen & catatan / Komunikasi) dengan perilaku sekarang (picker, draf Gmail) — jangan hilangkan fungsinya.
+   - "Tersambung" (kartu kecil) di atas, lalu katalog per kategori dalam grid kartu ringkas: logo/inisial, nama, satu kalimat, tombol "Hubungkan"/"Putuskan". Drive/Gmail yang OAuth kita tampil di grid yang sama (kategori Dokumen & catatan / Komunikasi) dengan perilaku sekarang (picker, draf Gmail) — jangan hilangkan fungsinya.
    - Saat menghubungkan: dialog langkah sederhana ("Anda akan diarahkan ke halaman login aplikasi… setelah selesai, kembali ke sini") + status menunggu.
    - Bagian "Keahlian agen": kartu per kemampuan bawaan dengan nama awam + satu kalimat (Cari di internet, Buat gambar, Baca gambar, Ubah teks jadi suara, Ingatan, Rencana tugas, dll.), menunjukkan agen mana yang memakainya, dan tombol "Atur" yang membuka pilihan per agen (saklar). Tab alat di detail Agen memakai saklar yang sama.
    - Tanpa kata: MCP, connector, toolset, OAuth, Nous, Portal, API, CLI, profil, gateway. Info teknis hanya di mode admin.
@@ -57,3 +57,7 @@ Temuan C (17 Nov 2026, worker C):
 - Keahlian = `platform_toolsets.api_server` di `config.yaml` profil. Gateway membaca ulang config tiap permintaan, jadi `GET /v1/toolsets` langsung mencerminkan perubahan tanpa restart. Tersembunyi untuk semua orang: daftar blokir `harden.DENY`, `clarify` (selalu aktif), dan toolset kanal pesan (discord, discord_admin, yuanbao). Hanya mode admin: skills, kanban, x_search, context_engine, a2a.
 - Endpoint baru: `GET /api/apps/catalog`, `POST /api/apps/{id}/connect`, `GET /api/apps/{id}/status`, `POST /api/apps/{id}/disconnect`, `GET /api/skills`, `GET|PUT /api/agents/{slug}/skills`.
 - Belum diuji dengan akun nyata (sengaja): penyelesaian login sampai status `connected`.
+
+## Keputusan 17 Nov (lanjutan)
+- Koneksi Notion milik kita DIHAPUS seluruhnya (provider, OAuth, impor halaman, kartu, tombol "Pilih dari Notion"). Notion hanya ditawarkan lewat konektor Hermes `notion` di katalog Aplikasi. Item Pengetahuan lama bertipe `notion` tetap ada (tidak ada migrasi data); nilai `notion` dibiarkan di constraint database.
+- Aturan satu kartu: bila sebuah aplikasi ada sebagai koneksi kita dan sebagai konektor Hermes, Aplikasi menampilkan SATU kartu. Peta eksplisit `OWN_AS_HERMES` di `frontend/src/connections.tsx` (`gdrive` ↔ `google_drive`/`googledrive`, `gmail` ↔ `gmail`); konektor Hermes dipilih, dan aksi tambahan kita (mis. "Pilih dari Drive") tetap di kartu itu bila koneksi kita juga tersambung. Saat ini katalog tidak punya yang tumpang tindih.

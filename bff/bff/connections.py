@@ -1,4 +1,4 @@
-"""Per-user connections to Google Drive, Gmail and Notion: OAuth 2.0 authorization-code flow run by the BFF.
+"""Per-user connections to Google Drive and Gmail: OAuth 2.0 authorization-code flow run by the BFF.
 Tokens are encrypted (Fernet, key CONNECTIONS_KEY) before they reach the database and are never logged.
 What the connections are used for lives in integrations.py."""
 import base64
@@ -19,24 +19,18 @@ GOOGLE_AUTH = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN = "https://oauth2.googleapis.com/token"
 GOOGLE_REVOKE = "https://oauth2.googleapis.com/revoke"
 GOOGLE_USERINFO = "https://openidconnect.googleapis.com/v1/userinfo"
-NOTION_AUTH = "https://api.notion.com/v1/oauth/authorize"
-NOTION_TOKEN = "https://api.notion.com/v1/oauth/token"
-NOTION_REVOKE = "https://api.notion.com/v1/oauth/revoke"
 
 # provider -> (OAuth family, scopes asked, scope that must be granted)
 PROVIDERS = {
     "gdrive": ("google", ["openid", "email", "https://www.googleapis.com/auth/drive.readonly"], "https://www.googleapis.com/auth/drive.readonly"),
     "gmail": ("google", ["openid", "email", "https://www.googleapis.com/auth/gmail.compose"], "https://www.googleapis.com/auth/gmail.compose"),
-    "notion": ("notion", [], None),
 }
-NAMES = {"gdrive": "Google Drive", "gmail": "Gmail", "notion": "Notion"}
+NAMES = {"gdrive": "Google Drive", "gmail": "Gmail"}
 RECONNECT_MSG = "Sambungan {name} perlu disambungkan ulang. Buka Aplikasi, lalu pilih Hubungkan ulang."
 
 
 def _client_creds(provider: str) -> tuple[str, str]:
-    if PROVIDERS[provider][0] == "google":
-        return config.GOOGLE_CLIENT_ID, config.GOOGLE_CLIENT_SECRET
-    return config.NOTION_CLIENT_ID, config.NOTION_CLIENT_SECRET
+    return config.GOOGLE_CLIENT_ID, config.GOOGLE_CLIENT_SECRET
 
 
 def configured(provider: str) -> bool:
@@ -48,7 +42,6 @@ def configured(provider: str) -> bool:
 # What the administrator must fill in, per OAuth family: (env name, plain label). Only "filled or not" is ever reported, never a value.
 SETUP = {
     "google": [("GOOGLE_CLIENT_ID", "ID klien Google"), ("GOOGLE_CLIENT_SECRET", "Rahasia klien Google")],
-    "notion": [("NOTION_CLIENT_ID", "ID klien Notion"), ("NOTION_CLIENT_SECRET", "Rahasia klien Notion")],
 }
 KEY_SETUP = ("CONNECTIONS_KEY", "Kunci enkripsi penyimpanan akun")
 
@@ -126,20 +119,17 @@ async def start(user_id: str, provider: str) -> dict:
     _provider(provider)
     if not configured(provider):
         raise ApiError(409, f"{NAMES[provider]} belum diatur oleh administrator.")
-    family, scopes, _ = PROVIDERS[provider]
+    _, scopes, _ = PROVIDERS[provider]
     state = secrets.token_urlsafe(32)
-    verifier = secrets.token_urlsafe(64) if family == "google" else None  # PKCE (S256) for Google
+    verifier = secrets.token_urlsafe(64)  # PKCE (S256)
     await db.ex("delete from oauth_states where expires_at < now()")
     await db.ex("insert into oauth_states (state_hash, user_id, provider, verifier, expires_at) values (%s, %s, %s, %s, %s)",
                 _hash(state), user_id, provider, verifier, _now() + STATE_TTL)
     cid, _ = _client_creds(provider)
-    if family == "google":
-        q = {"client_id": cid, "redirect_uri": redirect_uri(provider), "response_type": "code", "scope": " ".join(scopes),
-             "state": state, "code_challenge": _challenge(verifier), "code_challenge_method": "S256",
-             "access_type": "offline", "prompt": "consent"}
-        return {"url": f"{GOOGLE_AUTH}?{urlencode(q)}"}
-    q = {"client_id": cid, "redirect_uri": redirect_uri(provider), "response_type": "code", "owner": "user", "state": state}
-    return {"url": f"{NOTION_AUTH}?{urlencode(q)}"}
+    q = {"client_id": cid, "redirect_uri": redirect_uri(provider), "response_type": "code", "scope": " ".join(scopes),
+         "state": state, "code_challenge": _challenge(verifier), "code_challenge_method": "S256",
+         "access_type": "offline", "prompt": "consent"}
+    return {"url": f"{GOOGLE_AUTH}?{urlencode(q)}"}
 
 # ---------- callback ----------
 
@@ -149,7 +139,7 @@ async def _take_state(user_id: str, family: str, state: str | None) -> dict | No
     if not state:
         return None
     row = await db.q1("delete from oauth_states where state_hash = %s returning *", _hash(state))
-    if not row or row["expires_at"] < _now() or row["user_id"] != user_id or PROVIDERS[row["provider"]][0] != family:
+    if not row or row["expires_at"] < _now() or row["user_id"] != user_id or PROVIDERS.get(row["provider"], ("",))[0] != family:  # .get: a pending state from the removed Notion flow
         return None
     return row
 
@@ -164,8 +154,7 @@ async def callback(user_id: str, family: str, params: dict) -> str:
     if params.get("error") or not params.get("code"):
         return fail("denied")
     try:
-        tokens = await (_exchange_google(provider, params["code"], row["verifier"]) if family == "google"
-                        else _exchange_notion(params["code"]))
+        tokens = await _exchange_google(provider, params["code"], row["verifier"])
     except ApiError as e:
         return fail(e.extra.get("reason", "exchange"))
     except httpx.HTTPError:
@@ -203,17 +192,6 @@ async def _exchange_google(provider: str, code: str, verifier: str) -> dict:
     return {"access": d["access_token"], "refresh": d.get("refresh_token"), "expires_at": _expiry(d),
             "scopes": (d.get("scope") or "").split(), "account": account}
 
-
-async def _exchange_notion(code: str) -> dict:
-    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as c:
-        r = await c.post(NOTION_TOKEN, auth=(config.NOTION_CLIENT_ID, config.NOTION_CLIENT_SECRET),
-                         json={"grant_type": "authorization_code", "code": code, "redirect_uri": redirect_uri("notion")})
-    d = r.json() if r.status_code == 200 else {}
-    if not d.get("access_token"):
-        raise ApiError(502, "exchange", reason="exchange")
-    # Notion tokens do not expire and come without a refresh token or scopes.
-    return {"access": d["access_token"], "refresh": None, "expires_at": None, "scopes": [], "account": d.get("workspace_name")}
-
 # ---------- use ----------
 
 
@@ -227,7 +205,7 @@ async def access_token(user_id: str, provider: str) -> str:
         raise ApiError(409, f"{NAMES[provider]} belum tersambung. Buka Aplikasi untuk menghubungkannya.", needs="connect")
     if row["status"] == "reconnect":
         raise ApiError(409, RECONNECT_MSG.format(name=NAMES[provider]), needs="reconnect")
-    if not row["expires_at"] or row["expires_at"] - _now() > timedelta(seconds=60):  # Notion tokens never expire
+    if not row["expires_at"] or row["expires_at"] - _now() > timedelta(seconds=60):
         return decrypt(row["access_enc"])
     return await _refresh_google(user_id, provider, row)
 
@@ -280,15 +258,11 @@ async def disconnect(user_id: str, provider: str) -> None:
     row = await db.q1("delete from connections where user_id = %s and provider = %s returning *", user_id, provider)
     if not row:
         return
-    family = PROVIDERS[provider][0]
     try:
         async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as c:
-            if family == "google":
-                # Google keeps one grant per client and user, so revoking would also cut the other Google connection.
-                other = await db.q1("select 1 as x from connections where user_id = %s and provider in ('gdrive', 'gmail')", user_id)
-                if not other:
-                    await c.post(GOOGLE_REVOKE, data={"token": decrypt(row["refresh_enc"] or row["access_enc"])})
-            else:
-                await c.post(NOTION_REVOKE, auth=(config.NOTION_CLIENT_ID, config.NOTION_CLIENT_SECRET), json={"token": decrypt(row["access_enc"])})
+            # Google keeps one grant per client and user, so revoking would also cut the other Google connection.
+            other = await db.q1("select 1 as x from connections where user_id = %s and provider in ('gdrive', 'gmail')", user_id)
+            if not other:
+                await c.post(GOOGLE_REVOKE, data={"token": decrypt(row["refresh_enc"] or row["access_enc"])})
     except (httpx.HTTPError, ApiError):
         pass

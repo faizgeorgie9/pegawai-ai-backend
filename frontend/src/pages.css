@@ -349,7 +349,7 @@ td.st-col { min-width: 170px; }
   .app-act { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: center; }
   .app-act .btn:not(.link) { flex: 1 1 140px; }
 }
-/* Source picker (Drive / Notion) */
+/* Source picker (Drive) */
 .src-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 46vh; overflow-y: auto; border: 1px solid var(--rule); border-radius: var(--radius-card); }
 .src-row { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2) var(--s-3); cursor: pointer; min-width: 0; border-bottom: 1px solid var(--rule); }
 .src-list li:last-child .src-row { border-bottom: 0; }

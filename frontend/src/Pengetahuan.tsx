@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { api, errText } from './bff'
 import type { KbItem } from './bff'
 import { useAdminMode } from './adminMode'
@@ -20,15 +20,10 @@ export function MySources() {
   const items = useLoad(fn)
   const file = useRef<HTMLInputElement>(null)
   const [url, setUrl] = useState('')
-  // Notion is offered only once the admin has set it up (otherwise the Aplikasi page says "Segera hadir").
-  const [notionReady, setNotionReady] = useState(false)
-  useEffect(() => {
-    api.connections().then((cs) => setNotionReady(cs.some((c) => c.provider === 'notion' && c.status !== 'not_configured'))).catch(() => {})
-  }, [])
   const [busy, setBusy] = useState('')
   const [problem, setProblem] = useState('')
   const [asking, setAsking] = useState<string | null>(null)
-  const [picker, setPicker] = useState<'gdrive' | 'notion' | null>(null)
+  const [picker, setPicker] = useState<'gdrive' | null>(null)
   const [refreshing, setRefreshing] = useState<string | null>(null)
   const [viewing, setViewing] = useState<KbItem | null>(null)
   async function add(label: string, work: () => Promise<KbItem>) {
@@ -87,11 +82,6 @@ export function MySources() {
         <button className="btn outline" disabled={!!busy} onClick={() => setPicker('gdrive')}>
           Pilih dari Drive
         </button>
-        {notionReady && (
-          <button className="btn outline" disabled={!!busy} onClick={() => setPicker('notion')}>
-            Pilih dari Notion
-          </button>
-        )}
         <form
           className="set-inline"
           onSubmit={(e) => {
@@ -106,7 +96,7 @@ export function MySources() {
         </form>
       </div>
       <p className="meta">
-        Berkas: {KB_TYPES_TEXT}. Drive pribadi atau Notion perlu disambungkan dulu di <a href="#/aplikasi">Aplikasi</a>.
+        Berkas: {KB_TYPES_TEXT}. Drive pribadi perlu disambungkan dulu di <a href="#/aplikasi">Aplikasi</a>.
       </p>
       {problem && (
         <p className="problem-bar small" role="alert">

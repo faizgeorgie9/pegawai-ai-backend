@@ -26,7 +26,7 @@ export function urlsIn(text: string): string[] {
 }
 export const asksToSave = (text: string) => urlsIn(text).length > 0 && INTENT_RE.test(text.replace(URL_RE, ' '))
 
-export const KB_KIND: Record<KbItem['kind'], string> = { file: 'Berkas', url: 'Website', gdrive: 'Google Drive', notion: 'Notion' }
+export const KB_KIND: Record<KbItem['kind'], string> = { file: 'Berkas', url: 'Website', gdrive: 'Google Drive' }
 export function bytes(n: number | null): string {
   if (n == null) return '–'
   return n < 1024 ? `${n} B` : n < 1024 * 1024 ? `${Math.round(n / 1024)} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`

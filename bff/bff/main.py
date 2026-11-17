@@ -527,7 +527,7 @@ async def kb_refresh(item_id: str):
     return await integrations.refresh_item(current_user(), item_id)
 
 
-# ---------- connections (Google Drive, Gmail, Notion) ----------
+# ---------- connections (Google Drive, Gmail) ----------
 
 @api.get("/connections")
 async def connections_list(fresh: bool = False):
@@ -542,7 +542,7 @@ async def connections_start(provider: str):
 @api.get("/connections/{family}/callback")
 async def connections_callback(family: str, request: Request):
     """The provider sends the browser here after consent (through the same proxy as the app, so the key header is present)."""
-    if family not in ("google", "notion"):
+    if family != "google":
         raise ApiError(404, "Tidak ditemukan")
     return RedirectResponse(await connections.callback(current_user(), family, dict(request.query_params)), status_code=303)
 
@@ -560,16 +560,6 @@ async def drive_files(q: str = "", page: str | None = None):
 @api.post("/connections/gdrive/import")
 async def drive_import(request: Request):
     return {"items": await integrations.drive_import(current_user(), (await body_of(request)).get("ids"))}
-
-
-@api.get("/connections/notion/pages")
-async def notion_pages(q: str = "", cursor: str | None = None):
-    return await integrations.notion_pages(current_user(), q, cursor)
-
-
-@api.post("/connections/notion/import")
-async def notion_import(request: Request):
-    return {"items": await integrations.notion_import(current_user(), (await body_of(request)).get("ids"))}
 
 
 @api.post("/connections/gmail/draft", status_code=201)

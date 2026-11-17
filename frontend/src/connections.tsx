@@ -23,11 +23,6 @@ const APPS: Record<ConnProvider, AppDef> = {
     enables: 'Simpan jawaban agen sebagai draf di Gmail Anda; email tidak pernah dikirim otomatis.',
     where: 'Tombol "Simpan sebagai draf Gmail" di bawah jawaban agen.',
   },
-  notion: {
-    name: 'Notion',
-    enables: 'Simpan halaman Notion yang Anda bagikan ke Pengetahuan, seperti berkas biasa.',
-    where: 'Halaman Pengetahuan.',
-  },
 }
 const WHY: Record<string, string> = {
   denied: 'Izin tidak diberikan, jadi akun belum tersambung.',
@@ -75,13 +70,6 @@ function Mark({ id }: { id: string }) {
         <path d="M2 9v14a3 3 0 0 0 3 3h3V13zM30 9v14a3 3 0 0 1-3 3h-3V13z" fill="#4285f4" />
         <path d="m2 9 14 11L30 9l-1-2a3 3 0 0 0-3-1H6a3 3 0 0 0-3 1z" fill="#ea4335" />
         <path d="m8 13 8 6 8-6v-3l-8 6-8-6z" fill="#c5221f" />
-      </svg>
-    )
-  if (id === 'notion')
-    return (
-      <svg {...p}>
-        <rect x="4" y="3" width="24" height="26" rx="4" fill="#fff" stroke="#15171c" strokeWidth="1.8" />
-        <path d="M11 22V10l10 12V10" fill="none" stroke="#15171c" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     )
   if (id === 'whatsapp')
@@ -142,8 +130,14 @@ function Initial({ name }: { name: string }) {
   )
 }
 
-const OAUTH_CAT: Record<ConnProvider, string> = { gdrive: 'docs', gmail: 'comms', notion: 'docs' }
-const OAUTH_NAME: Record<ConnProvider, string> = { gdrive: 'Google Drive', gmail: 'Gmail', notion: 'Notion (Pengetahuan)' }
+const OAUTH_CAT: Record<ConnProvider, string> = { gdrive: 'docs', gmail: 'comms' }
+const OAUTH_NAME: Record<ConnProvider, string> = { gdrive: 'Google Drive', gmail: 'Gmail' }
+
+// One-card rule: an app that exists both as our own connection and as a Hermes connector gets ONE card. The Hermes connector
+// wins (it is always connectable); our connection stays reachable through its extra action (e.g. "Pilih dari Drive") when
+// it is connected too. Our connection alone is shown when the catalog has no matching connector. Add a line per known overlap
+// (our provider -> Hermes ids); the live catalog has no overlaps today.
+const OWN_AS_HERMES: Record<ConnProvider, string[]> = { gdrive: ['google_drive', 'googledrive'], gmail: ['gmail'] }
 
 // Guided connect: explain, open the login page in a new tab, then wait until the app shows up as connected (max 3 minutes).
 function ConnectDialog({ app, onClose, onDone }: { app: HermesApp; onClose: () => void; onDone: () => void }) {
@@ -231,7 +225,7 @@ export function AppsPage() {
   const [problem, setProblem] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [asking, setAsking] = useState<string | null>(null)
-  const [picker, setPicker] = useState<'gdrive' | 'notion' | null>(null)
+  const [picker, setPicker] = useState<'gdrive' | null>(null)
   const [saved, setSaved] = useState('')
   const [how, setHow] = useState(false)
   const [q, setQ] = useState('')
@@ -290,6 +284,12 @@ export function AppsPage() {
   const by = new Map<string, Connection>((conns.data ?? []).map((c) => [c.provider, c]))
   const term = q.trim().toLowerCase()
   const hit = (name: string, text: string, category: string) => (!term || `${name} ${text}`.toLowerCase().includes(term)) && (!only || only === category)
+
+  const pickDrive = (
+    <button type="button" className="btn outline" onClick={() => setPicker('gdrive')}>
+      Pilih dari Drive
+    </button>
+  )
 
   function oauthCard(id: ConnProvider) {
     const a = APPS[id]
@@ -373,11 +373,7 @@ export function AppsPage() {
                   Putuskan
                 </button>
               )}
-              {status === 'connected' && id !== 'gmail' && (
-                <button type="button" className="btn outline" onClick={() => setPicker(id as 'gdrive' | 'notion')}>
-                  {id === 'gdrive' ? 'Pilih dari Drive' : 'Pilih dari Notion'}
-                </button>
-              )}
+              {status === 'connected' && id === 'gdrive' && pickDrive}
               {id === 'gmail' && (
                 <button type="button" className="btn link" aria-expanded={how} aria-controls="how-gmail" onClick={() => setHow((v) => !v)}>
                   {how ? 'Sembunyikan cara kerja' : 'Cara kerja tombol draf'}
@@ -392,6 +388,7 @@ export function AppsPage() {
 
   function appCard(a: HermesApp) {
     const on = a.status === 'connected'
+    const ownDrive = merged.get('gdrive') === a && by.get('gdrive')?.status === 'connected' // our Drive connection folded into this card
     return (
       <li key={a.id} className="app-card" data-app={a.id} data-s={on ? 'connected' : 'disconnected'}>
         <div className="app-card-head">
@@ -421,26 +418,37 @@ export function AppsPage() {
                 Batal
               </button>
             </span>
-          ) : on ? (
-            <button type="button" className="btn soft" disabled={busy === a.id} onClick={() => setAsking(a.id)}>
-              Putuskan
-            </button>
           ) : (
-            <button type="button" className="btn soft" disabled={busy === a.id} onClick={() => setConnecting(a)}>
-              Hubungkan
-            </button>
+            <>
+              {on ? (
+                <button type="button" className="btn soft" disabled={busy === a.id} onClick={() => setAsking(a.id)}>
+                  Putuskan
+                </button>
+              ) : (
+                <button type="button" className="btn soft" disabled={busy === a.id} onClick={() => setConnecting(a)}>
+                  Hubungkan
+                </button>
+              )}
+              {ownDrive && pickDrive}
+            </>
           )}
         </div>
       </li>
     )
   }
 
-  // Everything in one list, grouped by category. Drive, Gmail and Notion (our own sign-in) sit next to the Hermes apps.
+  // Everything in one list, grouped by category. Drive and Gmail (our own sign-in) sit next to the Hermes apps (one card per app, see OWN_AS_HERMES).
   const apps = (cat.data?.apps ?? []).filter((a) => admin || !a.technical)
   const cats = (cat.data?.categories ?? []).filter((c) => admin || c.id !== 'dev')
-  const oauthIds = (['gdrive', 'gmail', 'notion'] as ConnProvider[]).filter((id) => by.has(id))
+  const merged = new Map<ConnProvider, HermesApp>()
+  for (const id of Object.keys(OWN_AS_HERMES) as ConnProvider[]) {
+    const h = apps.find((a) => OWN_AS_HERMES[id].includes(a.id))
+    if (h) merged.set(id, h)
+  }
+  const oauthIds = (['gdrive', 'gmail'] as ConnProvider[]).filter((id) => by.has(id) && !merged.has(id))
   const linkedHermes = apps.filter((a) => a.status === 'connected')
-  const linkedOauth = oauthIds.filter((id) => by.get(id)?.status === 'connected')
+  // an own connection folded into a Hermes card that is not itself connected still counts as linked, once
+  const linkedOauth = (Object.keys(OWN_AS_HERMES) as ConnProvider[]).filter((id) => by.get(id)?.status === 'connected' && (!merged.has(id) || merged.get(id)?.status !== 'connected') && by.has(id))
   const groups = cats
     .map((c) => ({
       c,
@@ -544,7 +552,7 @@ export function AppsPage() {
 export function AppsLink() {
   return (
     <p className="apps-link">
-      Menyambungkan Google Drive, Gmail, atau Notion? Buka <a href="#/aplikasi">Aplikasi</a>.
+      Menyambungkan Google Drive atau Gmail? Buka <a href="#/aplikasi">Aplikasi</a>.
     </p>
   )
 }

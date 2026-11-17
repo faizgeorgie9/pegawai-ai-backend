@@ -134,7 +134,7 @@ export interface KnowledgeInfo {
 // Knowledge Base item (a file or link the user added; the BFF extracts the text and keeps it per user).
 export interface KbItem {
   id: string | null // null: a link that could not even be stored (e.g. the Knowledge Base is full)
-  kind: 'file' | 'gdrive' | 'url' | 'notion'
+  kind: 'file' | 'gdrive' | 'url'
   name: string
   source: string | null
   status: 'processing' | 'ready' | 'failed'
@@ -142,11 +142,11 @@ export interface KbItem {
   size_bytes: number | null
   chars: number | null
   created_at: string | null
-  refreshable?: boolean // imported through a connection (Drive / Notion): can be fetched again
+  refreshable?: boolean // imported through a connection (Drive): can be fetched again
   has_file?: boolean // the original upload was kept (uploads from 17 Nov 2026 on): it can be opened and downloaded
 }
-// Connections (Google Drive, Gmail, Notion). not_configured: the administrator has not set up the app yet.
-export type ConnProvider = 'gdrive' | 'gmail' | 'notion'
+// Connections (Google Drive, Gmail). not_configured: the administrator has not set up the app yet.
+export type ConnProvider = 'gdrive' | 'gmail'
 export interface Connection {
   provider: ConnProvider
   name: string
@@ -158,7 +158,7 @@ export interface Connection {
   redirect_uri: string // what the administrator registers at the provider
   setup: { env: string; label: string; filled: boolean }[] // which admin values are filled (never the values)
 }
-// A file or page the user can pick from Drive / Notion.
+// A file or page the user can pick from Drive.
 export interface PickItem {
   id: string
   name: string
@@ -804,11 +804,6 @@ export const api = {
     return { items: r.files, next: r.next }
   },
   driveImport: async (ids: string[]) => (await call<{ items: ImportResult[] }>('POST', '/connections/gdrive/import', { ids })).items,
-  notionPages: async (q: string, cursor?: string | null): Promise<PickPage> => {
-    const r = await call<{ pages: PickItem[]; next: string | null }>('GET', `/connections/notion/pages?q=${enc(q)}${cursor ? `&cursor=${enc(cursor)}` : ''}`)
-    return { items: r.pages, next: r.next }
-  },
-  notionImport: async (ids: string[]) => (await call<{ items: ImportResult[] }>('POST', '/connections/notion/import', { ids })).items,
   gmailDraft: (d: { to: string; subject: string; body: string }) => call<{ draft_id: string | null; url: string; account: string | null }>('POST', '/connections/gmail/draft', d),
   exportHistory: async (): Promise<Blob> => {
     let res: Response
