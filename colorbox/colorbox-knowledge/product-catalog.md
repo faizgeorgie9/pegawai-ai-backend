@@ -2,29 +2,30 @@
 
 > **Sumber Data:** [Colorbox Collection (Official Website)](https://colorbox.co.id/collections/colorbox-collection)
 > **Klasifikasi Data:** Public Catalog Data
-> **Total Produk:** 1,206 Produk
+> **Total Produk:** 1,216 Produk
 > **Tanggal Pengambilan Data:** 2026-11-09
 
 ---
 
 ## Ringkasan Katalog
 
-- **Total Produk Terdaftar:** 1,206 item
-- **Rentang Harga:** Rp 19.950 - Rp 379.900
+- **Total Produk Terdaftar:** 1,216 item
+- **Rentang Harga:** Rp 19.950 - Rp 599.900
 - **Distribusi Kategori Produk:**
-  - **Tops (Atasan):** 567 produk
-  - **Bottoms (Celana & Rok):** 117 produk
-  - **Denim:** 150 produk
+  - **Tops (Atasan):** 568 produk
+  - **Bottoms (Celana & Rok):** 119 produk
+  - **Denim:** 152 produk
   - **Dress:** 28 produk
-  - **Outerwear & Jackets:** 75 produk
+  - **Outerwear & Jackets:** 78 produk
   - **Knitwear & Sweaters:** 129 produk
   - **Pajamas & Sleepwear:** 37 produk
   - **Underwear & Loungewear:** 102 produk
-  - **Aksesoris & Tas:** 1 produk
+  - **Aksesoris & Tas:** 2 produk
+  - **Footwear & Sepatu:** 1 produk
 
 ---
 
-## 1. Tops (Atasan) (567 Produk)
+## 1. Tops (Atasan) (568 Produk)
 
 | No | Nama Produk | Harga | Pilihan Warna | Pilihan Ukuran | Tautan |
 |:---|:---|:---|:---|:---|:---|
@@ -596,9 +597,11 @@
 | 566 | Fitted Short Sleeve Crop T-shirt Black | Rp 79.900 | BLACK | L, M, S, XL, XS | [Lihat Produk](https://colorbox.co.id/products/fitted-short-sleeve-crop-t-shirt-black-22o) |
 | 567 | Fitted Short Sleeve Crop T-shirt Off White | Rp 79.900 | OFF WHITE | L, M, S, XL, XS | [Lihat Produk](https://colorbox.co.id/products/fitted-short-sleeve-crop-t-shirt-offwhite-o00) |
 
+| 568 | Bubble Hem Long Sleeve Hoodie | Rp 299.900 | ECRU | S, M, L, XL | [Lihat Produk](https://colorbox.co.id/products/bubble-hem-long-sleeve-hoodie-ecru-26j) |
+
 ---
 
-## 2. Bottoms (Celana & Rok) (117 Produk)
+## 2. Bottoms (Celana & Rok) (119 Produk)
 
 | No | Nama Produk | Harga | Pilihan Warna | Pilihan Ukuran | Tautan |
 |:---|:---|:---|:---|:---|:---|
@@ -720,9 +723,12 @@
 | 116 | Drawstring Short Pants Olive | Rp 111.930 <br>*(Coret: ~~Rp 159.900~~)* | OLIVE | L, M, S, XL | [Lihat Produk](https://colorbox.co.id/products/drawstring-short-pants-olive-07o) |
 | 117 | Drawstring Short Pants L.Pink | Rp 100.737 <br>*(Coret: ~~Rp 159.900~~)* | LT. PINK | L, M, S, XL | [Lihat Produk](https://colorbox.co.id/products/drawstring-short-pants-lt-pink-07o) |
 
+| 118 | Suede Mini Skirt | Rp 249.900 | NAVY | S, M, L, XL | [Lihat Produk](https://colorbox.co.id/products/suede-mini-skirt-navy-26g) |
+| 119 | Wide Leg Drawstring Pants | Rp 199.900 | NAVY | S, M, L, XL | [Lihat Produk](https://colorbox.co.id/products/wide-leg-drawstring-pants-navy-26k) |
+
 ---
 
-## 3. Denim (150 Produk)
+## 3. Denim (152 Produk)
 
 | No | Nama Produk | Harga | Pilihan Warna | Pilihan Ukuran | Tautan |
 |:---|:---|:---|:---|:---|:---|
@@ -877,6 +883,9 @@
 | 149 | Mom Jeans | Rp 249.900 | MED BLUE | 26, 27, 28, 29, 30, 31 | [Lihat Produk](https://colorbox.co.id/products/mom-jeans-medblue-20f) |
 | 150 | Mom Jeans | Rp 249.900 | LT. BLUE | 26, 27, 28, 29, 30 | [Lihat Produk](https://colorbox.co.id/products/mom-jeans-ltblue-20f) |
 
+| 151 | Contrast Detail Denim Jacket | Rp 359.900 | DARK BROWN | S, M, L, XL | [Lihat Produk](https://colorbox.co.id/products/contrast-detail-denim-jacket-dark-brown-26g) |
+| 152 | Jeans with Overlap Micro Skirt Details | Rp 237.528 <br>*(Coret: ~~Rp 329.900~~)* | DARK NAVY | 26, 27, 28, 29, 30 | [Lihat Produk](https://colorbox.co.id/products/jeans-with-overlap-micro-skirt-details-dark-navy-26j) |
+
 ---
 
 ## 4. Dress (28 Produk)
@@ -914,7 +923,7 @@
 
 ---
 
-## 5. Outerwear & Jackets (75 Produk)
+## 5. Outerwear & Jackets (78 Produk)
 
 | No | Nama Produk | Harga | Pilihan Warna | Pilihan Ukuran | Tautan |
 |:---|:---|:---|:---|:---|:---|
@@ -993,6 +1002,10 @@
 | 73 | Oversized Vest with Front Zipper | Rp 174.930 <br>*(Coret: ~~Rp 249.900~~)* | ECRU | S/M, L/XL | [Lihat Produk](https://colorbox.co.id/products/oversized-vest-with-front-zipper-ecru-25k) |
 | 74 | Tied Details Sleeveless Top | Rp 74.950 <br>*(Coret: ~~Rp 149.900~~)* | OFF WHITE | M, S, XL | [Lihat Produk](https://colorbox.co.id/products/tied-details-sleeveless-top-off-white-25i) |
 | 75 | Cropped Twill Vest Blue | Rp 68.970 <br>*(Coret: ~~Rp 229.900~~)* | BLUE | L, M, S, XL | [Lihat Produk](https://colorbox.co.id/products/cropped-twill-vest-blue-25c) |
+
+| 76 | Oversize Long Sleeve Checks Blazer | Rp 299.900 | DUSTY OLIVE | S/M, L/XL | [Lihat Produk](https://colorbox.co.id/products/oversize-long-sleeve-checks-blazer-dusty-olive-26i) |
+| 77 | Double Breasted Crop Jacket | Rp 329.900 | LT. GREY | S, M, L, XL | [Lihat Produk](https://colorbox.co.id/products/double-breasted-crop-jacket-lt-grey-26j) |
+| 78 | Oversize Collared Leather Jacket | Rp 599.900 | DARK RED | FS | [Lihat Produk](https://colorbox.co.id/products/oversize-collared-leather-jacket-dark-red-226) |
 
 ---
 
@@ -1285,10 +1298,201 @@
 
 ---
 
-## 9. Aksesoris & Tas (1 Produk)
+## 9. Aksesoris & Tas (2 Produk)
 
 | No | Nama Produk | Harga | Pilihan Warna | Pilihan Ukuran | Tautan |
 |:---|:---|:---|:---|:---|:---|
 | 1 | Colorbox x Liunic Tote Bag | Rp 199.900 | ECRU | NS | [Lihat Produk](https://colorbox.co.id/products/colorbox-x-liunic-tote-bag-ecru-26e) |
+| 2 | Denim Sling Bag | Rp 129.900 | DENIM | NS | [Lihat Produk](https://colorbox.co.id/products/denim-sling-bag-denim-26f) |
 
 ---
+
+---
+
+## 10. Footwear & Sepatu (1 Produk)
+
+| No | Nama Produk | Harga | Pilihan Warna | Pilihan Ukuran | Tautan |
+|:---|:---|:---|:---|:---|:---|
+| 1 | Lace Sneakers | Rp 299.900 | NAVY | 36, 37, 38, 39, 40 | [Lihat Produk](https://colorbox.co.id/products/lace-sneakers-navy-26g) |
+
+---
+
+## 11. Detail Spesifikasi & Deskripsi Produk Scraped (Autumn/Winter Collection)
+
+> Bagian ini mendokumentasikan spesifikasi teknis, komposisi material, profil fitting model, dan SKU untuk 10 produk tren terbaru yang di-scraping langsung dari situs resmi Colorbox.
+
+### CBX-IMG-11: Oversize Long Sleeve Checks Blazer
+- **Handle / Slug:** `oversize-long-sleeve-checks-blazer-dusty-olive-26i`
+- **Harga:** Rp 299.900
+- **Pilihan Warna:** DUSTY OLIVE
+- **Pilihan Ukuran:** S/M, L/XL
+- **SKU:** `5000000006266, 5000000006265` | **Barcode:** `IRBZSOV226I052`
+- **Tags / Kategori:** 26J, BLAZERS, DDNOV26, NEW_ARRIVAL, OUTERWEAR, PROMO, TRENDINGOUTERWEAR
+- **Tautan Resmi:** [colorbox.co.id/products/oversize-long-sleeve-checks-blazer-dusty-olive-26i](https://colorbox.co.id/products/oversize-long-sleeve-checks-blazer-dusty-olive-26i)
+- **Deskripsi & Fitur:**
+  -  Blazer lengan panjang
+  -  V-neck with lapel
+  -  Check printed fabric
+  -  Double front pocket
+  -  Button opening
+  -  Material: Cotton Oxford
+  -  Model menggunakan ukuran 26
+  -  HEIGHT: 168CM BUST: 74CM WAIST 62CM HIPS: 86CM
+
+### CBX-IMG-12: Double Breasted Crop Jacket
+- **Handle / Slug:** `double-breasted-crop-jacket-lt-grey-26j`
+- **Harga:** Rp 329.900
+- **Pilihan Warna:** LT. GREY
+- **Pilihan Ukuran:** S, M, L, XL
+- **SKU:** `5000000006805, 5000000006807, 5000000006808, 5000000006806` | **Barcode:** `IRJKKOV-26J019`
+- **Tags / Kategori:** 26J, NEW_ARRIVAL, OUTERWEAR, PROMO, SWEATSHIRTS, TRENDINGOUTERWEAR
+- **Tautan Resmi:** [colorbox.co.id/products/double-breasted-crop-jacket-lt-grey-26j](https://colorbox.co.id/products/double-breasted-crop-jacket-lt-grey-26j)
+- **Deskripsi & Fitur:**
+  -  Jaket lengan panjang
+  -  Shirt collar
+  -  Double breasted details
+  -  Crop length
+  -  Textured fabric
+  -  Material: Corduroy
+  -  Model menggunakan ukuran S
+  -  HEIGHT: 168CM BUST: 74CM WAIST 62CM HIPS: 86CM
+
+### CBX-IMG-13: Contrast Detail Denim Jacket
+- **Handle / Slug:** `contrast-detail-denim-jacket-dark-brown-26g`
+- **Harga:** Rp 359.900
+- **Pilihan Warna:** DARK BROWN
+- **Pilihan Ukuran:** S, M, L, XL
+- **SKU:** `9990000917655, 9990000917631, 9990000917662, 9990000917648` | **Barcode:** `I-JKDKJN126G630`
+- **Tags / Kategori:** 26G, BLOUSESHIRT, BSLONG, NEW_ARRIVAL, PROMO, TOPS, TRENDINGTOPS
+- **Tautan Resmi:** [colorbox.co.id/products/contrast-detail-denim-jacket-dark-brown-26g](https://colorbox.co.id/products/contrast-detail-denim-jacket-dark-brown-26g)
+- **Deskripsi & Fitur:**
+  -  Jaket denim lengan panjang
+  -  Contrast collar and cuff
+  -  Double flap pocket
+  -  Metal button opening
+  -  Material: Denim
+  -  Model menggunakan ukuran S
+  -  HEIGHT: 174CM WAIST: 62CM HIPS: 87CM
+
+### CBX-IMG-14: Oversize Collared Leather Jacket
+- **Handle / Slug:** `oversize-collared-leather-jacket-dark-red-226`
+- **Harga:** Rp 599.900
+- **Pilihan Warna:** DARK RED
+- **Pilihan Ukuran:** FS
+- **SKU:** `9990000896417` | **Barcode:** `I1JKPFOV226H025`
+- **Tags / Kategori:** 226, BLOUSESHIRT, BSSLEEVELESS, DDNOV26, NEW_ARRIVAL, PROMO, TOPS, TRENDINGTOPS
+- **Tautan Resmi:** [colorbox.co.id/products/oversize-collared-leather-jacket-dark-red-226](https://colorbox.co.id/products/oversize-collared-leather-jacket-dark-red-226)
+- **Deskripsi & Fitur:**
+  -  Jaket lengan panjang
+  -  Shirt collar
+  -  Front zipper opening
+  -  Side pocket
+  -  Elastic hem details
+  -  Material: PU Leather
+  -  Model menggunakan ukuran S
+  -  HEIGHT: 174CM WAIST: 62CM HIPS: 87CM
+
+### CBX-IMG-15: Bubble Hem Long Sleeve Hoodie
+- **Handle / Slug:** `bubble-hem-long-sleeve-hoodie-ecru-26j`
+- **Harga:** Rp 299.900
+- **Pilihan Warna:** ECRU
+- **Pilihan Ukuran:** S, M, L, XL
+- **SKU:** `5000000006470, 5000000006469, 5000000006471, 5000000006468` | **Barcode:** `IRJKKJN-26J059`
+- **Tags / Kategori:** 26J, JACKETS, NEW_ARRIVAL, OUTERWEAR, PROMO, TRENDINGOUTERWEAR
+- **Tautan Resmi:** [colorbox.co.id/products/bubble-hem-long-sleeve-hoodie-ecru-26j](https://colorbox.co.id/products/bubble-hem-long-sleeve-hoodie-ecru-26j)
+- **Deskripsi & Fitur:**
+  -  Jaket hoodie lengan panjang
+  -  Bubble hem details
+  -  Side pocket
+  -  Drop shoulder
+  -  Zipper fastening
+  -  Material: Double Knit
+  -  Model menggunakan ukuran S
+  -  HEIGHT: 174CM WAIST: 62CM HIPS: 87CM
+
+### CBX-IMG-16: Suede Mini Skirt
+- **Handle / Slug:** `suede-mini-skirt-navy-26g`
+- **Harga:** Rp 249.900
+- **Pilihan Warna:** NAVY
+- **Pilihan Ukuran:** S, M, L, XL
+- **SKU:** `9990000902309, 9990000902293, 9990000902316, 9990000902323` | **Barcode:** `I-SIWFCR126G012`
+- **Tags / Kategori:** 26J, BOTTOMS, DENIM, DNSKIRTS, NEW_ARRIVAL, PROMO, SKIRTS, SKIRTSMINI, TRENDINGBOTTOMS
+- **Tautan Resmi:** [colorbox.co.id/products/suede-mini-skirt-navy-26g](https://colorbox.co.id/products/suede-mini-skirt-navy-26g)
+- **Deskripsi & Fitur:**
+  -  Mini skirt
+  -  Textured fabric
+  -  Double front pocket
+  -  Contrast back zipper opening
+  -  Material: Suede
+  -  Model menggunakan ukuran S
+  -  HEIGHT: 168CM BUST: 74CM WAIST 62CM HIPS: 86CM
+
+### CBX-IMG-17: Jeans with Overlap Micro Skirt Details
+- **Handle / Slug:** `jeans-with-overlap-micro-skirt-details-dark-navy-26j`
+- **Harga:** Rp 237.528 *(Diskon dari ~~Rp 329.900~~)*
+- **Pilihan Warna:** DARK NAVY
+- **Pilihan Ukuran:** 26, 27, 28, 29, 30
+- **SKU:** `5000000007634, 5000000007632, 5000000007635, 5000000007631, 5000000007633` | **Barcode:** `IBLDSOV526J011`
+- **Tags / Kategori:** 26J, BAUNOV26, BOTTOMS, DDNOV26, denim, DNJEANS, new_arrival, promo, TRENDINGBOTTOMS
+- **Tautan Resmi:** [colorbox.co.id/products/jeans-with-overlap-micro-skirt-details-dark-navy-26j](https://colorbox.co.id/products/jeans-with-overlap-micro-skirt-details-dark-navy-26j)
+- **Deskripsi & Fitur:**
+  -  Celana panjang denim
+  -  Wide leg
+  -  Adjustable micro skirt layer with side tie
+  -  Material: Denim
+  -  Model menggunakan ukuran S
+  -  HEIGHT: 174CM WAIST: 62CM HIPS: 87CM
+
+### CBX-IMG-18: Wide Leg Drawstring Pants
+- **Handle / Slug:** `wide-leg-drawstring-pants-navy-26k`
+- **Harga:** Rp 199.900
+- **Pilihan Warna:** NAVY
+- **Pilihan Ukuran:** S, M, L, XL
+- **SKU:** `5000000008666, 5000000008668, 5000000008665, 5000000008667` | **Barcode:** `IBLWKBT-26K008`
+- **Tags / Kategori:** 26K, BOTTOMS, NEW_ARRIVAL, PROMO, TRENDINGBOTTOMS
+- **Tautan Resmi:** [colorbox.co.id/products/wide-leg-drawstring-pants-navy-26k](https://colorbox.co.id/products/wide-leg-drawstring-pants-navy-26k)
+- **Deskripsi & Fitur:**
+  -  Celana panjang wide leg
+  -  Adjustable waist with drawstring
+  -  Side pocket details
+  -  Material: Cotton
+  -  Model menggunakan ukuran S
+  -  HEIGHT: 168CM BUST: 74CM WAIST 62CM HIPS: 86CM
+
+### CBX-IMG-19: Denim Sling Bag
+- **Handle / Slug:** `denim-sling-bag-denim-26f`
+- **Harga:** Rp 129.900
+- **Pilihan Warna:** DENIM
+- **Pilihan Ukuran:** NS
+- **SKU:** `9990000920853` | **Barcode:** `I1BGTASC126F283`
+- **Tags / Kategori:** 26F, ACCESSORIES, BAG, PROMO, SLINGBAG
+- **Tautan Resmi:** [colorbox.co.id/products/denim-sling-bag-denim-26f](https://colorbox.co.id/products/denim-sling-bag-denim-26f)
+- **Deskripsi & Fitur:**
+  - Colorbox Denim Sling Bag
+  - Opening with Magnet
+  - Patchwork Detail at the Bag Body
+  - Adjustable Strap up to 110 cm
+  - Material : 100% Cotton
+  - Height x Length x Width : 25 x 7,5 x 17 cm
+
+### CBX-IMG-20: Lace Sneakers
+- **Handle / Slug:** `lace-sneakers-navy-26g`
+- **Harga:** Rp 299.900
+- **Pilihan Warna:** NAVY
+- **Pilihan Ukuran:** 36, 37, 38, 39, 40
+- **SKU:** `9990000919383, 9990000919390, 9990000919413, 9990000919406, 9990000919376` | **Barcode:** `I5SHTASC126G232`
+- **Tags / Kategori:** 26G, ACCESSORIES, NEW_ARRIVAL, PROMO, SHOES
+- **Tautan Resmi:** [colorbox.co.id/products/lace-sneakers-navy-26g](https://colorbox.co.id/products/lace-sneakers-navy-26g)
+- **Deskripsi & Fitur:**
+  - Colorbox Lace Sneakers Navy
+  - Double Laces
+  - Different Color Laces
+  - Material Upper: PU, Suede, And Mesh
+  - Measurement:
+  - Sole Height : 2 cm
+  - Size Insole 36 : 1,2 cm
+  - Size Insole 37 : 24 cm
+  - Size Insole 38 : 24,6 cm
+  - Size Insole 39 : 25,2 cm
+  - Size Insole 40 :
+

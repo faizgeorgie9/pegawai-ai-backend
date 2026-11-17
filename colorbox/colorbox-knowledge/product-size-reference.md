@@ -76,3 +76,19 @@ Untuk *Mini Panty*:
 
 - **Transparansi Ukuran:** Selalu tanyakan tinggi dan perkiraan lingkar dada/pinggang pelanggan sebelum memberikan rekomendasi ukuran yang presisi.
 - **Batasan Pengetahuan:** Jika produk memiliki potongan khusus yang tidak tertera pada data standar, sampaikan bahwa potongan produk dapat berbeda ± 1-2 cm dan arahkan pelanggan untuk mengecek tabel ukuran di halaman produk terkait.
+
+---
+
+## 6. Panduan Ukuran Alas Kaki & Sepatu (Footwear Sizing Guide)
+
+Panduan konversi ukuran insole untuk koleksi alas kaki/sneakers wanita (misal: *Lace Sneakers*):
+
+| Ukuran Sepatu (EUR) | Panjang Insole (Centimeter) | Rekomendasi Panjang Kaki |
+| :---: | :---: | :---: |
+| **36** | 23.4 cm | 22.5 - 23.0 cm |
+| **37** | 24.0 cm | 23.1 - 23.5 cm |
+| **38** | 24.6 cm | 23.6 - 24.0 cm |
+| **39** | 25.2 cm | 24.1 - 24.5 cm |
+| **40** | 25.8 cm | 24.6 - 25.0 cm |
+
+*Catatan: Tinggi sol luar (*sole height*) rata-rata 2 cm. Jika tipe punggung kaki lebar (*wide feet*), sarankan naik 1 ukuran (*upsize*) untuk kenyamanan optimal saat mengenakan kaus kaki.*
