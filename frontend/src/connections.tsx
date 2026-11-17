@@ -8,7 +8,7 @@ import { go } from './router'
 import { SourcePicker } from './pick-ui'
 import { SkillsSection } from './skills-ui'
 import { Dialog, ErrorLine } from './ui'
-import { CapChip, Loading, PageHead, useLoad } from './ui-extra'
+import { CapChip, Loading, PageHead, Spinner, useLoad } from './ui-extra'
 
 // Real per-user connections (BFF: bff/connections.py). The state comes from the BFF; nothing here pretends to be connected.
 type AppDef = { name: string; enables: string; where: string }
@@ -139,27 +139,77 @@ const OAUTH_NAME: Record<ConnProvider, string> = { gdrive: 'Google Drive', gmail
 // (our provider -> Hermes ids); the live catalog has no overlaps today.
 const OWN_AS_HERMES: Record<ConnProvider, string[]> = { gdrive: ['google_drive', 'googledrive'], gmail: ['gmail'] }
 
+// Opened synchronously inside the click so the browser allows it; the BFF call takes seconds. Static page, no data interpolated.
+function openLoadingTab(): Window | null {
+  const w = window.open('', '_blank')
+  if (!w) return null
+  const d = w.document
+  d.title = 'Menyiapkan halaman login…'
+  const st = d.createElement('style')
+  st.textContent =
+    ':root{color-scheme:light dark}body{margin:0;min-height:100vh;display:grid;place-content:center;gap:12px;justify-items:center;font:16px system-ui,sans-serif;text-align:center;padding:24px}' +
+    '.s{width:28px;height:28px;border:3px solid rgba(128,128,128,.3);border-top-color:#2563eb;border-radius:50%;animation:r 1s linear infinite}@keyframes r{to{transform:rotate(360deg)}}' +
+    '@media (prefers-reduced-motion:reduce){.s{animation:none}}p{margin:0;opacity:.75}h1{font-size:18px;margin:0}'
+  d.head.appendChild(st)
+  const sp = d.createElement('div')
+  sp.className = 's'
+  sp.setAttribute('aria-hidden', 'true')
+  const h = d.createElement('h1')
+  h.textContent = 'Menyiapkan halaman login…'
+  const p = d.createElement('p')
+  p.textContent = 'Mohon tunggu sebentar, Anda akan dialihkan otomatis.'
+  d.body.append(sp, h, p)
+  return w
+}
+
 // Guided connect: explain, open the login page in a new tab, then wait until the app shows up as connected (max 3 minutes).
 function ConnectDialog({ app, onClose, onDone }: { app: HermesApp; onClose: () => void; onDone: () => void }) {
   const [phase, setPhase] = useState<'intro' | 'starting' | 'waiting' | 'late' | 'error'>('intro')
   const [url, setUrl] = useState('')
+  const [blocked, setBlocked] = useState(false)
   const [problem, setProblem] = useState('')
   const live = useRef(true)
+  const tab = useRef<Window | null>(null)
+  const closeTab = () => {
+    try {
+      tab.current?.close()
+    } catch {
+      /* already gone */
+    }
+    tab.current = null
+  }
   useEffect(() => {
     live.current = true // StrictMode runs the cleanup once before the real mount
     return () => {
       live.current = false
+      closeTab() // cancelled or failed; a finished login clears tab.current first
     }
   }, [])
   async function start() {
+    tab.current = openLoadingTab() // before any await: still counts as the user's click
+    setBlocked(!tab.current) // pop-up blocked anyway: offer a real link once the URL is ready
     setPhase('starting')
     setProblem('')
     try {
       const r = await api.appConnect(app.id)
       if (!live.current) return
-      if (r.connected || !r.url) return onDone()
+      if (r.connected || !r.url) {
+        closeTab()
+        return onDone()
+      }
+      let ok = false
+      try {
+        ok = new URL(r.url).protocol === 'https:'
+      } catch {
+        /* not a URL */
+      }
+      if (!ok) throw new Error('Alamat login dari server tidak aman, sambungan dibatalkan.')
       setUrl(r.url)
-      window.open(r.url, '_blank', 'noopener,noreferrer') // may be blocked by the browser: the link below is the fallback
+      if (tab.current) {
+        tab.current.opener = null
+        tab.current.location.replace(r.url)
+        tab.current = null // left open for the user; closed only by themselves
+      }
       setPhase('waiting')
       const end = Date.now() + 180_000
       while (live.current && Date.now() < end) {
@@ -173,6 +223,7 @@ function ConnectDialog({ app, onClose, onDone }: { app: HermesApp; onClose: () =
       }
       if (live.current) setPhase('late')
     } catch (e) {
+      closeTab()
       if (!live.current) return
       setProblem(errText(e))
       setPhase('error')
@@ -188,7 +239,8 @@ function ConnectDialog({ app, onClose, onDone }: { app: HermesApp; onClose: () =
       </ol>
       {phase === 'waiting' && (
         <p className="note-box" role="status">
-          Menunggu Anda menyelesaikan login... <a href={url} target="_blank" rel="noopener noreferrer">Buka halaman login lagi</a>
+          <span className="runprog-row"><Spinner /><span>Menunggu Anda menyelesaikan login di tab lain…</span></span>{' '}
+          <a href={url} target="_blank" rel="noopener noreferrer">Buka halaman login lagi</a>
         </p>
       )}
       {phase === 'late' && (
@@ -202,12 +254,25 @@ function ConnectDialog({ app, onClose, onDone }: { app: HermesApp; onClose: () =
         </p>
       )}
       <div className="dlg-actions">
-        <button type="button" className="btn quiet-btn" onClick={onClose}>
+        <button
+          type="button"
+          className="btn quiet-btn"
+          onClick={() => {
+            // Cancelling a waiting login stops the pending login on the server too (it is not connected yet).
+            if (phase === 'waiting') void api.appDisconnect(app.id).catch(() => {})
+            onClose()
+          }}
+        >
           {phase === 'waiting' ? 'Batal' : 'Tutup'}
         </button>
+        {phase === 'waiting' && blocked && (
+          <a className="btn primary" href={url} target="_blank" rel="noopener noreferrer">
+            Buka halaman login
+          </a>
+        )}
         {(phase === 'intro' || phase === 'error' || phase === 'starting') && (
           <button type="button" className="btn primary" disabled={phase === 'starting'} onClick={() => void start()}>
-            {phase === 'starting' ? 'Menyiapkan...' : 'Lanjut ke halaman login'}
+            {phase === 'starting' ? <span className="runprog-row"><Spinner />Menyiapkan…</span> : 'Lanjut ke halaman login'}
           </button>
         )}
       </div>
