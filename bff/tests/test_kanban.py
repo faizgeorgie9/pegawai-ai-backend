@@ -163,6 +163,8 @@ async def test_board_is_built_from_real_rows_and_scoped_to_the_user(db):
     occ = [c for c in cards if c["source"] == "schedule"]
     assert sorted((c["column"], c["outcome"]) for c in occ) == [("blocked", None), ("done", "ok"), ("todo", None)]
     assert next(c for c in occ if c["column"] == "blocked")["note"] == "Batas biaya"
+    assert all(c["ref"]["schedule_id"] == sid and c["ref"]["occurrence_id"] for c in occ)  # the board can act on its cards
+    assert next(c for c in cards if c["title"] == "tugas queued")["ref"]["run_id"]
     assert next(c for c in occ if c["column"] == "done")["cost"] is not None
     assert "dari jadwal" not in {c["title"] for c in cards if c["source"] == "chat"}  # the run shows through its occurrence
     assert not any(other in c["title"] for c in cards) and len(by) == len(cards)

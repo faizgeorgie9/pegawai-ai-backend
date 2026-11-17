@@ -278,6 +278,16 @@ export interface KanbanCard {
   link: string // app route, '' when the card cannot be opened
   cost: Money | null
   estimated: boolean
+  ref: KanbanRef // ids the card can be acted on with
+}
+export interface KanbanRef {
+  run_id: string
+  group_id: string
+  schedule_id: string
+  occurrence_id: string
+  occurrence_status: string
+  paused: boolean
+  sequence_id: string
 }
 export interface KanbanBoard {
   columns: { id: KanbanColumnId; label: string; total: number; cards: KanbanCard[] }[]
@@ -672,6 +682,15 @@ const toKanbanCard = (r: Raw): KanbanCard => ({
   link: asStr(r.link),
   cost: r.cost ? toMoney(r.cost) : null,
   estimated: r.estimated === true,
+  ref: {
+    run_id: asStr(r.ref?.run_id),
+    group_id: asStr(r.ref?.group_id),
+    schedule_id: asStr(r.ref?.schedule_id),
+    occurrence_id: asStr(r.ref?.occurrence_id),
+    occurrence_status: asStr(r.ref?.status),
+    paused: r.ref?.paused === true,
+    sequence_id: asStr(r.ref?.sequence_id),
+  },
 })
 const toKanban = (r: Raw): KanbanBoard => ({
   columns: list(r.columns).map((c) => ({ id: KCOL.find((x) => x === c.id) ?? 'done', label: asStr(c.label), total: asNum(c.total), cards: list(c.cards).map(toKanbanCard) })),

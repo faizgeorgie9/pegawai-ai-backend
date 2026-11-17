@@ -1,5 +1,5 @@
 """Kanban board: our own real work (runs, sequences, scheduler occurrences, plans waiting for approval) mapped to four columns
-that reuse Hermes' status words: todo (Antre), running (Berjalan), blocked (Perlu tindakan), done (Selesai). Failed and cancelled
+that reuse Hermes' status words: todo (Antre), running (Berjalan), blocked (Perlu Anda), done (Selesai). Failed and cancelled
 work stays in `done` with an `outcome` tag. Nothing is stored: every card is built from existing tables at request time.
 Hermes' own Kanban is an optional, read-only second source (`hermes kanban list --json`); we never enable its dispatcher or tools
 (workers it spawns would run outside the BFF, so their cost and stop would not be tracked)."""
@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from . import config, costs, db, engine, plan_schema, usage
 
-COLUMNS = [("todo", "Menunggu"), ("running", "Berjalan"), ("blocked", "Perlu tindakan"), ("done", "Selesai")]
+COLUMNS = [("todo", "Menunggu"), ("running", "Berjalan"), ("blocked", "Perlu Anda"), ("done", "Selesai")]
 PERIOD_DAYS = {"today": 1, "7d": 7, "30d": 30}
 PER_COLUMN = 40  # cards sent per column; `total` says how many matched
 AHEAD_DAYS = 7  # planned occurrences further away are not on the board yet
@@ -64,11 +64,11 @@ def _link(r: dict) -> str:
 
 
 def card(key: str, source: str, title: str, col: tuple, at, agents: list, group: dict | None, link: str | None,
-         cost: tuple = (None, False), note: str | None = None) -> dict:
+         cost: tuple = (None, False), note: str | None = None, ref: dict | None = None) -> dict:
     column, outcome, wait_note = col
     return {"key": key, "source": source, "title": title or "(tanpa judul)", "column": column, "outcome": outcome,
             "note": wait_note or note, "agents": agents, "group": group, "at": at, "link": link, "cost": cost[0],
-            "estimated": cost[1]}
+            "estimated": cost[1], "ref": ref or {}}  # ref: ids the board needs to act on the card
 
 
 # ---------- our own work ----------
@@ -115,10 +115,11 @@ async def own_cards(uid: str, days: int, agent: str | None, group: str | None) -
         cards.append(card(f"run:{r['id']}", "group" if gid else "chat", first_line(r["input"]), col,
                           r["finished_at"] or r["started_at"] or r["created_at"], who([r["bot_id"]]),
                           groups.get(gid) if gid else None, _link(r),
-                          (costs.money(c["usd"]), c["estimated"]) if col[0] == "done" else (None, False), note))
+                          (costs.money(c["usd"]), c["estimated"]) if col[0] == "done" else (None, False), note,
+                          {"run_id": str(r["id"]), "group_id": gid}))
 
     occs = await db.q("select o.id, o.planned_at, o.title, o.brief, o.status, o.skip_reason, o.targets, o.run_ids, o.started_at, o.finished_at, "
-                      "s.title as stitle, s.bot_id as sbot, s.group_id as sgroup, s.status as sstatus from schedule_occurrences o "
+                      "s.title as stitle, s.bot_id as sbot, s.group_id as sgroup, s.status as sstatus, s.id as sid from schedule_occurrences o "
                       "join schedules s on s.id = o.schedule_id where o.user_id = %s and ((o.status = 'planned' and o.planned_at < "
                       "now() + make_interval(days => %s)) or o.status = 'running' or coalesce(o.finished_at, o.planned_at) >= "
                       "now() - make_interval(days => %s)) and (%s::text is null or s.bot_id = %s or o.targets ? %s) "
@@ -131,9 +132,11 @@ async def own_cards(uid: str, days: int, agent: str | None, group: str | None) -
         waiting_for_time = o["status"] == "planned"
         at = o["planned_at"] if waiting_for_time else o["finished_at"] or o["started_at"] or o["planned_at"]
         cards.append(card(f"occ:{o['id']}", "schedule", o["title"] or o["stitle"], col, at,
-                          who(o["targets"] or ([o["sbot"]] if o["sbot"] else [])), groups.get(gid) if gid else None, "/scheduler",
+                          who(o["targets"] or ([o["sbot"]] if o["sbot"] else [])), groups.get(gid) if gid else None,
+                          f"/grup/{gid}" if gid else None,  # the technical scheduler screen is admin-only; a group chat is for everyone
                           _cost(o["run_ids"], info, o["status"] != "running"),
-                          o["skip_reason"] if o["status"] in ("skipped", "failed", "cancelled") else None))
+                          o["skip_reason"] if o["status"] in ("skipped", "failed", "cancelled") else None,
+                          {"schedule_id": str(o["sid"]), "occurrence_id": str(o["id"]), "status": o["status"], "paused": o["sstatus"] == "paused"}))
 
     seqs = await db.q("select id, bot_id, origin, turns, status, error, run_ids, created_at, updated_at from sequences where user_id = %s "
                       "and (status in ('queued', 'running') or updated_at >= now() - make_interval(days => %s)) "
@@ -146,7 +149,8 @@ async def own_cards(uid: str, days: int, agent: str | None, group: str | None) -
         first = first_line(s["turns"][0], 70)
         cards.append(card(f"seq:{s['id']}", "sequence", f"Evaluasi {case}: {first}" if case else first, col, s["updated_at"],
                           who([s["bot_id"]]), None, "/uji" + (f"?case={case}" if case else ""),
-                          _cost(s["run_ids"], sinfo, s["status"] not in ("queued", "running")), s["error"]))
+                          _cost(s["run_ids"], sinfo, s["status"] not in ("queued", "running")), s["error"],
+                          {"sequence_id": str(s["id"])}))
 
     # the newest plan of each group, when nobody approved it yet, waits for the user
     if not agent:
