@@ -416,3 +416,42 @@ td.st-col { min-width: 170px; }
 .skill-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .skill-txt code { font: inherit; color: var(--faint); }
 @media (max-width: 640px) { .apps-cats { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; margin-inline: calc(var(--s-4) * -1); padding-inline: var(--s-4); } .apps-cats button { flex: none; } }
+
+/* Papan Tugas: quick add, drag target, task panel (Kanban.tsx, TaskPanel.tsx) */
+.kb-grid[data-one] { grid-template-columns: minmax(0, 560px); }
+.kb-col[data-over] { outline: 2px dashed var(--control); outline-offset: -2px; }
+.kcard[draggable="true"] { cursor: grab; }
+button.kc-link { background: none; border: 0; width: 100%; text-align: left; font: inherit; cursor: pointer; }
+.kc-parent { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.kc-menu .popmenu button { color: var(--text); }
+.kc-menu .popmenu button:hover { background: var(--raised); }
+.kc-menu .popmenu button[data-danger] { color: var(--bad-ink); }
+.kc-menu .popmenu button[data-danger]:hover { background: var(--bad-bg); }
+.tq-add { display: flex; flex-direction: column; gap: var(--s-2); }
+.tq-add input, .tq-add select { width: 100%; min-width: 0; }
+.tq-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-2); }
+.tp { gap: var(--s-3); }
+.tp h3 { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
+.tp-who { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0; }
+.tp-line { margin: 0; color: var(--muted); }
+.tp-line.wait { color: var(--st-wait-ink); font-weight: 500; }
+.tp-sec { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-2); }
+.tp-sec > * { max-width: 100%; }
+.tp-body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tp-edit { display: flex; flex-direction: column; gap: var(--s-3); }
+.tp-edit .field input, .tp-edit .field select, .tp-edit .field textarea, .tp-reply textarea { width: 100%; }
+.tp-kids, .tp-thread, .tp-hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); width: 100%; }
+.tp-kids li, .tp-thread li { display: flex; flex-direction: column; gap: 2px; padding: var(--s-2) var(--s-3); border-radius: var(--radius-control); background: var(--raised); }
+.tp-thread li[data-me] { background: var(--active); }
+.tp-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.tp-reply { display: flex; flex-direction: column; gap: var(--s-2); width: 100%; align-items: flex-end; }
+.tp-acts { flex-wrap: wrap; }
+@media (max-width: 640px) { .tq-row { grid-template-columns: minmax(0, 1fr); } }
+.kb-col ul { max-height: none; overflow: visible; } /* the card menu must not be clipped by a scroll area */
+
+/* Tugas berulang list on the board */
+.kb-rec { margin: 0 0 var(--s-4); border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); padding: var(--s-2) var(--s-3); }
+.kb-rec summary { cursor: pointer; font-weight: 600; }
+.kb-rec ul { list-style: none; margin: var(--s-2) 0 0; padding: 0; display: grid; gap: var(--s-2); }
+.kb-rec li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.kb-rec-main { display: grid; min-width: 0; overflow-wrap: anywhere; }

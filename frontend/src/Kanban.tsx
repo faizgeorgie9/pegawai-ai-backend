@@ -1,55 +1,29 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, errText } from './bff'
-import type { KanbanBoard, KanbanCard } from './bff'
+import type { Schedule, TaskAction, TaskBoard, TaskCard } from './bff'
+import { useAdminMode } from './adminMode'
 import { useData } from './data'
-import { BotAvatar, DOTS, Dialog, ErrorLine, Icon, botColor, stamp } from './ui'
+import TaskPanel from './TaskPanel'
+import type { Ask } from './TaskPanel'
+import { BotAvatar, DOTS, Dialog, ErrorLine, Icon, botColor } from './ui'
 import { Empty, Loading } from './ui-extra'
 
-const SOURCE: Record<KanbanCard['source'], string> = { chat: 'Chat', group: 'Tim', schedule: 'Jadwal', sequence: 'Evaluasi', plan: 'Rencana', hermes: 'Tugas agen' }
-const OUTCOME = { failed: 'Gagal', cancelled: 'Dibatalkan' } as const
-const COLUMN_HINT: Record<string, string> = {
-  todo: 'Akan dikerjakan sesuai jadwal',
-  running: 'Agen sedang mengerjakan',
-  blocked: 'Agen menunggu persetujuan atau jawaban Anda',
-  done: 'Sudah dikerjakan',
-}
 const COLUMN_EMPTY: Record<string, string> = {
-  todo: 'Belum ada yang menunggu. Buat jadwal baru untuk memulai.',
+  queue: 'Belum ada yang antre. Tambahkan tugas di atas.',
   running: 'Tidak ada yang sedang dikerjakan.',
-  blocked: 'Tidak ada yang perlu Anda putuskan.',
+  needs_you: 'Tidak ada yang perlu Anda putuskan.',
   done: 'Belum ada pekerjaan yang selesai.',
+  archived: 'Arsip masih kosong.',
 }
 const WEEK = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
-const PERIODS: [string, string][] = [['today', 'Hari ini'], ['7d', '7 hari terakhir'], ['30d', '30 hari terakhir']]
+const ZONE: Record<string, string> = { 'Asia/Jakarta': 'WIB', 'Asia/Makassar': 'WITA', 'Asia/Jayapura': 'WIT' }
+// only these two moves can be dragged (Perlu Anda -> Antre, Selesai -> Antre); Dikerjakan is never a drop target
+const DRAGGABLE = ['needs_you', 'done'] // a plan is never dragged: it is approved, revised or cancelled
 
-type Ask = (a: { text: string; ok: string; run: () => Promise<unknown> }) => void
-interface Act {
-  label: string
-  run?: () => Promise<unknown> // an action; without it the button opens `c.link`
-  confirm?: string
-}
+type Open = (id: string, edit?: boolean) => void
 
-// What a card offers: at most one visible button (`main`), anything else in the small menu. Hermes' own tasks offer nothing.
-function actionsOf(c: KanbanCard): { main?: Act; more: Act[] } {
-  const r = c.ref
-  const open = c.link ? { label: c.column === 'done' ? 'Buka obrolan' : 'Tinjau' } : undefined
-  const remove: Act = { label: 'Hapus jadwal', confirm: `Hapus jadwal "${c.title}"? Tugas yang belum jalan tidak akan dikerjakan.`, run: () => api.deleteSchedule(r.schedule_id) }
-  const stop = (run: () => Promise<unknown>): Act => ({ label: 'Hentikan', run, confirm: `Hentikan "${c.title}"? Pekerjaan yang sedang berjalan akan berhenti.` })
-  if (c.source === 'hermes') return { more: [] }
-  if (c.source === 'schedule') {
-    if (r.occurrence_status === 'running') return c.column === 'blocked' ? { main: open, more: [] } : { main: stop(() => api.stopOccurrence(r.occurrence_id)), more: [] }
-    if (r.occurrence_status === 'planned') return { main: r.paused ? { label: 'Lanjutkan', run: () => api.scheduleAction(r.schedule_id, 'resume') } : { label: 'Jeda', run: () => api.scheduleAction(r.schedule_id, 'pause') }, more: [remove] }
-    if (r.occurrence_status === 'skipped') return { more: [remove] }
-    return { main: c.column === 'done' ? open : undefined, more: [] }
-  }
-  if (c.source === 'sequence') return { main: c.column === 'todo' || c.column === 'running' ? stop(() => api.stopSequence(r.sequence_id)) : undefined, more: [] }
-  if (c.source === 'plan') return { main: open, more: [] }
-  // a chat or team run
-  if (c.column === 'todo' || c.column === 'running') return { main: stop(() => (r.group_id ? api.stopGroup(r.group_id) : api.stopRun(r.run_id))), more: [] }
-  return { main: open, more: [] }
-}
-
-function Card({ c, ask, act }: { c: KanbanCard; ask: Ask; act: (f: () => Promise<unknown>) => Promise<void> }) {
+function Card({ c, ask, act, open }: { c: TaskCard; ask: Ask; act: (f: () => Promise<unknown>) => Promise<void>; open: Open }) {
+  const admin = useAdminMode()
   const [menu, setMenu] = useState(false)
   useEffect(() => {
     if (!menu) return
@@ -57,58 +31,62 @@ function Card({ c, ask, act }: { c: KanbanCard; ask: Ask; act: (f: () => Promise
     document.addEventListener('click', off)
     return () => document.removeEventListener('click', off)
   }, [menu])
-  const { main, more } = actionsOf(c)
-  const go = (a: Act) => {
+  const go = (a: TaskAction) => {
     setMenu(false)
-    if (a.confirm) ask({ text: a.confirm, ok: a.label, run: a.run! })
-    else void act(a.run!)
+    if (a.id === 'open') open(c.id)
+    else if (a.id === 'edit') open(c.id, true)
+    else if (a.id === 'chat') window.location.hash = c.link
+    else if (a.confirm) ask({ text: a.confirm, ok: a.label, run: () => api.taskVerb(c.id, a.id) })
+    else void act(() => api.taskVerb(c.id, a.id))
   }
-  const first = c.agents[0]
-  const tone = c.outcome === 'failed' ? 'bad' : c.outcome === 'cancelled' ? 'plain' : ''
-  const body = (
-    <>
-      <span className="kc-title">{c.title}</span>
-      <span className="kc-meta">
-        {c.agents.length > 0 && (
-          <span className="kc-who">
-            {c.agents.slice(0, 3).map((a) => (
-              <BotAvatar key={a.id} bot={a} size={18} />
-            ))}
-            <span>{c.agents.map((a) => a.name).join(', ')}</span>
-          </span>
-        )}
-        {c.group && <span className="kc-group">{c.group.name}</span>}
-      </span>
-      {c.note && <span className={`kc-note ${c.column === 'blocked' ? 'wait' : ''}`}>{c.note}</span>}
-      <span className="kc-foot">
-        <span className="pill plain cls">{SOURCE[c.source]}</span>
-        {c.outcome && c.outcome !== 'ok' && <span className={`pill ${tone} cls`}>{OUTCOME[c.outcome]}</span>}
-        <span className="kc-time num">{stamp(c.at)}</span>
-        {c.cost && (
-          <span className="kc-cost num">
-            {c.cost.label}
-            {c.estimated ? ' (perkiraan)' : ''}
-          </span>
-        )}
-      </span>
-    </>
-  )
+  const tone = c.outcome === 'failed' ? 'bad' : 'plain'
+  const drag = DRAGGABLE.includes(c.column) && c.kind !== 'plan'
   return (
-    <li className="kcard" data-col={c.column} data-bad={c.outcome === 'failed' || undefined} style={first ? ({ ['--kc' as string]: botColor(first) } as React.CSSProperties) : undefined}>
-      <div className="kc-link">{body}</div>
-      {(main || more.length > 0) && (
+    <li
+      className="kcard"
+      data-col={c.column}
+      data-bad={c.outcome === 'failed' || undefined}
+      draggable={drag}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', c.id)
+        e.dataTransfer.effectAllowed = 'move'
+      }}
+      style={c.assignee ? ({ ['--kc' as string]: botColor(c.assignee) } as React.CSSProperties) : undefined}
+    >
+      <button type="button" className="kc-link" onClick={() => open(c.id)}>
+        <span className="kc-title">{c.title}</span>
+        {c.parent && <span className="kc-parent">Bagian dari: {c.parent.title}</span>}
+        <span className="kc-meta">
+          {c.assignee && (
+            <span className="kc-who">
+              <BotAvatar bot={c.assignee} size={18} />
+              <span>{c.assignee.name}</span>
+            </span>
+          )}
+        </span>
+        <span className={`kc-note ${c.column === 'needs_you' ? 'wait' : ''}`}>{c.line}</span>
+        {(c.priority > 0 || c.outcome === 'failed' || c.outcome === 'cancelled' || c.cost || admin) && (
+          <span className="kc-foot">
+            {c.priority > 0 && <span className="pill warn cls">Penting</span>}
+            {c.outcome && c.outcome !== 'ok' && <span className={`pill ${tone} cls`}>{c.outcome === 'failed' ? 'Gagal' : 'Dibatalkan'}</span>}
+            {admin && <span className="pill plain cls">{c.status}</span>}
+            {c.cost && (
+              <span className="kc-cost num">
+                {c.cost.label}
+                {c.estimated ? ' (perkiraan)' : ''}
+              </span>
+            )}
+          </span>
+        )}
+      </button>
+      {(c.primary || c.more.length > 0) && (
         <div className="kc-act">
-          {main &&
-            (main.run ? (
-              <button type="button" className="btn soft sm" onClick={() => go(main)}>
-                {main.label}
-              </button>
-            ) : (
-              <a className="btn soft sm" href={'#' + c.link}>
-                {main.label}
-              </a>
-            ))}
-          {more.length > 0 && (
+          {c.primary && (
+            <button type="button" className="btn soft sm" onClick={() => go(c.primary!)}>
+              {c.primary.label}
+            </button>
+          )}
+          {c.more.length > 0 && (
             <span className="row-menu kc-menu">
               <button
                 type="button"
@@ -124,8 +102,8 @@ function Card({ c, ask, act }: { c: KanbanCard; ask: Ask; act: (f: () => Promise
               </button>
               {menu && (
                 <div className="popmenu" role="menu">
-                  {more.map((a) => (
-                    <button key={a.label} type="button" role="menuitem" onClick={() => go(a)}>
+                  {c.more.map((a) => (
+                    <button key={a.id} type="button" role="menuitem" data-danger={a.id === 'cancel' || undefined} onClick={() => go(a)}>
                       {a.label}
                     </button>
                   ))}
@@ -136,6 +114,54 @@ function Card({ c, ask, act }: { c: KanbanCard; ask: Ask; act: (f: () => Promise
         </div>
       )}
     </li>
+  )
+}
+
+// Quick add at the top of Antre: a title, who does it, an optional time. Enter saves.
+function QuickAdd({ agent, onAdded }: { agent: string; onAdded: () => void }) {
+  const { bots, groups } = useData()
+  const [title, setTitle] = useState('')
+  const [who, setWho] = useState('')
+  const [at, setAt] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState('')
+  const target = who || (agent ? `bot:${agent}` : bots[0] ? `bot:${bots[0].id}` : '')
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!title.trim() || !target || busy) return
+    setBusy(true)
+    setProblem('')
+    try {
+      const [kind, id] = target.split(':')
+      await api.createTask({ title: title.trim(), ...(kind === 'bot' ? { assignee_bot: id } : { assignee_group: id }), ...(at ? { scheduled_at: new Date(at).toISOString() } : {}) })
+      setTitle('')
+      setAt('')
+      onAdded()
+    } catch (err) {
+      setProblem(errText(err))
+    }
+    setBusy(false)
+  }
+  return (
+    <form className="tq-add" onSubmit={(e) => void submit(e)}>
+      <input value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} placeholder="Tambah tugas, lalu tekan Enter" aria-label="Judul tugas baru" />
+      <div className="tq-row">
+        <select value={target} onChange={(e) => setWho(e.target.value)} aria-label="Siapa yang mengerjakan?">
+          {bots.map((b) => (
+            <option key={b.id} value={`bot:${b.id}`}>
+              {b.name}
+            </option>
+          ))}
+          {groups.map((g) => (
+            <option key={g.id} value={`group:${g.id}`}>
+              Tim {g.name}
+            </option>
+          ))}
+        </select>
+        <input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} aria-label="Jadwal (opsional)" title="Jadwal (opsional)" />
+      </div>
+      {problem && <ErrorLine text={problem} />}
+    </form>
   )
 }
 
@@ -198,7 +224,7 @@ function NewSchedule({ onClose }: { onClose: (created: boolean) => void }) {
     }
   }
   return (
-    <Dialog title="Jadwal baru" onClose={() => onClose(false)}>
+    <Dialog title="Tugas berulang" onClose={() => onClose(false)}>
       <form className="dlg-body" onSubmit={(e) => void submit(e)}>
         <label className="field">
           <span>Apa yang perlu dikerjakan?</span>
@@ -253,7 +279,7 @@ function NewSchedule({ onClose }: { onClose: (created: boolean) => void }) {
             Batal
           </button>
           <button type="submit" className="btn primary" disabled={!ok || busy}>
-            Buat jadwal
+            Buat tugas berulang
           </button>
         </div>
       </form>
@@ -261,26 +287,71 @@ function NewSchedule({ onClose }: { onClose: (created: boolean) => void }) {
   )
 }
 
+const rhythm = (s: Schedule) => `${s.days.length === 7 ? 'Setiap hari' : s.days.join() === '0,1,2,3,4' ? 'Hari kerja' : s.days.map((d) => WEEK[d]).join(', ')}, ${s.time.replace(':', '.')} ${ZONE[s.timezone] ?? ''}`
+
+// The templates behind Tugas berulang: each time they come up, a task appears in Antre. Pausing or deleting one archives the days not started.
+function Recurring({ list, ask, act }: { list: Schedule[]; ask: Ask; act: (f: () => Promise<unknown>) => Promise<void> }) {
+  if (list.length === 0) return null
+  return (
+    <details className="kb-rec">
+      <summary>
+        Tugas berulang <b className="num">{list.length}</b>
+      </summary>
+      <ul>
+        {list.map((s) => (
+          <li key={s.id}>
+            <span className="kb-rec-main">
+              <b>{s.title}</b>
+              <small className="quiet">
+                {s.target} · {rhythm(s)}
+                {s.status === 'paused' && ' · Dijeda'}
+              </small>
+            </span>
+            <span className="sched-actions">
+              {s.status === 'active' ? (
+                <button type="button" className="btn soft sm" onClick={() => void act(() => api.scheduleAction(s.id, 'pause'))}>
+                  Jeda
+                </button>
+              ) : (
+                <button type="button" className="btn soft sm" onClick={() => void act(() => api.scheduleAction(s.id, 'resume'))}>
+                  Lanjutkan
+                </button>
+              )}
+              <button type="button" className="btn link sm" onClick={() => ask({ text: `Hapus tugas berulang "${s.title}"? Tugas yang belum dimulai ikut dihapus dari antrean.`, ok: 'Hapus', run: () => api.deleteSchedule(s.id) })}>
+                Hapus
+              </button>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </details>
+  )
+}
+
 export default function Kanban() {
   const { bots, groups, runs } = useData()
   const [agent, setAgent] = useState('')
   const [group, setGroup] = useState('')
-  const [period, setPeriod] = useState('7d')
+  const [archived, setArchived] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
-  const [result, setResult] = useState('') // '' | 'ok' | 'bad': what the Selesai column shows
-  const [board, setBoard] = useState<KanbanBoard | null>(null)
+  const [board, setBoard] = useState<TaskBoard | null>(null)
+  const [rec, setRec] = useState<Schedule[]>([])
   const [state, setState] = useState<'loading' | 'ok' | 'error'>('loading')
   const [error, setError] = useState('')
   const epoch = useRef(0)
   const [confirm, setConfirm] = useState<{ text: string; ok: string; run: () => Promise<unknown> } | null>(null)
   const [creating, setCreating] = useState(false)
+  const [opened, setOpened] = useState<{ id: string; edit: boolean } | null>(null)
   const [problem, setProblem] = useState('')
+  const [notice, setNotice] = useState('')
+  const [over, setOver] = useState(false)
 
   const load = useCallback(
     (quiet = false) => {
       const mine = ++epoch.current
       if (!quiet) setState((s) => (s === 'ok' ? s : 'loading'))
-      api.kanban({ agent, group, period }).then(
+      api.schedules().then(setRec, () => undefined) // the list of Tugas berulang is a side note: the board loads without it
+      api.tasksBoard({ agent, group, archived }).then(
         (b) => {
           if (mine !== epoch.current) return
           setBoard(b)
@@ -293,7 +364,7 @@ export default function Kanban() {
         },
       )
     },
-    [agent, group, period],
+    [agent, group, archived],
   )
   useEffect(() => load(), [load])
 
@@ -307,12 +378,11 @@ export default function Kanban() {
     load(true)
   }
 
-  // Same live pattern as the rest of the app: the active runs (kept fresh by the global event stream) tell us when to look again,
-  // and while something is on the board as running we also poll lightly (scheduler occurrences move without a page event).
+  // Same live pattern as the rest of the app: active runs tell us when to look again; while something is running we also poll lightly.
   const sig = runs.map((r) => r.id).join(',')
   const seen = useRef(sig)
   useEffect(() => {
-    if (seen.current === sig) return // nothing changed since the load above
+    if (seen.current === sig) return
     seen.current = sig
     const t = window.setTimeout(() => load(true), 600)
     return () => window.clearTimeout(t)
@@ -324,39 +394,24 @@ export default function Kanban() {
     return () => window.clearInterval(id)
   }, [busy, load])
 
-  const columns = useMemo(
-    () =>
-      (board?.columns ?? []).map((c) =>
-        c.id === 'done' && result ? { ...c, cards: c.cards.filter((x) => (result === 'ok' ? x.outcome === 'ok' || x.source === 'hermes' : x.outcome === 'failed' || x.outcome === 'cancelled')) } : c,
-      ),
-    [board, result],
-  )
+  const columns = board?.columns ?? []
   const total = columns.reduce((n, c) => n + c.total, 0)
-  const filtered = !!(agent || group || result)
+  const filtered = !!(agent || group)
+  const filters = [agent, group, archived].filter(Boolean).length
 
   return (
     <section className="page kanban" aria-labelledby="kb-h">
       <header className="page-head">
         <div>
           <h1 id="kb-h">Jadwal &amp; tugas</h1>
-          <p className="quiet">Semua pekerjaan agen Anda dalam satu papan.</p>
+          <p className="quiet">Beri tugas ke agen Anda dan pantau sampai selesai.</p>
         </div>
         <div className="filters">
-          <label className="field inline">
-            <span>Periode</span>
-            <select value={period} onChange={(e) => setPeriod(e.target.value)}>
-              {PERIODS.map(([v, l]) => (
-                <option key={v} value={v}>
-                  {l}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button type="button" className="btn primary" onClick={() => setCreating(true)}>
-            Jadwal baru
+          <button type="button" className="btn outline" onClick={() => setCreating(true)}>
+            Tugas berulang
           </button>
           <button type="button" className="btn outline" aria-expanded={filterOpen} aria-controls="kb-filters" onClick={() => setFilterOpen(!filterOpen)}>
-            Filter{agent || group || result ? ` (${[agent, group, result].filter(Boolean).length})` : ''}
+            Filter{filters ? ` (${filters})` : ''}
           </button>
         </div>
         <div className="filters kb-more" id="kb-filters" hidden={!filterOpen}>
@@ -383,21 +438,28 @@ export default function Kanban() {
             </select>
           </label>
           <label className="field inline">
-            <span>Hasil</span>
-            <select value={result} onChange={(e) => setResult(e.target.value)}>
-              <option value="">Semua hasil</option>
-              <option value="ok">Berhasil</option>
-              <option value="bad">Gagal atau dibatalkan</option>
+            <span>Tampilkan</span>
+            <select value={archived ? 'arsip' : 'papan'} onChange={(e) => setArchived(e.target.value === 'arsip')}>
+              <option value="papan">Papan tugas</option>
+              <option value="arsip">Arsip</option>
             </select>
           </label>
         </div>
       </header>
+      {notice && (
+        <p className="state ok" role="status">
+          {notice}
+        </p>
+      )}
       {problem && <ErrorLine text={problem} />}
       {creating && (
         <NewSchedule
           onClose={(created) => {
             setCreating(false)
-            if (created) load(true)
+            if (created) {
+              setNotice('Tugas berulang dibuat. Tugas untuk beberapa hari ke depan muncul di Antre.')
+              load(true)
+            }
           }}
         />
       )}
@@ -410,34 +472,52 @@ export default function Kanban() {
           }}
         />
       )}
+      <Recurring list={rec} ask={setConfirm} act={act} />
+      {opened && <TaskPanel key={opened.id + String(opened.edit)} id={opened.id} edit={opened.edit} ask={setConfirm} onChanged={() => load(true)} onClose={() => setOpened(null)} />}
 
       {state === 'loading' && <Loading text="Memuat papan..." shape="ledger" />}
       {state === 'error' && <ErrorLine text={error} onRetry={() => load()} />}
-      {state === 'ok' && total === 0 && (
-        <Empty title={filtered ? 'Tidak ada tugas yang cocok' : 'Belum ada tugas'}>
-          {filtered ? 'Coba ubah filter.' : 'Pekerjaan agen muncul di sini.'}
-        </Empty>
-      )}
-      {state === 'ok' && total > 0 && (
-        <div className="kb-grid">
+      {state === 'ok' && archived && total === 0 && <Empty title="Arsip kosong">Tugas yang diarsipkan atau dibatalkan muncul di sini.</Empty>}
+      {state === 'ok' && !(archived && total === 0) && (
+        <div className="kb-grid" data-one={archived || undefined}>
           {columns.map((c) => (
-            <section key={c.id} className="kb-col" data-col={c.id} aria-labelledby={`kb-${c.id}`}>
+            <section
+              key={c.id}
+              className="kb-col"
+              data-col={c.id}
+              data-over={(c.id === 'queue' && over) || undefined}
+              aria-labelledby={`kb-${c.id}`}
+              onDragOver={(e) => {
+                if (c.id !== 'queue') return
+                e.preventDefault()
+                setOver(true)
+              }}
+              onDragLeave={() => setOver(false)}
+              onDrop={(e) => {
+                setOver(false)
+                if (c.id !== 'queue') return
+                e.preventDefault()
+                const id = e.dataTransfer.getData('text/plain')
+                if (id) void act(() => api.taskVerb(id, 'move', { to: 'queue' }))
+              }}
+            >
               <header>
                 <h2 id={`kb-${c.id}`}>
                   {c.label} <b className="num">{c.total}</b>
                 </h2>
-                <p className="quiet small">{COLUMN_HINT[c.id]}</p>
+                <p className="quiet small">{c.hint}</p>
               </header>
+              {c.id === 'queue' && <QuickAdd agent={agent} onAdded={() => load(true)} />}
               {c.cards.length === 0 ? (
-                <p className="quiet small kb-none">{COLUMN_EMPTY[c.id]}</p>
+                <p className="quiet small kb-none">{filtered ? 'Tidak ada yang cocok dengan filter.' : COLUMN_EMPTY[c.id]}</p>
               ) : (
                 <ul>
                   {c.cards.map((x) => (
-                    <Card key={x.key} c={x} ask={setConfirm} act={act} />
+                    <Card key={x.id} c={x} ask={setConfirm} act={act} open={(id, edit = false) => setOpened({ id, edit })} />
                   ))}
                 </ul>
               )}
-              {c.total > c.cards.length && result === '' && <p className="quiet small">dan {c.total - c.cards.length} lainnya. Persempit dengan Filter.</p>}
+              {c.total > c.cards.length && <p className="quiet small">dan {c.total - c.cards.length} lainnya. Persempit dengan Filter.</p>}
             </section>
           ))}
         </div>

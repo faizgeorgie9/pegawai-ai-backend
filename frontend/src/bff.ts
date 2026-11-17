@@ -250,6 +250,7 @@ export interface GroupMsg {
   run_id: string
   created_at: number
   plan?: ContentPlan // the message ends with a valid content plan (the BFF validated it): shown as an approval card
+  task?: { id: string; title: string } // the agent's run made or worked on this task (chip "Tugas: ..." to the board)
 }
 export interface PlanDay {
   date: string // YYYY-MM-DD
@@ -261,63 +262,82 @@ export interface PlanDay {
 export interface ContentPlan {
   title: string
   days: PlanDay[]
-  schedule_id: string | null // set once the user approved it
+  task_id: string | null // the plan's task on the board (null until there is one)
+  state: 'pending' | 'approved' | 'cancelled' | 'replaced'
 }
-// Kanban board (GET /kanban): our own work in four columns, plus Hermes' own Kanban when it is connected.
-export type KanbanColumnId = 'todo' | 'running' | 'blocked' | 'done'
-export interface KanbanCard {
-  key: string
-  source: 'chat' | 'group' | 'schedule' | 'sequence' | 'plan' | 'hermes'
+// Papan Tugas (GET /tasks/board): tasks in four columns (Arsip view: one column). `primary` and `more` are the actions the card offers;
+// an action id is an API verb (start, stop, approve, cancel, retry, archive, restore) or, for open / edit / chat, something the screen does itself.
+export type TaskColumnId = 'queue' | 'running' | 'needs_you' | 'done' | 'archived'
+export interface TaskAction {
+  id: string
+  label: string
+  confirm: string // '' when no confirmation is needed
+}
+export interface TaskCard {
+  id: string
   title: string
-  column: KanbanColumnId
+  column: TaskColumnId
+  status: string // internal (todo, scheduled, ready, running, blocked, review, done, archived): admin mode only
+  kind: 'task' | 'plan'
+  priority: number
+  assignee: { kind: 'bot' | 'group'; id: string; name: string; color: string } | null
+  parent: { id: string; title: string } | null
+  scheduled_at: number // epoch seconds, 0 when none
+  block_kind: string
   outcome: 'ok' | 'failed' | 'cancelled' | null
-  note: string
-  agents: { id: string; name: string; color: string }[]
-  group: { id: string; name: string } | null
-  at: number // epoch seconds, 0 when unknown
-  link: string // app route, '' when the card cannot be opened
+  line: string // one plain sentence about where the task stands
   cost: Money | null
   estimated: boolean
-  ref: KanbanRef // ids the card can be acted on with
+  link: string // app route of the chat or team behind the task, '' when none
+  children_done: number
+  children_total: number
+  primary: TaskAction | null
+  more: TaskAction[]
 }
-export interface KanbanRef {
-  run_id: string
-  group_id: string
-  schedule_id: string
-  occurrence_id: string
-  occurrence_status: string
-  paused: boolean
-  sequence_id: string
+export interface TaskComment {
+  id: string
+  author: 'user' | 'bot' | 'system'
+  bot_id: string
+  text: string
+  at: number
 }
-export interface KanbanBoard {
-  columns: { id: KanbanColumnId; label: string; total: number; cards: KanbanCard[] }[]
-  hermes: { state: 'ok' | 'unavailable' | 'pending'; count: number }
-  period: string
+export interface TaskEvent {
+  kind: string
+  at: number
+  from: string
+  to: string
 }
-export interface KanbanFilter {
+export interface TaskDetail extends TaskCard {
+  body: string
+  result: string
+  attempts: number
+  source: string
+  editable: boolean
+  comments: TaskComment[]
+  events: TaskEvent[]
+  runs: { id: string; status: string; at: number; cost: Money | null }[]
+  children: TaskCard[]
+}
+export interface TaskBoard {
+  columns: { id: TaskColumnId; label: string; hint: string; total: number; cards: TaskCard[] }[]
+}
+export interface TaskFilter {
   agent?: string
   group?: string
-  period?: string
+  archived?: boolean
 }
-export type OccStatus = 'planned' | 'running' | 'done' | 'skipped' | 'failed' | 'cancelled'
-export interface Occurrence {
-  id: string
-  schedule_id: string
-  planned_at: number // epoch seconds
+export interface TaskInput {
   title: string
-  brief: string
-  status: OccStatus
-  skip_reason: string
-  agents: string[] // plan days: writer, visual; empty = the schedule's own target
-  run_id: string
-  cost: Money | null
-  estimated: boolean
+  body?: string
+  assignee_bot?: string
+  assignee_group?: string
+  scheduled_at?: string | null // ISO time with zone
+  priority?: 0 | 1
 }
 export interface Schedule {
   id: string
-  kind: 'recurring' | 'plan'
   title: string
-  status: 'active' | 'paused' | 'cancelled'
+  status: 'active' | 'paused'
   target: string // agent or group name
   bot_id: string
   group_id: string
@@ -326,7 +346,6 @@ export interface Schedule {
   time: string
   timezone: string
   next_at: number // 0 when none
-  occurrences: Occurrence[]
 }
 export interface ScheduleInput {
   title: string
@@ -633,19 +652,22 @@ export const toGroupMsg = (r: Raw): GroupMsg => {
     run_id: asStr(r.run_id),
     created_at: epoch(r.created_at ?? r.time),
     plan: r.plan ? toContentPlan(r.plan) : undefined,
+    task: r.task ? { id: asStr((r.task as Raw).id), title: asStr((r.task as Raw).title) } : undefined,
   }
 }
+const toPlanState = (p: Raw): Pick<ContentPlan, 'task_id' | 'state'> => ({
+  task_id: p.task_id ? asStr(p.task_id) : null,
+  state: (['approved', 'cancelled', 'replaced'] as const).find((x) => x === p.state) ?? 'pending',
+})
 const toContentPlan = (p: Raw): ContentPlan => ({
   title: asStr(p.title),
   days: list(p.days).map((d) => ({ date: asStr(d.date), theme: asStr(d.theme), products: list(d.products).map((x) => asStr(x)), brief: asStr(d.brief), time: asStr(d.time, '09:00') })),
-  schedule_id: p.schedule_id ? asStr(p.schedule_id) : null,
+  ...toPlanState(p),
 })
-const OCC_STATUS = ['planned', 'running', 'done', 'skipped', 'failed', 'cancelled'] as const
 const toSchedule = (r: Raw): Schedule => ({
   id: asStr(r.id),
-  kind: r.kind === 'plan' ? 'plan' : 'recurring',
   title: asStr(r.title),
-  status: r.status === 'paused' ? 'paused' : r.status === 'cancelled' ? 'cancelled' : 'active',
+  status: r.status === 'paused' ? 'paused' : 'active',
   target: asStr(r.target),
   bot_id: asStr(r.bot_id),
   group_id: asStr(r.group_id),
@@ -654,48 +676,44 @@ const toSchedule = (r: Raw): Schedule => ({
   time: asStr(r.time),
   timezone: asStr(r.timezone),
   next_at: epoch(r.next_at),
-  occurrences: list(r.occurrences).map((o) => ({
-    id: asStr(o.id),
-    schedule_id: asStr(o.schedule_id),
-    planned_at: epoch(o.planned_at),
-    title: asStr(o.title),
-    brief: asStr(o.brief),
-    status: OCC_STATUS.find((t) => t === o.status) ?? 'failed',
-    skip_reason: asStr(o.skip_reason),
-    agents: list(o.agents).map((x) => asStr(x)),
-    run_id: asStr(o.run_id),
-    cost: o.cost ? toMoney(o.cost) : null,
-    estimated: o.estimated === true,
-  })),
 })
-const KCOL: KanbanColumnId[] = ['todo', 'running', 'blocked', 'done']
-const toKanbanCard = (r: Raw): KanbanCard => ({
-  key: asStr(r.key),
-  source: (['chat', 'group', 'schedule', 'sequence', 'plan', 'hermes'] as const).find((x) => x === r.source) ?? 'chat',
+const TCOL: TaskColumnId[] = ['queue', 'running', 'needs_you', 'done', 'archived']
+const toTaskAction = (r: Raw): TaskAction => ({ id: asStr(r.id), label: asStr(r.label), confirm: asStr(r.confirm) })
+const toTaskCard = (r: Raw): TaskCard => ({
+  id: asStr(r.id),
   title: asStr(r.title),
-  column: KCOL.find((x) => x === r.column) ?? 'done',
+  column: TCOL.find((x) => x === r.column) ?? 'done',
+  status: asStr(r.status),
+  kind: r.kind === 'plan' ? 'plan' : 'task',
+  priority: asNum(r.priority),
+  assignee: r.assignee ? { kind: r.assignee.group ? 'group' : 'bot', id: asStr(r.assignee.group ?? r.assignee.bot), name: asStr(r.assignee.name), color: asStr(r.assignee.color, 'slate') } : null,
+  parent: r.parent ? { id: asStr(r.parent.id), title: asStr(r.parent.title) } : null,
+  scheduled_at: epoch(r.scheduled_at),
+  block_kind: asStr(r.block_kind),
   outcome: (['ok', 'failed', 'cancelled'] as const).find((x) => x === r.outcome) ?? null,
-  note: asStr(r.note),
-  agents: list(r.agents).map((a) => ({ id: asStr(a.id), name: asStr(a.name), color: asStr(a.color, 'slate') })),
-  group: r.group ? { id: asStr(r.group.id), name: asStr(r.group.name) } : null,
-  at: epoch(r.at),
-  link: asStr(r.link),
+  line: asStr(r.line),
   cost: r.cost ? toMoney(r.cost) : null,
   estimated: r.estimated === true,
-  ref: {
-    run_id: asStr(r.ref?.run_id),
-    group_id: asStr(r.ref?.group_id),
-    schedule_id: asStr(r.ref?.schedule_id),
-    occurrence_id: asStr(r.ref?.occurrence_id),
-    occurrence_status: asStr(r.ref?.status),
-    paused: r.ref?.paused === true,
-    sequence_id: asStr(r.ref?.sequence_id),
-  },
+  link: asStr(r.link),
+  children_done: asNum(r.children_done),
+  children_total: asNum(r.children_total),
+  primary: r.primary_action ? toTaskAction(r.primary_action) : null,
+  more: list(r.more_actions).map(toTaskAction),
 })
-const toKanban = (r: Raw): KanbanBoard => ({
-  columns: list(r.columns).map((c) => ({ id: KCOL.find((x) => x === c.id) ?? 'done', label: asStr(c.label), total: asNum(c.total), cards: list(c.cards).map(toKanbanCard) })),
-  hermes: { state: (['ok', 'unavailable', 'pending'] as const).find((x) => x === r.hermes?.state) ?? 'unavailable', count: asNum(r.hermes?.count) },
-  period: asStr(r.period, '7d'),
+const toTaskDetail = (r: Raw): TaskDetail => ({
+  ...toTaskCard(r),
+  body: asStr(r.body),
+  result: asStr(r.result),
+  attempts: asNum(r.attempts),
+  source: asStr(r.source),
+  editable: r.editable === true,
+  comments: list(r.comments).map((c) => ({ id: asStr(c.id), author: (['user', 'bot', 'system'] as const).find((x) => x === c.author) ?? 'system', bot_id: asStr(c.bot_id), text: asStr(c.text), at: epoch(c.created_at) })),
+  events: list(r.events).map((e) => ({ kind: asStr(e.kind), at: epoch(e.created_at), from: asStr(e.payload?.from), to: asStr(e.payload?.to) })),
+  runs: list(r.runs).map((x) => ({ id: asStr(x.id), status: asStr(x.status), at: epoch(x.at), cost: x.cost ? toMoney(x.cost) : null })),
+  children: list(r.children).map(toTaskCard),
+})
+const toTaskBoard = (r: Raw): TaskBoard => ({
+  columns: list(r.columns).map((c) => ({ id: TCOL.find((x) => x === c.id) ?? 'done', label: asStr(c.label), hint: asStr(c.hint), total: asNum(c.total), cards: list(c.cards).map(toTaskCard) })),
 })
 export const toRun = (r: Raw): RunInfo => ({
   id: asStr(r.id),
@@ -946,14 +964,19 @@ export const api = {
   steerGroupMessage: (id: string, messageId: string) => call<void>('POST', `/groups/${enc(id)}/messages/${enc(messageId)}/steer`),
   cancelGroupMessage: (id: string, messageId: string) => call<void>('DELETE', `/groups/${enc(id)}/messages/${enc(messageId)}/queued`),
   stopGroup: (id: string) => call<void>('POST', `/groups/${enc(id)}/stop`),
-  approvePlan: async (gid: string, messageId: string) => toSchedule(await call<Raw>('POST', `/groups/${enc(gid)}/plans/${enc(messageId)}/approve`)),
+  approvePlan: async (gid: string, messageId: string) => toPlanState(await call<Raw>('POST', `/groups/${enc(gid)}/plans/${enc(messageId)}/approve`)),
+  cancelPlan: async (gid: string, messageId: string) => toPlanState(await call<Raw>('POST', `/groups/${enc(gid)}/plans/${enc(messageId)}/cancel`)),
   revisePlan: (gid: string, messageId: string, feedback: string) => call<void>('POST', `/groups/${enc(gid)}/plans/${enc(messageId)}/revise`, { feedback }),
-  kanban: async (f: KanbanFilter) => toKanban(await call<Raw>('GET', `/kanban${q({ ...f })}`)),
+  tasksBoard: async (f: TaskFilter) => toTaskBoard(await call<Raw>('GET', `/tasks/board${q({ agent: f.agent, group: f.group, archived: f.archived ? 1 : undefined })}`)),
+  task: async (id: string) => toTaskDetail(await call<Raw>('GET', `/tasks/${enc(id)}`)),
+  createTask: async (b: TaskInput) => toTaskDetail(await call<Raw>('POST', '/tasks', b)),
+  editTask: async (id: string, b: Partial<TaskInput>) => toTaskDetail(await call<Raw>('PATCH', `/tasks/${enc(id)}`, b)),
+  taskVerb: async (id: string, verb: string, body: { text?: string; note?: string; to?: string } = {}) => toTaskDetail(await call<Raw>('POST', `/tasks/${enc(id)}/${verb}`, body)),
+  commentTask: async (id: string, text: string) => toTaskDetail(await call<Raw>('POST', `/tasks/${enc(id)}/comments`, { text })),
   schedules: async () => list(await call('GET', '/schedules')).map(toSchedule),
   createSchedule: async (b: ScheduleInput) => toSchedule(await call<Raw>('POST', '/schedules', b)),
-  scheduleAction: async (id: string, what: 'pause' | 'resume' | 'cancel') => toSchedule(await call<Raw>('POST', `/schedules/${enc(id)}/${what}`)),
+  scheduleAction: async (id: string, what: 'pause' | 'resume') => toSchedule(await call<Raw>('POST', `/schedules/${enc(id)}/${what}`)),
   deleteSchedule: (id: string) => call<void>('DELETE', `/schedules/${enc(id)}`),
-  stopOccurrence: (id: string) => call<void>('POST', `/schedule-occurrences/${enc(id)}/stop`),
   usage: async (s: Scope): Promise<Usage> => {
     const u = await call<Usage>('GET', `/usage${q({ ...s })}`)
     return { ...u, turns: u.turns.map((t) => ({ ...t, created_at: epoch(t.created_at) })) }

@@ -60,7 +60,7 @@ def test_ping_through_mcp_client(app):
         async with streamable_http_client(URL, http_client=http) as (r, w, _):
             async with ClientSession(r, w) as s:
                 await s.initialize()
-                assert sorted(t.name for t in (await s.list_tools()).tools) == ["action_status", "drive_create", "drive_move", "drive_read", "drive_rename", "drive_search", "drive_trash", "drive_update", "gmail_create_draft", "gmail_label", "gmail_read", "gmail_search", "gmail_send", "gmail_send_draft", "gmail_trash", "ping"]
+                assert sorted(t.name for t in (await s.list_tools()).tools) == ["action_status", "drive_create", "drive_move", "drive_read", "drive_rename", "drive_search", "drive_trash", "drive_update", "gmail_create_draft", "gmail_label", "gmail_read", "gmail_search", "gmail_send", "gmail_send_draft", "gmail_trash", "ping", "task_ask_user", "task_cancel", "task_comment", "task_complete", "task_create", "task_list", "task_request_review"]
                 return (await s.call_tool("ping", {})).content[0].text
     out = run_with_manager(app, call)
     assert out.startswith("ok 20")

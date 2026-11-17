@@ -17,6 +17,7 @@ import { KbAttach, KbLines, KbTrayView, asksToSave, useKbTray } from './kb-ui'
 import { RUNNING_HINT, RUNNING_PLACEHOLDER, STEER_KEY, STEER_TIP, isSteerKey } from './composerKeys'
 import { ClarifyCard, CopyButton, RunProgress, statusText } from './ui-extra'
 import { PanelButtons, SidePanel, Split } from './Panel'
+import { MakeTaskButton } from './TaskPanel'
 import { BotAvatar, CLOSE, Icon, ThinkingBlock, botColor, nf } from './ui'
 
 const THINK_KEY = 'pegawai.showThinking'
@@ -528,6 +529,7 @@ function Message(p: {
       <div className="msg user">
         <p>{m.content}</p>
         <KbLines items={m.kb} busy={m.kbBusy} />
+        {m.content.trim() && <div className="msg-tools user-tools"><MakeTaskButton text={m.content} bot={bot.id} /></div>}
       </div>
     )
   }

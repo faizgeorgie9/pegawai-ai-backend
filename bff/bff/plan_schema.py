@@ -2,9 +2,12 @@
 groups._instructions). Parsed and validated here; anything invalid is not a plan and the message stays plain text."""
 import json
 import re
-from datetime import date
+from datetime import date, datetime, time, timezone
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+
+from .errors import ApiError
 
 MAX_DAYS = 14
 _FENCE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.S)
@@ -82,3 +85,38 @@ def parse(text: str) -> tuple[dict | None, list[str]]:
 def strip(text: str) -> str:
     """The message without its plan block (what a reader sees above the card)."""
     return _FENCE.sub("", text or "").strip()
+
+
+# ---------- turning an approved plan into dated work ----------
+
+WRITER_WORDS, VISUAL_WORDS = ("writer", "copywrit", "penulis"), ("visual", "designer", "desainer")
+
+
+def local_to_utc(d: date, hhmm: str, tz: str) -> datetime:
+    return datetime.combine(d, time.fromisoformat(hhmm), tzinfo=ZoneInfo(tz)).astimezone(timezone.utc)
+
+
+def plan_slots(plan: dict, tz: str, now: datetime) -> list[tuple[datetime, str, str]]:
+    """(planned_at UTC, title, brief) per plan day. A day already in the past cannot be scheduled (400)."""
+    n, out = len(plan["days"]), []
+    for i, d in enumerate(plan["days"], 1):
+        at = local_to_utc(date.fromisoformat(d["date"]), d["time"], tz)
+        if at <= now:
+            raise ApiError(400, f"Tanggal {d['date']} sudah lewat. Minta revisi agar tanggalnya dimulai dari besok.")
+        prods = f" Produk: {', '.join(d['products'])}." if d["products"] else ""
+        out.append((at, f"Hari {i} dari {n}: {d['theme']}", f"Hari {i} dari {n}. Tema: {d['theme']}.{prods}\nBrief: {d['brief']}"))
+    return out
+
+
+def find_executors(mems: list[dict]) -> list[str]:
+    """[writer, visual] bot ids of a group, found by role (then name). ApiError 409 when one is missing."""
+    def pick(words, skip=()):
+        for m in mems:
+            if m["bot_id"] not in skip and any(w in f"{m['role']} {m['name']}".lower() for w in words):
+                return m["bot_id"]
+        return None
+    w = pick(WRITER_WORDS)
+    v = pick(VISUAL_WORDS, (w,))
+    if not w or not v:
+        raise ApiError(409, "Grup ini perlu anggota berperan Writer dan Visual untuk menjalankan rencana")
+    return [w, v]

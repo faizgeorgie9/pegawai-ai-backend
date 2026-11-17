@@ -168,6 +168,11 @@ textarea ~ .counter { align-self: flex-end; }
 .empty h1, .empty h2 { font-size: 20px; font-weight: 600; color: var(--text); margin-top: 4px; }
 .msg.user { align-self: flex-end; max-width: 85%; padding: 10px 14px; background: var(--raised); border-radius: var(--radius-card); }
 .msg.user p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 16px; line-height: 1.55; }
+.msg.user .user-tools { justify-content: flex-end; margin: 2px calc(var(--s-2) * -1) -6px 0; opacity: 0; transition: opacity var(--m-in) var(--ease); }
+.msg.user:hover .user-tools, .msg.user:focus-within .user-tools, .msg.user .user-tools:has(:disabled) { opacity: 1; }
+@media (hover: none) { .msg.user .user-tools { opacity: 1; } }
+.task-chip { display: inline-block; align-self: flex-start; margin-top: var(--s-2); padding: 2px var(--s-3); border-radius: 999px; background: var(--raised); color: var(--muted); font-size: 12px; font-weight: 500; text-decoration: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-chip:hover { color: var(--text); }
 .msg.user.pending { background: var(--raised); color: var(--muted); }
 .pending-tag { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 12px; font-weight: 500; color: var(--muted); }
 .msg.bot { display: flex; gap: 12px; align-items: flex-start; }

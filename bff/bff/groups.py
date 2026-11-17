@@ -113,21 +113,45 @@ async def list_messages(user_id: str, gid: str, before: int | None, limit: int) 
     rows = await db.q("select * from (select id, group_id, author, bot_id, text, run_id, created_at from group_messages "
                       "where group_id = %s and (%s::bigint is null or id < %s) order by id desc limit %s) t order by id",
                       gid, before, before, limit)
-    return await with_plans(rows)
+    return await with_tasks(await with_plans(rows))
+
+
+async def with_tasks(rows: list[dict]) -> list[dict]:
+    """Adds `task` {id, title} to a bot message whose run worked on a task or created one with the task tools (the chat shows a link chip)."""
+    ids = [str(r["run_id"]) for r in rows if r["author"] == "bot" and r["run_id"]]
+    if not ids:
+        return rows
+    found = {r["rid"]: r for r in await db.q(
+        "select r.id::text as rid, t.id::text as id, t.title from runs r join tasks t on t.id = r.task_id where r.id::text = any(%s) "
+        "union select t.source_ref->>'run_id', t.id::text, t.title from tasks t where t.source_ref->>'run_id' = any(%s)", ids, ids)}
+    return [{**r, "task": {"id": found[str(r["run_id"])]["id"], "title": found[str(r["run_id"])]["title"]}} if r["run_id"] and str(r["run_id"]) in found else r
+            for r in rows]
 
 
 async def with_plans(rows: list[dict]) -> list[dict]:
     """Adds `plan` to a bot message that ends with a valid plan block (see plan_schema): the plan, its errors never. `plan` has
-    `schedule_id` (the schedule created when the user approved it, else null). Invalid or absent: the message is plain text."""
+    `task_id` (the plan task, null until there is one) and `state` (pending | approved | cancelled | replaced).
+    Invalid or absent: the message is plain text."""
     found = {}
     for r in rows:
         if r["author"] == "bot":
             p, _ = plan_schema.parse(r["text"])
             if p:
                 found[r["id"]] = p
-    sched = {r["source_message_id"]: str(r["id"]) for r in await db.q(
-        "select id, source_message_id from schedules where source_message_id = any(%s)", list(found))} if found else {}
-    return [{**r, "plan": {**found[r["id"]], "schedule_id": sched.get(r["id"])}} if r["id"] in found else r for r in rows]
+    mine = {r["mid"]: r for r in await db.q(
+        "select id, status, outcome, source_ref, source_ref->>'message_id' as mid from tasks where kind = 'plan' and "
+        "source_ref->>'message_id' = any(%s)", [str(i) for i in found])} if found else {}
+    return [{**r, "plan": {**found[r["id"]], "task_id": str(mine[str(r["id"])]["id"]) if str(r["id"]) in mine else None,
+                           "state": plan_state(mine.get(str(r["id"])))}} if r["id"] in found else r for r in rows]
+
+
+def plan_state(t: dict | None) -> str:
+    """What a plan card says, from the plan's task row: pending (also when there is no task yet), approved, cancelled, replaced."""
+    if not t or t["status"] == "review":
+        return "pending"
+    if t["status"] == "archived" and t["outcome"] == "cancelled":
+        return "replaced" if t["source_ref"].get("replaced") else "cancelled"
+    return "approved"
 
 
 async def remove_bot_from_groups(bot_id: str) -> None:
@@ -142,6 +166,11 @@ async def post(gid: str, author: str, text: str, bot_id: str | None = None, run_
                       "values (%s, %s, %s, %s, %s, %s, %s) returning id, group_id, author, bot_id, text, run_id, created_at",
                       gid, author, bot_id, text, run_id, send_id, kb_items or None)
     row = (await with_plans([row]))[0]
+    if "plan" in row:  # a valid plan becomes a task waiting for approval (Papan Tugas)
+        from . import tasks  # lazy: tasks imports groups
+        await tasks.plan_posted(gid, row)
+        row = (await with_plans([row]))[0]
+    row = (await with_tasks([row]))[0]
     hub.publish("*", "group_message", {"group_id": gid, "message": row})
     return row
 

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ApiError, api, asStr, errText, subscribe } from './bff'
-import type { Bot, GroupMsg, ToolChip } from './bff'
+import type { Bot, ContentPlan, GroupMsg, ToolChip } from './bff'
 import { LiveSteps } from './LiveSteps'
 import { applyTool, settle, toolsFrom } from './steps'
 import { useSmoothText } from './useSmoothText'
@@ -9,6 +9,7 @@ import { ActionCard, useVisibleActions } from './ActionCard'
 import { useData } from './data'
 import { PlanCard, withoutPlanBlock } from './PlanCard'
 import { PanelButtons, SidePanel, Split } from './Panel'
+import { MakeTaskButton } from './TaskPanel'
 import { GmailDraftButton } from './gmail-ui'
 import { RUNNING_HINT, STEER_KEY, STEER_TIP, isSteerKey } from './composerKeys'
 import { KbAttach, KbLines, KbTrayView, asksToSave, useKbTray } from './kb-ui'
@@ -354,7 +355,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
             </div>
           )}
           {msgs.filter((m) => !pending.includes(m.id)).map((m) => (
-            <GroupBubble key={m.id} m={m} bot={bots.find((b) => b.id === m.bot_id)} queued={pending.includes(m.id)} thought={thoughts[m.run_id ?? '']} onApproved={(sid) => setMsgs((cur) => cur.map((x) => (x.id === m.id && x.plan ? { ...x, plan: { ...x.plan, schedule_id: sid } } : x)))} />
+            <GroupBubble key={m.id} m={m} bot={bots.find((b) => b.id === m.bot_id)} queued={pending.includes(m.id)} thought={thoughts[m.run_id ?? '']} onPlanState={(st) => setMsgs((cur) => cur.map((x) => (x.id === m.id && x.plan ? { ...x, plan: { ...x.plan, ...st } } : x)))} />
           ))}
           {turn && <LiveBubble t={turn} bot={bots.find((b) => b.id === turn.bot)} />}
           {asked.map((a) => (
@@ -476,13 +477,14 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
   )
 }
 
-function GroupBubble({ m, bot, queued, thought, onApproved }: { m: GroupMsg; bot?: Bot; queued: boolean; thought?: { text: string; seconds?: number }; onApproved: (scheduleId: string) => void }) {
+function GroupBubble({ m, bot, queued, thought, onPlanState }: { m: GroupMsg; bot?: Bot; queued: boolean; thought?: { text: string; seconds?: number }; onPlanState: (s: Pick<ContentPlan, 'task_id' | 'state'>) => void }) {
   if (m.role === 'system') return <p className="sys-msg">{m.text}</p>
   if (m.role === 'user') {
     return (
       <div className="msg user">
         <p>{m.text}</p>
         {queued && <span className="pending-tag">Menunggu giliran, dikirim setelah ronde selesai</span>}
+        <div className="msg-tools user-tools"><MakeTaskButton text={m.text} group={m.group_id} /></div>
       </div>
     )
   }
@@ -506,7 +508,8 @@ function GroupBubble({ m, bot, queued, thought, onApproved }: { m: GroupMsg; bot
             <GmailDraftButton text={m.plan ? withoutPlanBlock(m.text) : m.text} />
           </div>
         )}
-        {m.plan && <PlanCard groupId={m.group_id} messageId={m.id} plan={m.plan} onApproved={onApproved} />}
+        {m.task && <a className="task-chip" href="#/kanban">Tugas: {m.task.title}</a>}
+        {m.plan && <PlanCard groupId={m.group_id} messageId={m.id} plan={m.plan} onState={onPlanState} />}
       </div>
     </div>
   )

@@ -77,7 +77,7 @@ function Shell() {
         {route.name === 'agen-baru' && <AgentNew />}
         {route.name === 'agen-detail' && <AgentDetail key={route.id} id={route.id} />}
         {route.name === 'agen-ubah' && <AgentEdit key={route.id} id={route.id} />}
-        {(route.name === 'tools' || route.name === 'computer-use' || route.name === 'scheduler') && <Kemampuan tab={route.name} />}
+        {(route.name === 'tools' || route.name === 'computer-use') && <Kemampuan tab={route.name} />}
         {route.name === 'aplikasi' && <AppsPage />}
         {route.name === 'pengetahuan' && <Pengetahuan />}
         {route.name === 'marketing' && <Marketing />}
@@ -179,7 +179,7 @@ function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
             <NavItem href="#/agen" icon={I.agent} current={route.name.startsWith('agen')}>
               Agen
             </NavItem>
-            <NavItem href="#/tools" icon={I.skills} current={route.name === 'tools' || route.name === 'computer-use' || route.name === 'scheduler'}>
+            <NavItem href="#/tools" icon={I.skills} current={route.name === 'tools' || route.name === 'computer-use'}>
               Kemampuan
             </NavItem>
             <NavItem href="#/uji" icon={I.test} current={route.name === 'uji'}>

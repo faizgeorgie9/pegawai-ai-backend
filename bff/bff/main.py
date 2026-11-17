@@ -12,7 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse, Response, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import actions, apps, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kanban, kb, scheduler, sequences, settings, usage
+from . import actions, apps, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, scheduler, sequences, settings, tasks, usage
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -648,19 +648,9 @@ async def resume_schedule(sid: str):
     return await scheduler.resume(current_user(), _sched_id(sid))
 
 
-@api.post("/schedules/{sid}/cancel")
-async def cancel_schedule(sid: str):
-    return await scheduler.cancel(current_user(), _sched_id(sid))
-
-
 @api.delete("/schedules/{sid}", status_code=204)
 async def delete_schedule(sid: str):
     await scheduler.delete(current_user(), _sched_id(sid))
-
-
-@api.post("/schedule-occurrences/{oid}/stop")
-async def stop_occurrence(oid: str):
-    return await scheduler.stop(current_user(), _sched_id(oid))
 
 
 def _sched_id(v: str) -> str:
@@ -729,12 +719,17 @@ async def cancel_group_message(gid: str, message_id: int):
 
 @api.post("/groups/{gid}/plans/{message_id}/approve")
 async def approve_plan(gid: str, message_id: int):
-    return await scheduler.approve_plan(current_user(), _uuid(gid), message_id)
+    return await tasks.approve_plan(current_user(), _uuid(gid), message_id)
+
+
+@api.post("/groups/{gid}/plans/{message_id}/cancel")
+async def cancel_plan(gid: str, message_id: int):
+    return await tasks.cancel_plan(current_user(), _uuid(gid), message_id)
 
 
 @api.post("/groups/{gid}/plans/{message_id}/revise", status_code=202)
 async def revise_plan(gid: str, message_id: int, request: Request):
-    return await scheduler.request_revision(current_user(), _uuid(gid), message_id, (await body_of(request)).get("feedback"))
+    return await tasks.revise_plan(current_user(), _uuid(gid), message_id, (await body_of(request)).get("feedback"))
 
 
 @api.post("/groups/{gid}/stop")
@@ -742,13 +737,40 @@ async def stop_group(gid: str):
     return await groups.stop(current_user(), _uuid(gid))
 
 
-# ---------- kanban ----------
+# ---------- tasks ----------
 
-@api.get("/kanban")
-async def get_kanban(agent: str | None = None, group: str | None = None, period: str = "7d"):
-    if period not in kanban.PERIOD_DAYS:
-        raise ApiError(400, "Periode harus today, 7d, atau 30d")
-    return await kanban.get(current_user(), agent or None, _uuid(group) if group else None, period)
+def _task_id(v: str) -> str:
+    return tasks._task_uuid(v)
+
+
+@api.get("/tasks/board")
+async def tasks_board(agent: str | None = None, group: str | None = None, q: str | None = None, archived: bool = False):
+    return await tasks.board(current_user(), agent or None, _uuid(group) if group else None, q, archived)
+
+
+@api.post("/tasks", status_code=201)
+async def create_task(request: Request):
+    return await tasks.create(current_user(), await body_of(request))
+
+
+@api.get("/tasks/{tid}")
+async def get_task(tid: str):
+    return await tasks.detail(current_user(), _task_id(tid))
+
+
+@api.patch("/tasks/{tid}")
+async def edit_task(tid: str, request: Request):
+    return await tasks.edit(current_user(), _task_id(tid), await body_of(request))
+
+
+@api.post("/tasks/{tid}/comments", status_code=201)
+async def comment_task(tid: str, request: Request):
+    return await tasks.comment(current_user(), _task_id(tid), (await body_of(request)).get("text"))
+
+
+@api.post("/tasks/{tid}/{verb}")
+async def task_verb(tid: str, verb: str, request: Request):
+    return await tasks.do(current_user(), _task_id(tid), verb, await body_of(request))
 
 
 # ---------- activity, events, office ----------

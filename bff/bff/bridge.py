@@ -1,6 +1,6 @@
 """Internal MCP server ("pegawai") for the Hermes agents: BFF-provided tools, served as Streamable HTTP at /mcp.
 
-Tools: `ping`, Google Drive search/read/create/update/rename/move, `drive_trash` (only asks the user: see actions.py), `action_status`, and Gmail search/read/create-draft/label/trash plus send and send-draft (these only ask, see actions.py), through the workspace owner's connections. Add tools inside build().
+Tools: `ping`, Google Drive search/read/create/update/rename/move, `drive_trash` (only asks the user: see actions.py), `action_status`, and Gmail search/read/create-draft/label/trash plus send and send-draft (these only ask, see actions.py), through the workspace owner's connections, and the board tools task_* (tasks.agent_*: list, create, comment, ask_user, request_review, complete, cancel). Add tools inside build().
 A tool that is risky does not act: it stores a pending action (actions.ask) for the user to approve in the app. Each Hermes profile sends `X-Pegawai-Bot: <slug>` so the card can find the chat it came from. Auth: `Authorization: Bearer <MCP_BRIDGE_KEY>`, loopback clients only.
 ensure_registered() makes every Hermes profile list this server (mcp_servers.pegawai) at BFF startup, idempotently.
 """
@@ -240,6 +240,43 @@ async def gmail_send_draft(draft_id: str, ctx: Context = None) -> str:  # type: 
     return actions.WAITING.format(id=a["short_id"])
 
 
+async def _task_tool(fn, *args, ctx: Context | None = None, with_source: bool = True) -> str:
+    """Runs a tasks.agent_* function for the calling bot and its active run; an ApiError becomes the tool's error text."""
+    from . import tasks  # late import: tasks imports engine, which imports harden, which imports this module
+    try:
+        return await getattr(tasks, fn)(_user(), *([await _source(ctx)] if with_source else []), *args)
+    except ApiError as e:
+        return f"Error: {e.message}"
+
+
+async def task_list(status: str = "") -> str:
+    return await _task_tool("agent_list", status, with_source=False)
+
+
+async def task_create(title: str, instructions: str = "", assignee: str = "", when: str = "", ctx: Context = None) -> str:  # type: ignore[assignment]
+    return await _task_tool("agent_create", title, instructions, assignee, when, ctx=ctx)
+
+
+async def task_comment(text: str, task_id: str = "", ctx: Context = None) -> str:  # type: ignore[assignment]
+    return await _task_tool("agent_comment", task_id, text, ctx=ctx)
+
+
+async def task_ask_user(question: str, task_id: str = "", ctx: Context = None) -> str:  # type: ignore[assignment]
+    return await _task_tool("agent_ask_user", question, task_id, ctx=ctx)
+
+
+async def task_request_review(summary: str, task_id: str = "", ctx: Context = None) -> str:  # type: ignore[assignment]
+    return await _task_tool("agent_request_review", task_id, summary, ctx=ctx)
+
+
+async def task_complete(summary: str, task_id: str = "", ctx: Context = None) -> str:  # type: ignore[assignment]
+    return await _task_tool("agent_complete", task_id, summary, ctx=ctx)
+
+
+async def task_cancel(task_id: str, reason: str = "", ctx: Context = None) -> str:  # type: ignore[assignment]
+    return await _task_tool("agent_cancel", task_id, reason, ctx=ctx)
+
+
 def build() -> FastMCP:
     """The tool server. Register new tools here."""
     # shortcut: DNS-rebinding protection is off because the loopback check in BridgeApp already limits callers; revisit with a non-loopback bind
@@ -266,6 +303,13 @@ def build() -> FastMCP:
     mcp.tool(description="Move one Gmail email to the Gmail trash by id (restorable for 30 days; never a permanent delete). Happens at once.")(gmail_trash)
     mcp.tool(description="Ask to send an email (to: up to 10 addresses separated by commas; subject; plain-text body; optional reply_to_message_id from gmail_search to reply in that thread). Nothing is sent until the user approves in the app: the tool only returns a waiting message with an id; do not repeat the request. Write the final text in body: the user sees and approves exactly it.")(gmail_send)
     mcp.tool(description="Ask to send an existing Gmail draft by draft id. Nothing is sent until the user approves the draft content shown in the app; the tool only returns a waiting message with an id; do not repeat the request.")(gmail_send_draft)
+    mcp.tool(description="List the owner's tasks on the task board (Papan Tugas): id, title, status, who. Optional status filter (todo, scheduled, ready, running, blocked, review, done, archived). Use it to find a task_id.")(task_list)
+    mcp.tool(description="Create a task on the board for work that takes more than one reply or should happen later. instructions = what to do; assignee = a bot id or team name (default: yourself); when = optional future ISO 8601 time with timezone, else the task waits for the owner to start it.")(task_create)
+    mcp.tool(description="Add a progress note to a task (task_id defaults to the task you are working on).")(task_comment)
+    mcp.tool(description="Ask the owner a question and wait for the answer: it shows in their 'Perlu Anda' list, and the answer comes back as a new message. Use it whenever you need information or a decision, in a task or in a normal chat, instead of guessing. Then stop; do not repeat the question. Always end a task with task_complete, task_request_review or task_ask_user.")(task_ask_user)
+    mcp.tool(description="Finish a task by handing the result to the owner to review (summary = the result, in plain language). Use it when the owner should check or approve the work. Always end a task with task_complete, task_request_review or task_ask_user.")(task_request_review)
+    mcp.tool(description="Mark a task done with a short summary of the result (use it only when nothing needs the owner's check). Always end a task with task_complete, task_request_review or task_ask_user.")(task_complete)
+    mcp.tool(description="Cancel (archive) a task by task_id, with a short reason. Use it when the owner asks to cancel or drop a task or plan; it also cancels its unfinished sub-tasks and can be restored by the owner.")(task_cancel)
     return mcp
 
 

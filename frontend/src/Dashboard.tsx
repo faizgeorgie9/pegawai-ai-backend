@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { ActionCard, useVisibleActions } from './ActionCard'
 import { useAdminMode } from './adminMode'
 import { api } from './bff'
-import type { Group, GroupMsg, Schedule } from './bff'
 import { useData } from './data'
 import { Onboarding, hasName } from './Onboarding'
 import type { Step } from './Onboarding'
@@ -16,46 +15,25 @@ const startOfToday = () => new Date().setHours(0, 0, 0, 0) / 1000
 const TOOLS_WAIT = 8000 // ms before "Tools" stops saying it is loading
 
 type Row = { href: string; name: string; detail: string; cap: Cap; label?: string }
-interface Pending {
-  group: Group
-  messageId: string
-  title: string
-  days: number
-}
 
-// What the teams have planned and what waits for the user: the latest content plan per group, and the schedules.
-async function loadWork(groups: Group[]) {
-  const [schedules, perGroup] = await Promise.all([
-    api.schedules(),
-    Promise.all(groups.map((g) => api.groupMessages(g.id).then((m) => ({ g, m }), () => ({ g, m: [] as GroupMsg[] })))),
-  ])
-  const plans = perGroup.flatMap(({ g, m }) => {
-    const withPlan = m.filter((x) => x.plan)
-    const last = withPlan.reduce<GroupMsg | undefined>((a, x) => (!a || x.created_at >= a.created_at ? x : a), undefined) // older plans were revised or replaced
-    return last?.plan ? [{ group: g, msg: last, plan: last.plan }] : []
-  })
-  const pending: Pending[] = plans
-    .filter((p) => p.plan.schedule_id === null)
-    .map((p) => ({ group: p.group, messageId: p.msg.id, title: p.plan.title || 'Rencana konten', days: p.plan.days.length }))
-  const anyPlan = plans.length > 0 || schedules.some((s) => s.kind === 'plan')
-  const approved = plans.some((p) => p.plan.schedule_id !== null) || schedules.some((s) => s.kind === 'plan')
-  return { schedules, pending, anyPlan, approved }
-}
-
-function nextUp(schedules: Schedule[], who: (s: Schedule, agents: string[]) => string) {
-  const now = Date.now() / 1000
-  return schedules
-    .filter((s) => s.status === 'active')
-    .flatMap((s) => s.occurrences.filter((o) => o.status === 'planned' && o.planned_at >= now).map((o) => ({ id: o.id, title: o.title || s.title, who: who(s, o.agents), at: o.planned_at })))
-    .sort((a, b) => a.at - b.at)
+// What waits for the user and what is next, from the task board: the Perlu Anda cards and the queue's scheduled tasks.
+// shortcut: reads the board's first cards of each column (up to 40); a board that long needs its own endpoint.
+async function loadWork() {
+  const board = await api.tasksBoard({})
+  const col = (id: string) => board.columns.find((c) => c.id === id)?.cards ?? []
+  const plans = board.columns.flatMap((c) => c.cards).filter((c) => c.kind === 'plan')
+  const upcoming = col('queue')
+    .filter((c) => c.kind === 'task' && c.status === 'scheduled' && c.scheduled_at > 0)
+    .sort((a, b) => a.scheduled_at - b.scheduled_at)
     .slice(0, 3)
+  return { waiting: col('needs_you'), upcoming, anyPlan: plans.length > 0, approved: plans.some((c) => c.status !== 'review') }
 }
 
 // Beranda answers one question: what do I need to do today?
 export default function Dashboard() {
-  const { bots, groups, runs, me, settings, loadState, error, reload } = useData()
+  const { groups, runs, me, settings, loadState, error, reload } = useData()
   const admin = useAdminMode()
-  const workFn = useCallback(() => loadWork(groups), [groups])
+  const workFn = useCallback(() => loadWork(), [])
   const work = useLoad(workFn)
   const kbFn = useCallback(() => api.kbItems(), [])
   const kb = useLoad(kbFn)
@@ -82,14 +60,14 @@ export default function Dashboard() {
   const team = groups[0] // "Minta tim Anda" opens the first team (Marketing) with the message box ready
   const ask = team ? `#${groupPath(team.id)}?tulis=1` : '#/grup'
   const w = work.data
-  const upcoming = w ? nextUp(w.schedules, (s, agents) => agents.map((a) => bots.find((b) => b.id === a)?.name).filter(Boolean).join(', ') || s.target) : []
+  const upcoming = w?.upcoming ?? []
 
   const steps: Step[] = [
     { id: 'name', title: 'Isi nama bisnis', hint: 'Nama bisnis Anda tampil di menu samping.', done: hasName(settings.company_name), href: '#/pengaturan/umum', action: 'Isi nama' },
     { id: 'kb', title: 'Tambahkan pengetahuan bisnis', hint: 'Unggah berkas atau link agar agen mengenal bisnis Anda.', done: (kb.data?.length ?? 0) > 0, href: '#/pengetahuan', action: 'Tambah' },
     { id: 'drive', title: 'Sambungkan Google Drive', hint: 'Ambil berkas langsung dari Drive.', done: !!conn.data?.some((c) => c.provider === 'gdrive' && (c.status === 'connected' || c.status === 'needs_scope')), href: '#/aplikasi', action: 'Sambungkan', optional: true },
     { id: 'plan', title: 'Minta rencana konten pertama', hint: 'Minta Tim Marketing menyusun rencana.', done: !!w?.anyPlan, href: ask, action: 'Minta tim' },
-    { id: 'approve', title: 'Setujui rencana konten', hint: 'Tim mulai bekerja setelah Anda setuju.', done: !!w?.approved, href: w?.pending[0] ? `#${groupPath(w.pending[0].group.id)}` : ask, action: 'Tinjau' },
+    { id: 'approve', title: 'Setujui rencana konten', hint: 'Tim mulai bekerja setelah Anda setuju.', done: !!w?.approved, href: w?.waiting.some((c) => c.kind === 'plan') ? '#/kanban' : ask, action: 'Tinjau' },
   ]
   // Wait for the data the steps are read from, so the card does not flash steps that are already done.
   const stepsReady = work.state !== 'loading' && kb.state !== 'loading' && conn.state !== 'loading'
@@ -110,7 +88,7 @@ export default function Dashboard() {
     { href: '#/marketing', name: 'Marketing', detail: 'Memakai pengetahuan dan katalog Colorbox', cap: 'ok' },
     { href: '#/cs', name: 'Layanan pelanggan', detail: 'Jawaban perlu ditinjau manusia', cap: 'ok' },
     { href: '#/computer-use', name: 'Computer Use', detail: 'Belum dibuka', cap: 'blocked' },
-    { href: '#/scheduler', name: 'Jadwal', detail: 'Jadwal berulang dan rencana konten', cap: 'ok' },
+    { href: '#/kanban', name: 'Jadwal & tugas', detail: 'Tugas berulang dan rencana konten', cap: 'ok' },
   ]
 
   return (
@@ -139,22 +117,27 @@ export default function Dashboard() {
               ))}
             </div>
           )}
-          {w && w.pending.length === 0 && approvals.length === 0 && <p className="quiet state-note">Tidak ada yang menunggu.</p>}
-          {w && w.pending.length > 0 && (
+          {w && w.waiting.length === 0 && approvals.length === 0 && <p className="quiet state-note">Tidak ada yang menunggu.</p>}
+          {w && w.waiting.length > 0 && (
             <ul className="ledger">
-              {w.pending.map((p) => (
-                <li key={p.messageId} className="ledger-row">
+              {w.waiting.slice(0, 5).map((c) => (
+                <li key={c.id} className="ledger-row">
                   <span className="ledger-main">
-                    <b>{p.title}</b>
-                    <small>
-                      {p.group.name}, <span className="num">{p.days}</span> hari
-                    </small>
+                    <b>{c.title}</b>
+                    <small>{[c.assignee?.name, c.line].filter(Boolean).join(': ')}</small>
                   </span>
-                  <a className="btn primary sm" href={'#' + groupPath(p.group.id)}>
+                  <a className="btn primary sm" href="#/kanban">
                     Tinjau
                   </a>
                 </li>
               ))}
+              {w.waiting.length > 5 && (
+                <li>
+                  <a className="ledger-row ledger-more" href="#/kanban">
+                    Dan {w.waiting.length - 5} lainnya di papan tugas
+                  </a>
+                </li>
+              )}
             </ul>
           )}
         </section>
@@ -169,9 +152,9 @@ export default function Dashboard() {
                 <li key={u.id} className="ledger-row">
                   <span className="ledger-main">
                     <b>{u.title}</b>
-                    <small>{u.who}</small>
+                    <small>{u.assignee?.name}</small>
                   </span>
-                  <span className="num quiet small">{stamp(u.at)}</span>
+                  <span className="num quiet small">{stamp(u.scheduled_at)}</span>
                 </li>
               ))}
               <li>

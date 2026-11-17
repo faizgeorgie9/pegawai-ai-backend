@@ -3,7 +3,6 @@ import { useAdminMode } from './adminMode'
 import { api } from './bff'
 import { ErrorLine } from './ui'
 import { BlockedBanner, CapChip, Empty, Loading, OFF_WHY, PageHead, SampleBadge, toolsetText, useLoad } from './ui-extra'
-import { Scheduler } from './Scheduler'
 import { AppsLink, forwardOldConnectLink } from './connections'
 import { go } from './router'
 import type { Route } from './router'
@@ -170,10 +169,9 @@ export function ComputerUse() {
 const TABS = [
   { name: 'tools', label: 'Alat', path: '/tools' },
   { name: 'computer-use', label: 'Computer Use', path: '/computer-use' },
-  { name: 'scheduler', label: 'Jadwal', path: '/scheduler' },
 ] as const
 
-export function Kemampuan({ tab }: { tab: Extract<Route['name'], 'tools' | 'computer-use' | 'scheduler'> }) {
+export function Kemampuan({ tab }: { tab: Extract<Route['name'], 'tools' | 'computer-use'> }) {
   const admin = useAdminMode()
   const tabs = TABS.filter((t) => admin || t.name !== 'computer-use' || tab === 'computer-use') // Computer Use is an admin screen; a direct link still opens it
   const i = tabs.findIndex((t) => t.name === tab)
@@ -199,7 +197,6 @@ export function Kemampuan({ tab }: { tab: Extract<Route['name'], 'tools' | 'comp
       <div id="tabpanel" role="tabpanel" aria-labelledby={'tab-' + tab}>
         {tab === 'tools' && <Tools />}
         {tab === 'computer-use' && <ComputerUse />}
-        {tab === 'scheduler' && <Scheduler />}
       </div>
     </section>
   )
