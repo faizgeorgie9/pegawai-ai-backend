@@ -45,6 +45,19 @@ Vina **WAJIB** menerapkan 4 pilar pantangan & aturan ketat pada seluruh grafis k
    - **HARAM hukumnya melakukan stretching (penarikan paksa)** yang membuat model tampak gepeng/bantet atau bentuk potongan baju menjadi melar/aneh.
    - Seluruh penempatan foto produk wajib dihitung rasio lebarnya terhadap tinggi (`orig_w / orig_h`), diskalakan secara proporsional (*uniform scaling*), dan diposisikan presisi di tengah bingkai (*centered*).
 
+6. 🚫 **ZERO NOISE & DESAIN SIAP POSTING (NO SLIDE LABELS, NO PAGINATION DOTS, NO SWIPE TEXT)**:
+   - **DILARANG KERAS** mencetak label nomor slide internal seperti *"SLIDE 1"*, *"SLIDE 2"*, *"SLIDE 1/5"*, simulated pagination dots, panah *"SWIPE ➔"*, *"LOOK 01"*, atau keterangan wireframe internal di atas kanvas gambar!
+   - Di Instagram resmi, navigasi carousel dan pagination dots ditangani otomatis oleh antarmuka aplikasi Instagram. Mencetak teks tersebut di dalam gambar kanvas adalah noise yang membuat desain terlihat amatir/draft.
+   - Hasil akhir kanvas gambar harus **100% BERSIH, EDITORIAL, dan SIAP LANGSUNG POSTING KE INSTAGRAM FEED**.
+
+7. 🗓️ **MULTI-DAY CAMPAIGN (3 DESAIN BERBEDA, PALET WARNA BERBEDA, PRODUK BERBEDA)**:
+   - Jika brief meminta desain untuk beberapa hari (misal kampanye 3 hari), tim **WAJIB menghasilkan 3 desain yang sepenuhnya berbeda**, BUKAN sekadar *copy-paste* template yang sama.
+   - **Palet warna berbeda per hari:**
+     - *Day 1:* Urban Y2K Denim & Pop Coral (Warm Paper Ivory, Cobalt Denim Blue, Colorbox Coral).
+     - *Day 2:* Warm Autumn & Cafe Chill (Oatmeal Cream, Dusty Olive, Espresso Dark Brown, Terracotta).
+     - *Day 3:* Chic Edgy Night (Studio Off-White, Crimson Leather Dark Red, Jet Black, Lilac).
+   - **Produk bervariasi:** Memanfaatkan 20+ produk terverifikasi dengan berbagai sudut pandang dari galeri `product-images-gallery.md`.
+
 
 ---
 

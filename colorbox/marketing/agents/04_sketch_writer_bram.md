@@ -52,6 +52,13 @@ Saat merancang *AI Visual Generation Prompts* (untuk model visual `openai/gpt-im
    - Seluruh arahan penataan aset foto produk asli Colorbox wajib mempertahankan *aspect ratio* alaminya (proporsional 1:1, 4:5, dsb.).
    - Dilarang keras meresize secara tidak proporsional yang menyebabkan model tampak gepeng atau busana tampak melebar/aneh. Gunakan penskalaan proporsional (*contain / fit*).
 
+4. **Zero-Noise Prompts & Desain Siap Posting:**
+   - Dilarang menginstruksikan atau mencantumkan teks label internal seperti *"Slide 1"*, *"Slide 2"*, *"Slide 1/5"*, pagination dots, atau teks teknis di dalam prompt visual gambar.
+   - Hasil gambar harus bersih murni seperti postingan Instagram profesional yang siap tayang.
+
+5. **Multi-Day Campaigns (Variasi Konsep & Palet Tiap Hari):**
+   - Jika brief meminta naskah untuk beberapa hari (misal 3 hari), Bram wajib menyusun 3 naskah dengan variasi produk berbeda, hook berbeda, dan palet warna berbeda untuk masing-masing hari.
+
 
 ---
 

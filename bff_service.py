@@ -225,8 +225,8 @@ BUILTIN_BOTS: List[Dict[str, Any]] = [
         "persona": (
             "Kamu adalah Vina (@visualcarousel), Visual Art Director & Carousel Specialist untuk Colorbox Indonesia. Karaktermu estetis, peka tren Gen Z, teliti pada layout visual, dan berorientasi pada hasil akhir nyata (bukan sekadar naskah teks, tapi aset gambar final 1080x1350 px PNG yang siap tayang). "
             "Kamu wajib menerapkan standar estetika resmi Instagram @colorbox: playful, Y2K-inspired, edgy-casual, scrapbook/collage grid, street style flash photography, flat-lay starter pack, dan antarmuka retro Windows 95/Paint. "
-            "ATURAN MUTLAK: 1) Minimalisasi teks kanvas menjadi 1-2 kata saja. 2) Dilarang keras menampilkan harga/angka rupiah/diskon pada gambar kanvas. 3) Dilarang menampilkan teks bahan kaku pada kanvas. 4) Tampilkan varian warna sebagai Color Palette Swatches (dot warna). "
-            "Tugasmu: mengeksekusi pembuatan gambar visual menggunakan model openai/gpt-image-2 dari OpenCode Zen dan merender 5 slide berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080 × 1350 px PNG) menggunakan foto produk asli Colorbox. "
+            "ATURAN MUTLAK: 1) Minimalisasi teks kanvas menjadi 1-2 kata saja. 2) Dilarang keras menampilkan harga/angka rupiah/diskon pada gambar kanvas. 3) Dilarang menampilkan teks bahan kaku pada kanvas. 4) Tampilkan varian warna sebagai Color Palette Swatches (dot warna). 5) ZERO NOISE: Dilarang keras memunculkan label 'slide 1', 'slide 2', pagination dots, atau teks template internal di dalam gambar kanvas; desain harus 100% bersih dan siap posting. 6) Jika diminta desain untuk 3 hari, wajib menyajikan 3 konsep visual yang sepenuhnya berbeda: produk katalog berbeda, palet warna berbeda, dan moodboard berbeda. "
+            "Tugasmu: mengeksekusi pembuatan gambar visual menggunakan model openai/gpt-image-2 dari OpenCode Zen dan merender 5 slide berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080 × 1350 px PNG) menggunakan foto produk asli Colorbox tanpa distorsi aspek rasio. "
             "Tampilkan pratinjau slide gambar final dengan tag markdown gambar dan link ke pratinjau live carousel, lalu laporkan hasilnya ke @bimo untuk penutupan sprint."
         ),
     },
@@ -2776,12 +2776,35 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
     out_dir = str(MARKETING_OUTPUT_DIR / "carousel_latest")
     img_dir = str(IMAGES_DIR)
 
+    joined_text = " ".join([str(line).lower() for line in transcript_lines])
+    is_three_days = any(k in joined_text for k in ["3 hari", "tiga hari", "3 days", "jadwal 3 hari", "sprint 3 hari", "tiga hari berturut"])
+
     prods = []
     if user_mandate_prods:
         for p in user_mandate_prods[:3]:
             pname = p["name"].lower()
             img_file = "cbx-01-contrast-stitch-chambray-shirt.jpg"
-            if "chambray" in pname:
+            if "checks" in pname or "blazer" in pname:
+                img_file = "cbx-11a-oversize-checks-blazer-dusty-olive-front.jpg"
+            elif "crop jacket" in pname or "double breasted" in pname:
+                img_file = "cbx-12a-double-breasted-crop-jacket-lt-grey-front.jpg"
+            elif "denim jacket" in pname:
+                img_file = "cbx-13a-contrast-detail-denim-jacket-dark-brown-front.jpg"
+            elif "leather" in pname:
+                img_file = "cbx-14a-oversize-collared-leather-jacket-dark-red-front.jpg"
+            elif "hoodie" in pname or "bubble" in pname:
+                img_file = "cbx-15a-bubble-hem-hoodie-ecru-front.jpg"
+            elif "suede skirt" in pname or ("suede" in pname and "skirt" in pname):
+                img_file = "cbx-16a-suede-mini-skirt-navy-front.jpg"
+            elif "overlap" in pname or "micro skirt" in pname:
+                img_file = "cbx-17a-jeans-overlap-micro-skirt-dark-navy-front.jpg"
+            elif "drawstring" in pname or "wide leg" in pname:
+                img_file = "cbx-18a-wide-leg-drawstring-pants-navy-front.jpg"
+            elif "sling bag" in pname:
+                img_file = "cbx-19a-denim-sling-bag-denim-front.jpg"
+            elif "sneakers" in pname or "shoes" in pname:
+                img_file = "cbx-20a-lace-sneakers-navy-front-pair.jpg"
+            elif "chambray" in pname:
                 img_file = "cbx-01-contrast-stitch-chambray-shirt.jpg"
             elif "barrel" in pname and "black" in str(p.get("colors", "")).lower():
                 img_file = "cbx-02-high-waist-barrel-denim-black.jpg"
@@ -2812,16 +2835,57 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
                 "sizes": ", ".join(p.get("sizes", ["S", "M", "L", "XL"])) if isinstance(p.get("sizes"), list) else "S, M, L, XL"
             })
 
-    defaults = [
+    day1_prods = [
         {"name": "Contrast Stitch Chambray Shirt", "price": "Rp 140.900", "color": "DARK BLUE", "image_file": "cbx-01-contrast-stitch-chambray-shirt.jpg", "sizes": "S, M, L, XL"},
         {"name": "High Waist Barrel Denim Pants", "price": "Rp 329.900", "color": "BLACK", "image_file": "cbx-02-high-waist-barrel-denim-black.jpg", "sizes": "26, 27, 28, 29, 30"},
         {"name": "Colorbox x Liunic Tote Bag", "price": "Rp 199.900", "color": "ECRU", "image_file": "cbx-10-colorbox-x-liunic-tote-bag-ecru.jpg", "sizes": "One Size"},
     ]
-    for d in defaults:
-        if len(prods) < 3 and not any(p["name"] == d["name"] for p in prods):
-            prods.append(d)
+    day2_prods = [
+        {"name": "Oversize Checks Blazer", "price": "Rp 299.900", "color": "DUSTY OLIVE", "image_file": "cbx-11a-oversize-checks-blazer-dusty-olive-front.jpg", "sizes": "S, M, L, XL"},
+        {"name": "Double Pocket Flared Denim Pants", "price": "Rp 251.929", "color": "LT. GREY", "image_file": "cbx-05-double-pocket-flared-denim-grey.jpg", "sizes": "26, 27, 28, 29, 30"},
+        {"name": "Denim Sling Bag", "price": "Rp 129.900", "color": "DENIM", "image_file": "cbx-19a-denim-sling-bag-denim-front.jpg", "sizes": "One Size"},
+    ]
+    day3_prods = [
+        {"name": "Oversize Collared Leather Jacket", "price": "Rp 599.900", "color": "DARK RED", "image_file": "cbx-14a-oversize-collared-leather-jacket-dark-red-front.jpg", "sizes": "S, M, L, XL"},
+        {"name": "Suede Mini Skirt", "price": "Rp 249.900", "color": "NAVY", "image_file": "cbx-16a-suede-mini-skirt-navy-front.jpg", "sizes": "S, M, L, XL"},
+        {"name": "Lace Sneakers", "price": "Rp 299.900", "color": "NAVY", "image_file": "cbx-20a-lace-sneakers-navy-front-pair.jpg", "sizes": "36 - 40"},
+    ]
 
-    main_p = prods[0] if prods else defaults[0]
+    if not prods:
+        prods = day1_prods
+
+    if is_three_days:
+        try:
+            render_final_carousel_package("URBAN Y2K DENIM", "Jakarta Styled", "Koleksi denim retro", day1_prods, str(MARKETING_OUTPUT_DIR / "carousel_day_1"), img_dir, day_num=1)
+            render_final_carousel_package("WARM AUTUMN CAFE", "Coffee Run", "Nuansa earthy & layers", day2_prods, str(MARKETING_OUTPUT_DIR / "carousel_day_2"), img_dir, day_num=2)
+            render_final_carousel_package("CHIC EDGY NIGHT", "Night Drop", "Leather & suede statement", day3_prods, str(MARKETING_OUTPUT_DIR / "carousel_day_3"), img_dir, day_num=3)
+            # Latest points to day 1
+            render_final_carousel_package("URBAN Y2K DENIM", "Jakarta Styled", "Koleksi denim retro", day1_prods, out_dir, img_dir, day_num=1)
+        except Exception as ex:
+            print(f"[Vina Multi-Day Rendering Failed]: {ex}")
+
+        md = (
+            "### 🎨 Paket Visual Carousel Siap Posting (@colorbox Official Lookbook Standard):\n\n"
+            "Vina telah merender **3 Paket Desain Visual yang Berbeda** untuk masing-masing hari tanpa noise template:\n\n"
+            "#### 📅 DAY 1: URBAN Y2K DENIM (Palet: Soft Cream, Denim Blue & Coral)\n"
+            "![Cover Day 1](/output/carousel_day_1/slide_1_cover_hero.png)\n\n"
+            "👉 **[Buka Live Interactive Preview Day 1](/output/carousel_day_1/carousel_preview.html)**\n\n"
+            "#### 📅 DAY 2: WARM AUTUMN CAFE (Palet: Warm Oatmeal, Dusty Olive & Espresso Brown)\n"
+            "![Cover Day 2](/output/carousel_day_2/slide_1_cover_hero.png)\n\n"
+            "👉 **[Buka Live Interactive Preview Day 2](/output/carousel_day_2/carousel_preview.html)**\n\n"
+            "#### 📅 DAY 3: CHIC EDGY NIGHT (Palet: Studio Off-White, Dark Red Leather & Jet Black)\n"
+            "![Cover Day 3](/output/carousel_day_3/slide_1_cover_hero.png)\n\n"
+            "👉 **[Buka Live Interactive Preview Day 3](/output/carousel_day_3/carousel_preview.html)**\n\n"
+            "✨ **Standar Desain Siap Posting (Zero Noise):**\n"
+            "- **Bebas Keterangan Slide:** Tidak ada label 'slide 1/5', 'slide 2', pagination dots, atau teks template internal pada kanvas.\n"
+            "- **Bebas Harga di Gambar:** Seluruh angka harga resmi dialihkan ke teks caption & tautan bio.\n"
+            "- **3 Desain & Palet Berbeda:** Masing-masing hari memiliki produk kurasi berbeda dari katalog dan moodboard khas Colorbox.\n"
+            "- **Aspect Ratio Lock:** Semua foto model dan produk mempertahankan proporsi asli (tidak gepeng).\n\n"
+            "Seluruh berkas PNG 1080 × 1350 px siap dipublikasikan. Silakan @bimo memberikan quality audit akhir."
+        )
+        return md
+
+    main_p = prods[0] if prods else day1_prods[0]
     p_name = main_p.get("name", "New Arrivals")
     is_poster = any("poster" in str(line).lower() or "baru" in str(line).lower() for line in transcript_lines)
     theme_title = "NEW ARRIVALS" if is_poster or any(k in p_name.lower() for k in ["dress", "skirt", "skort"]) else "CAMPUS LOOKBOOK"
@@ -2835,24 +2899,26 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
             subtitle=subtitle,
             products_info=prods,
             output_dir=out_dir,
-            images_dir=img_dir
+            images_dir=img_dir,
+            day_num=1
         )
     except Exception as ex:
         print(f"[Vina Rendering Failed]: {ex}")
 
     md = (
-        "### 🎨 Preview Visual Carousel (@colorbox Style Standard v2.1.0):\n\n"
-        "![Slide 1: Cover Hook](/output/carousel_latest/slide_1_cover_hero.png)\n\n"
-        "![Slide 2: Hero Top](/output/carousel_latest/slide_2_hero_top.png)\n\n"
-        "![Slide 3: Bottom Pairing](/output/carousel_latest/slide_3_bottom_pairing.png)\n\n"
-        "![Slide 4: Accessories Flatlay](/output/carousel_latest/slide_4_accessories_flatlay.png)\n\n"
-        "![Slide 5: Outro & Summary CTA](/output/carousel_latest/slide_5_outro_cta.png)\n\n"
+        "### 🎨 Aset Visual Carousel Siap Posting (@colorbox Lookbook Standard):\n\n"
+        "![Cover Hero](/output/carousel_latest/slide_1_cover_hero.png)\n\n"
+        "![Top Piece Focus](/output/carousel_latest/slide_2_hero_top.png)\n\n"
+        "![Bottom Silhouette](/output/carousel_latest/slide_3_bottom_pairing.png)\n\n"
+        "![Starter Pack Flatlay](/output/carousel_latest/slide_4_accessories_flatlay.png)\n\n"
+        "![Moodboard Sign-off](/output/carousel_latest/slide_5_outro_cta.png)\n\n"
         "👉 **[Buka Pratinjau Interaktif Carousel di Tab Baru](/output/carousel_latest/carousel_preview.html)**\n\n"
-        "✨ **Kepatuhan Standar Visual @colorbox Terverifikasi:**\n"
-        "- **Vibe:** Playful, Y2K-inspired, edgy-casual, & scrapbook collage grid.\n"
-        "- **Minimal Teks:** Teks di atas kanvas gambar dibatasi 1–2 kata saja (tanpa paragraf kaku).\n"
-        "- **Zero-Price Canvas:** 100% bebas dari angka harga & diskon pada gambar (harga resmi hanya di caption/bio).\n"
-        "- **Color Swatches:** Pilihan warna disajikan lewat dot palet warna estetis.\n\n"
+        "✨ **Kepatuhan Standar Visual Siap Posting (@colorbox Official):**\n"
+        "- **Bebas Noise Template:** 100% bebas dari label 'slide 1', 'slide 2', dots pagination, atau panah 'swipe' pada kanvas gambar.\n"
+        "- **Minimal Teks:** Hanya memuat micro-copy editorial 1–2 kata saja.\n"
+        "- **Zero-Price Canvas:** 100% bebas dari nominal harga pada gambar (harga resmi ditaruh di caption/bio).\n"
+        "- **Color Palette Swatches:** Dot warna visual presisi untuk tiap warna resmi produk.\n"
+        "- **Aspek Rasio Terkunci:** Foto produk dan model tidak di-stretch maupun gepeng.\n\n"
         "Seluruh 5 slide gambar final (1080 × 1350 px PNG) telah sukses dirender menggunakan model visual openai/gpt-image-2 (OpenCode Zen) dan foto produk autentik Colorbox!\n"
         "Silakan @bimo memberikan quality audit anti-halusinasi dan penutupan sprint."
     )

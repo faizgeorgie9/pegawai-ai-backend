@@ -139,6 +139,18 @@ scheduler:
     day_5: "Jalankan sprint Day 5: Friday night casual dinner & hangout outfit (Versatile Chic)."
 ```
 
+### C. Aturan Mutlak Desain Multi-Day & Zero-Noise (Siap Posting)
+
+1. **Zero Noise pada Kanvas Gambar:**
+   - Dilarang keras mencetak teks label internal (`SLIDE 1`, `SLIDE 2`, `SLIDE 1/5`), dots pagination, atau panah `SWIPE` di atas kanvas gambar.
+   - Di Instagram resmi, navigasi dan dots ditangani langsung oleh aplikasi Instagram. Desain gambar harus 100% bersih dan siap posting langsung ke feed.
+2. **Desain Berbeda untuk Setiap Hari:**
+   - Jika pengguna meminta materi untuk beberapa hari (misal 3 hari), tim agen wajib menghasilkan **3 paket desain visual yang sepenuhnya berbeda**:
+     - **Day 1:** Tema Urban Streetwear / Y2K Denim (Palet: Soft Cream, Denim Blue, Coral).
+     - **Day 2:** Tema Warm Autumn / Cafe Run (Palet: Oatmeal, Dusty Olive, Espresso Brown).
+     - **Day 3:** Tema Chic Edgy Night (Palet: Crisp White, Dark Red Leather, Jet Black).
+   - Masing-masing hari menggunakan produk yang berbeda dari katalog resmi Colorbox (`product-images-gallery.md`).
+
 ---
 
 ## 4. Mekanisme Penanganan Agen Macet (Stuck Recovery & Error Handling)

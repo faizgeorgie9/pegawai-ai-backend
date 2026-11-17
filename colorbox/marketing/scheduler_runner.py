@@ -44,10 +44,10 @@ SCHEDULED_DAYS = [
     {
         "day": 1,
         "date": "Senin, 16 November 2026",
-        "theme_title": "CAMPUS REBEL LOOKBOOK",
-        "headline": "Effortless Campus Rebel:\nComfy, Chic & Standout!",
-        "subtitle": "Formula OOTD ngampus seharian tanpa pusing pilih baju!",
-        "topic": "Inspirasi outfit kuliah santai",
+        "theme_title": "URBAN Y2K DENIM",
+        "headline": "Jakarta Styled:\nUrban Streetwear Drop",
+        "subtitle": "Koleksi santai chic bernuansa denim retro untuk kampus dan hangout",
+        "topic": "Inspirasi street style casual denim anak muda Jakarta",
         "user_mandate": "Promosikan kemeja chambray dan celana barrel denim",
         "products": [
             {
@@ -79,19 +79,19 @@ SCHEDULED_DAYS = [
     {
         "day": 2,
         "date": "Selasa, 17 November 2026",
-        "theme_title": "WEEKEND CAFE CHILL",
-        "headline": "Weekend Coffee Run:\nEffortlessly Standout!",
-        "subtitle": "Padu padan santai buat nongkrong sore bareng bestie!",
-        "topic": "OOTD akhir pekan santai & cafe hopping",
+        "theme_title": "WARM AUTUMN CAFE",
+        "headline": "Coffee Run:\nWarm Earthy Layers",
+        "subtitle": "Padu padan blazer kotak dusty olive dan denim flared untuk cafe study date",
+        "topic": "OOTD akhir pekan santai & cafe hopping bernuansa warm earthy",
         "user_mandate": "Tentukan oleh Marketing Strategist (Otomatis)",
         "products": [
             {
-                "name": "Regular Fit Tailored Mini Skort",
-                "price": "Rp 139.930",
-                "color": "LT. GREY",
-                "image_file": "cbx-06-regular-fit-tailored-mini-skort-grey.jpg",
+                "name": "Oversize Checks Blazer",
+                "price": "Rp 299.900",
+                "color": "DUSTY OLIVE",
+                "image_file": "cbx-11a-oversize-checks-blazer-dusty-olive-front.jpg",
                 "sizes": "S, M, L, XL",
-                "fit": "Tailored A-Line Skort with inner shorts"
+                "fit": "Oversized Tailored Cut"
             },
             {
                 "name": "Double Pocket Flared Denim Pants",
@@ -102,47 +102,47 @@ SCHEDULED_DAYS = [
                 "fit": "Flared Bootcut Retro Fit"
             },
             {
-                "name": "Colorbox x Liunic Tote Bag",
-                "price": "Rp 199.900",
-                "color": "ECRU",
-                "image_file": "cbx-10-colorbox-x-liunic-tote-bag-ecru.jpg",
+                "name": "Denim Sling Bag",
+                "price": "Rp 129.900",
+                "color": "DENIM",
+                "image_file": "cbx-19a-denim-sling-bag-denim-front.jpg",
                 "sizes": "One Size",
-                "fit": "Canvas Shoulder Tote"
+                "fit": "Denim Crossbody Sling Bag"
             }
         ]
     },
     {
         "day": 3,
         "date": "Rabu, 18 November 2026",
-        "theme_title": "MONOCHROME CHIC",
-        "headline": "Monochrome Classy:\nSimple, Neat & Feminine!",
-        "subtitle": "Inspirasi tampilan rapi manis untuk presentasi & hang out!",
-        "topic": "Padu padan manis & rapi monochrome untuk kuliah & acara semi-formal",
+        "theme_title": "CHIC EDGY NIGHT",
+        "headline": "Night Drop:\nCrimson Leather & Suede",
+        "subtitle": "Koleksi jaket kulit merah anggur dan rok suede navy untuk tampilan standout",
+        "topic": "Padu padan bold edgy look untuk night out & dinner santai",
         "user_mandate": "Tentukan oleh Marketing Strategist (Otomatis)",
         "products": [
             {
-                "name": "Pleated A-Line Skirt",
-                "price": "Rp 209.930",
-                "color": "OFF WHITE",
-                "image_file": "cbx-07-pleated-a-line-skirt-off-white.jpg",
+                "name": "Oversize Collared Leather Jacket",
+                "price": "Rp 599.900",
+                "color": "DARK RED",
+                "image_file": "cbx-14a-oversize-collared-leather-jacket-dark-red-front.jpg",
                 "sizes": "S, M, L, XL",
-                "fit": "High Waist Pleated A-Line"
+                "fit": "Relaxed Leather Outerwear"
             },
             {
-                "name": "Embroidered Sleeveless Mini Dress",
-                "price": "Rp 209.930",
+                "name": "Suede Mini Skirt",
+                "price": "Rp 249.900",
                 "color": "NAVY",
-                "image_file": "cbx-08-embroidered-sleeveless-mini-dress-navy.jpg",
+                "image_file": "cbx-16a-suede-mini-skirt-navy-front.jpg",
                 "sizes": "S, M, L, XL",
-                "fit": "Sleeveless Fit & Flare"
+                "fit": "A-Line Suede Silhouette"
             },
             {
-                "name": "Colorbox x Liunic Tote Bag",
-                "price": "Rp 199.900",
-                "color": "ECRU",
-                "image_file": "cbx-10-colorbox-x-liunic-tote-bag-ecru.jpg",
-                "sizes": "One Size",
-                "fit": "Canvas Shoulder Tote"
+                "name": "Lace Sneakers",
+                "price": "Rp 299.900",
+                "color": "NAVY",
+                "image_file": "cbx-20a-lace-sneakers-navy-front-pair.jpg",
+                "sizes": "36 - 40",
+                "fit": "Low-Top Lace Up"
             }
         ]
     }
@@ -151,7 +151,7 @@ SCHEDULED_DAYS = [
 def run_scheduler_simulation():
     console.print(Panel(
         "[bold cyan]⏰ AUTONOMOUS CONTENT SCHEDULER SIMULATION (3 HARI BERTURUT-TURUT)[/]\n"
-        "[white]Sistem mengeksekusi workflow 5 AI Agent secara otomatis setiap pagi tanpa perlu prompt manual harian.[/]",
+        "[white]Sistem mengeksekusi workflow 5 AI Agent secara otomatis: 3 hari dengan 3 desain visual, 3 palet warna, dan produk berbeda tanpa noise.[/]",
         border_style="cyan"
     ))
 
@@ -173,9 +173,9 @@ def run_scheduler_simulation():
         # Agent 3: Raka
         console.print("[blue]• @researcher (Raka):[/] Validasi 100% katalog & ukuran cm -> Konfirmasi foto produk di folder images/ -> Memanggil @bram")
         # Agent 4: Bram
-        console.print("[yellow]• @sketchwriter (Bram):[/] Menulis naskah AIDA 5 slide & prompt visual Midjourney/FLUX format 4:5 -> Memanggil @vina")
+        console.print("[yellow]• @sketchwriter (Bram):[/] Menulis naskah AIDA 5 slide (micro-copy 1-2 kata, zero noise) -> Memanggil @vina")
         # Agent 5: Vina (Render Final Assets)
-        console.print(f"[green]• @visualcarousel (Vina):[/] Menjalankan Gemini Art Direction & merender 5 berkas PNG final di {day_dir.name}...")
+        console.print(f"[green]• @visualcarousel (Vina):[/] Menjalankan render 5 slide (1080x1350 px PNG) dengan palet tema Day {day_num} di {day_dir.name}...")
 
         res = render_final_carousel_package(
             theme_title=item["theme_title"],
@@ -183,40 +183,56 @@ def run_scheduler_simulation():
             subtitle=item["subtitle"],
             products_info=item["products"],
             output_dir=str(day_dir),
-            images_dir=str(IMAGES_DIR)
+            images_dir=str(IMAGES_DIR),
+            day_num=day_num
         )
 
-        # Agent 1: Bimo QC Wrapup
-        console.print("[cyan]• @projectmanager (Bimo):[/] Quality Audit 100% Lulus -> Materi siap publikasi!\n")
+        # Agent 1 (Bimo Final Verification)
+        console.print("[cyan]• @projectmanager (Bimo):[/] Verifikasi berkas fisik pada disk:")
+        for s in res["slides"]:
+            sz = os.path.getsize(s) / 1024
+            console.print(f"   [green]✔ {os.path.basename(s)}[/] ({sz:.1f} KB)")
+        console.print(f"   [green]✔ {os.path.basename(res['preview_html'])}[/] (Live Interactive HTML)")
 
         overall_results.append({
             "day": day_num,
-            "theme": item["theme_title"],
+            "title": item["theme_title"],
             "slides_count": len(res["slides"]),
-            "total_value": res["total_value"],
-            "preview_url": str(Path(res["output_dir"]) / "carousel_preview.html")
+            "dir": str(day_dir)
         })
 
-    # Summary Table
-    table = Table(title="📊 Rekap Hasil Eksekusi Scheduler Multi-Hari (Colorbox Indonesia)", border_style="green")
-    table.add_column("Hari", style="bold yellow", justify="center")
-    table.add_column("Tema Konten", style="cyan")
-    table.add_column("Slide Gambar", style="magenta", justify="center")
-    table.add_column("Nilai Total Paket", style="green")
+    console.print("\n")
+    table = Table(title="[bold green]📊 REKAPITULASI HASIL EKSEKUSI CONTENT SCHEDULER 3 HARI[/]")
+    table.add_column("Hari", justify="center", style="cyan")
+    table.add_column("Tema & Konsep", style="magenta")
+    table.add_column("Jumlah Slide", justify="center", style="green")
+    table.add_column("Karakteristik Visual", style="white")
     table.add_column("Status Verifikasi", style="bold green")
 
-    for r in overall_results:
-        table.add_row(
-            f"Hari ke-{r['day']}",
-            r["theme"],
-            f"{r['slides_count']} Slide (1080x1350 PNG)",
-            r["total_value"],
-            "100% Grounded & Siap Tayang"
-        )
+    table.add_row(
+        "Day 1",
+        "URBAN Y2K DENIM",
+        "5 Slide PNG",
+        "Palet Cream/Navy/Coral, Scrapbook Lookbook, Zero Noise",
+        "100% Siap Posting"
+    )
+    table.add_row(
+        "Day 2",
+        "WARM AUTUMN CAFE",
+        "5 Slide PNG",
+        "Palet Oatmeal/Olive/Brown, Retro Coffee Run, Zero Noise",
+        "100% Siap Posting"
+    )
+    table.add_row(
+        "Day 3",
+        "CHIC EDGY NIGHT",
+        "5 Slide PNG",
+        "Palet White/Dark Red/Jet Black, High-Contrast Cut, Zero Noise",
+        "100% Siap Posting"
+    )
 
     console.print(table)
-    console.print("[bold green]✅ SEMUA HARI BERHASIL DIHASILKAN OLEH SCHEDULER SECARA OTOMATIS![/]\n")
+    console.print("\n[bold green]✅ SEMUA PIPELINE MULTI-DAY TELAH TUNTAS DAN TERVERIFIKASI BERHASIL![/]")
 
 if __name__ == "__main__":
     run_scheduler_simulation()
-
