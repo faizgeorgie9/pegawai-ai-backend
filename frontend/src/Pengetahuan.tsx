@@ -39,6 +39,23 @@ export function MySources() {
     setBusy('')
     setN((x) => x + 1)
   }
+  // One file after another (keeps server load low); every failure is listed, the rest still upload.
+  async function addMany(files: File[]) {
+    setProblem('')
+    const bad: string[] = []
+    for (const [i, f] of files.entries()) {
+      setBusy(files.length > 1 ? `${f.name} (${i + 1} dari ${files.length})` : f.name)
+      try {
+        const r = await api.kbUpload(f)
+        if (r.status === 'failed') bad.push(`${f.name}: ${r.error ?? 'gagal diproses.'}`)
+      } catch (e) {
+        bad.push(`${f.name}: ${errText(e)}`)
+      }
+      setN((x) => x + 1)
+    }
+    setBusy('')
+    setProblem(bad.join(' · '))
+  }
   async function refresh(id: string) {
     setRefreshing(id)
     setProblem('')
@@ -68,12 +85,13 @@ export function MySources() {
           ref={file}
           type="file"
           hidden
+          multiple
           accept={KB_ACCEPT}
           aria-label="Pilih berkas"
           onChange={(e) => {
-            const f = e.target.files?.[0]
+            const fs = Array.from(e.target.files ?? [])
             e.target.value = ''
-            if (f) void add(f.name, () => api.kbUpload(f))
+            if (fs.length) void addMany(fs)
           }}
         />
         <button className="btn outline" disabled={!!busy} onClick={() => file.current?.click()}>
