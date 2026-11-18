@@ -23,6 +23,7 @@ Berikut adalah rekapitulasi seluruh sumber data eksternal, observasi publik, dan
 | **SRC-08** | COLORBOX Official Shop di Shopee Mall | [https://shopee.co.id/colorboxofficial](https://shopee.co.id) | Public Data & CS Observations | `customer-faq.md`, `content-research.md` | Terverifikasi |
 | **SRC-09** | Kerangka Pengujian Hermes Agent PRD | `USE CASE PRODUCT REQUIREMENT DOCUMENT (PRD).pdf` | Assumptions & Test Standards | `customer-inquiry-patterns.md` | Dokumen Internal R&D Brief |
 | **SRC-10** | Skenario Simulasi Komplain & Percakapan | Standar Interaksi CS R&D | Dummy / Simulated Data | `customer-inquiry-patterns.md` | Simulasi R&D |
+| **SRC-11** | Colorbox Official Product Images & Visual Assets | [https://colorbox.co.id](https://colorbox.co.id) & Shopify CDN | Public Data | `product-images-gallery.md` (10 Gambar Produk Terverifikasi) | Terverifikasi via Scraping Publik Resmi |
 
 ---
 
