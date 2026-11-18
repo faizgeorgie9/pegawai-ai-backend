@@ -27,6 +27,14 @@ export default defineConfig(({ mode }) => {
         })
       },
     } satisfies ProxyOptions,
+    '/output': {
+      target: 'http://127.0.0.1:8090',
+      changeOrigin: true,
+    } satisfies ProxyOptions,
+    '/images': {
+      target: 'http://127.0.0.1:8090',
+      changeOrigin: true,
+    } satisfies ProxyOptions,
   }
   return { base: './', plugins: [react()], server: { proxy }, preview: { proxy } }
 })

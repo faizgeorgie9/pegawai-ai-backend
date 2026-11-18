@@ -864,6 +864,21 @@ const q = (o: Record<string, string | number | undefined>) => {
 const enc = encodeURIComponent
 
 export const api = {
+  catalog: {
+    products: (q?: string, category?: string, limit = 50, signal?: AbortSignal) => {
+      const sp = new URLSearchParams()
+      if (q) sp.set('q', q)
+      if (category) sp.set('category', category)
+      sp.set('limit', String(limit))
+      return call<{ ok: boolean; total: number; count: number; items: any[] }>('GET', `/catalog/products?${sp.toString()}`, undefined, signal)
+    },
+    search: (q: string, limit = 20, signal?: AbortSignal) => {
+      const sp = new URLSearchParams({ q, limit: String(limit) })
+      return call<{ ok: boolean; total: number; count: number; items: any[] }>('GET', `/catalog/search?${sp.toString()}`, undefined, signal)
+    },
+    categories: (signal?: AbortSignal) =>
+      call<{ ok: boolean; categories: { name: string; count: number }[]; total_products: number }>('GET', '/catalog/categories', undefined, signal),
+  },
   settings: () => call<Settings>('GET', '/settings'),
   saveSettings: (p: Partial<Settings>) => call<Settings>('PATCH', '/settings', p),
   models: () => call<ModelCatalog>('GET', '/models'),
