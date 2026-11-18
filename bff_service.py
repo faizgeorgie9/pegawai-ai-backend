@@ -3677,7 +3677,7 @@ class BFFHandler(BaseHTTPRequestHandler):
             _get_bot_row(bot_id)
             conn = _connect()
             try:
-                sess = conn.execute("SELECT id FROM sessions WHERE id = ? AND bot_id = ?", (sid, bot_id)).fetchone()
+                sess = conn.execute("SELECT id FROM sessions WHERE id = ?", (sid,)).fetchone()
                 if not sess:
                     raise ApiError(404, "Sesi tidak ditemukan")
                 mrows = conn.execute("SELECT * FROM messages WHERE session_id = ? ORDER BY id ASC", (sid,)).fetchall()
@@ -4391,13 +4391,16 @@ class BFFHandler(BaseHTTPRequestHandler):
             bot_id = parts[2]
             sid = body.get("session_id")
             if sid is not None:
-                sid = str(sid)
-                conn = _connect()
-                try:
-                    if not conn.execute("SELECT 1 FROM sessions WHERE id = ? AND bot_id = ?", (sid, bot_id)).fetchone():
-                        raise ApiError(404, "Sesi tidak ditemukan")
-                finally:
-                    conn.close()
+                sid = str(sid).strip() or None
+                if sid:
+                    conn = _connect()
+                    try:
+                        # Allow multi-agent workflow / shared cross-bot sessions
+                        if not conn.execute("SELECT 1 FROM sessions WHERE id = ?", (sid,)).fetchone():
+                            # If session does not exist yet, start_run_job will create it automatically
+                            pass
+                    finally:
+                        conn.close()
 
             ins = body.get("instructions")
             if ins is not None and (not isinstance(ins, str) or len(ins) > 6000):
@@ -4694,7 +4697,7 @@ class BFFHandler(BaseHTTPRequestHandler):
                 raise ApiError(400, "Judul wajib diisi (maksimal 120 karakter)")
             conn = _connect()
             try:
-                cur = conn.execute("UPDATE sessions SET title = ?, updated_at = ? WHERE id = ? AND bot_id = ?", (title, time.time(), sid, bot_id))
+                cur = conn.execute("UPDATE sessions SET title = ?, updated_at = ? WHERE id = ?", (title, time.time(), sid))
                 conn.commit()
                 if cur.rowcount == 0:
                     raise ApiError(404, "Sesi tidak ditemukan")
@@ -4832,8 +4835,8 @@ class BFFHandler(BaseHTTPRequestHandler):
             bot_id, sid = parts[2], parts[4]
             conn = _connect()
             try:
-                cur = conn.execute("DELETE FROM sessions WHERE id = ? AND bot_id = ?", (sid, bot_id))
-                conn.execute("DELETE FROM messages WHERE session_id = ? AND bot_id = ?", (sid, bot_id))
+                cur = conn.execute("DELETE FROM sessions WHERE id = ?", (sid,))
+                conn.execute("DELETE FROM messages WHERE session_id = ?", (sid,))
                 conn.commit()
                 if cur.rowcount == 0:
                     raise ApiError(404, "Sesi tidak ditemukan")
