@@ -14,3 +14,11 @@ HERMES_HOME = Path(os.environ.get("HERMES_HOME") or (Path(os.environ.get("LOCALA
 HERMES_BIN = os.environ.get("HERMES_BIN") or shutil.which("hermes") or "hermes"
 # Persona files for the five template bots (repo: bots/souls).
 SOULS_DIR = Path(os.environ.get("SOULS_DIR") or ROOT.parent.parent / "bots" / "souls")
+
+# Connections (Google Drive, Gmail): OAuth client credentials live only here, never in code. See docs/sprint4/setup-koneksi.md.
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
+# Origin the browser uses to open the app (the Vite proxy / reverse proxy serves the BFF under /bff). Redirect URIs are built from it.
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "http://localhost:5173").strip().rstrip("/")
+# Fernet key that encrypts stored tokens. Without it no token is ever stored.
+CONNECTIONS_KEY = os.environ.get("CONNECTIONS_KEY", "").strip()

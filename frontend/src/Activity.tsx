@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api, errText } from './bff'
 import type { ActivityRow, Scope } from './bff'
 import { useData } from './data'
+import { toolLabel } from './steps'
 import { ErrorLine, stamp } from './ui'
 import { Loading } from './ui-extra'
 
@@ -66,14 +67,14 @@ export default function Activity({ scope, version }: { scope?: Scope; version?: 
       {!scope && (
       <header className="page-head">
         <div>
-          <h1 id="act-h">Log aktivitas</h1>
-          <p className="quiet">Alat yang dipakai agen, dari yang terbaru. Data sensitif disensor otomatis.</p>
+          <h1 id="act-h">Catatan aktivitas</h1>
+          <p className="quiet">Apa yang dikerjakan agen, dari yang terbaru.</p>
         </div>
         <div className="filters">
           <label className="field inline">
-            <span>Bot</span>
+            <span>Agen</span>
             <select value={bot} onChange={(e) => setBot(e.target.value)}>
-              <option value="">Semua bot</option>
+              <option value="">Semua agen</option>
               {bots.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
@@ -98,7 +99,7 @@ export default function Activity({ scope, version }: { scope?: Scope; version?: 
       {state === 'ok' && rows.length === 0 && (
         <div className="state empty-box">
           <h2>Belum ada aktivitas</h2>
-          <p className="quiet">{bot || status ? 'Tidak ada aktivitas yang cocok dengan filter ini.' : 'Saat bot memakai alat, catatannya muncul di sini.'}</p>
+          <p className="quiet">{bot || status ? 'Tidak ada aktivitas yang cocok dengan filter ini.' : 'Saat agen memakai alat, catatannya muncul di sini.'}</p>
         </div>
       )}
       {rows.length > 0 && (
@@ -108,8 +109,8 @@ export default function Activity({ scope, version }: { scope?: Scope; version?: 
               <thead>
                 <tr>
                   <th>Waktu</th>
-                  <th>Bot</th>
-                  <th>Alat</th>
+                  <th>Agen</th>
+                  <th>Kegiatan</th>
                   <th>Status</th>
                   <th className="r">Durasi</th>
                   <th>Ringkasan</th>
@@ -120,8 +121,8 @@ export default function Activity({ scope, version }: { scope?: Scope; version?: 
                 {rows.map((r) => (
                   <tr key={r.id}>
                     <td data-label="Waktu" className="num">{stamp(r.time)}</td>
-                    <td data-label="Bot">{r.bot_name}</td>
-                    <td data-label="Alat">{r.tool || '–'}</td>
+                    <td data-label="Agen">{r.bot_name}</td>
+                    <td data-label="Kegiatan">{r.tool ? toolLabel(r.tool) : '–'}</td>
                     <td data-label="Status">
                       <span className={`pill ${r.status === 'ok' ? 'ok' : 'bad'}`}>{r.status === 'ok' ? 'Berhasil' : 'Gagal'}</span>
                     </td>

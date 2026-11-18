@@ -72,6 +72,15 @@ except ImportError:
         scheduler_service = None
         activity_tracker = None
 
+# Model Pricing & Token Limits in USD (Sprint 4 Day 3)
+try:
+    from pricing_engine import pricing_engine
+except ImportError:
+    try:
+        from local_setup.backend_template.pricing_engine import pricing_engine
+    except Exception:
+        pricing_engine = None
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -657,6 +666,49 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
             self._send_json_response(404, {"error": f"Mock fixture '{mock_name}' not found"})
             return
 
+        elif path == "/api/v1/pricing/models":
+            if not pricing_engine:
+                self._send_json_response(500, {"error": "Pricing engine not initialized"})
+                return
+            self._send_json_response(200, {
+                "status": "success",
+                "currency": "USD",
+                "default_model": "deepseek-chat",
+                "models": pricing_engine.list_models()
+            })
+            return
+
+        elif path == "/api/v1/usage/limits":
+            if not pricing_engine:
+                self._send_json_response(500, {"error": "Pricing engine not initialized"})
+                return
+            qs = parse_qs(parsed.query)
+            plan_id = qs.get("plan", ["pro"])[0]
+            spent_usd = float(qs.get("spent", [0.0842])[0])
+            self._send_json_response(200, {
+                "status": "success",
+                "limits": pricing_engine.check_user_limit(plan_id, spent_usd)
+            })
+            return
+
+        elif path == "/api/v1/usage/costs":
+            if not pricing_engine or not activity_tracker:
+                self._send_json_response(500, {"error": "Tracking engine not initialized"})
+                return
+            status_data = activity_tracker.get_activity_status()
+            total_tokens = status_data.get("metrics", {}).get("total_tokens_consumed", 0)
+            cost_data = pricing_engine.calculate_cost("deepseek-chat", int(total_tokens * 0.4), int(total_tokens * 0.6), is_measured=True)
+            self._send_json_response(200, {
+                "status": "success",
+                "currency": "USD",
+                "total_runs": status_data.get("metrics", {}).get("total_runs_tracked", 0),
+                "total_tokens": total_tokens,
+                "cost_usd": cost_data["cost_usd"],
+                "cost_usd_formatted": cost_data["cost_usd_formatted"],
+                "rates": cost_data["rates_per_million_usd"]
+            })
+            return
+
         elif path == "/api/v1/sessions":
             self._send_json_response(200, {"total_sessions": len(SESSION_HISTORY), "sessions": SESSION_HISTORY})
 
@@ -889,6 +941,22 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
             })
             return
 
+        elif path == "/api/v1/pricing/calculate":
+            if not pricing_engine:
+                self._send_json_response(500, {"error": "Pricing engine not initialized"})
+                return
+            model_id = payload.get("model_id") or "deepseek-chat"
+            inp = int(payload.get("input_tokens") or 0)
+            outp = int(payload.get("output_tokens") or 0)
+            cache = int(payload.get("cache_read_tokens") or 0)
+            is_measured = bool(payload.get("is_measured", False))
+            calc_result = pricing_engine.calculate_cost(model_id, inp, outp, cache, is_measured=is_measured)
+            self._send_json_response(200, {
+                "status": "success",
+                **calc_result
+            })
+            return
+
         elif path == "/api/v1/agent/execute":
             auth_header = self.headers.get("X-Pegawai-AI-Key", "demo-token")
             dept_header = self.headers.get("X-Department", "marketing")
@@ -1086,27 +1154,38 @@ class PegawaiAIRequestHandler(BaseHTTPRequestHandler):
                         prompt_topic=prompt
                     )
 
-                response_payload = {
-                    "status": "success",
-                    "session_id": session_id,
-                    "customer_id": payload.get("customer_id", "cust_default"),
-                    "department": department,
-                    "agent_mode": agent_mode,
-                    "agent_count": multi_agent_data.get("agent_count", 1) if multi_agent_data else 1,
-                    "provider": actual_provider,
-                    "model": actual_model,
-                    "fallback_applied": fallback_applied,
-                    "blocker_note": blocker_note,
-                    "execution_time_seconds": round(elapsed, 2),
-                    "output": raw_output,
-                    "multi_agent_data": multi_agent_data,
-                    "token_usage": {
-                        "input_tokens": usage_data.get("input_tokens", 0),
-                        "output_tokens": usage_data.get("output_tokens", 0),
-                        "total_tokens": usage_data.get("total_tokens", 0)
-                    },
-                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z")
-                }
+                    inp_tok = int(usage_data.get("input_tokens", 0))
+                    outp_tok = int(usage_data.get("output_tokens", 0))
+                    cache_tok = int(usage_data.get("cache_read_tokens", 0))
+                    cost_calc = pricing_engine.calculate_cost(actual_model, inp_tok, outp_tok, cache_tok, is_measured=True) if pricing_engine else {}
+                    cost_usd = cost_calc.get("cost_usd", 0.0)
+
+                    response_payload = {
+                        "status": "success",
+                        "session_id": session_id,
+                        "customer_id": payload.get("customer_id", "cust_default"),
+                        "department": department,
+                        "agent_mode": agent_mode,
+                        "agent_count": multi_agent_data.get("agent_count", 1) if multi_agent_data else 1,
+                        "provider": actual_provider,
+                        "model": actual_model,
+                        "fallback_applied": fallback_applied,
+                        "blocker_note": blocker_note,
+                        "execution_time_seconds": round(elapsed, 2),
+                        "output": raw_output,
+                        "multi_agent_data": multi_agent_data,
+                        "token_usage": {
+                            "input_tokens": inp_tok,
+                            "cache_read_tokens": cache_tok,
+                            "output_tokens": outp_tok,
+                            "total_tokens": usage_data.get("total_tokens", inp_tok + outp_tok),
+                            "cost_usd": cost_usd,
+                            "cost_usd_formatted": cost_calc.get("cost_usd_formatted", f"${cost_usd:.6f}"),
+                            "currency": "USD",
+                            "is_measured": True
+                        },
+                        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z")
+                    }
 
                 SESSION_HISTORY.append({
                     "session_id": session_id,

@@ -19,7 +19,7 @@ export class ApiError extends Error {
 
 function fallbackMessage(status: number): string {
   if (status === 401) return 'Akses ditolak. Kunci BFF belum diisi atau salah.'
-  if (status === 402) return 'Batas penggunaan tercapai. Coba lagi nanti.'
+  if (status === 402) return 'Batas paket Anda tercapai.'
   if (status === 404) return 'Data tidak ditemukan. Mungkin sudah dihapus.'
   if (status === 409) return 'Permintaan bentrok dengan keadaan saat ini. Coba lagi.'
   if (status === 429) return 'Terlalu banyak tugas berjalan, coba sebentar lagi.'
@@ -33,8 +33,8 @@ async function call<T>(method: string, path: string, body?: unknown, signal?: Ab
     res = await fetch(BASE + path, {
       method,
       signal,
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: body === undefined || body instanceof FormData ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
     })
   } catch (e) {
     if (signal?.aborted) throw e
@@ -48,9 +48,8 @@ async function call<T>(method: string, path: string, body?: unknown, signal?: Ab
       /* empty or non-JSON error body */
     }
     const msg = typeof j.error === 'string' && j.error ? j.error : fallbackMessage(res.status)
-    // 402 = quota reached. The plan UI is hidden, so show a plain error (no upgrade hint).
-    if (res.status === 402) throw new ApiError('Batas penggunaan tercapai. Coba lagi nanti.', 402, false)
-    throw new ApiError(msg, res.status, j.upgrade === true)
+    // 402 = plan limit reached. The BFF message says which limit; the plan UI is hidden, so never offer an upgrade button.
+    throw new ApiError(msg, res.status, res.status !== 402 && j.upgrade === true)
   }
   if (res.status === 204) return undefined as T
   try {
@@ -132,6 +131,64 @@ export interface KnowledgeInfo {
   retention_days: number
   docs: { id: string; title: string; workflow: string; version: string | null; date: string | null; files: { name: string; title: string }[] }[]
 }
+// Knowledge Base item (a file or link the user added; the BFF extracts the text and keeps it per user).
+export interface KbItem {
+  id: string | null // null: a link that could not even be stored (e.g. the Knowledge Base is full)
+  kind: 'file' | 'gdrive' | 'url'
+  name: string
+  source: string | null
+  status: 'processing' | 'ready' | 'failed'
+  error: string | null
+  size_bytes: number | null
+  chars: number | null
+  created_at: string | null
+  refreshable?: boolean // imported through a connection (Drive): can be fetched again
+  has_file?: boolean // the original upload was kept (uploads from 17 Nov 2026 on): it can be opened and downloaded
+}
+// Connections (Google Drive, Gmail). not_configured: the administrator has not set up the app yet.
+// A risky agent action that waits for the user (BFF: bff/actions.py). source says where the agent asked, when known.
+export interface PendingAction {
+  id: string
+  short_id: string
+  kind: string
+  summary: string
+  payload: { link?: string; preview?: string; [k: string]: unknown }
+  status: 'pending' | 'approved' | 'rejected' | 'done' | 'failed' | 'expired'
+  result: string | null
+  source: { bot_id?: string; run_id?: string; session_id?: string | null; group_id?: string | null } | null
+  created_at: string
+  decided_at: string | null
+}
+export type ConnProvider = 'gdrive' | 'gmail'
+export interface Connection {
+  provider: ConnProvider
+  name: string
+  status: 'not_configured' | 'disconnected' | 'connected' | 'reconnect' | 'broken' | 'needs_scope' // broken: connected, but the last check at the provider failed; needs_scope: works, but lacks a newer permission
+  reason?: string // broken / needs_scope: friendly sentence for the user
+  needs?: 'reconnect' | 'admin' | 'retry' // broken: who can fix it
+  account: string | null
+  connected_at: string | null
+  redirect_uri: string // what the administrator registers at the provider
+  setup: { env: string; label: string; filled: boolean }[] // which admin values are filled (never the values)
+}
+// A file or page the user can pick from Drive.
+export interface PickItem {
+  id: string
+  name: string
+  type: string | null
+  modified: string | null
+  size: number | null
+}
+export interface PickPage {
+  items: PickItem[]
+  next: string | null
+}
+export interface ImportResult {
+  id: string | null
+  name: string
+  status: 'ready' | 'failed' | 'processing'
+  error?: string | null
+}
 export interface Template {
   id: string
   name: string
@@ -140,9 +197,29 @@ export interface Template {
   color: string
   description: string
 }
+// Exact USD amount as the BFF formats it: `usd` is the exact decimal string, `label` the rounded text to show ("$0.50", "< $0.01").
+export interface Money {
+  usd: string
+  label: string
+}
+export type LimitState = 'normal' | 'warning' | 'exceeded'
+// Why a cost is an estimate ("perkiraan"): unverified_price, model_not_recorded or no_price, with the models involved.
+export interface EstimateReason {
+  code: 'unverified_price' | 'model_not_recorded' | 'no_price'
+  models: string[]
+}
+// The limit part of a usage view. limit/remaining/percent are null when the plan has no USD limit.
+export interface LimitInfo {
+  cost: Money
+  limit: Money | null
+  remaining: Money | null
+  percent: number | null
+  state: LimitState
+  basis: 'measured' | 'estimated'
+}
 // null means "no limit" (shown as "Tanpa batas")
 export interface Limits {
-  monthly_tokens: number | null
+  monthly_usd: Money | null
   group_send_token_budget: number | null
   max_bots: number
   max_groups: number
@@ -156,7 +233,7 @@ export interface Plan extends Limits {
 export interface Me {
   plan: { id: string; name: string }
   limits: Limits
-  usage: { tokens_month: number; bots: number; groups: number; active_runs: number }
+  usage: { tokens_month: number; bots: number; groups: number; active_runs: number } & LimitInfo
 }
 export interface Group {
   id: string
@@ -172,6 +249,111 @@ export interface GroupMsg {
   text: string
   run_id: string
   created_at: number
+  plan?: ContentPlan // the message ends with a valid content plan (the BFF validated it): shown as an approval card
+  task?: { id: string; title: string } // the agent's run made or worked on this task (chip "Tugas: ..." to the board)
+}
+export interface PlanDay {
+  date: string // YYYY-MM-DD
+  theme: string
+  products: string[]
+  brief: string
+  time: string // HH:MM
+}
+export interface ContentPlan {
+  title: string
+  days: PlanDay[]
+  task_id: string | null // the plan's task on the board (null until there is one)
+  state: 'pending' | 'approved' | 'cancelled' | 'replaced'
+}
+// Papan Tugas (GET /tasks/board): tasks in four columns (Arsip view: one column). `primary` and `more` are the actions the card offers;
+// an action id is an API verb (start, stop, approve, cancel, retry, archive, restore) or, for open / edit / chat, something the screen does itself.
+export type TaskColumnId = 'queue' | 'running' | 'needs_you' | 'done' | 'archived'
+export interface TaskAction {
+  id: string
+  label: string
+  confirm: string // '' when no confirmation is needed
+}
+export interface TaskCard {
+  id: string
+  title: string
+  column: TaskColumnId
+  status: string // internal (todo, scheduled, ready, running, blocked, review, done, archived): admin mode only
+  kind: 'task' | 'plan'
+  priority: number
+  assignee: { kind: 'bot' | 'group'; id: string; name: string; color: string } | null
+  parent: { id: string; title: string } | null
+  scheduled_at: number // epoch seconds, 0 when none
+  block_kind: string
+  outcome: 'ok' | 'failed' | 'cancelled' | null
+  line: string // one plain sentence about where the task stands
+  cost: Money | null
+  estimated: boolean
+  link: string // app route of the chat or team behind the task, '' when none
+  children_done: number
+  children_total: number
+  primary: TaskAction | null
+  more: TaskAction[]
+}
+export interface TaskComment {
+  id: string
+  author: 'user' | 'bot' | 'system'
+  bot_id: string
+  text: string
+  at: number
+}
+export interface TaskEvent {
+  kind: string
+  at: number
+  from: string
+  to: string
+}
+export interface TaskDetail extends TaskCard {
+  body: string
+  result: string
+  attempts: number
+  source: string
+  editable: boolean
+  comments: TaskComment[]
+  events: TaskEvent[]
+  runs: { id: string; status: string; at: number; cost: Money | null }[]
+  children: TaskCard[]
+}
+export interface TaskBoard {
+  columns: { id: TaskColumnId; label: string; hint: string; total: number; cards: TaskCard[] }[]
+}
+export interface TaskFilter {
+  agent?: string
+  group?: string
+  archived?: boolean
+}
+export interface TaskInput {
+  title: string
+  body?: string
+  assignee_bot?: string
+  assignee_group?: string
+  scheduled_at?: string | null // ISO time with zone
+  priority?: 0 | 1
+}
+export interface Schedule {
+  id: string
+  title: string
+  status: 'active' | 'paused'
+  target: string // agent or group name
+  bot_id: string
+  group_id: string
+  prompt: string
+  days: number[] // 0 = Monday
+  time: string
+  timezone: string
+  next_at: number // 0 when none
+}
+export interface ScheduleInput {
+  title: string
+  prompt: string
+  days: number[]
+  time: string
+  bot_id?: string
+  group_id?: string
 }
 export interface Thought {
   run_id: string
@@ -183,8 +365,12 @@ export interface Thought {
 }
 export interface Usage {
   total: { input: number; output: number; cache_read: number; total: number; runs: number }
-  by_bot: { bot_id: string; name: string; input: number; output: number; total: number; runs: number }[]
-  turns: { run_id: string; bot_id: string; created_at: number; input: number; output: number; total: number; status: string }[]
+  by_bot: { bot_id: string; name: string; input: number; output: number; total: number; runs: number; cost: Money; estimated: boolean }[]
+  turns: { run_id: string; bot_id: string; created_at: number; input: number; output: number; total: number; status: string; cost: Money; estimated: boolean }[]
+  cost: Money
+  basis: 'measured' | 'estimated'
+  estimate_reasons: EstimateReason[]
+  month: LimitInfo
 }
 export interface BotUsage {
   bot_id: string
@@ -193,6 +379,25 @@ export interface BotUsage {
   output: number
   total: number
   runs: number
+  cost: Money
+  estimated: boolean
+}
+interface Slice {
+  cost: Money
+  tokens: number
+  runs: number
+}
+// GET /usage without a scope: this month's USD view of the account.
+export interface MonthUsage extends LimitInfo {
+  currency: 'USD'
+  period: { start: string; end: string; timezone: string }
+  updated_at: string
+  tokens: { input: number; output: number; cache_read: number; total: number; runs: number }
+  unpriced_tokens: number
+  estimate_reasons: EstimateReason[]
+  by_agent: (Slice & { bot_id: string; name: string; estimated: boolean })[]
+  by_model: (Slice & { provider: string; model: string; estimated: boolean; priced: boolean })[]
+  by_day: (Slice & { day: string })[]
 }
 export type Scope = { session_id: string; group_id?: undefined } | { group_id: string; session_id?: undefined }
 export interface RunInfo {
@@ -277,6 +482,8 @@ export interface ChatMessage {
   approval?: Approval
   clarify?: Clarify
   notes?: string[]
+  kb?: KbItem[] // Knowledge Base items saved from this message's links (result), shown under the bubble
+  kbBusy?: boolean // the message asks to save a link and the BFF is still reading it
 }
 export interface ActivityRow {
   id: string
@@ -388,12 +595,21 @@ const toBot = (r: Raw): Bot => ({
   provider: asStr(r.provider),
   effort: asStr(r.reasoning_effort),
 })
+const toMoney = (r: Raw): Money => ({ usd: asStr(r.usd, '0'), label: asStr(r.label, '$0') })
 const toLimits = (r: Raw = {}): Limits => ({
-  monthly_tokens: r.monthly_tokens == null ? null : asNum(r.monthly_tokens),
+  monthly_usd: r.monthly_usd == null ? null : toMoney(r.monthly_usd),
   group_send_token_budget: r.group_send_token_budget == null ? null : asNum(r.group_send_token_budget),
   max_bots: asNum(r.max_bots),
   max_groups: asNum(r.max_groups),
   max_concurrent_runs: asNum(r.max_concurrent_runs),
+})
+const toLimitInfo = (u: Raw = {}): LimitInfo => ({
+  cost: toMoney(u.cost ?? {}),
+  limit: u.limit ? toMoney(u.limit) : null,
+  remaining: u.remaining ? toMoney(u.remaining) : null,
+  percent: u.percent == null ? null : asNum(u.percent),
+  state: u.state === 'warning' || u.state === 'exceeded' ? u.state : 'normal',
+  basis: u.basis === 'estimated' ? 'estimated' : 'measured',
 })
 const toPlan = (r: Raw): Plan => ({
   id: asStr(r.id),
@@ -407,7 +623,13 @@ const toMe = (r: Raw): Me => {
   return {
     plan: p,
     limits: toLimits(r.limits ?? r.plan),
-    usage: { tokens_month: asNum(u.tokens_month), bots: asNum(u.bots), groups: asNum(u.groups), active_runs: asNum(u.active_runs) },
+    usage: {
+      tokens_month: asNum(u.tokens_month),
+      bots: asNum(u.bots),
+      groups: asNum(u.groups),
+      active_runs: asNum(u.active_runs),
+      ...toLimitInfo(u),
+    },
   }
 }
 const toGroup = (r: Raw): Group => {
@@ -429,8 +651,70 @@ export const toGroupMsg = (r: Raw): GroupMsg => {
     text: asStr(r.text ?? r.content),
     run_id: asStr(r.run_id),
     created_at: epoch(r.created_at ?? r.time),
+    plan: r.plan ? toContentPlan(r.plan) : undefined,
+    task: r.task ? { id: asStr((r.task as Raw).id), title: asStr((r.task as Raw).title) } : undefined,
   }
 }
+const toPlanState = (p: Raw): Pick<ContentPlan, 'task_id' | 'state'> => ({
+  task_id: p.task_id ? asStr(p.task_id) : null,
+  state: (['approved', 'cancelled', 'replaced'] as const).find((x) => x === p.state) ?? 'pending',
+})
+const toContentPlan = (p: Raw): ContentPlan => ({
+  title: asStr(p.title),
+  days: list(p.days).map((d) => ({ date: asStr(d.date), theme: asStr(d.theme), products: list(d.products).map((x) => asStr(x)), brief: asStr(d.brief), time: asStr(d.time, '09:00') })),
+  ...toPlanState(p),
+})
+const toSchedule = (r: Raw): Schedule => ({
+  id: asStr(r.id),
+  title: asStr(r.title),
+  status: r.status === 'paused' ? 'paused' : 'active',
+  target: asStr(r.target),
+  bot_id: asStr(r.bot_id),
+  group_id: asStr(r.group_id),
+  prompt: asStr(r.prompt),
+  days: list(r.days).map((d) => asNum(d)),
+  time: asStr(r.time),
+  timezone: asStr(r.timezone),
+  next_at: epoch(r.next_at),
+})
+const TCOL: TaskColumnId[] = ['queue', 'running', 'needs_you', 'done', 'archived']
+const toTaskAction = (r: Raw): TaskAction => ({ id: asStr(r.id), label: asStr(r.label), confirm: asStr(r.confirm) })
+const toTaskCard = (r: Raw): TaskCard => ({
+  id: asStr(r.id),
+  title: asStr(r.title),
+  column: TCOL.find((x) => x === r.column) ?? 'done',
+  status: asStr(r.status),
+  kind: r.kind === 'plan' ? 'plan' : 'task',
+  priority: asNum(r.priority),
+  assignee: r.assignee ? { kind: r.assignee.group ? 'group' : 'bot', id: asStr(r.assignee.group ?? r.assignee.bot), name: asStr(r.assignee.name), color: asStr(r.assignee.color, 'slate') } : null,
+  parent: r.parent ? { id: asStr(r.parent.id), title: asStr(r.parent.title) } : null,
+  scheduled_at: epoch(r.scheduled_at),
+  block_kind: asStr(r.block_kind),
+  outcome: (['ok', 'failed', 'cancelled'] as const).find((x) => x === r.outcome) ?? null,
+  line: asStr(r.line),
+  cost: r.cost ? toMoney(r.cost) : null,
+  estimated: r.estimated === true,
+  link: asStr(r.link),
+  children_done: asNum(r.children_done),
+  children_total: asNum(r.children_total),
+  primary: r.primary_action ? toTaskAction(r.primary_action) : null,
+  more: list(r.more_actions).map(toTaskAction),
+})
+const toTaskDetail = (r: Raw): TaskDetail => ({
+  ...toTaskCard(r),
+  body: asStr(r.body),
+  result: asStr(r.result),
+  attempts: asNum(r.attempts),
+  source: asStr(r.source),
+  editable: r.editable === true,
+  comments: list(r.comments).map((c) => ({ id: asStr(c.id), author: (['user', 'bot', 'system'] as const).find((x) => x === c.author) ?? 'system', bot_id: asStr(c.bot_id), text: asStr(c.text), at: epoch(c.created_at) })),
+  events: list(r.events).map((e) => ({ kind: asStr(e.kind), at: epoch(e.created_at), from: asStr(e.payload?.from), to: asStr(e.payload?.to) })),
+  runs: list(r.runs).map((x) => ({ id: asStr(x.id), status: asStr(x.status), at: epoch(x.at), cost: x.cost ? toMoney(x.cost) : null })),
+  children: list(r.children).map(toTaskCard),
+})
+const toTaskBoard = (r: Raw): TaskBoard => ({
+  columns: list(r.columns).map((c) => ({ id: TCOL.find((x) => x === c.id) ?? 'done', label: asStr(c.label), hint: asStr(c.hint), total: asNum(c.total), cards: list(c.cards).map(toTaskCard) })),
+})
 export const toRun = (r: Raw): RunInfo => ({
   id: asStr(r.id),
   bot_id: asStr(r.bot_id),
@@ -548,6 +832,47 @@ export const api = {
   models: () => call<ModelCatalog>('GET', '/models'),
   security: () => call<Security>('GET', '/settings/security'),
   knowledge: () => call<KnowledgeInfo>('GET', '/settings/knowledge'),
+  kbItems: () => call<KbItem[]>('GET', '/kb/items'),
+  kbUpload: (file: File) => {
+    const f = new FormData()
+    f.append('file', file)
+    return call<KbItem>('POST', '/kb/files', f)
+  },
+  kbAddLink: (url: string) => call<KbItem>('POST', '/kb/links', { url }),
+  kbDelete: (id: string) => call<void>('DELETE', `/kb/items/${enc(id)}`),
+  kbRefresh: (id: string) => call<KbItem>('POST', `/kb/items/${enc(id)}/refresh`),
+  kbText: (id: string) => call<{ text: string; truncated: boolean }>('GET', `/kb/${enc(id)}/text`),
+  // original file as a Blob (a plain link cannot be used: the key never goes into a URL)
+  kbFile: async (id: string): Promise<Blob> => {
+    let res: Response
+    try {
+      res = await fetch(`${BASE}/kb/${enc(id)}/file`)
+    } catch {
+      throw new ApiError('Server belum terjangkau. Pastikan BFF menyala, lalu coba lagi.')
+    }
+    if (!res.ok) throw new ApiError(res.status === 404 ? 'Berkas asli tidak tersimpan.' : fallbackMessage(res.status), res.status)
+    return res.blob()
+  },
+  actions: (pendingOnly = false) => call<PendingAction[]>('GET', `/actions${pendingOnly ? '?status=pending' : ''}`),
+  approveAction: (id: string) => call<PendingAction>('POST', `/actions/${enc(id)}/approve`),
+  rejectAction: (id: string) => call<PendingAction>('POST', `/actions/${enc(id)}/reject`),
+  connections: (fresh = false) => call<Connection[]>('GET', `/connections${fresh ? '?fresh=1' : ''}`),
+  connectStart: (p: ConnProvider) => call<{ url: string }>('POST', `/connections/${p}/start`),
+  disconnect: (p: ConnProvider) => call<void>('DELETE', `/connections/${p}`),
+  // Aplikasi: Hermes connector catalog and per-agent skills
+  appsCatalog: (fresh = false) => call<AppsCatalog>('GET', `/apps/catalog${fresh ? '?fresh=1' : ''}`),
+  appConnect: (id: string) => call<{ url?: string; connected?: boolean }>('POST', `/apps/${enc(id)}/connect`),
+  appStatus: (id: string) => call<{ status: 'connected' | 'not_connected'; waiting: boolean }>('GET', `/apps/${enc(id)}/status`),
+  appDisconnect: (id: string) => call<void>('POST', `/apps/${enc(id)}/disconnect`),
+  skillsAll: () => call<{ agents: AgentSkills[] }>('GET', '/skills'),
+  agentSkills: async (slug: string) => (await call<{ skills: Skill[] }>('GET', `/agents/${enc(slug)}/skills`)).skills,
+  setSkill: async (slug: string, name: string, enabled: boolean) => (await call<{ skills: Skill[] }>('PUT', `/agents/${enc(slug)}/skills`, { name, enabled })).skills,
+  driveFiles: async (q: string, page?: string | null): Promise<PickPage> => {
+    const r = await call<{ files: PickItem[]; next: string | null }>('GET', `/connections/gdrive/files?q=${enc(q)}${page ? `&page=${enc(page)}` : ''}`)
+    return { items: r.files, next: r.next }
+  },
+  driveImport: async (ids: string[]) => (await call<{ items: ImportResult[] }>('POST', '/connections/gdrive/import', { ids })).items,
+  gmailDraft: (d: { to: string; subject: string; body: string }) => call<{ draft_id: string | null; url: string; account: string | null }>('POST', '/connections/gmail/draft', d),
   exportHistory: async (): Promise<Blob> => {
     let res: Response
     try {
@@ -608,9 +933,9 @@ export const api = {
     foldMessages(list(await call('GET', `/bots/${enc(botId)}/sessions/${enc(sid)}/messages`, undefined, signal))),
   renameSession: (botId: string, sid: string, title: string) => call<void>('PATCH', `/bots/${enc(botId)}/sessions/${enc(sid)}`, { title }),
   deleteSession: (botId: string, sid: string) => call<void>('DELETE', `/bots/${enc(botId)}/sessions/${enc(sid)}`),
-  startRun: async (botId: string, input: string, session_id?: string, instructions?: string, ctx?: RunCtx) => {
-    const r = await call<Raw>('POST', `/bots/${enc(botId)}/runs`, { input, ...(session_id ? { session_id } : {}), ...(instructions ? { instructions } : {}), ...(ctx?.workflow ? { workflow: ctx.workflow, ...(ctx.stage ? { stage: ctx.stage } : {}), ...(ctx.test_mode ? { test_mode: true } : {}) } : {}) })
-    return { run: toRun(r.run ?? r), session_id: asStr(r.session_id ?? r.run?.session_id) }
+  startRun: async (botId: string, input: string, session_id?: string, instructions?: string, ctx?: RunCtx, kb_items?: string[]) => {
+    const r = await call<Raw>('POST', `/bots/${enc(botId)}/runs`, { input, ...(kb_items?.length ? { kb_items } : {}), ...(session_id ? { session_id } : {}), ...(instructions ? { instructions } : {}), ...(ctx?.workflow ? { workflow: ctx.workflow, ...(ctx.stage ? { stage: ctx.stage } : {}), ...(ctx.test_mode ? { test_mode: true } : {}) } : {}) })
+    return { run: toRun(r.run ?? r), session_id: asStr(r.session_id ?? r.run?.session_id), kb: (Array.isArray(r.kb) ? r.kb : []) as KbItem[] }
   },
   runs: async (status: 'active' | 'recent', limit?: number, bot?: string) => list(await call('GET', `/runs${q({ status, limit, bot })}`)).map(toRun),
   run: async (id: string) => {
@@ -646,16 +971,32 @@ export const api = {
     const t = (await call<Raw>('GET', `/groups/${enc(id)}/live`)).turn as Raw | null // the bot turn on screen, if any
     return t ? { bot: asStr(t.bot_id), run: asStr(t.run_id) } : null
   },
-  sendGroup: async (id: string, text: string, mode: 'queue' | 'steer') => {
-    const r = await call<Raw>('POST', `/groups/${enc(id)}/messages`, { text, mode })
+  sendGroup: async (id: string, text: string, mode: 'queue' | 'steer', kb_items?: string[]) => {
+    const r = await call<Raw>('POST', `/groups/${enc(id)}/messages`, { text, mode, ...(kb_items?.length ? { kb_items } : {}) })
     return { message: toGroupMsg(r.message ?? {}), queued: r.queued === true }
   },
   deleteGroup: (id: string) => call<void>('DELETE', `/groups/${enc(id)}`),
+  steerGroupMessage: (id: string, messageId: string) => call<void>('POST', `/groups/${enc(id)}/messages/${enc(messageId)}/steer`),
+  cancelGroupMessage: (id: string, messageId: string) => call<void>('DELETE', `/groups/${enc(id)}/messages/${enc(messageId)}/queued`),
   stopGroup: (id: string) => call<void>('POST', `/groups/${enc(id)}/stop`),
+  approvePlan: async (gid: string, messageId: string) => toPlanState(await call<Raw>('POST', `/groups/${enc(gid)}/plans/${enc(messageId)}/approve`)),
+  cancelPlan: async (gid: string, messageId: string) => toPlanState(await call<Raw>('POST', `/groups/${enc(gid)}/plans/${enc(messageId)}/cancel`)),
+  revisePlan: (gid: string, messageId: string, feedback: string) => call<void>('POST', `/groups/${enc(gid)}/plans/${enc(messageId)}/revise`, { feedback }),
+  tasksBoard: async (f: TaskFilter) => toTaskBoard(await call<Raw>('GET', `/tasks/board${q({ agent: f.agent, group: f.group, archived: f.archived ? 1 : undefined })}`)),
+  task: async (id: string) => toTaskDetail(await call<Raw>('GET', `/tasks/${enc(id)}`)),
+  createTask: async (b: TaskInput) => toTaskDetail(await call<Raw>('POST', '/tasks', b)),
+  editTask: async (id: string, b: Partial<TaskInput>) => toTaskDetail(await call<Raw>('PATCH', `/tasks/${enc(id)}`, b)),
+  taskVerb: async (id: string, verb: string, body: { text?: string; note?: string; to?: string } = {}) => toTaskDetail(await call<Raw>('POST', `/tasks/${enc(id)}/${verb}`, body)),
+  commentTask: async (id: string, text: string) => toTaskDetail(await call<Raw>('POST', `/tasks/${enc(id)}/comments`, { text })),
+  schedules: async () => list(await call('GET', '/schedules')).map(toSchedule),
+  createSchedule: async (b: ScheduleInput) => toSchedule(await call<Raw>('POST', '/schedules', b)),
+  scheduleAction: async (id: string, what: 'pause' | 'resume') => toSchedule(await call<Raw>('POST', `/schedules/${enc(id)}/${what}`)),
+  deleteSchedule: (id: string) => call<void>('DELETE', `/schedules/${enc(id)}`),
   usage: async (s: Scope): Promise<Usage> => {
     const u = await call<Usage>('GET', `/usage${q({ ...s })}`)
     return { ...u, turns: u.turns.map((t) => ({ ...t, created_at: epoch(t.created_at) })) }
   },
+  usageMonth: () => call<MonthUsage>('GET', '/usage'),
   usageBots: (period: 'month' | 'all') => call<BotUsage[]>('GET', `/usage/bots${q({ period })}`),
   thinking: async (s: Scope): Promise<Thought[]> =>
     list(await call('GET', `/thinking${q({ ...s })}`)).map((r) => ({
@@ -716,6 +1057,35 @@ export function subscribe(path: string, on: Record<string, (data: Raw) => void>,
     window.clearTimeout(timer)
     es?.close()
   }
+}
+
+// Aplikasi (apps.py): Hermes connector catalog and built-in skills per agent
+export interface HermesApp {
+  id: string
+  name: string
+  category: string
+  category_name: string
+  description: string
+  status: 'connected' | 'not_connected'
+  accounts: string[]
+  technical: boolean
+}
+export interface AppsCatalog {
+  categories: { id: string; name: string }[]
+  apps: HermesApp[]
+}
+export interface Skill {
+  name: string
+  label: string
+  description: string
+  enabled: boolean
+  technical: boolean
+}
+export interface AgentSkills {
+  id: string
+  name: string
+  ok: boolean
+  skills: Skill[]
 }
 
 export const usageOf = (u: Raw | undefined) => ({ input: asNum(u?.input_tokens ?? u?.prompt_tokens), output: asNum(u?.output_tokens ?? u?.completion_tokens) })

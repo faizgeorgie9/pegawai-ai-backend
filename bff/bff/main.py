@@ -4,30 +4,41 @@ import hmac
 import json
 import uuid
 from contextlib import asynccontextmanager
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, FastAPI, Header, Request
+from fastapi import APIRouter, Depends, FastAPI, File, Header, Request, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bots, catalog, config, db, engine, evaluations, groups, harden, hermes, sequences, settings, usage
+from . import actions, apps, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, scheduler, sequences, settings, tasks, usage
 from .engine import LIVE, hub
 from .errors import ApiError
 
 
+bridge_app = bridge.BridgeApp(bridge.build())  # MCP tools for the Hermes agents at /mcp (see bridge.py)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    bridge.ensure_key()
+    await asyncio.to_thread(bridge.ensure_registered)
     await db.open_pool()
     await catalog.sync()
     hermes.start_client()
     await engine.recover()
     await groups.recover()
     await sequences.recover()
+    await scheduler.recover()
+    await kb.recover()
     await bots.adopt_sessions()
     cleaner = asyncio.create_task(db.cleanup_loop())
-    yield
+    sched = asyncio.create_task(scheduler.loop())
+    async with bridge_app.mcp.session_manager.run():
+        yield
     cleaner.cancel()
+    sched.cancel()
     await hermes.stop_client()
     await db.close_pool()
 
@@ -131,14 +142,21 @@ async def me():
     plan = await engine.get_plan(uid)
     nb = (await db.q1("select count(*)::int as n from bots where user_id = %s and deleted_at is null", uid))["n"]
     ng = (await db.q1("select count(*)::int as n from groups where user_id = %s and deleted_at is null", uid))["n"]
-    return {"user": user, "plan": {"id": plan["id"], "name": plan["name"]}, "limits": plan,
+    month = await costs.month(uid, plan["monthly_usd"])
+    return {"user": user, "plan": {"id": plan["id"], "name": plan["name"]}, "limits": plan_view(plan),
             "usage": {"tokens_month": await engine.tokens_month(uid), "bots": nb, "groups": ng,
-                      "active_runs": await engine.active_runs(uid)}}
+                      "active_runs": await engine.active_runs(uid),
+                      **{k: month[k] for k in ("cost", "limit", "remaining", "percent", "state", "basis")}}}
+
+
+def plan_view(plan: dict) -> dict:
+    """monthly_usd travels as an exact decimal string, not a float."""
+    return {**plan, "monthly_usd": costs.money(plan["monthly_usd"])}
 
 
 @api.get("/plans")
 async def plans():
-    return await db.q("select * from plans order by sort")
+    return [plan_view(p) for p in await db.q("select * from plans order by sort")]
 
 
 @api.put("/me/plan")
@@ -199,6 +217,43 @@ async def tools(bot: str | None = None):
     return {"deny": sorted(harden.DENY), "bots": await asyncio.gather(*(one(b) for b in rows))}
 
 
+# ---- Aplikasi: Hermes connector catalog and per-agent skills (apps.py) ----
+@api.get("/apps/catalog")
+async def apps_catalog(fresh: int = 0):
+    return {"categories": [{"id": i, "name": n} for i, n in apps.CATEGORIES], "apps": await apps.catalog(bool(fresh))}
+
+
+@api.post("/apps/{app_id}/connect")
+async def apps_connect(app_id: str):
+    return await apps.connect(app_id)
+
+
+@api.get("/apps/{app_id}/status")
+async def apps_status(app_id: str):
+    return await apps.status(app_id)
+
+
+@api.post("/apps/{app_id}/disconnect", status_code=204)
+async def apps_disconnect(app_id: str):
+    await apps.disconnect(app_id)
+
+
+@api.get("/skills")
+async def skills_all():
+    return await apps.all_skills(current_user())
+
+
+@api.get("/agents/{slug}/skills")
+async def agent_skills(slug: str):
+    return {"skills": await apps.agent_skills(current_user(), slug)}
+
+
+@api.put("/agents/{slug}/skills")
+async def agent_skill_set(slug: str, request: Request):
+    b = await body_of(request)
+    return {"skills": await apps.set_skill(current_user(), slug, b.get("name"), b.get("enabled") is True)}
+
+
 @api.delete("/bots/{bot_id}", status_code=204)
 async def delete_bot(bot_id: str):
     await bots.delete_bot(current_user(), bot_id)
@@ -217,7 +272,7 @@ def _passthrough(r) -> JSONResponse:
     except ValueError:
         content = {}
     if r.status_code >= 400:
-        return JSONResponse({"error": "Hermes menolak permintaan"}, status_code=502 if r.status_code >= 500 else r.status_code)
+        return JSONResponse({"error": "Mesin agen menolak permintaan"}, status_code=502 if r.status_code >= 500 else r.status_code)
     return JSONResponse(content, status_code=r.status_code)
 
 
@@ -269,6 +324,7 @@ async def create_run(bot_id: str, request: Request):
     text, sid = b.get("input"), b.get("session_id")
     if not isinstance(text, str) or not 1 <= len(text.strip()) <= 20000:
         raise ApiError(400, "Pesan wajib diisi (maksimal 20000 karakter)")
+    kb_ids = await kb.owned_ids(uid, b.get("kb_items"))
     if sid is not None:
         await _owned_session(bot_id, str(sid))
     else:
@@ -289,8 +345,13 @@ async def create_run(bot_id: str, request: Request):
     context = None
     if workflow:
         ins, context = await engine.workflow_context(bot, workflow, stage, test_mode, text, ins)
+    saved = []
+    if workflow != "cs":  # CS runs only see the authorized CS evidence (knowledge v2.1), never the user's own files
+        saved = await kb.save_links(uid, text)
+        if block := await kb.retrieve(uid, text, kb_ids, saved):
+            ins = f"{ins}\n\n{block}" if ins else block
     run = await engine.start_run(uid, bot_id, sid, text.strip(), "chat", instructions=ins, context=context, origin=origin)
-    return {"run": engine.run_view(run), "session_id": sid}
+    return {"run": engine.run_view(run), "session_id": sid, "kb": saved}
 
 
 @api.get("/products/search")
@@ -425,6 +486,111 @@ async def settings_knowledge():
     return {"retention_days": settings.RETENTION_DAYS, "docs": settings.knowledge_docs()}
 
 
+# ---------- knowledge base (the user's own files and links) ----------
+
+@api.get("/kb/items")
+async def kb_items():
+    return await kb.list_items(current_user())
+
+
+@api.post("/kb/files", status_code=201)
+async def kb_upload(request: Request, file: UploadFile = File(...)):
+    if int(request.headers.get("content-length") or 0) > kb.MAX_FILE_BYTES + 1024 * 1024:  # before reading the whole body
+        raise ApiError(413, f"Berkas terlalu besar (maksimal {kb.MAX_FILE_BYTES // (1024 * 1024)} MB).")
+    data = await file.read(kb.MAX_FILE_BYTES + 1)
+    return await kb.ingest_file(current_user(), file.filename or "", data)
+
+
+@api.post("/kb/links", status_code=201)
+async def kb_add_link(request: Request):
+    url = (await body_of(request)).get("url")
+    if not isinstance(url, str):
+        raise ApiError(400, "Alamat web wajib diisi")
+    return await kb.ingest_url(current_user(), url.strip())
+
+
+@api.delete("/kb/items/{item_id}", status_code=204)
+async def kb_delete(item_id: str):
+    await kb.delete_item(current_user(), item_id)
+
+
+@api.get("/kb/{item_id}/file")
+async def kb_file(item_id: str):
+    name, mime, data = await kb.get_file(current_user(), item_id)
+    disp = "attachment" if mime.endswith("wordprocessingml.document") else "inline"  # Word cannot be shown by a browser
+    return Response(data, media_type=mime, headers={
+        "Content-Disposition": f"{disp}; filename*=UTF-8''{quote(name, safe='')}",
+        "X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store"})
+
+
+@api.get("/kb/{item_id}/text")
+async def kb_text(item_id: str):
+    return await kb.get_text(current_user(), item_id)
+
+
+@api.post("/kb/items/{item_id}/refresh")
+async def kb_refresh(item_id: str):
+    return await integrations.refresh_item(current_user(), item_id)
+
+
+# ---------- connections (Google Drive, Gmail) ----------
+
+@api.get("/connections")
+async def connections_list(fresh: bool = False):
+    return await integrations.list_checked(current_user(), fresh)
+
+
+@api.post("/connections/{provider}/start")
+async def connections_start(provider: str):
+    return await connections.start(current_user(), provider)
+
+
+@api.get("/connections/{family}/callback")
+async def connections_callback(family: str, request: Request):
+    """The provider sends the browser here after consent (through the same proxy as the app, so the key header is present)."""
+    if family != "google":
+        raise ApiError(404, "Tidak ditemukan")
+    return RedirectResponse(await connections.callback(current_user(), family, dict(request.query_params)), status_code=303)
+
+
+@api.delete("/connections/{provider}", status_code=204)
+async def connections_disconnect(provider: str):
+    await connections.disconnect(current_user(), provider)
+
+
+@api.get("/connections/gdrive/files")
+async def drive_files(q: str = "", page: str | None = None):
+    return await integrations.drive_list(current_user(), q, page)
+
+
+@api.post("/connections/gdrive/import")
+async def drive_import(request: Request):
+    return {"items": await integrations.drive_import(current_user(), (await body_of(request)).get("ids"))}
+
+
+@api.post("/connections/gmail/draft", status_code=201)
+async def gmail_draft(request: Request):
+    b = await body_of(request)
+    return await integrations.gmail_draft(current_user(), b.get("to"), b.get("subject"), b.get("body"))
+
+
+# ---------- approvals of risky agent actions ----------
+
+@api.get("/actions")
+async def list_actions(status: str | None = None):
+    return await actions.list_actions(current_user(), status)
+
+
+@api.post("/actions/{aid}/approve")
+async def approve_action(aid: str):
+    return await actions.approve(current_user(), aid)
+
+
+@api.post("/actions/{aid}/reject")
+async def reject_action(aid: str):
+    return await actions.reject(current_user(), aid)
+
+
 @api.get("/export/history")
 async def export_history():
     data = await settings.export_history(current_user())
@@ -458,6 +624,40 @@ def _seq_id(v: str) -> str:
         return str(uuid.UUID(v))
     except ValueError:
         raise ApiError(404, "Urutan tidak ditemukan")
+
+
+# ---------- schedules ----------
+
+@api.get("/schedules")
+async def list_schedules():
+    return await scheduler.views(current_user())
+
+
+@api.post("/schedules", status_code=201)
+async def create_schedule(request: Request):
+    return await scheduler.create(current_user(), await body_of(request))
+
+
+@api.post("/schedules/{sid}/pause")
+async def pause_schedule(sid: str):
+    return await scheduler.pause(current_user(), _sched_id(sid))
+
+
+@api.post("/schedules/{sid}/resume")
+async def resume_schedule(sid: str):
+    return await scheduler.resume(current_user(), _sched_id(sid))
+
+
+@api.delete("/schedules/{sid}", status_code=204)
+async def delete_schedule(sid: str):
+    await scheduler.delete(current_user(), _sched_id(sid))
+
+
+def _sched_id(v: str) -> str:
+    try:
+        return str(uuid.UUID(v))
+    except ValueError:
+        raise ApiError(404, "Jadwal tidak ditemukan")
 
 
 # ---------- groups ----------
@@ -504,12 +704,73 @@ async def group_messages(gid: str, before: int | None = None, limit: int = 50):
 @api.post("/groups/{gid}/messages", status_code=202)
 async def send_group_message(gid: str, request: Request):
     b = await body_of(request)
-    return await groups.send(current_user(), _uuid(gid), b.get("text"), b.get("mode") or "queue")
+    return await groups.send(current_user(), _uuid(gid), b.get("text"), b.get("mode") or "queue", b.get("kb_items"))
+
+
+@api.post("/groups/{gid}/messages/{message_id}/steer")
+async def steer_group_message(gid: str, message_id: int):
+    return await groups.steer_queued(current_user(), _uuid(gid), message_id)
+
+
+@api.delete("/groups/{gid}/messages/{message_id}/queued")
+async def cancel_group_message(gid: str, message_id: int):
+    return await groups.cancel_queued(current_user(), _uuid(gid), message_id)
+
+
+@api.post("/groups/{gid}/plans/{message_id}/approve")
+async def approve_plan(gid: str, message_id: int):
+    return await tasks.approve_plan(current_user(), _uuid(gid), message_id)
+
+
+@api.post("/groups/{gid}/plans/{message_id}/cancel")
+async def cancel_plan(gid: str, message_id: int):
+    return await tasks.cancel_plan(current_user(), _uuid(gid), message_id)
+
+
+@api.post("/groups/{gid}/plans/{message_id}/revise", status_code=202)
+async def revise_plan(gid: str, message_id: int, request: Request):
+    return await tasks.revise_plan(current_user(), _uuid(gid), message_id, (await body_of(request)).get("feedback"))
 
 
 @api.post("/groups/{gid}/stop")
 async def stop_group(gid: str):
     return await groups.stop(current_user(), _uuid(gid))
+
+
+# ---------- tasks ----------
+
+def _task_id(v: str) -> str:
+    return tasks._task_uuid(v)
+
+
+@api.get("/tasks/board")
+async def tasks_board(agent: str | None = None, group: str | None = None, q: str | None = None, archived: bool = False):
+    return await tasks.board(current_user(), agent or None, _uuid(group) if group else None, q, archived)
+
+
+@api.post("/tasks", status_code=201)
+async def create_task(request: Request):
+    return await tasks.create(current_user(), await body_of(request))
+
+
+@api.get("/tasks/{tid}")
+async def get_task(tid: str):
+    return await tasks.detail(current_user(), _task_id(tid))
+
+
+@api.patch("/tasks/{tid}")
+async def edit_task(tid: str, request: Request):
+    return await tasks.edit(current_user(), _task_id(tid), await body_of(request))
+
+
+@api.post("/tasks/{tid}/comments", status_code=201)
+async def comment_task(tid: str, request: Request):
+    return await tasks.comment(current_user(), _task_id(tid), (await body_of(request)).get("text"))
+
+
+@api.post("/tasks/{tid}/{verb}")
+async def task_verb(tid: str, verb: str, request: Request):
+    return await tasks.do(current_user(), _task_id(tid), verb, await body_of(request))
 
 
 # ---------- activity, events, office ----------
@@ -550,8 +811,14 @@ def _scope(session_id: str | None, group_id: str | None) -> tuple[str | None, st
 
 @api.get("/usage")
 async def usage_of(session_id: str | None = None, group_id: str | None = None):
+    """With session_id or group_id: that conversation (tokens, USD cost, month block). With neither: the month view of the
+    account (period, cost, limit, remaining, percent, state, basis, by agent / model / day)."""
+    uid = current_user()
+    limit = (await engine.get_plan(uid))["monthly_usd"]
+    if session_id is None and group_id is None:
+        return await costs.month(uid, limit)
     sid, gid = _scope(session_id, group_id)
-    return await usage.conversation(current_user(), sid, gid)
+    return await usage.conversation(uid, sid, gid, limit)
 
 
 @api.get("/usage/bots")
@@ -614,3 +881,4 @@ async def update_evaluation(eid: str, request: Request):
 
 app.include_router(public)
 app.include_router(api)
+app.router.routes.append(bridge_app.route())

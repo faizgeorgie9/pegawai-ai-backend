@@ -988,7 +988,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
             checked={structured}
             onChange={setStructured}
             label="Hasil terstruktur JSON (eksperimen)"
-            hint="Meminta agen menyertakan blok JSON di akhir jawaban."
+            hint="Meminta agen menyertakan blok JSON terstruktur di akhir jawaban."
           />
         </div>
       </details>

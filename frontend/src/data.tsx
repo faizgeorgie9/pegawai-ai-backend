@@ -7,7 +7,7 @@ import { botPath, go, groupPath } from './router'
 // App-wide data: the account, the bots, the groups and the active runs, kept fresh by the one global /api/events
 // stream. Views subscribe to the live events they care about (group messages, typing) through `on`.
 
-export type DialogState = { kind: 'bot' } | { kind: 'group'; id?: string } | { kind: 'plan' } | { kind: 'delete'; bot: Bot } | null
+export type DialogState = { kind: 'bot' } | { kind: 'group'; id?: string } | { kind: 'plan' } | { kind: 'delete'; bot: Bot } | { kind: 'edit'; bot: Bot } | null
 export interface Toast {
   id: number
   text: string
@@ -39,7 +39,7 @@ interface Data {
   askNotify: () => void
   answerNotify: (yes: boolean) => void
   viewing: (href: string) => void
-  flash: (text: string) => void
+  flash: (text: string, href?: string) => void
 }
 
 const Ctx = createContext<Data | null>(null)
@@ -140,10 +140,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Plain success toast (no link).
-  const flash = useCallback((text: string) => {
+  // Plain success toast (optional link: clicking it opens href).
+  const flash = useCallback((text: string, href = '') => {
     const id = Date.now() + Math.random()
-    setToasts((t) => [...t.slice(-3), { id, text, href: '' }])
+    setToasts((t) => [...t.slice(-3), { id, text, href }])
     window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4000)
   }, [])
 
@@ -167,7 +167,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (asStr(d.kind) === 'group' || notified.current.has(id)) return
       if (!['completed', 'done', 'finished', 'failed'].includes(status)) return
       notified.current.add(id)
-      const botName = botsRef.current.find((b) => b.id === asStr(d.bot_id))?.name ?? 'Bot'
+      const botName = botsRef.current.find((b) => b.id === asStr(d.bot_id))?.name ?? 'Agen'
       void api.run(id).then(
         (r) => toast(status === 'failed' ? `${botName} gagal` : `${botName} selesai: ${clip(csPreview(r.meta) ?? (r.output || r.input))}`, botPath(r.bot_id || asStr(d.bot_id), r.session_id), status === 'failed' ? 'failed' : 'done'),
         () => toast(`${botName} selesai`, botPath(asStr(d.bot_id)), status === 'failed' ? 'failed' : 'done'),
@@ -179,12 +179,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         run: runChanged,
         run_input: (d) => {
           if (asStr(d.kind) === 'group') return
-          const botName = botsRef.current.find((b) => b.id === asStr(d.bot_id))?.name ?? 'Bot'
+          const botName = botsRef.current.find((b) => b.id === asStr(d.bot_id))?.name ?? 'Agen'
           toast(`${botName} ${asStr(d.what) === 'clarify' ? 'butuh jawaban Anda' : 'butuh izin Anda'}`, botPath(asStr(d.bot_id)), 'input')
         },
         bot_status: (d) =>
           setBots((cur) => cur.map((b) => (b.id === asStr(d.bot_id) ? { ...b, status: (['working', 'discussing'].includes(asStr(d.status)) ? asStr(d.status) : 'idle') as BotStatus, activity: asStr(d.activity) } : b))),
         group_message: (d) => emit('group_message', { ...d, message: toGroupMsg((d.message ?? {}) as Raw), group_id: asStr(d.group_id) }),
+        action: (d) => emit('action', d),
         group_typing: (d) => emit('group_typing', d),
         group_reasoning: (d) => emit('group_reasoning', d),
         group_send: (d) => {

@@ -1,0 +1,527 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { api, errText } from './bff'
+import type { Schedule, TaskAction, TaskBoard, TaskCard } from './bff'
+import { useAdminMode } from './adminMode'
+import { useData } from './data'
+import TaskPanel from './TaskPanel'
+import type { Ask } from './TaskPanel'
+import { BotAvatar, DOTS, Dialog, ErrorLine, Icon, botColor } from './ui'
+import { Empty, Loading } from './ui-extra'
+
+const COLUMN_EMPTY: Record<string, string> = {
+  queue: 'Belum ada yang antre. Tambahkan tugas di atas.',
+  running: 'Tidak ada yang sedang dikerjakan.',
+  needs_you: 'Tidak ada yang perlu Anda putuskan.',
+  done: 'Belum ada pekerjaan yang selesai.',
+  archived: 'Arsip masih kosong.',
+}
+const WEEK = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
+const ZONE: Record<string, string> = { 'Asia/Jakarta': 'WIB', 'Asia/Makassar': 'WITA', 'Asia/Jayapura': 'WIT' }
+// only these two moves can be dragged (Perlu Anda -> Antre, Selesai -> Antre); Dikerjakan is never a drop target
+const DRAGGABLE = ['needs_you', 'done'] // a plan is never dragged: it is approved, revised or cancelled
+
+type Open = (id: string, edit?: boolean) => void
+
+function Card({ c, ask, act, open }: { c: TaskCard; ask: Ask; act: (f: () => Promise<unknown>) => Promise<void>; open: Open }) {
+  const admin = useAdminMode()
+  const [menu, setMenu] = useState(false)
+  useEffect(() => {
+    if (!menu) return
+    const off = () => setMenu(false)
+    document.addEventListener('click', off)
+    return () => document.removeEventListener('click', off)
+  }, [menu])
+  const go = (a: TaskAction) => {
+    setMenu(false)
+    if (a.id === 'open') open(c.id)
+    else if (a.id === 'edit') open(c.id, true)
+    else if (a.id === 'chat') window.location.hash = c.link
+    else if (a.confirm) ask({ text: a.confirm, ok: a.label, run: () => api.taskVerb(c.id, a.id) })
+    else void act(() => api.taskVerb(c.id, a.id))
+  }
+  const tone = c.outcome === 'failed' ? 'bad' : 'plain'
+  const drag = DRAGGABLE.includes(c.column) && c.kind !== 'plan'
+  return (
+    <li
+      className="kcard"
+      data-col={c.column}
+      data-bad={c.outcome === 'failed' || undefined}
+      draggable={drag}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', c.id)
+        e.dataTransfer.effectAllowed = 'move'
+      }}
+      style={c.assignee ? ({ ['--kc' as string]: botColor(c.assignee) } as React.CSSProperties) : undefined}
+    >
+      <button type="button" className="kc-link" onClick={() => open(c.id)}>
+        <span className="kc-title">{c.title}</span>
+        {c.parent && <span className="kc-parent">Bagian dari: {c.parent.title}</span>}
+        <span className="kc-meta">
+          {c.assignee && (
+            <span className="kc-who">
+              <BotAvatar bot={c.assignee} size={18} />
+              <span>{c.assignee.name}</span>
+            </span>
+          )}
+        </span>
+        <span className={`kc-note ${c.column === 'needs_you' ? 'wait' : ''}`}>{c.line}</span>
+        {(c.priority > 0 || c.outcome === 'failed' || c.outcome === 'cancelled' || c.cost || admin) && (
+          <span className="kc-foot">
+            {c.priority > 0 && <span className="pill warn cls">Penting</span>}
+            {c.outcome && c.outcome !== 'ok' && <span className={`pill ${tone} cls`}>{c.outcome === 'failed' ? 'Gagal' : 'Dibatalkan'}</span>}
+            {admin && <span className="pill plain cls">{c.status}</span>}
+            {c.cost && (
+              <span className="kc-cost num">
+                {c.cost.label}
+                {c.estimated ? ' (perkiraan)' : ''}
+              </span>
+            )}
+          </span>
+        )}
+      </button>
+      {(c.primary || c.more.length > 0) && (
+        <div className="kc-act">
+          {c.primary && (
+            <button type="button" className="btn soft sm" onClick={() => go(c.primary!)}>
+              {c.primary.label}
+            </button>
+          )}
+          {c.more.length > 0 && (
+            <span className="row-menu kc-menu">
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="Pilihan lain"
+                aria-expanded={menu}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setMenu(!menu)
+                }}
+              >
+                <Icon d={DOTS} />
+              </button>
+              {menu && (
+                <div className="popmenu" role="menu">
+                  {c.more.map((a) => (
+                    <button key={a.id} type="button" role="menuitem" data-danger={a.id === 'cancel' || undefined} onClick={() => go(a)}>
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </span>
+          )}
+        </div>
+      )}
+    </li>
+  )
+}
+
+// Quick add at the top of Antre: a title, who does it, an optional time. Enter saves.
+function QuickAdd({ agent, onAdded }: { agent: string; onAdded: () => void }) {
+  const { bots, groups } = useData()
+  const [title, setTitle] = useState('')
+  const [who, setWho] = useState('')
+  const [at, setAt] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState('')
+  const target = who || (agent ? `bot:${agent}` : bots[0] ? `bot:${bots[0].id}` : '')
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!title.trim() || !target || busy) return
+    setBusy(true)
+    setProblem('')
+    try {
+      const [kind, id] = target.split(':')
+      await api.createTask({ title: title.trim(), ...(kind === 'bot' ? { assignee_bot: id } : { assignee_group: id }), ...(at ? { scheduled_at: new Date(at).toISOString() } : {}) })
+      setTitle('')
+      setAt('')
+      onAdded()
+    } catch (err) {
+      setProblem(errText(err))
+    }
+    setBusy(false)
+  }
+  return (
+    <form className="tq-add" onSubmit={(e) => void submit(e)}>
+      <input value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} placeholder="Tambah tugas, lalu tekan Enter" aria-label="Judul tugas baru" />
+      <div className="tq-row">
+        <select value={target} onChange={(e) => setWho(e.target.value)} aria-label="Siapa yang mengerjakan?">
+          {bots.map((b) => (
+            <option key={b.id} value={`bot:${b.id}`}>
+              {b.name}
+            </option>
+          ))}
+          {groups.map((g) => (
+            <option key={g.id} value={`group:${g.id}`}>
+              Tim {g.name}
+            </option>
+          ))}
+        </select>
+        <input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} aria-label="Jadwal (opsional)" title="Jadwal (opsional)" />
+      </div>
+      {problem && <ErrorLine text={problem} />}
+    </form>
+  )
+}
+
+function Confirm({ a, onClose }: { a: { text: string; ok: string; run: () => Promise<unknown> }; onClose: (done: boolean) => void }) {
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState('')
+  async function yes() {
+    setBusy(true)
+    try {
+      await a.run()
+      onClose(true)
+    } catch (e) {
+      setProblem(errText(e))
+      setBusy(false)
+    }
+  }
+  return (
+    <Dialog title="Yakin?" onClose={() => onClose(false)}>
+      <div className="dlg-body">
+        <p>{a.text}</p>
+        {problem && <ErrorLine text={problem} />}
+        <div className="dlg-foot">
+          <button type="button" className="btn outline" onClick={() => onClose(false)}>
+            Batal
+          </button>
+          <button type="button" className="btn primary" disabled={busy} onClick={() => void yes()}>
+            {a.ok}
+          </button>
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+
+function NewSchedule({ onClose }: { onClose: (created: boolean) => void }) {
+  const { bots, groups } = useData()
+  const [prompt, setPrompt] = useState('')
+  const [target, setTarget] = useState('')
+  const [time, setTime] = useState('09:00')
+  const [repeat, setRepeat] = useState<'daily' | 'work' | 'pick'>('work')
+  const [picked, setPicked] = useState<number[]>([])
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState('')
+  const days = repeat === 'daily' ? [0, 1, 2, 3, 4, 5, 6] : repeat === 'work' ? [0, 1, 2, 3, 4] : picked
+  const ok = prompt.trim() && target && time && days.length > 0
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!ok || busy) return
+    setBusy(true)
+    setProblem('')
+    try {
+      const [kind, id] = target.split(':')
+      const title = prompt.trim().split(/\s+/).slice(0, 6).join(' ').slice(0, 80) // the name is the first words of the task
+      await api.createSchedule({ title, prompt: prompt.trim(), days, time, ...(kind === 'bot' ? { bot_id: id } : { group_id: id }) })
+      onClose(true)
+    } catch (err) {
+      setProblem(errText(err))
+      setBusy(false)
+    }
+  }
+  return (
+    <Dialog title="Tugas berulang" onClose={() => onClose(false)}>
+      <form className="dlg-body" onSubmit={(e) => void submit(e)}>
+        <label className="field">
+          <span>Apa yang perlu dikerjakan?</span>
+          <textarea rows={3} maxLength={4000} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Contoh: Rangkum pesanan masuk hari ini" />
+        </label>
+        <label className="field">
+          <span>Siapa yang mengerjakan?</span>
+          <select value={target} onChange={(e) => setTarget(e.target.value)}>
+            <option value="">Pilih agen atau tim</option>
+            <optgroup label="Agen">
+              {bots.map((b) => (
+                <option key={b.id} value={`bot:${b.id}`}>
+                  {b.name}
+                </option>
+              ))}
+            </optgroup>
+            {groups.length > 0 && (
+              <optgroup label="Tim">
+                {groups.map((g) => (
+                  <option key={g.id} value={`group:${g.id}`}>
+                    {g.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+        </label>
+        <label className="field">
+          <span>Kapan?</span>
+          <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+        </label>
+        <label className="field">
+          <span>Ulangi</span>
+          <select value={repeat} onChange={(e) => setRepeat(e.target.value as typeof repeat)}>
+            <option value="work">Hari kerja (Sen–Jum)</option>
+            <option value="daily">Setiap hari</option>
+            <option value="pick">Pilih hari</option>
+          </select>
+        </label>
+        {repeat === 'pick' && (
+          <div className="chip-row" role="group" aria-label="Pilih hari">
+            {WEEK.map((d, i) => (
+              <button key={d} type="button" className={`btn sm ${picked.includes(i) ? 'primary' : 'outline'}`} aria-pressed={picked.includes(i)} onClick={() => setPicked((cur) => (cur.includes(i) ? cur.filter((x) => x !== i) : [...cur, i].sort()))}>
+                {d}
+              </button>
+            ))}
+          </div>
+        )}
+        {problem && <ErrorLine text={problem} />}
+        <div className="dlg-foot">
+          <button type="button" className="btn outline" onClick={() => onClose(false)}>
+            Batal
+          </button>
+          <button type="submit" className="btn primary" disabled={!ok || busy}>
+            Buat tugas berulang
+          </button>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+const rhythm = (s: Schedule) => `${s.days.length === 7 ? 'Setiap hari' : s.days.join() === '0,1,2,3,4' ? 'Hari kerja' : s.days.map((d) => WEEK[d]).join(', ')}, ${s.time.replace(':', '.')} ${ZONE[s.timezone] ?? ''}`
+
+// The templates behind Tugas berulang: each time they come up, a task appears in Antre. Pausing or deleting one archives the days not started.
+function Recurring({ list, ask, act }: { list: Schedule[]; ask: Ask; act: (f: () => Promise<unknown>) => Promise<void> }) {
+  if (list.length === 0) return null
+  return (
+    <details className="kb-rec">
+      <summary>
+        Tugas berulang <b className="num">{list.length}</b>
+      </summary>
+      <ul>
+        {list.map((s) => (
+          <li key={s.id}>
+            <span className="kb-rec-main">
+              <b>{s.title}</b>
+              <small className="quiet">
+                {s.target} · {rhythm(s)}
+                {s.status === 'paused' && ' · Dijeda'}
+              </small>
+            </span>
+            <span className="sched-actions">
+              {s.status === 'active' ? (
+                <button type="button" className="btn soft sm" onClick={() => void act(() => api.scheduleAction(s.id, 'pause'))}>
+                  Jeda
+                </button>
+              ) : (
+                <button type="button" className="btn soft sm" onClick={() => void act(() => api.scheduleAction(s.id, 'resume'))}>
+                  Lanjutkan
+                </button>
+              )}
+              <button type="button" className="btn link sm" onClick={() => ask({ text: `Hapus tugas berulang "${s.title}"? Tugas yang belum dimulai ikut dihapus dari antrean.`, ok: 'Hapus', run: () => api.deleteSchedule(s.id) })}>
+                Hapus
+              </button>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </details>
+  )
+}
+
+export default function Kanban() {
+  const { bots, groups, runs } = useData()
+  const [agent, setAgent] = useState('')
+  const [group, setGroup] = useState('')
+  const [archived, setArchived] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [board, setBoard] = useState<TaskBoard | null>(null)
+  const [rec, setRec] = useState<Schedule[]>([])
+  const [state, setState] = useState<'loading' | 'ok' | 'error'>('loading')
+  const [error, setError] = useState('')
+  const epoch = useRef(0)
+  const [confirm, setConfirm] = useState<{ text: string; ok: string; run: () => Promise<unknown> } | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [opened, setOpened] = useState<{ id: string; edit: boolean } | null>(null)
+  const [problem, setProblem] = useState('')
+  const [notice, setNotice] = useState('')
+  const [over, setOver] = useState(false)
+
+  const load = useCallback(
+    (quiet = false) => {
+      const mine = ++epoch.current
+      if (!quiet) setState((s) => (s === 'ok' ? s : 'loading'))
+      api.schedules().then(setRec, () => undefined) // the list of Tugas berulang is a side note: the board loads without it
+      api.tasksBoard({ agent, group, archived }).then(
+        (b) => {
+          if (mine !== epoch.current) return
+          setBoard(b)
+          setState('ok')
+        },
+        (e) => {
+          if (mine !== epoch.current) return
+          setError(errText(e))
+          if (!quiet) setState('error')
+        },
+      )
+    },
+    [agent, group, archived],
+  )
+  useEffect(() => load(), [load])
+
+  async function act(f: () => Promise<unknown>) {
+    setProblem('')
+    try {
+      await f()
+    } catch (e) {
+      setProblem(errText(e))
+    }
+    load(true)
+  }
+
+  // Same live pattern as the rest of the app: active runs tell us when to look again; while something is running we also poll lightly.
+  const sig = runs.map((r) => r.id).join(',')
+  const seen = useRef(sig)
+  useEffect(() => {
+    if (seen.current === sig) return
+    seen.current = sig
+    const t = window.setTimeout(() => load(true), 600)
+    return () => window.clearTimeout(t)
+  }, [sig, load])
+  const busy = runs.length > 0 || board?.columns.some((c) => c.id === 'running' && c.total > 0)
+  useEffect(() => {
+    if (!busy) return
+    const id = window.setInterval(() => load(true), 8000)
+    return () => window.clearInterval(id)
+  }, [busy, load])
+
+  const columns = board?.columns ?? []
+  const total = columns.reduce((n, c) => n + c.total, 0)
+  const filtered = !!(agent || group)
+  const filters = [agent, group, archived].filter(Boolean).length
+
+  return (
+    <section className="page kanban" aria-labelledby="kb-h">
+      <header className="page-head">
+        <div>
+          <h1 id="kb-h">Jadwal &amp; tugas</h1>
+          <p className="quiet">Beri tugas ke agen Anda dan pantau sampai selesai.</p>
+        </div>
+        <div className="filters">
+          <button type="button" className="btn outline" onClick={() => setCreating(true)}>
+            Tugas berulang
+          </button>
+          <button type="button" className="btn outline" aria-expanded={filterOpen} aria-controls="kb-filters" onClick={() => setFilterOpen(!filterOpen)}>
+            Filter{filters ? ` (${filters})` : ''}
+          </button>
+        </div>
+        <div className="filters kb-more" id="kb-filters" hidden={!filterOpen}>
+          <label className="field inline">
+            <span>Agen</span>
+            <select value={agent} onChange={(e) => setAgent(e.target.value)}>
+              <option value="">Semua agen</option>
+              {bots.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field inline">
+            <span>Tim</span>
+            <select value={group} onChange={(e) => setGroup(e.target.value)}>
+              <option value="">Semua tim</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field inline">
+            <span>Tampilkan</span>
+            <select value={archived ? 'arsip' : 'papan'} onChange={(e) => setArchived(e.target.value === 'arsip')}>
+              <option value="papan">Papan tugas</option>
+              <option value="arsip">Arsip</option>
+            </select>
+          </label>
+        </div>
+      </header>
+      {notice && (
+        <p className="state ok" role="status">
+          {notice}
+        </p>
+      )}
+      {problem && <ErrorLine text={problem} />}
+      {creating && (
+        <NewSchedule
+          onClose={(created) => {
+            setCreating(false)
+            if (created) {
+              setNotice('Tugas berulang dibuat. Tugas untuk beberapa hari ke depan muncul di Antre.')
+              load(true)
+            }
+          }}
+        />
+      )}
+      {confirm && (
+        <Confirm
+          a={confirm}
+          onClose={(done) => {
+            setConfirm(null)
+            if (done) load(true)
+          }}
+        />
+      )}
+      <Recurring list={rec} ask={setConfirm} act={act} />
+      {opened && <TaskPanel key={opened.id + String(opened.edit)} id={opened.id} edit={opened.edit} ask={setConfirm} onChanged={() => load(true)} onClose={() => setOpened(null)} />}
+
+      {state === 'loading' && <Loading text="Memuat papan..." shape="ledger" />}
+      {state === 'error' && <ErrorLine text={error} onRetry={() => load()} />}
+      {state === 'ok' && archived && total === 0 && <Empty title="Arsip kosong">Tugas yang diarsipkan atau dibatalkan muncul di sini.</Empty>}
+      {state === 'ok' && !(archived && total === 0) && (
+        <div className="kb-grid" data-one={archived || undefined}>
+          {columns.map((c) => (
+            <section
+              key={c.id}
+              className="kb-col"
+              data-col={c.id}
+              data-over={(c.id === 'queue' && over) || undefined}
+              aria-labelledby={`kb-${c.id}`}
+              onDragOver={(e) => {
+                if (c.id !== 'queue') return
+                e.preventDefault()
+                setOver(true)
+              }}
+              onDragLeave={() => setOver(false)}
+              onDrop={(e) => {
+                setOver(false)
+                if (c.id !== 'queue') return
+                e.preventDefault()
+                const id = e.dataTransfer.getData('text/plain')
+                if (id) void act(() => api.taskVerb(id, 'move', { to: 'queue' }))
+              }}
+            >
+              <header>
+                <h2 id={`kb-${c.id}`}>
+                  {c.label} <b className="num">{c.total}</b>
+                </h2>
+                <p className="quiet small">{c.hint}</p>
+              </header>
+              {c.id === 'queue' && <QuickAdd agent={agent} onAdded={() => load(true)} />}
+              {c.cards.length === 0 ? (
+                <p className="quiet small kb-none">{filtered ? 'Tidak ada yang cocok dengan filter.' : COLUMN_EMPTY[c.id]}</p>
+              ) : (
+                <ul>
+                  {c.cards.map((x) => (
+                    <Card key={x.id} c={x} ask={setConfirm} act={act} open={(id, edit = false) => setOpened({ id, edit })} />
+                  ))}
+                </ul>
+              )}
+              {c.total > c.cards.length && <p className="quiet small">dan {c.total - c.cards.length} lainnya. Persempit dengan Filter.</p>}
+            </section>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}

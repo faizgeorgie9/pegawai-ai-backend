@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import { ApiError, api, errText } from './bff'
-import type { Bot, Plan, Template } from './bff'
+import type { Bot, BotDetail, ModelCatalog, Plan, Template } from './bff'
 import { useData } from './data'
 import { botPath, groupPath, go, parse } from './router'
-import { BotAvatar, COLORS, Dialog, ErrorLine, botColor, nf, teamLabel } from './ui'
-import { Opt } from './ui-extra'
+import { BotAvatar, COLORS, Dialog, ErrorLine, botColor, teamLabel } from './ui'
+import { Opt, modelKey, splitModel } from './ui-extra'
+import { TIERS, tierOf, tiersFrom } from './modelTiers'
+import type { TierId } from './modelTiers'
+import { useAdminMode } from './adminMode'
 
 type Problem = { text: string; upgrade: boolean } | null
 const problemOf = (e: unknown): Problem => ({ text: errText(e), upgrade: e instanceof ApiError && e.upgrade })
@@ -26,6 +29,7 @@ export function Dialogs() {
   if (dialog.kind === 'bot') return <BotDialog onClose={close} />
   if (dialog.kind === 'group') return <GroupDialog id={dialog.id} onClose={close} />
   if (dialog.kind === 'plan') return <PlanDialog onClose={close} />
+  if (dialog.kind === 'edit') return <EditBotDialog bot={dialog.bot} onClose={close} />
   return <DeleteBotDialog bot={dialog.bot} onClose={close} />
 }
 
@@ -235,13 +239,13 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
   }
 
   return (
-    <Dialog title={id ? 'Atur anggota' : 'Grup baru'} onClose={onClose}>
+    <Dialog title={id ? 'Atur anggota' : 'Tim baru'} onClose={onClose}>
       <form onSubmit={(e) => void submit(e)} className="dlg-body" noValidate>
         <fieldset disabled={busy}>
           <label className="field">
-            <span>Nama grup</span>
+            <span>Nama tim</span>
             <input value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="Contoh: Kampanye Desember" aria-invalid={tried && !name.trim()} />
-            {tried && !name.trim() && <small className="err" role="alert">Nama grup wajib diisi.</small>}
+            {tried && !name.trim() && <small className="err" role="alert">Nama tim wajib diisi.</small>}
           </label>
           <div className="field">
             <span className="field-row">
@@ -250,7 +254,7 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
                 {picked.length} / 6 dipilih, minimal 2
               </small>
             </span>
-            {bots.length === 0 && <p className="quiet state">Belum ada bot. Buat bot dulu.</p>}
+            {bots.length === 0 && <p className="quiet state">Belum ada agen. Buat agen dulu.</p>}
             <div className="picker">
               {Object.entries(byTeam).map(([team, list]) => (
                 <div key={team} className="picker-team">
@@ -272,7 +276,7 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
               ))}
             </div>
             {tried && picked.length < 2 && <small className="err" role="alert">Pilih minimal 2 anggota.</small>}
-            {teamsPicked.size > 1 && <p className="note-line">Grup lintas tim</p>}
+            {teamsPicked.size > 1 && <p className="note-line">Anggota dari beberapa tim</p>}
           </div>
         </fieldset>
         <ProblemLine p={problem} onPlan={() => setDialog({ kind: 'plan' })} />
@@ -281,7 +285,7 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
             Batal
           </button>
           <button type="submit" className="btn primary" disabled={busy}>
-            {busy ? 'Menyimpan...' : id ? 'Simpan' : 'Buat grup'}
+            {busy ? 'Menyimpan...' : id ? 'Simpan' : 'Buat tim'}
           </button>
         </footer>
       </form>
@@ -341,9 +345,9 @@ function PlanDialog({ onClose }: { onClose: () => void }) {
                 <h3>{p.name}</h3>
                 {p.price && <p className="plan-price">{p.price}</p>}
                 <ul className="plan-limits num">
-                  <li>{p.monthly_tokens === null ? 'Token tanpa batas' : `${nf.format(p.monthly_tokens)} token per bulan`}</li>
-                  <li>{p.max_bots} bot</li>
-                  <li>{p.max_groups} grup</li>
+                  <li>{p.monthly_usd === null ? 'Biaya tanpa batas' : `Batas biaya ${p.monthly_usd.label} per bulan`}</li>
+                  <li>{p.max_bots} agen</li>
+                  <li>{p.max_groups} tim</li>
                   <li>{p.max_concurrent_runs} tugas berjalan bersamaan</li>
                 </ul>
                 {current ? (
@@ -389,7 +393,7 @@ function DeleteBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
     <Dialog title={`Hapus ${bot.name}?`} onClose={onClose}>
       <div className="dlg-body">
         <p>
-          {bot.name} dihapus dari daftar agen dan dari semua grup. Riwayat chat dengan {bot.name} tidak bisa dibuka lagi. Agen yang sedang bekerja tidak bisa dihapus.
+          {bot.name} dihapus dari daftar agen dan dari semua tim. Riwayat chat dengan {bot.name} tidak bisa dibuka lagi. Agen yang sedang bekerja tidak bisa dihapus.
         </p>
         <ProblemLine p={problem} onPlan={() => {}} />
         <footer className="dlg-foot">
@@ -401,6 +405,128 @@ function DeleteBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
           </button>
         </footer>
       </div>
+    </Dialog>
+  )
+}
+
+// ---------- Atur agen (for users: name, task, model tier) ----------
+function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
+  const { refreshBots, flash } = useData()
+  const admin = useAdminMode()
+  const [d, setD] = useState<BotDetail | null>(null)
+  const [cat, setCat] = useState<ModelCatalog | null>(null)
+  const [loadErr, setLoadErr] = useState('')
+  const [name, setName] = useState(bot.name)
+  const [persona, setPersona] = useState('')
+  const [model, setModel] = useState(modelKey(bot.provider, bot.model)) // '' = Ikuti bawaan
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState('')
+  const [tried, setTried] = useState(false)
+
+  function load() {
+    setLoadErr('')
+    api.bot(bot.id).then(
+      (x) => {
+        setD(x)
+        setPersona(x.persona)
+      },
+      (e) => setLoadErr(errText(e)),
+    )
+    api.models().then(setCat, () => {}) // without the list only "Ikuti bawaan" and the current choice show
+  }
+  useEffect(load, [bot.id])
+
+  const tiers = tiersFrom(cat)
+  const cur = bot.model ? tierOf(bot.model) : null
+  // Picking a tier keeps the current model when it already belongs to it, else takes the middle model of the tier.
+  const pick = (t: TierId) => setModel(cur === t && modelKey(bot.provider, bot.model) ? modelKey(bot.provider, bot.model) : tiers[t][Math.floor(tiers[t].length / 2)] ?? '')
+  const selTier = model ? tierOf(splitModel(model).model ?? '') : ''
+  const nameErr = tried && !name.trim() ? 'Isi nama agen.' : ''
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    setTried(true)
+    if (!d || !name.trim()) return
+    const patch: Record<string, string | null> = {}
+    // built-in agents: the BFF only accepts run settings (model), so name and task are not sent
+    if (!bot.builtin && name.trim() !== d.name.trim()) patch.name = name.trim()
+    if (!bot.builtin && persona.trim() !== d.persona.trim()) patch.persona = persona.trim()
+    if (model !== modelKey(d.provider, d.model)) Object.assign(patch, splitModel(model))
+    if (!Object.keys(patch).length) return onClose()
+    setBusy(true)
+    setProblem('')
+    try {
+      await api.updateBot(bot.id, patch)
+      await refreshBots().catch(() => [])
+      flash(`Agen ${name.trim()} disimpan`)
+      onClose()
+    } catch (err) {
+      setProblem(errText(err))
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog title={`Atur ${bot.name}`} onClose={onClose}>
+      <form className="dlg-body" onSubmit={(e) => void save(e)} noValidate>
+        {loadErr && <ErrorLine text={loadErr} onRetry={load} />}
+        {!d && !loadErr && <p className="quiet">Memuat...</p>}
+        {d && (
+          <fieldset disabled={busy} className="form-page">
+            {bot.builtin && <p className="quiet">Agen bawaan: nama dan tugasnya diatur sistem. Anda bisa memilih model AI-nya.</p>}
+            {!bot.builtin && <>
+            <label className="field">
+              <span>Nama</span>
+              <input value={name} maxLength={40} aria-invalid={!!nameErr} onChange={(e) => setName(e.target.value)} />
+              {nameErr && <small className="err" role="alert">{nameErr}</small>}
+            </label>
+            <label className="field">
+              <span>Tugas agen ini</span>
+              <textarea
+                value={persona}
+                rows={6}
+                maxLength={2000}
+                placeholder="Contoh: Kamu adalah admin toko online saya. Jawab pelanggan dengan sopan dan singkat, pakai bahasa Indonesia santai."
+                onChange={(e) => setPersona(e.target.value)}
+              />
+              <small className="counter num">{persona.length} / 2.000</small>
+            </label>
+            </>}
+            <div className="field" role="radiogroup" aria-label="Model AI">
+              <span>Model AI</span>
+              <label className="radio-row">
+                <input type="radio" name="tier" checked={model === ''} onChange={() => setModel('')} />
+                <span>
+                  <b>Ikuti bawaan</b>
+                  <small className="quiet"> Memakai pilihan standar sistem.{admin && cat?.default.model ? ` (${cat.default.model})` : ''}</small>
+                </span>
+              </label>
+              {TIERS.map((t) => {
+                const off = !tiers[t.id].length && selTier !== t.id
+                return (
+                  <label key={t.id} className="radio-row" aria-disabled={off || undefined}>
+                    <input type="radio" name="tier" checked={selTier === t.id} disabled={off} onChange={() => pick(t.id)} />
+                    <span>
+                      <b>{t.label}</b>
+                      <small className="quiet"> {t.hint}{admin && selTier === t.id ? ` Model: ${splitModel(model).model}` : ''}</small>
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
+            <small className="quiet">Perubahan berlaku di tugas berikutnya.</small>
+          </fieldset>
+        )}
+        {problem && <p className="problem-bar" role="alert">{problem}</p>}
+        <footer className="dlg-foot">
+          <button type="button" className="btn quiet-btn" onClick={onClose} disabled={busy}>
+            Batal
+          </button>
+          <button type="submit" className="btn primary" disabled={busy || !d}>
+            {busy ? 'Menyimpan...' : 'Simpan'}
+          </button>
+        </footer>
+      </form>
     </Dialog>
   )
 }

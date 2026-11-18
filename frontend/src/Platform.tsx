@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useAdminMode } from './adminMode'
 import { api } from './bff'
 import { ErrorLine } from './ui'
-import { BlockedBanner, CapChip, Empty, Loading, OFF_WHY, PageHead, SampleBadge, useLoad } from './ui-extra'
+import { BlockedBanner, CapChip, Empty, Loading, OFF_WHY, PageHead, SampleBadge, toolsetText, useLoad } from './ui-extra'
+import { AppsLink, forwardOldConnectLink } from './connections'
 import { go } from './router'
 import type { Route } from './router'
 
@@ -11,6 +13,7 @@ const clean = (s: string) => s.replace(/^[^\p{L}\p{N}]+/u, '').trim()
 export function Tools() {
   const fn = useCallback(() => api.tools(), [])
   const t = useLoad(fn)
+  useEffect(forwardOldConnectLink, [])
   const [slow, setSlow] = useState(false) // Hermes can be slow: after a while say so instead of loading for ever
   useEffect(() => {
     if (t.state !== 'loading') return setSlow(false)
@@ -25,7 +28,8 @@ export function Tools() {
   const failed = t.data?.bots.filter((b) => !b.ok) ?? []
   for (const b of answered)
     for (const ts of b.toolsets) {
-      const r = rows.get(ts.name) ?? { name: ts.name, label: clean(ts.label), description: ts.description, users: [], seen: 0 }
+      const [label, description] = toolsetText(ts.name, clean(ts.label), ts.description)
+      const r = rows.get(ts.name) ?? { name: ts.name, label, description, users: [], seen: 0 }
       r.seen++
       if (ts.enabled) r.users.push(b.name)
       rows.set(ts.name, r)
@@ -35,19 +39,20 @@ export function Tools() {
 
   return (
     <div className="tab-body">
-      <p className="note-box">Pengaturan per agen: perlu disepakati dengan backend. Halaman ini hanya untuk melihat.</p>
-      {t.state === 'loading' && !slow && <Loading text="Memuat toolset dari Hermes..." shape="ledger" />}
-      {t.state === 'loading' && slow && <ErrorLine text="Hermes belum menjawab. Toolset belum bisa ditampilkan." onRetry={t.retry} />}
+      <AppsLink />
+      <p className="note-box">Halaman ini hanya untuk melihat. Untuk mengatur keahlian tiap agen, buka <a href="#/aplikasi">Aplikasi</a> atau detail agennya.</p>
+      {t.state === 'loading' && !slow && <Loading text="Memuat daftar alat..." shape="ledger" />}
+      {t.state === 'loading' && slow && <ErrorLine text="Daftar alat belum bisa ditampilkan. Coba lagi sebentar." onRetry={t.retry} />}
       {t.state === 'error' && <ErrorLine text={t.error} onRetry={t.retry} />}
       {t.state === 'ok' && failed.length > 0 && (
         <div className="state error" role="alert">
-          <p>Hermes tidak menjawab untuk: {failed.map((b) => b.name).join(', ')}. Status toolset agen itu tidak diketahui.</p>
+          <p>Tidak ada jawaban untuk: {failed.map((b) => b.name).join(', ')}. Alat agen itu tidak diketahui.</p>
           <button className="btn link" onClick={t.retry}>
             Coba lagi
           </button>
         </div>
       )}
-      {t.state === 'ok' && list.length === 0 && failed.length === 0 && <Empty title="Belum ada toolset">Belum ada agen yang bisa ditanya.</Empty>}
+      {t.state === 'ok' && list.length === 0 && failed.length === 0 && <Empty title="Belum ada alat">Belum ada agen yang bisa ditanya.</Empty>}
       {t.state === 'ok' && list.length === 0 && failed.length > 0 && (
         <p>
           <CapChip cap="unknown" /> Tidak ada data toolset yang bisa ditampilkan.
@@ -58,8 +63,8 @@ export function Tools() {
           <thead><tr><th>Kemampuan platform</th><th>Isi</th><th>Status</th></tr></thead>
           <tbody>
             <tr>
-              <td data-label="Kemampuan platform" className="rich"><b>Pencarian katalog dan knowledge (BFF)</b></td>
-              <td data-label="Isi"><div className="clamp2">BFF mencari 1.206 produk katalog dan knowledge Colorbox sebelum agen menjawab, lalu mencatat sumbernya per run.</div></td>
+              <td data-label="Kemampuan platform" className="rich"><b>Pencarian katalog dan pengetahuan</b></td>
+              <td data-label="Isi"><div className="clamp2">Server kami mencari 1.206 produk katalog dan pengetahuan Colorbox sebelum agen menjawab, lalu mencatat sumbernya per tugas.</div></td>
               <td className="st-col" data-label="Status"><CapChip cap="ok" label="Berfungsi" /></td>
             </tr>
           </tbody>
@@ -70,7 +75,7 @@ export function Tools() {
           <table className="plain">
             <thead>
               <tr>
-                <th>Toolset</th>
+                <th>Alat</th>
                 <th>Isi</th>
                 <th>Status</th>
                 <th>Dipakai agen</th>
@@ -79,7 +84,7 @@ export function Tools() {
             <tbody>
               {list.map((r) => (
                 <tr key={r.name}>
-                  <td data-label="Toolset" className="rich">
+                  <td data-label="Alat" className="rich">
                     <b>{r.label}</b>
                     <div className="quiet small">{r.name}</div>
                   </td>
@@ -225,73 +230,43 @@ export function Scheduler() {
         <p>Hasil generasi otomatis multi-hari telah dirender dan dapat diakses:</p>
         <ul className="plain" style={{ marginTop: '8px' }}>
           <li>
-            📅 <b>Hari ke-1 (Campus Rebel):</b>{' '}
+            📅 <b>Hari ke-1:</b>{' '}
             <a href="/output/carousel_day_1/carousel_preview.html" target="_blank" rel="noreferrer">
               Buka Live HTML Preview Hari 1
             </a>
           </li>
           <li>
-            📅 <b>Hari ke-2 (Weekend Cafe Chill):</b>{' '}
+            📅 <b>Hari ke-2:</b>{' '}
             <a href="/output/carousel_day_2/carousel_preview.html" target="_blank" rel="noreferrer">
               Buka Live HTML Preview Hari 2
             </a>
           </li>
           <li>
-            📅 <b>Hari ke-3 (Monochrome Chic):</b>{' '}
+            📅 <b>Hari ke-3:</b>{' '}
             <a href="/output/carousel_day_3/carousel_preview.html" target="_blank" rel="noreferrer">
               Buka Live HTML Preview Hari 3
             </a>
           </li>
         </ul>
       </div>
-      <div className="sample-box">
-        <header>
-          <SampleBadge />
-          <b>Contoh tampilan</b>
-        </header>
-        <p>Dua baris contoh agar bentuk halaman terlihat. Bukan job nyata.</p>
-        <div className="table-wrap">
-          <table className="plain">
-            <thead>
-              <tr>
-                <th>Job</th>
-                <th>Jadwal</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td data-label="Job">Rangkuman harian tim</td>
-                <td data-label="Jadwal">Setiap hari, 08.00</td>
-                <td data-label="Status">Aktif</td>
-              </tr>
-              <tr>
-                <td data-label="Job">Cek draf mingguan</td>
-                <td data-label="Jadwal">Setiap Senin, 09.00</td>
-                <td data-label="Status">Dijeda</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   )
 }
-
 // ---------- Kemampuan: one page, three tabs ----------
 const TABS = [
-  { name: 'tools', label: 'Tools', path: '/tools' },
+  { name: 'tools', label: 'Alat', path: '/tools' },
   { name: 'computer-use', label: 'Computer Use', path: '/computer-use' },
-  { name: 'scheduler', label: 'Scheduler', path: '/scheduler' },
 ] as const
 
-export function Kemampuan({ tab }: { tab: Extract<Route['name'], 'tools' | 'computer-use' | 'scheduler'> }) {
-  const i = TABS.findIndex((t) => t.name === tab)
+export function Kemampuan({ tab }: { tab: Extract<Route['name'], 'tools' | 'computer-use'> }) {
+  const admin = useAdminMode()
+  const tabs = TABS.filter((t) => admin || t.name !== 'computer-use' || tab === 'computer-use') // Computer Use is an admin screen; a direct link still opens it
+  const i = tabs.findIndex((t) => t.name === tab)
   function onKey(e: React.KeyboardEvent) {
     const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
     if (!d) return
     e.preventDefault()
-    const n = TABS[(i + d + TABS.length) % TABS.length]
+    const n = tabs[(i + d + tabs.length) % tabs.length]
     go(n.path, true)
     document.getElementById('tab-' + n.name)?.focus()
   }
@@ -299,17 +274,16 @@ export function Kemampuan({ tab }: { tab: Extract<Route['name'], 'tools' | 'comp
     <section className="page">
       <PageHead title="Kemampuan" sub="Apa yang bisa dan belum bisa dipakai agen." />
       <div className="tabs" role="tablist" aria-label="Kemampuan" onKeyDown={onKey}>
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <a key={t.name} id={'tab-' + t.name} role="tab" href={'#' + t.path} aria-selected={t.name === tab} aria-controls="tabpanel" tabIndex={t.name === tab ? 0 : -1}>
             {t.label}
-            {t.name !== 'tools' && <span className="tab-tag">Nonaktif</span>}
+            {t.name === 'computer-use' && <span className="tab-tag">Nonaktif</span>}
           </a>
         ))}
       </div>
       <div id="tabpanel" role="tabpanel" aria-labelledby={'tab-' + tab}>
         {tab === 'tools' && <Tools />}
         {tab === 'computer-use' && <ComputerUse />}
-        {tab === 'scheduler' && <Scheduler />}
       </div>
     </section>
   )

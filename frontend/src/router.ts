@@ -2,7 +2,7 @@ import { useMemo, useSyncExternalStore } from 'react'
 
 // Hash router. The hash is the state, so refresh and back work.
 // #/ beranda, #/chat (agent list), #/grup (group list), #/chat/<id>/<sesi?> (old #/bot/... still read), #/grup/<id>, #/agen, #/agen/baru, #/agen/<id>, #/agen/<id>/ubah,
-// #/pengaturan (and #/pengaturan/<bagian>), #/tools, #/computer-use, #/scheduler, #/marketing, #/cs, #/uji (alias #/evaluasi; #/uji?case=V02 opens that case), #/aktivitas
+// #/pengaturan (and #/pengaturan/<bagian>), #/tools, #/aplikasi, #/pengetahuan, #/computer-use, #/kanban (#/scheduler opens it too), #/marketing, #/cs, #/uji (alias #/evaluasi; #/uji?case=V02 opens that case), #/aktivitas
 export type Route =
   | { name: 'home' }
   | { name: 'bot'; id: string; sid?: string }
@@ -10,14 +10,16 @@ export type Route =
   | { name: 'grup-list' }
   | { name: 'grup'; id: string }
   | { name: 'aktivitas' }
+  | { name: 'kanban' }
   | { name: 'agen' }
   | { name: 'agen-baru' }
   | { name: 'agen-detail'; id: string }
   | { name: 'agen-ubah'; id: string }
   | { name: 'pengaturan'; section?: string }
   | { name: 'tools' }
+  | { name: 'aplikasi' }
+  | { name: 'pengetahuan' }
   | { name: 'computer-use' }
-  | { name: 'scheduler' }
   | { name: 'marketing' }
   | { name: 'cs' }
   | { name: 'uji'; case?: string }
@@ -35,10 +37,13 @@ export function parse(hash: string): Route {
     return { name: 'agen' }
   }
   if (p[0] === 'aktivitas') return { name: 'aktivitas' }
+  if (p[0] === 'kanban') return { name: 'kanban' }
   if (p[0] === 'pengaturan') return { name: 'pengaturan', section: p[1] }
   if (p[0] === 'tools') return { name: 'tools' }
+  if (p[0] === 'aplikasi') return { name: 'aplikasi' }
+  if (p[0] === 'pengetahuan') return { name: 'pengetahuan' }
   if (p[0] === 'computer-use') return { name: 'computer-use' }
-  if (p[0] === 'scheduler') return { name: 'scheduler' }
+  if (p[0] === 'scheduler') return { name: 'kanban' } // the old Jadwal tab: schedules are now Tugas berulang on the board
   if (p[0] === 'marketing') return { name: 'marketing' }
   if (p[0] === 'cs') return { name: 'cs' }
   if (p[0] === 'uji' || p[0] === 'evaluasi') return { name: 'uji', case: new URLSearchParams(query).get('case') || undefined }

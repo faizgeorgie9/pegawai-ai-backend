@@ -1,14 +1,22 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ApiError, api, asStr, errText, subscribe } from './bff'
-import type { Bot, GroupMsg, ToolChip } from './bff'
+import type { Bot, ContentPlan, GroupMsg, ToolChip } from './bff'
 import { LiveSteps } from './LiveSteps'
 import { applyTool, settle, toolsFrom } from './steps'
 import { useSmoothText } from './useSmoothText'
-import { Md } from './Chat'
+import { MentionsCtx, Md } from './rich'
+import { ActionCard, useVisibleActions } from './ActionCard'
 import { useData } from './data'
+import { useAdminMode } from './adminMode'
+import { PlanCard, withoutPlanBlock } from './PlanCard'
 import { PanelButtons, SidePanel, Split } from './Panel'
+import { MakeTaskButton } from './TaskPanel'
+import { GmailDraftButton } from './gmail-ui'
+import { RUNNING_HINT, STEER_KEY, STEER_TIP, isSteerKey } from './composerKeys'
+import { KbAttach, KbLines, KbTrayView, asksToSave, useKbTray } from './kb-ui'
 import { groupPath } from './router'
-import { BotAvatar, ErrorLine, PENCIL, Icon, ThinkingBlock, botColor, clock, teamLabel } from './ui'
+import { CopyButton } from './ui-extra'
+import { BotAvatar, CLOSE, ErrorLine, PENCIL, Icon, ThinkingBlock, botColor, clock, teamLabel } from './ui'
 
 const sameId = (a: string, b: string) => a === b
 type Problem = { text: string; upgrade?: boolean } | null
@@ -24,6 +32,8 @@ interface Turn {
 export default function GroupChat({ id, onRail }: { id: string; onRail: () => void }) {
   const { groups, bots, loadState, on, setDialog, setGroup, askNotify, viewing, reload } = useData()
   const group = groups.find((g) => g.id === id)
+  const asked = useVisibleActions((a) => a.source?.group_id === id) // cards for what this team's agents asked here
+  const admin = useAdminMode()
   const members = (group?.members ?? []).map((m) => bots.find((b) => b.id === m)).filter((b): b is Bot => !!b)
   const [msgs, setMsgs] = useState<GroupMsg[]>([])
   const [state, setState] = useState<'loading' | 'ok' | 'error'>('loading')
@@ -35,8 +45,10 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
   const [thoughts, setThoughts] = useState<Record<string, { text: string; seconds?: number }>>({}) // run_id -> reasoning
   const [pv, setPv] = useState(0) // bumped whenever the side panel's data may have changed
   const [pending, setPending] = useState<string[]>([]) // ids of queued user messages
+  const [kbBusy, setKbBusy] = useState(false) // the BFF is reading a link this message asked to save
   const [problem, setProblem] = useState<Problem>(null)
   const [draft, setDraft] = useState('')
+  const kb = useKbTray(draft)
   const [mention, setMention] = useState<{ start: number; query: string } | null>(null)
   const [pick, setPick] = useState(0)
   const [renaming, setRenaming] = useState<string | null>(null)
@@ -46,6 +58,12 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
   const box = useRef<HTMLTextAreaElement>(null)
   const epoch = useRef(0)
   const running = !!group?.running
+
+  useEffect(() => {
+    if (!location.hash.includes('tulis=1')) return
+    const t = window.setTimeout(() => box.current?.focus(), 150) // "Minta tim Anda" on Beranda: the message box is ready
+    return () => window.clearTimeout(t)
+  }, [id, state])
 
   useEffect(() => {
     viewing(groupPath(id))
@@ -186,8 +204,10 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
     setProblem(null)
     askNotify()
     stick.current = true
+    const ids = kb.take()
+    setKbBusy(asksToSave(text))
     try {
-      const r = await api.sendGroup(id, text, mode)
+      const r = await api.sendGroup(id, text, mode, ids)
       if (r.message.id) {
         setMsgs((cur) => (cur.some((x) => sameId(x.id, r.message.id)) ? cur : [...cur, r.message]))
         if (r.queued) setPending((p) => [...p, r.message.id])
@@ -196,6 +216,19 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
       setDraft((d) => d || text)
       setProblem({ text: errText(e), upgrade: e instanceof ApiError && e.upgrade })
     }
+    setKbBusy(false)
+  }
+
+  // A queued message leaves the queue either way: delivered now, or removed. A 409 means the agent already picked it up.
+  async function queuedAction(mid: string, act: 'steer' | 'cancel') {
+    setProblem(null)
+    try {
+      await (act === 'steer' ? api.steerGroupMessage(id, mid) : api.cancelGroupMessage(id, mid))
+      if (act === 'cancel') setMsgs((cur) => cur.filter((x) => x.id !== mid))
+    } catch (e) {
+      setProblem({ text: errText(e) })
+    }
+    setPending((p) => p.filter((x) => x !== mid))
   }
 
   async function stop() {
@@ -242,7 +275,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
     return (
       <section className="convo">
         <div className="page-state">
-          {loadState === 'loading' ? <p className="quiet">Memuat grup...</p> : loadState === 'error' ? <ErrorLine text="Grup belum bisa dimuat." onRetry={reload} /> : <p className="quiet">Grup tidak ditemukan. Mungkin sudah dihapus.</p>}
+          {loadState === 'loading' ? <p className="quiet">Memuat tim...</p> : loadState === 'error' ? <ErrorLine text="Tim belum bisa dimuat." onRetry={reload} /> : <p className="quiet">Tim tidak ditemukan. Mungkin sudah dihapus.</p>}
         </div>
       </section>
     )
@@ -250,10 +283,10 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
 
   return (
     <Split panel={<SidePanel scope={{ group_id: id }} version={pv} group={group} members={members} />}>
-    <section className="convo" aria-label={`Grup ${group.name}`}>
+    <section className="convo" aria-label={`Tim ${group.name}`}>
       <header className="convo-head">
         <button className="btn soft sm rail-open" onClick={onRail}>
-          Daftar grup
+          Daftar tim
         </button>
         <div className="convo-title">
           {renaming !== null ? (
@@ -262,7 +295,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
               autoFocus
               value={renaming}
               maxLength={60}
-              aria-label="Nama grup"
+              aria-label="Nama tim"
               onChange={(e) => setRenaming(e.target.value)}
               onBlur={() => void rename(renaming)}
               onKeyDown={(e) => {
@@ -272,7 +305,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
             />
           ) : (
             <h1>
-              <button className="title-btn" onClick={() => setRenaming(group.name)} aria-label={`Ubah nama grup ${group.name}`}>
+              <button className="title-btn" onClick={() => setRenaming(group.name)} aria-label={`Ubah nama tim ${group.name}`}>
                 {group.name}
                 <Icon d={PENCIL} size={14} />
               </button>
@@ -303,6 +336,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
           if (el.scrollTop < 60) void loadOlder()
         }}
       >
+        <MentionsCtx.Provider value={members}>
         <div className="thread group-thread" aria-live="polite">
           {state === 'loading' && <p className="quiet center">Memuat pesan...</p>}
           {state === 'error' && <ErrorLine text={error} onRetry={load} />}
@@ -319,17 +353,37 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
                 ))}
               </span>
               <h2>Belum ada pesan</h2>
-              <p>Tulis tugas untuk grup ini. Sebut @nama untuk bertanya ke satu anggota; tanpa itu semua anggota ikut menjawab.</p>
+              <p>Tulis tugas untuk tim ini. Sebut @nama untuk bertanya ke satu anggota.</p>
             </div>
           )}
-          {msgs.map((m) => (
-            <GroupBubble key={m.id} m={m} bot={bots.find((b) => b.id === m.bot_id)} queued={pending.includes(m.id)} thought={thoughts[m.run_id ?? '']} />
+          {msgs.filter((m) => !pending.includes(m.id)).map((m) => (
+            <GroupBubble key={m.id} m={m} members={members} bot={bots.find((b) => b.id === m.bot_id)} queued={pending.includes(m.id)} thought={thoughts[m.run_id ?? '']} onPlanState={(st) => setMsgs((cur) => cur.map((x) => (x.id === m.id && x.plan ? { ...x, plan: { ...x.plan, ...st } } : x)))} />
           ))}
           {turn && <LiveBubble t={turn} bot={bots.find((b) => b.id === turn.bot)} />}
+          {asked.map((a) => (
+            <ActionCard key={a.id} action={a} />
+          ))}
         </div>
+        </MentionsCtx.Provider>
       </div>
 
       <div className="composer-wrap">
+        {pending.length > 0 && (
+          <ul className="queue-rows" aria-label="Pesan menunggu giliran">
+            {pending.map((mid) => (
+              <li key={mid} className="queue-row">
+                <span className="queue-text">{msgs.find((m) => m.id === mid)?.text ?? 'Pesan Anda'}</span>
+                <small>Menunggu giliran</small>
+                <button type="button" className="btn link" onClick={() => void queuedAction(mid, 'steer')} title={STEER_TIP}>
+                  Kirim sekarang
+                </button>
+                <button type="button" className="icon-btn tiny" aria-label="Hapus pesan ini dari antrean" onClick={() => void queuedAction(mid, 'cancel')}>
+                  <Icon d={CLOSE} size={12} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         {problem && (
           <p className="problem-bar" role="alert">
             {problem.text}
@@ -348,7 +402,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
           }}
         >
           {options.length > 0 && (
-            <ul className="mention" role="listbox" aria-label="Anggota grup">
+            <ul className="mention" role="listbox" aria-label="Anggota tim">
               {options.map((b, i) => (
                 <li key={b.id} role="option" aria-selected={i === pick}>
                   <button type="button" className="mention-row" data-on={i === pick || undefined} onMouseDown={(e) => e.preventDefault()} onClick={() => choose(b)}>
@@ -360,15 +414,17 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
               ))}
             </ul>
           )}
+          <KbTrayView kb={kb} />
+          {kbBusy && <KbLines busy />}
           <label className="sr" htmlFor="gmsg">
-            Pesan untuk grup {group.name}
+            Pesan untuk tim {group.name}
           </label>
           <textarea
             id="gmsg"
             ref={box}
             rows={1}
             value={draft}
-            placeholder={running ? 'Diskusi berjalan. Pesan baru masuk antrean.' : 'Tulis pesan. Ketik @ untuk menyebut anggota.'}
+            placeholder={running ? 'Agen sedang bekerja. Pesan Anda akan dikirim setelah selesai.' : 'Tulis pesan. Ketik @ untuk menyebut anggota.'}
             onChange={(e) => {
               setDraft(e.target.value)
               track(e.target)
@@ -392,58 +448,85 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
               }
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault()
-                void send('queue')
+                void send(running && isSteerKey(e) ? 'steer' : 'queue')
               }
             }}
           />
           <div className="composer-actions">
+            <KbAttach kb={kb} />
             {running && (
               <>
                 <button type="button" className="btn stop" onClick={() => void stop()}>
                   <span className="square" aria-hidden="true" />
                   Berhenti
                 </button>
-                <button type="button" className="btn soft" onClick={() => void send('steer')} disabled={!draft.trim()}>
-                  Arahkan sekarang
+                <button type="button" className="btn soft" onClick={() => void send('steer')} disabled={!draft.trim()} title={STEER_TIP}>
+                  Kirim sekarang <kbd>{STEER_KEY}</kbd>
                 </button>
               </>
             )}
             <button type="submit" className="btn primary" disabled={!draft.trim()}>
-              {running ? 'Antre' : 'Kirim'}
+              {running ? <>Kirim setelah selesai <kbd>Enter</kbd></> : 'Kirim'}
             </button>
           </div>
         </form>
-        <p className="composer-note">Enter untuk kirim, Shift+Enter untuk baris baru.</p>
+        <p className="composer-note">
+          {running ? RUNNING_HINT : 'Enter untuk kirim, Shift+Enter untuk baris baru.'} {admin && <a href="#/marketing">Pakai formulir brief</a>}
+        </p>
       </div>
     </section>
     </Split>
   )
 }
 
-function GroupBubble({ m, bot, queued, thought }: { m: GroupMsg; bot?: Bot; queued: boolean; thought?: { text: string; seconds?: number } }) {
+function GroupBubble({ m, members, bot, queued, thought, onPlanState }: { m: GroupMsg; members: Bot[]; bot?: Bot; queued: boolean; thought?: { text: string; seconds?: number }; onPlanState: (s: Pick<ContentPlan, 'task_id' | 'state'>) => void }) {
   if (m.role === 'system') return <p className="sys-msg">{m.text}</p>
   if (m.role === 'user') {
     return (
       <div className="msg user">
         <p>{m.text}</p>
-        {queued && <span className="pending-tag">Antre, dikirim setelah ronde selesai</span>}
+        {queued && <span className="pending-tag">Menunggu giliran, dikirim setelah ronde selesai</span>}
+        <div className="msg-tools user-tools"><MakeTaskButton text={m.text} group={m.group_id} /></div>
       </div>
     )
   }
+  // Same rule as the server's routing (groups._mentioned): @bot-id or @first-name hands the turn to that member.
+  // shortcut: computed on the client, the server does not store who a message handed off to; store it if routing ever differs from mentions.
+  const tokens = new Set([...m.text.matchAll(/@(\w+)/g)].map((x) => x[1].toLowerCase()))
+  const delegates = members.filter((b) => b.id !== m.bot_id && (tokens.has(b.id.toLowerCase()) || tokens.has(b.name.split(' ')[0].toLowerCase())))
   return (
     <div className="msg bot gmsg" style={{ ['--bot' as string]: botColor(bot) }}>
       <BotAvatar bot={bot ?? { name: '?', color: '' }} size={32} />
       <div className="msg-body">
         <p className="gmsg-who">
-          <b>{bot?.name ?? 'Bot'}</b>
+          <b>{bot?.name ?? 'Agen'}</b>
           {bot?.role && <span>{bot.role}</span>}
           {bot?.team && <span className="team-tag" data-team={bot.team}>{teamLabel(bot.team)}</span>}
           <time>{clock(m.created_at)}</time>
         </p>
         {thought?.text && <ThinkingBlock text={thought.text} running={false} seconds={thought.seconds} />}
         <div className="bubble">
-          <Md text={m.text} />
+          <Md text={m.plan ? withoutPlanBlock(m.text) : m.text} />
         </div>
+        {m.text.trim() && (
+          <div className="msg-tools">
+            <CopyButton text={m.plan ? withoutPlanBlock(m.text) : m.text} what="jawaban" />
+            <GmailDraftButton text={m.plan ? withoutPlanBlock(m.text) : m.text} />
+          </div>
+        )}
+        {delegates.length > 0 && (
+          <p className="delegates" aria-label={`Membagi tugas ke ${delegates.map((b) => b.name).join(', ')}`}>
+            Membagi tugas →
+            {delegates.map((b) => (
+              <span key={b.id} className="delegate" style={{ ['--bot' as string]: botColor(b) }}>
+                <BotAvatar bot={b} size={16} />
+                {b.name.split(' ')[0]}
+              </span>
+            ))}
+          </p>
+        )}
+        {m.task && <a className="task-chip" href="#/kanban">Tugas: {m.task.title}</a>}
+        {m.plan && <PlanCard groupId={m.group_id} messageId={m.id} plan={m.plan} onState={onPlanState} />}
       </div>
     </div>
   )
@@ -457,7 +540,7 @@ function LiveBubble({ t, bot }: { t: Turn; bot?: Bot }) {
       <BotAvatar bot={bot ?? { name: '?', color: '' }} size={32} />
       <div className="msg-body">
         <p className="gmsg-who">
-          <b>{bot?.name ?? 'Bot'}</b>
+          <b>{bot?.name ?? 'Agen'}</b>
           {bot?.role && <span>{bot.role}</span>}
           {bot?.team && <span className="team-tag">{teamLabel(bot.team)}</span>}
         </p>
