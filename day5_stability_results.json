@@ -1,0 +1,104 @@
+{
+  "1. Frontend SPA Root (HTTPS)": {
+    "success": true,
+    "details": "HTTP 200, length: 666"
+  },
+  "2. Backend Healthcheck (/bff/api/health)": {
+    "success": true,
+    "details": {
+      "ok": true,
+      "db": true,
+      "hermes": true
+    }
+  },
+  "3. WhatsApp Gateway Status (/bff/api/whatsapp/status)": {
+    "success": true,
+    "details": {
+      "status": "ready",
+      "webhook_url": "https://139.190.107.151.sslip.io/bff/api/whatsapp/webhook",
+      "primary": "Siti",
+      "escalation": "Hendra",
+      "processed": 17
+    }
+  },
+  "4. Meta Webhook Verification Handshake (GET)": {
+    "success": true,
+    "details": "HTTP 200, Echo: day5_e2e_challenge_9988"
+  },
+  "5. WhatsApp Inbound Webhook -> Siti (POST)": {
+    "success": true,
+    "details": {
+      "routed_bot": "siti",
+      "intent": "PRODUCT_INFO",
+      "priority": "P3",
+      "reply_snippet": "Halo Maya Indah! Terima kasih sudah menghubungi WhatsApp resmi Colorbox Indonesi..."
+    }
+  },
+  "6. WhatsApp Simulation Escalation -> Hendra P1 (POST)": {
+    "success": true,
+    "details": {
+      "routed_bot": "hendra",
+      "priority": "P1",
+      "status": "escalated",
+      "reply_snippet": "Halo Rian Kusuma, saya Hendra dari Manajemen CS Colorbox. Kami memahami ketidakn..."
+    }
+  },
+  "7. Unified Tools Overview (/bff/api/tools/integrations)": {
+    "success": true,
+    "details": {
+      "tools_count": 4,
+      "gdrive_redirect": "https://139.190.107.151.sslip.io/bff/api/connections/google/callback",
+      "whatsapp_webhook": "https://139.190.107.151.sslip.io/bff/api/whatsapp/webhook"
+    }
+  },
+  "8. Hermes Connectors Catalog (/bff/api/apps/catalog)": {
+    "success": true,
+    "details": {
+      "categories": 10,
+      "apps_count": 54,
+      "sample_app": "Adobe Marketing"
+    }
+  },
+  "9. Multi-Agent 7 Profiles Active (/bff/api/bots)": {
+    "success": true,
+    "details": {
+      "total_bots": 7,
+      "active_ids": [
+        "bimo",
+        "bram",
+        "hendra",
+        "meda",
+        "raka",
+        "siti",
+        "vina"
+      ]
+    }
+  },
+  "10. Token Cost & Spending Limits (/bff/api/usage)": {
+    "success": true,
+    "details": {
+      "currency": "USD",
+      "cost_label": "$0.14",
+      "limit_label": "$15.00"
+    }
+  },
+  "11. WhatsApp Web Simulator (/wa-tester.html)": {
+    "success": true,
+    "details": "HTTP 200, length: 14522"
+  },
+  "12. Host OS Health & Daemons (SSH)": {
+    "success": true,
+    "details": {
+      "services": {
+        "bff": "active",
+        "hermes": "active",
+        "nginx": "active"
+      },
+      "metrics_raw": [
+        "total        used        free      shared  buff/cache   available",
+        "Mem:            3911         716         347           1        2846        2902",
+        "Swap:              0           0           0"
+      ]
+    }
+  }
+}

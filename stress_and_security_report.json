@@ -1,0 +1,115 @@
+{
+  "port_exposure_audit": {
+    "22": {
+      "description": "SSH",
+      "is_open": true,
+      "expected_open": true,
+      "safe": true
+    },
+    "80": {
+      "description": "HTTP (Nginx Redirect)",
+      "is_open": true,
+      "expected_open": true,
+      "safe": true
+    },
+    "443": {
+      "description": "HTTPS (Nginx Web/API)",
+      "is_open": true,
+      "expected_open": true,
+      "safe": true
+    },
+    "5432": {
+      "description": "PostgreSQL Database",
+      "is_open": false,
+      "expected_open": false,
+      "safe": true
+    },
+    "8080": {
+      "description": "Hermes Agent Gateway",
+      "is_open": false,
+      "expected_open": false,
+      "safe": true
+    },
+    "8090": {
+      "description": "BFF FastAPI Internal",
+      "is_open": false,
+      "expected_open": false,
+      "safe": true
+    },
+    "8642": {
+      "description": "Hermes Core Runtime",
+      "is_open": false,
+      "expected_open": false,
+      "safe": true
+    }
+  },
+  "stress_test_health": {
+    "total_requests": 100,
+    "concurrency": 10,
+    "total_time_seconds": 7.54,
+    "requests_per_second": 13.27,
+    "avg_latency_ms": 717.19,
+    "min_latency_ms": 575.12,
+    "max_latency_ms": 1370.04,
+    "statuses": {
+      "200": 100
+    },
+    "error_count": 0,
+    "success_rate_percent": 100.0
+  },
+  "stress_test_static": {
+    "total_requests": 100,
+    "concurrency": 10,
+    "total_time_seconds": 1.28,
+    "requests_per_second": 77.84,
+    "avg_latency_ms": 119.97,
+    "min_latency_ms": 81.02,
+    "max_latency_ms": 478.78,
+    "statuses": {
+      "200": 100
+    },
+    "error_count": 0,
+    "success_rate_percent": 100.0
+  },
+  "vps_resources": {
+    "services_active": [
+      "active",
+      "active",
+      "active"
+    ],
+    "ufw_status": "Status: active\n\nTo                         Action      From\n--                         ------      ----\n22/tcp                     ALLOW       Anywhere                   # SSH Access\n80/tcp                     ALLOW       Anywhere                   # HTTP Redirect\n443/tcp                    ALLOW       Anywhere                   # HTTPS Production\n22/tcp (v6)                ALLOW       Anywhere (v6)              # SSH Access\n80/tcp (v6)                ALLOW       Anywhere (v6)              # HTTP Redirect\n443/tcp (v6)               ALLOW       Anywhere (v6)              # HTTPS Production",
+    "host_output": [
+      "total        used        free      shared  buff/cache   available",
+      "Mem:            3911         714         338           1        2857        2904",
+      "Swap:              0           0           0",
+      " 15:12:23 up 17:23,  1 user,  load average: 0.21, 0.08, 0.01",
+      "0.21 0.08 0.01 1/203 71077"
+    ]
+  },
+  "security_hardening_recommendations": [
+    {
+      "category": "Port Exposure & Firewall (UFW)",
+      "finding": "Internal ports (8090, 8080, 8642) are bound to 127.0.0.1 and not accessible from WAN. However, UFW firewall is currently INACTIVE.",
+      "impact": "If any future process binds to 0.0.0.0 accidentally, it will be immediately reachable from internet.",
+      "action": "Enable UFW firewall and explicitly allow only ports 22, 80, and 443."
+    },
+    {
+      "category": "Multi-Tenant Isolation (Saling Mengintip)",
+      "finding": "BFF currently uses a shared current_user() = 'default'. All requests proxied through Nginx receive the internal X-Pegawai-AI-Key.",
+      "impact": "Currently in MVP prototype mode, all connected browser clients share the same default workspace and session context.",
+      "action": "For production multi-tenancy, implement per-user authentication (JWT / Session Cookie) and row-level tenant filtering (workspace_id/user_id) so users cannot access each other's chat history or knowledge base."
+    },
+    {
+      "category": "Rate Limiting & DoS Protection",
+      "finding": "Nginx does not currently have limit_req_zone or limit_conn_zone configured.",
+      "impact": "A client sending high-frequency bursts could potentially exhaust server resources.",
+      "action": "Add rate limiting in /etc/nginx/nginx.conf (e.g., 20 requests/second with burst 30) for /bff/ and /api/ endpoints."
+    },
+    {
+      "category": "HTTP Security Headers",
+      "finding": "Missing X-Frame-Options (Clickjacking defense), X-Content-Type-Options (MIME sniffing defense), and Strict-Transport-Security (HSTS).",
+      "impact": "Vulnerabilities to iframe embedding or MIME-type confusion.",
+      "action": "Inject security headers in Nginx server block: add_header X-Frame-Options SAMEORIGIN; add_header X-Content-Type-Options nosniff; add_header Strict-Transport-Security 'max-age=31536000; includeSubDomains' always;"
+    }
+  ]
+}

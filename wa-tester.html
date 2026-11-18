@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Colorbox WhatsApp CS Simulator - Pegawai AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      background: #dadbd3;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+    .app-container {
+      width: 100%;
+      max-width: 960px;
+      height: 92vh;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.18);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    /* Header */
+    .chat-header {
+      background: #005c4b;
+      color: #fff;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .avatar-wrapper {
+      position: relative;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #e9ecef;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #005c4b;
+      font-size: 20px;
+      border: 2px solid #25d366;
+    }
+    .avatar-online {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 12px;
+      height: 12px;
+      background: #25d366;
+      border-radius: 50%;
+      border: 2px solid #005c4b;
+    }
+    .header-info h2 {
+      font-size: 16px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .verified-badge {
+      background: #25d366;
+      color: #fff;
+      font-size: 10px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .header-info p {
+      font-size: 12px;
+      color: #aebac1;
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .status-pill {
+      background: rgba(255,255,255,0.15);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: #25d366;
+      border-radius: 50%;
+      box-shadow: 0 0 6px #25d366;
+    }
+
+    /* Preset Buttons Bar */
+    .presets-bar {
+      background: #f0f2f5;
+      padding: 10px 16px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      border-bottom: 1px solid #e9edef;
+    }
+    .preset-chip {
+      background: #ffffff;
+      border: 1px solid #d1d7db;
+      border-radius: 16px;
+      padding: 6px 12px;
+      font-size: 12px;
+      color: #111b21;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .preset-chip:hover {
+      background: #e9edef;
+      border-color: #00a884;
+    }
+    .preset-chip.danger:hover {
+      border-color: #ea4335;
+      color: #c5221f;
+    }
+
+    /* Chat Messages Box */
+    .chat-body {
+      flex: 1;
+      background: #efeae2;
+      background-image: radial-gradient(#d3cbbd 1px, transparent 1px);
+      background-size: 20px 20px;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .message-row {
+      display: flex;
+      width: 100%;
+    }
+    .message-row.sent {
+      justify-content: flex-end;
+    }
+    .message-row.received {
+      justify-content: flex-start;
+    }
+    .bubble {
+      max-width: 78%;
+      padding: 8px 14px 6px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.45;
+      position: relative;
+      word-wrap: break-word;
+      box-shadow: 0 1px 1px rgba(0,0,0,0.12);
+    }
+    .bubble.sent {
+      background: #d9fdd3;
+      color: #111b21;
+      border-top-right-radius: 2px;
+    }
+    .bubble.received {
+      background: #ffffff;
+      color: #111b21;
+      border-top-left-radius: 2px;
+    }
+    .bubble-meta {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+      margin-top: 4px;
+      font-size: 11px;
+      color: #667781;
+    }
+    .ticks {
+      color: #53bdeb;
+      font-weight: bold;
+    }
+    
+    /* Routing Badges */
+    .bot-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-bottom: 6px;
+    }
+    .badge-siti {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #c8e6c9;
+    }
+    .badge-hendra {
+      background: #ffebee;
+      color: #c62828;
+      border: 1px solid #ffcdd2;
+    }
+    .badge-intent {
+      background: #f0f4f8;
+      color: #486581;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-left: 6px;
+    }
+
+    /* Typing Indicator */
+    .typing-row {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: #fff;
+      border-radius: 8px;
+      width: fit-content;
+      box-shadow: 0 1px 1px rgba(0,0,0,0.12);
+    }
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      background: #667781;
+      border-radius: 50%;
+      animation: typing 1.4s infinite ease-in-out both;
+    }
+    .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes typing {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1); }
+    }
+
+    /* Chat Footer / Input */
+    .chat-footer {
+      background: #f0f2f5;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-top: 1px solid #e9edef;
+    }
+    .name-input {
+      width: 140px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid #d1d7db;
+      font-size: 13px;
+      background: #fff;
+      outline: none;
+    }
+    .message-input {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid #d1d7db;
+      font-size: 14px;
+      background: #fff;
+      outline: none;
+    }
+    .message-input:focus, .name-input:focus {
+      border-color: #00a884;
+    }
+    .send-btn {
+      background: #00a884;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 42px;
+      height: 42px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease;
+      flex-shrink: 0;
+    }
+    .send-btn:hover {
+      background: #008069;
+    }
+    .send-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="chat-header">
+      <div class="header-left">
+        <div class="avatar-wrapper">
+          CB
+          <span class="avatar-online"></span>
+        </div>
+        <div class="header-info">
+          <h2>
+            Colorbox Official Care
+            <span class="verified-badge">✓</span>
+          </h2>
+          <p id="sub-status">WhatsApp Business • Siti (Frontline) & Hendra (Team Lead)</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="status-pill">
+          <span class="pulse-dot"></span>
+          Gateway Live
+        </div>
+      </div>
+    </header>
+
+    <!-- Preset Test Scenarios -->
+    <div class="presets-bar">
+      <span style="font-size: 11px; font-weight: 600; color: #667781; align-self: center; margin-right: 4px;">Klik untuk coba skenario:</span>
+      <button class="preset-chip" onclick="setPreset('Kak Citra', 'Halo Colorbox, apakah ada koleksi Liunic yang tote bag ecru?')">
+        👜 Tanya Tote Bag (Siti)
+      </button>
+      <button class="preset-chip" onclick="setPreset('Bella', 'Halo Siti, mau tanya size M dress floral ld-nya berapa dan muat bb 58kg gak ya?')">
+        👗 Tanya Ukuran / Size (Siti)
+      </button>
+      <button class="preset-chip" onclick="setPreset('Rudi', 'Min nomor resi pesanan CB-88291 kok belum jalan ya? Pakai kurir apa?')">
+        📦 Lacak Paket & Resi (Siti)
+      </button>
+      <button class="preset-chip danger" onclick="setPreset('Dimas', 'Baju pesanan saya yang sampai robek di bagian lengan! Saya minta pertanggungjawaban manajer toko!')">
+        ⚠️ Komplain Baju Robek (Hendra - P1)
+      </button>
+      <button class="preset-chip danger" onclick="setPreset('Ibu Ratna', 'Saya mau retur barang dan minta refund uang kembali sekarang juga karena cacat jahitan!')">
+        💰 Minta Retur / Refund (Hendra - P1)
+      </button>
+    </div>
+
+    <!-- Chat Messages -->
+    <div class="chat-body" id="chatBody">
+      <!-- Welcome message -->
+      <div class="message-row received">
+        <div class="bubble received">
+          <div class="bot-badge badge-siti">
+            🌸 Siti • Frontline Support
+          </div>
+          Halo Kak! Selamat datang di WhatsApp Customer Care Resmi <strong>Colorbox Indonesia</strong> 💕<br>
+          Ada yang bisa Siti bantu seputar outfit kekinian, promo terbaru, panduan size, atau informasi pesanan Kakak? Silakan ketik pesan atau pilih tombol di atas ya!
+          <div class="bubble-meta">
+            <span id="welcomeTime">10:00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Typing Indicator -->
+      <div class="typing-row" id="typingRow">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <span style="font-size: 11px; color: #667781; margin-left: 4px;" id="typingLabel">Bot sedang merespons...</span>
+      </div>
+    </div>
+
+    <!-- Footer Input -->
+    <div class="chat-footer">
+      <input type="text" id="custName" class="name-input" placeholder="Nama Anda" value="Pelanggan">
+      <input type="text" id="custMsg" class="message-input" placeholder="Ketik pesan WhatsApp di sini... (tekan Enter)" onkeydown="if(event.key==='Enter') sendMessage()">
+      <button class="send-btn" onclick="sendMessage()" title="Kirim">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById("welcomeTime").innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+    function setPreset(name, msg) {
+      document.getElementById('custName').value = name;
+      document.getElementById('custMsg').value = msg;
+      sendMessage();
+    }
+
+    async function sendMessage() {
+      const nameInput = document.getElementById('custName');
+      const msgInput = document.getElementById('custMsg');
+      const name = nameInput.value.trim() || 'Pelanggan';
+      const msg = msgInput.value.trim();
+
+      if (!msg) return;
+
+      const chatBody = document.getElementById('chatBody');
+      const typingRow = document.getElementById('typingRow');
+      const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+      // 1. Append User Message
+      const userRow = document.createElement('div');
+      userRow.className = 'message-row sent';
+      userRow.innerHTML = `
+        <div class="bubble sent">
+          <div style="font-size: 11px; font-weight: 600; color: #005c4b; margin-bottom: 2px;">${escapeHtml(name)}</div>
+          ${escapeHtml(msg)}
+          <div class="bubble-meta">
+            <span>${timeNow}</span>
+            <span class="ticks">✓✓</span>
+          </div>
+        </div>
+      `;
+      chatBody.insertBefore(userRow, typingRow);
+      msgInput.value = '';
+      chatBody.scrollTop = chatBody.scrollHeight;
+
+      // 2. Show Typing Indicator
+      typingRow.style.display = 'flex';
+      chatBody.scrollTop = chatBody.scrollHeight;
+
+      try {
+        const res = await fetch('/bff/api/whatsapp/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sender: '628' + Math.floor(100000000 + Math.random() * 900000000),
+            customer_name: name,
+            message: msg
+          })
+        });
+
+        const data = await res.json();
+        typingRow.style.display = 'none';
+
+        // 3. Render Bot Reply
+        const isHendra = (data.routed_bot === 'hendra');
+        const badgeClass = isHendra ? 'badge-hendra' : 'badge-siti';
+        const botIcon = isHendra ? '⚡' : '🌸';
+        const priorityBadge = data.priority ? `<span class="badge-intent" style="${isHendra ? 'background:#fde8e8;color:#9b1c1c;font-weight:700;' : ''}">${data.priority}</span>` : '';
+        const intentBadge = data.intent ? `<span class="badge-intent">${data.intent}</span>` : '';
+
+        const botRow = document.createElement('div');
+        botRow.className = 'message-row received';
+        botRow.innerHTML = `
+          <div class="bubble received">
+            <div class="bot-badge ${badgeClass}">
+              ${botIcon} ${data.bot_name || 'CS Agent'} • ${data.bot_role || 'Colorbox Care'}
+              ${priorityBadge}
+              ${intentBadge}
+            </div>
+            <div>${escapeHtml(data.reply || '')}</div>
+            <div class="bubble-meta">
+              <span>${timeNow}</span>
+            </div>
+          </div>
+        `;
+        chatBody.insertBefore(botRow, typingRow);
+        chatBody.scrollTop = chatBody.scrollHeight;
+
+      } catch (err) {
+        typingRow.style.display = 'none';
+        const errRow = document.createElement('div');
+        errRow.className = 'message-row received';
+        errRow.innerHTML = `
+          <div class="bubble received" style="background:#fee2e2; color:#991b1b;">
+            Gagal menghubungi server WhatsApp Gateway. Silakan coba lagi.
+          </div>
+        `;
+        chatBody.insertBefore(errRow, typingRow);
+      }
+    }
+
+    function escapeHtml(text) {
+      const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+      return text.replace(/[&<>"']/g, m => map[m]);
+    }
+  </script>
+</body>
+</html>
