@@ -26,7 +26,7 @@ from . import bridge, config, hermes
 
 DENY = {"terminal", "file", "code_execution", "browser", "computer_use", "cronjob", "delegation"}
 ALLOW = {"clarify"}  # added to api_server when missing
-BUILTIN = ["rian", "diana", "budi", "siti", "hendra"]
+BUILTIN = ["bimo", "meda", "raka", "bram", "vina", "siti", "hendra", "rian", "diana", "budi"]
 
 
 def _toolsets_from_gateway(slug: str) -> list[dict]:

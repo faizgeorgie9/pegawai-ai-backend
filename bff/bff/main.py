@@ -9,10 +9,10 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, FastAPI, File, Header, Request, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import actions, apps, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, scheduler, sequences, settings, tasks, usage
+from . import actions, apps, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, scheduler, sequences, settings, tasks, usage, whatsapp
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -572,6 +572,143 @@ async def drive_import(request: Request):
 async def gmail_draft(request: Request):
     b = await body_of(request)
     return await integrations.gmail_draft(current_user(), b.get("to"), b.get("subject"), b.get("body"))
+
+
+@api.get("/tools/integrations")
+async def tools_integrations():
+    """Unified status overview of all third-party tool integrations (Google Drive, Gmail, Notion, WhatsApp)."""
+    try:
+        conns = await integrations.list_checked(current_user(), False)
+    except Exception:
+        conns = []
+    conn_map = {c["provider"]: c for c in conns}
+    try:
+        notion_status = await asyncio.wait_for(apps.status("notion"), timeout=4.0)
+    except Exception:
+        notion_status = {"status": "not_connected", "waiting": False}
+    wa_status = await whatsapp.get_status()
+    return {
+        "tools": [
+            {
+                "id": "gdrive",
+                "name": "Google Drive",
+                "category": "docs",
+                "type": "oauth",
+                "configured": conn_map.get("gdrive", {}).get("configured", False),
+                "status": conn_map.get("gdrive", {}).get("status", "disconnected"),
+                "account": conn_map.get("gdrive", {}).get("account"),
+                "redirect_uri": conn_map.get("gdrive", {}).get("redirect_uri")
+            },
+            {
+                "id": "gmail",
+                "name": "Gmail",
+                "category": "comms",
+                "type": "oauth",
+                "configured": conn_map.get("gmail", {}).get("configured", False),
+                "status": conn_map.get("gmail", {}).get("status", "disconnected"),
+                "account": conn_map.get("gmail", {}).get("account"),
+                "redirect_uri": conn_map.get("gmail", {}).get("redirect_uri")
+            },
+            {
+                "id": "notion",
+                "name": "Notion",
+                "category": "docs",
+                "type": "connector",
+                "configured": True,
+                "status": notion_status.get("status", "not_connected"),
+                "waiting": notion_status.get("waiting", False)
+            },
+            {
+                "id": "whatsapp",
+                "name": "WhatsApp Business",
+                "category": "comms",
+                "type": "webhook",
+                "configured": wa_status.get("webhook_verify_token_configured", True),
+                "status": wa_status.get("status", "ready"),
+                "webhook_url": wa_status.get("webhook_url")
+            }
+        ]
+    }
+
+
+@api.get("/connections/notion/status")
+async def notion_connection_status():
+    return await apps.status("notion")
+
+
+@api.post("/connections/notion/start")
+async def notion_connection_start():
+    return await apps.connect("notion")
+
+
+# ---------- whatsapp routing & webhook ----------
+
+@public.get("/whatsapp/webhook")
+async def whatsapp_webhook_verify(request: Request):
+    """Meta WhatsApp Webhook verification handshake."""
+    mode = request.query_params.get("hub.mode", "")
+    token = request.query_params.get("hub.verify_token", "")
+    challenge = request.query_params.get("hub.challenge", "")
+    verified_challenge = whatsapp.verify_token(mode, token, challenge)
+    return PlainTextResponse(verified_challenge)
+
+
+@public.post("/whatsapp/webhook")
+@api.post("/whatsapp/webhook")
+async def whatsapp_webhook_post(request: Request):
+    """Receive incoming WhatsApp messages (Meta Cloud API format or direct simulation)."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise ApiError(400, "Payload harus berupa JSON valid")
+    
+    messages = whatsapp.parse_webhook_payload(body)
+    if not messages:
+        return {"status": "ok", "processed": 0, "messages": []}
+
+    results = []
+    for m in messages:
+        res = await whatsapp.route_and_process_message(
+            user_id="default",
+            sender=m["sender"],
+            customer_name=m["customer_name"],
+            message=m["message"],
+            requested_bot=m.get("bot_id"),
+            metadata=m.get("raw")
+        )
+        results.append(res)
+    return {"status": "ok", "processed": len(results), "messages": results}
+
+
+@api.post("/whatsapp/simulate")
+async def whatsapp_simulate(request: Request):
+    """Frontend & CS test endpoint to simulate an incoming customer WhatsApp message and test routing."""
+    body = await body_of(request)
+    sender = body.get("sender") or "6281234567890"
+    name = body.get("customer_name") or "Pelanggan"
+    msg = body.get("message")
+    if not msg or not str(msg).strip():
+        raise ApiError(400, "Pesan wajib diisi")
+    bot = body.get("bot_id")
+    return await whatsapp.route_and_process_message(
+        user_id=current_user(),
+        sender=str(sender).strip(),
+        customer_name=str(name).strip(),
+        message=str(msg).strip(),
+        requested_bot=bot
+    )
+
+
+@api.get("/whatsapp/messages")
+async def whatsapp_list_messages(sender: str | None = None, limit: int = 50):
+    """Retrieve logged WhatsApp interactions."""
+    return await whatsapp.list_messages(current_user(), limit=limit, sender=sender)
+
+
+@api.get("/whatsapp/status")
+async def whatsapp_get_status():
+    """Inspect WhatsApp routing gateway health and configuration."""
+    return await whatsapp.get_status()
 
 
 # ---------- approvals of risky agent actions ----------
