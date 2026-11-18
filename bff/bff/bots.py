@@ -14,11 +14,16 @@ log = logging.getLogger(__name__)
 
 COLORS = {"amber", "teal", "indigo", "sky", "rose", "green", "red", "slate", "plain"}  # same names as the frontend swatches
 TEMPLATES = {
+    "bimo": "Memimpin alur kerja multi-agent, memecah brief, dan mengalirkan pekerjaan otomatis.",
+    "meda": "Meriset tren Gen Z, 3 pilar gaya Colorbox, dan merumuskan opsi konsep konten.",
+    "raka": "Meneliti fakta katalog resmi, riset ukuran fitting, dan kurasi gambar produk anti-halusinasi.",
+    "bram": "Menulis naskah per slide, caption Instagram resmi, dan prompt visual Midjourney/FLUX.",
+    "vina": "Merancang sketsa visual wireframe 5 slide carousel, safe-zone 4:5, dan panduan layout.",
+    "siti": "Membalas pelanggan dengan empatik, jelas, dan sopan.",
+    "hendra": "Memimpin tim CS dan mengaudit mutu balasan sebelum dikirim.",
     "rian": "Menulis naskah dan caption yang santai, jujur, dan enak dibaca di HP.",
     "diana": "Menilai mutu naskah dan memberi skor serta catatan perbaikan.",
     "budi": "Merancang arah visual dan menyusun prompt aset gambar.",
-    "siti": "Membalas pelanggan dengan empatik, jelas, dan sopan.",
-    "hendra": "Memimpin tim CS dan mengaudit mutu balasan sebelum dikirim.",
 }
 HOUSE_SOUL = """# {name} — {role}, Colorbox
 
@@ -132,7 +137,7 @@ def _rewrite_key(slug: str) -> None:
 def _soul(name: str, role: str, team: str, template: str | None, persona: str | None) -> str:
     if template:
         src = (config.SOULS_DIR / f"{template}.md").read_text(encoding="utf-8")
-        tpl_name = next(b for b in ("Rian", "Diana", "Budi", "Siti", "Hendra") if b.lower() == template)
+        tpl_name = next((b for b in ("Bimo", "Meda", "Raka", "Bram", "Vina", "Siti", "Hendra", "Rian", "Diana", "Budi") if b.lower() == template), template.title())
         body = src.split("\n", 1)[1] if "\n" in src else ""
         body = re.sub(rf"\b{tpl_name}\b", name, body)
         return f"# {name} — {role}, Colorbox\n\nPeran kamu: {role} (tim {team}).\n{body}"

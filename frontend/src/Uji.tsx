@@ -102,7 +102,7 @@ export default function Uji() {
   const summary = useLoad(sumFn)
   const panel = useRef<HTMLDivElement>(null)
 
-  const defaultBot = (s: Scenario) => bots.find((b) => b.id === (s.group === 'cs' ? 'siti' : 'rian'))?.id ?? bots[0]?.id ?? ''
+  const defaultBot = (s: Scenario) => bots.find((b) => b.id === (s.group === 'cs' ? 'siti' : 'bimo'))?.id ?? bots.find((b) => b.id === 'bram')?.id ?? bots.find((b) => b.id === 'rian')?.id ?? bots[0]?.id ?? ''
   const effective = (s: Scenario) => override || defaultBot(s)
   const run = useRun()
   const seqActive = isActive(seq)

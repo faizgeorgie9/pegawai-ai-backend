@@ -88,7 +88,7 @@ export default function Marketing() {
   const [agent, setAgent] = useState('')
   const [pending, setPending] = useState('')
   const dirty = useRef(false)
-  const cur = team.find((b) => b.id === agent) ?? team.find((b) => b.id === 'rian') ?? team[0]
+  const cur = team.find((b) => b.id === agent) ?? team.find((b) => b.id === 'bimo') ?? team.find((b) => b.id === 'bram') ?? team.find((b) => b.id === 'rian') ?? team[0]
 
   return (
     <section className="page ws" data-team="marketing">
