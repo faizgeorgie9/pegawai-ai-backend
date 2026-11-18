@@ -1203,17 +1203,63 @@ def _cs_fixtures() -> List[Dict[str, Any]]:
     ]
 
 
-def _rp(n: int) -> str:
-    return "Rp " + f"{n:,}".replace(",", ".")
+def _rp(n: Any) -> str:
+    if n is None or n == "":
+        return "Rp 0"
+    if isinstance(n, str):
+        s = n.strip()
+        if s.startswith("Rp"):
+            return s
+        digits = re.sub(r"[^\d]", "", s)
+        if digits:
+            try:
+                val = int(digits)
+                return "Rp " + f"{val:,}".replace(",", ".")
+            except Exception:
+                pass
+        return f"Rp {s}"
+    try:
+        val = int(n)
+        return "Rp " + f"{val:,}".replace(",", ".")
+    except Exception:
+        return f"Rp {n}"
 
 
 def _product_lines(products: List[Dict[str, Any]]) -> str:
     out = []
     for p in products:
-        price = _rp(p["price"]) + (f" (sebelumnya {_rp(p['price_original'])})" if p.get("price_original") else "")
+        price_val = p.get("price")
+        price = _rp(price_val)
+        orig_val = p.get("price_original")
+        if orig_val:
+            price += f" (sebelumnya {_rp(orig_val)})"
+
+        cols = p.get("colors")
+        if isinstance(cols, list):
+            colors_str = ", ".join(str(c) for c in cols if c)
+        elif isinstance(cols, str):
+            colors_str = cols
+        elif p.get("color"):
+            colors_str = str(p.get("color"))
+        else:
+            colors_str = "-"
+
+        szs = p.get("sizes")
+        if isinstance(szs, list):
+            sizes_str = ", ".join(str(s) for s in szs if s)
+        elif isinstance(szs, str):
+            sizes_str = szs
+        else:
+            sizes_str = "-"
+
+        url = p.get("url") or (f"https://colorbox.co.id/products/{p.get('id', '')}".lower())
+        acc_date = p.get("accessed_date", "2026-11-09")
+        cat = p.get("category", "Colorbox")
+        name = p.get("name", "Produk Colorbox")
+
         out.append(
-            f"- {p['name']} | {p['category']} | {price} | warna: {', '.join(p['colors'])} | "
-            f"ukuran: {', '.join(p['sizes'])} | {p['url']} | diamati {p['accessed_date']}"
+            f"- {name} | {cat} | {price} | warna: {colors_str} | "
+            f"ukuran: {sizes_str} | {url} | diamati {acc_date}"
         )
     return "\n".join(out)
 
@@ -4425,9 +4471,9 @@ class BFFHandler(BaseHTTPRequestHandler):
                 d = dict(item)
                 d.pop("_tokens", None)
                 d.pop("_raw", None)
-                d["price_formatted"] = f"Rp {d['price']:,}".replace(",", ".")
+                d["price_formatted"] = _rp(d.get("price"))
                 if d.get("price_original"):
-                    d["price_original_formatted"] = f"Rp {d['price_original']:,}".replace(",", ".")
+                    d["price_original_formatted"] = _rp(d.get("price_original"))
                 else:
                     d["price_original_formatted"] = None
 
