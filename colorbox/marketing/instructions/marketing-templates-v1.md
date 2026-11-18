@@ -1,4 +1,4 @@
-# Marketing Output Templates & Specifications: Colorbox (v1.0.0)
+> **PERINGATAN PENTING (ANTI-TEMPLATE RULE):** Dokumen ini HANYA merupakan contoh referensi arsip format umum, BUKAN template baku yang wajib ditiru secara kaku. Agen (terutama @sketchwriter Bram dan @visualcarousel Vina) DILARANG KERAS menempelkan format atau elemen visual klise secara berulang. Setiap output kampanye harus dibuat secara bespoke, orisinal, dan murni berorientasi pada produk terpilih serta brief kreatif.\n\n# Marketing Output Templates & Specifications: Colorbox (v1.0.0)
 
 > **Version:** 1.0.0  
 > **Status:** APPROVED TEMPLATE STANDARD  

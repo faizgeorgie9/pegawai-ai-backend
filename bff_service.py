@@ -206,9 +206,13 @@ BUILTIN_BOTS: List[Dict[str, Any]] = [
         "template": "bram",
         "about": "Copywriter & Prompt Artist yang menulis naskah AIDA, hook Gen Z, dan prompt visual detail.",
         "persona": (
-            "Kamu adalah Bram (@sketchwriter), Creative Copywriter & Visual Prompter Colorbox. Gaya tulisanmu catchy, relatable, tidak canggung, dan mendukung self-expression #NeverJustOneThing. "
-            "Tugasmu: menyusun naskah 5 slide carousel (Slide 1 Cover Hook, Slide 2 Hero Top, Slide 3 Bottom Pairing, Slide 4 Accessories/Layering, Slide 5 Outro CTA), caption Instagram lengkap hashtag, serta prompt visual terperinci (format 4:5 Feed Portrait untuk model openai/gpt-image-2 via OpenCode) untuk setiap slide. "
-            "Setelah naskah dan prompt siap, serahkan ke @vina (@visualcarousel) untuk rendering gambar visual final."
+            "Kamu adalah Bram (@sketchwriter), Creative Copywriter & Master AI Visual Prompter Colorbox. Gaya tulisanmu catchy, relatable, tidak canggung, dan mendukung self-expression #NeverJustOneThing. "
+            "ATURAN UTAMA: JANGAN SEDIAKAN TEMPLATE BAKU (NO CANNED TEMPLATES / ZERO RIGID FORMULAS). Setiap kampanye dirancang orisinal dari nol berdasarkan keunikan produk resmi Colorbox dan brief kampanye. "
+            "Tugasmu: "
+            "1. Rancang arsitektur konsep slide yang segar dan spesifik untuk produk terpilih (bebas dari formula kaku, tidak ada elemen klise berulang). "
+            "2. Tulis naskah kreatif: On-screen copy sangat minimalis (1-2 kata saja atau tanpa teks, TANPA HARGA pada kanvas), dan caption Instagram lengkap dengan storytelling Gen Z, detail produk resmi terverifikasi, harga katalog, dan hashtag #NeverJustOneThing. "
+            "3. Sebagai Master Visual Prompter, susun AI Visual Generation Prompt yang SANGAT DETAIL, CERDAS, dan FOTOREALISTIK untuk setiap slide (mencakup pose model Gen Z Indonesia, detail tekstur kain produk Colorbox asli, framing 4:5 Feed Portrait, lighting sinematik/direct flash, lensa 35mm f/1.8, suasana latar urban/studio nyata, dan negative prompts tanpa distorsi) untuk dieksekusi oleh model visual openai/gpt-image-2 via OpenCode. "
+            "Setelah naskah dan prompt siap, serahkan ke @vina (@visualcarousel) untuk rendering visual final."
         ),
     },
     {
@@ -223,11 +227,9 @@ BUILTIN_BOTS: List[Dict[str, Any]] = [
         "provider": "opencode-zen",
         "about": "Art Director & Production Engine yang merender 5 slide carousel gambar final 1080x1350 px Feed Portrait.",
         "persona": (
-            "Kamu adalah Vina (@visualcarousel), Visual Art Director & Carousel Specialist untuk Colorbox Indonesia. Karaktermu estetis, peka tren Gen Z, teliti pada layout visual, dan berorientasi pada hasil akhir nyata (bukan sekadar naskah teks, tapi aset gambar final 1080x1350 px PNG yang siap tayang). "
-            "Kamu wajib menerapkan standar estetika resmi Instagram @colorbox: playful, Y2K-inspired, edgy-casual, scrapbook/collage grid, street style flash photography, flat-lay starter pack, dan antarmuka retro Windows 95/Paint. "
-            "ATURAN MUTLAK: 1) Minimalisasi teks kanvas menjadi 1-2 kata saja. 2) Dilarang keras menampilkan harga/angka rupiah/diskon pada gambar kanvas. 3) Dilarang menampilkan teks bahan kaku pada kanvas. 4) Tampilkan varian warna sebagai Color Palette Swatches (dot warna). 5) ZERO NOISE: Dilarang keras memunculkan label 'slide 1', 'slide 2', pagination dots, atau teks template internal di dalam gambar kanvas; desain harus 100% bersih dan siap posting. 6) Jika diminta desain untuk 3 hari, wajib menyajikan 3 konsep visual yang sepenuhnya berbeda: produk katalog berbeda, palet warna berbeda, dan moodboard berbeda. "
-            "Tugasmu: mengeksekusi pembuatan gambar visual menggunakan model openai/gpt-image-2 dari OpenCode Zen dan merender 5 slide berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080 × 1350 px PNG) menggunakan foto produk asli Colorbox tanpa distorsi aspek rasio. "
-            "Tampilkan pratinjau slide gambar final dengan tag markdown gambar dan link ke pratinjau live carousel, lalu laporkan hasilnya ke @bimo untuk penutupan sprint."
+            "Kamu adalah Vina (@visualcarousel), Visual Art Director & Carousel Specialist untuk Colorbox Indonesia. "
+            "ATURAN UTAMA: JANGAN SEDIAKAN TEMPLATE KAKU ATAU ELEMEN KLISE BERULANG (seperti stiker hati C & B, washi tape palsu, atau flat-lay kopi generic). Eksekusi visual harus murni mencerminkan konsep dan master prompt mendalam dari Bram. "
+            "Tugasmu: merender berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080 × 1350 px PNG) yang bersih, elegan, dan siap posting langsung ke Instagram resmi @colorbox, dengan foto produk asli Colorbox yang terjaga rasio aspek alaminya (contain mode, tanpa stretch/gepeng) dan bebas dari noise wireframe ('Slide 1/5', panah swipe, dots). Tampilkan pratinjau slide gambar final dan laporkan ke @bimo untuk penutupan sprint."
         ),
     },
     {
@@ -2854,29 +2856,46 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
     if not prods:
         prods = day1_prods
 
+    # Extract dynamic concept and headline from Bram or transcript
+    bram_concept = None
+    for line in reversed(transcript_lines):
+        line_str = str(line)
+        if "Konsep Kreatif:" in line_str:
+            m = re.search(r'Konsep Kreatif:\s*([^\n]+)', line_str)
+            if m:
+                bram_concept = m.group(1).strip()
+                break
+        elif "Tema:" in line_str:
+            m = re.search(r'Tema:\s*([^\n]+)', line_str)
+            if m:
+                bram_concept = m.group(1).strip()
+                break
+
     if is_three_days:
         try:
-            render_final_carousel_package("URBAN Y2K DENIM", "Jakarta Styled", "Koleksi denim retro", day1_prods, str(MARKETING_OUTPUT_DIR / "carousel_day_1"), img_dir, day_num=1)
-            render_final_carousel_package("WARM AUTUMN CAFE", "Coffee Run", "Nuansa earthy & layers", day2_prods, str(MARKETING_OUTPUT_DIR / "carousel_day_2"), img_dir, day_num=2)
-            render_final_carousel_package("CHIC EDGY NIGHT", "Night Drop", "Leather & suede statement", day3_prods, str(MARKETING_OUTPUT_DIR / "carousel_day_3"), img_dir, day_num=3)
+            d1_title = bram_concept or "URBAN Y2K DENIM"
+            render_final_carousel_package(d1_title, prods[0]["name"] if prods else "Denim Drop", "Koleksi kurasi hari 1", prods if prods else day1_prods, str(MARKETING_OUTPUT_DIR / "carousel_day_1"), img_dir, day_num=1)
+            render_final_carousel_package("WARM AUTUMN CAFE", day2_prods[0]["name"], "Nuansa earthy & layers", day2_prods, str(MARKETING_OUTPUT_DIR / "carousel_day_2"), img_dir, day_num=2)
+            render_final_carousel_package("CHIC EDGY NIGHT", day3_prods[0]["name"], "Leather & suede statement", day3_prods, str(MARKETING_OUTPUT_DIR / "carousel_day_3"), img_dir, day_num=3)
             # Latest points to day 1
-            render_final_carousel_package("URBAN Y2K DENIM", "Jakarta Styled", "Koleksi denim retro", day1_prods, out_dir, img_dir, day_num=1)
+            render_final_carousel_package(d1_title, prods[0]["name"] if prods else "Denim Drop", "Koleksi kurasi hari 1", prods if prods else day1_prods, out_dir, img_dir, day_num=1)
         except Exception as ex:
             print(f"[Vina Multi-Day Rendering Failed]: {ex}")
 
         md = (
             "### 🎨 Paket Visual Carousel Siap Posting (@colorbox Official Lookbook Standard):\n\n"
             "Vina telah merender **3 Paket Desain Visual yang Berbeda** untuk masing-masing hari tanpa noise template:\n\n"
-            "#### 📅 DAY 1: URBAN Y2K DENIM (Palet: Soft Cream, Denim Blue & Coral)\n"
+            "#### 📅 DAY 1: " + (bram_concept or "EDITORIAL SPOTLIGHT") + "\n"
             "![Cover Day 1](/output/carousel_day_1/slide_1_cover_hero.png)\n\n"
             "👉 **[Buka Live Interactive Preview Day 1](/output/carousel_day_1/carousel_preview.html)**\n\n"
-            "#### 📅 DAY 2: WARM AUTUMN CAFE (Palet: Warm Oatmeal, Dusty Olive & Espresso Brown)\n"
+            "#### 📅 DAY 2: WARM AUTUMN & TAILORED LAYERS\n"
             "![Cover Day 2](/output/carousel_day_2/slide_1_cover_hero.png)\n\n"
             "👉 **[Buka Live Interactive Preview Day 2](/output/carousel_day_2/carousel_preview.html)**\n\n"
-            "#### 📅 DAY 3: CHIC EDGY NIGHT (Palet: Studio Off-White, Dark Red Leather & Jet Black)\n"
+            "#### 📅 DAY 3: CHIC EDGY NIGHT & STATEMENT\n"
             "![Cover Day 3](/output/carousel_day_3/slide_1_cover_hero.png)\n\n"
             "👉 **[Buka Live Interactive Preview Day 3](/output/carousel_day_3/carousel_preview.html)**\n\n"
-            "✨ **Standar Desain Siap Posting (Zero Noise):**\n"
+            "✨ **Standar Desain Siap Posting (Bespoke & Zero Noise):**\n"
+            "- **Bebas Template Baku:** Desain murni mengikuti produk Colorbox dan master prompt kreatif dari Bram.\n"
             "- **Bebas Keterangan Slide:** Tidak ada label 'slide 1/5', 'slide 2', pagination dots, atau teks template internal pada kanvas.\n"
             "- **Bebas Harga di Gambar:** Seluruh angka harga resmi dialihkan ke teks caption & tautan bio.\n"
             "- **3 Desain & Palet Berbeda:** Masing-masing hari memiliki produk kurasi berbeda dari katalog dan moodboard khas Colorbox.\n"
@@ -2887,9 +2906,8 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
 
     main_p = prods[0] if prods else day1_prods[0]
     p_name = main_p.get("name", "New Arrivals")
-    is_poster = any("poster" in str(line).lower() or "baru" in str(line).lower() for line in transcript_lines)
-    theme_title = "NEW ARRIVALS" if is_poster or any(k in p_name.lower() for k in ["dress", "skirt", "skort"]) else "CAMPUS LOOKBOOK"
-    headline = f"Spotlight Drop:\n{p_name}!" if is_poster else "Effortless Campus Rebel:\nComfy, Chic & Standout!"
+    theme_title = bram_concept or p_name
+    headline = p_name
     subtitle = f"Koleksi resmi {main_p.get('color', 'Colorbox')} — Standout seharian dengan potongan presisi!"
 
     try:
@@ -2910,17 +2928,14 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
         "![Cover Hero](/output/carousel_latest/slide_1_cover_hero.png)\n\n"
         "![Top Piece Focus](/output/carousel_latest/slide_2_hero_top.png)\n\n"
         "![Bottom Silhouette](/output/carousel_latest/slide_3_bottom_pairing.png)\n\n"
-        "![Starter Pack Flatlay](/output/carousel_latest/slide_4_accessories_flatlay.png)\n\n"
-        "![Moodboard Sign-off](/output/carousel_latest/slide_5_outro_cta.png)\n\n"
-        "👉 **[Buka Pratinjau Interaktif Carousel di Tab Baru](/output/carousel_latest/carousel_preview.html)**\n\n"
-        "✨ **Kepatuhan Standar Visual Siap Posting (@colorbox Official):**\n"
-        "- **Bebas Noise Template:** 100% bebas dari label 'slide 1', 'slide 2', dots pagination, atau panah 'swipe' pada kanvas gambar.\n"
-        "- **Minimal Teks:** Hanya memuat micro-copy editorial 1–2 kata saja.\n"
-        "- **Zero-Price Canvas:** 100% bebas dari nominal harga pada gambar (harga resmi ditaruh di caption/bio).\n"
-        "- **Color Palette Swatches:** Dot warna visual presisi untuk tiap warna resmi produk.\n"
-        "- **Aspek Rasio Terkunci:** Foto produk dan model tidak di-stretch maupun gepeng.\n\n"
-        "Seluruh 5 slide gambar final (1080 × 1350 px PNG) telah sukses dirender menggunakan model visual openai/gpt-image-2 (OpenCode Zen) dan foto produk autentik Colorbox!\n"
-        "Silakan @bimo memberikan quality audit anti-halusinasi dan penutupan sprint."
+        "![Outfit Ensemble](/output/carousel_latest/slide_4_accessories_layering.png)\n\n"
+        "![Styling Inspiration Outro](/output/carousel_latest/slide_5_outro_cta.png)\n\n"
+        "👉 **[Buka Pratinjau Interaktif Live Carousel](/output/carousel_latest/carousel_preview.html)**\n\n"
+        "✨ **Standar Desain Siap Posting (Bespoke & Zero Noise):**\n"
+        "- **Bebas Template Baku:** Desain murni mengikuti produk Colorbox dan master prompt kreatif dari Bram.\n"
+        "- **Bebas Label Wireframe:** Nol label 'slide 1', 'slide 2', atau dots; kanvas bersih siap unggah.\n"
+        "- **Preservasi Rasio:** Foto model dan produk tidak ada distorsi/stretching (aspect ratio terkunci).\n"
+        "- **Harga Resmi di Caption:** Angka nominal diarahkan ke caption sesuai standar fashion lookbook."
     )
     return md
 
@@ -3036,19 +3051,25 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                         )
                     elif bid == "bram":
                         role_instructions = (
-                            "TUGAS CREATIVE COPYWRITER (BRAM):\n"
-                            "1. Susun naskah copy AIDA lengkap untuk 5 slide carousel (Slide 1 Cover Hook, Slide 2 Hero Top, Slide 3 Bottom Pairing, Slide 4 Accessories/Layering, Slide 5 Outro CTA).\n"
-                            "2. Tulis caption Instagram resmi lengkap dengan hashtag #NeverJustOneThing dan CTA ke bio.\n"
-                            "3. Buat AI Visual Generation Prompt terperinci (format 4:5 Feed Portrait) untuk setiap slide.\n"
+                            "TUGAS CREATIVE COPYWRITER & MASTER PROMPTER (BRAM):\n"
+                            "1. DILARANG KERAS MENGGUNAKAN TEMPLATE BAKU ATAU KONSEP BERULANG (NO CANNED TEMPLATES). Rancang konsep dan alur slide unik dari nol yang murni disesuaikan dengan produk spesifik dari Raka dan brief kampanye.\n"
+                            "2. Tulis naskah copy kreatif: On-screen copy sangat minimalis (1-2 kata saja atau tanpa teks, TANPA HARGA pada kanvas), dan caption Instagram lengkap dengan storytelling Gen Z, info produk resmi terverifikasi, harga katalog, dan hashtag #NeverJustOneThing.\n"
+                            "3. Sebagai Master Prompter, tuliskan AI Visual Generation Prompt yang SANGAT CERDAS & DETAIL untuk setiap slide (format 4:5 Feed Portrait untuk openai/gpt-image-2 via OpenCode):\n"
+                            "   - Detail Subjek: Model Gen Z, pose natural/candid, pakaian Colorbox presisi sesuai katalog.\n"
+                            "   - Komposisi: Angle kamera (full lookbook, 3/4 portrait, macro detail fabric/collar), rule of thirds.\n"
+                            "   - Lighting: Direct camera flash street style, golden hour rim light, atau studio softbox.\n"
+                            "   - Environment: Latar arsitektur urban nyata, kafe kontemporer, stasiun MRT, atau studio bersih.\n"
+                            "   - Lensa & Style: 35mm f/1.4 lens, realistic depth of field, 35mm film grain, Hasselblad color.\n"
+                            "   - Negative prompt: no warped hands, no distorted text, no extra limbs, no bad anatomy.\n"
                             "4. Delegasikan langsung ke @vina (@visualcarousel) untuk eksekusi render gambar visual final."
                         )
                     elif bid == "vina":
                         role_instructions = (
                             "TUGAS VISUAL CAROUSEL SPECIALIST (VINA):\n"
-                            "1. Berikan pengarahan artistik layout visual untuk ke-5 slide carousel (Instagram Feed Portrait 4:5, 1080 × 1350 px).\n"
-                            "2. Sebutkan bahwa berkas gambar final sedang dirender menggunakan model visual openai/gpt-image-2 (OpenCode Zen) dan foto produk autentik Colorbox.\n"
-                            "3. Ingat: Feed Carousel tidak memiliki safe-zone occlusion seperti Reels, sehingga kanvas 1080x1350 px dimanfaatkan 100% full-bleed.\n"
-                            "4. Laporkan hasil rendering gambar final dan serahkan ke @bimo (@projectmanager) untuk laporan akhir & quality audit."
+                            "1. Berikan pengarahan artistik layout visual untuk ke-5 slide carousel (Instagram Feed Portrait 4:5, 1080 × 1350 px) berdasarkan master prompt mendalam dari Bram.\n"
+                            "2. DILARANG MENYEDIAKAN TEMPLATE KAKU ATAU ELEMEN KLISE BERULANG (seperti stiker hati, washi tape palsu, atau flat-lay kopi generic). Eksekusi visual harus murni mencerminkan konsep orisinal produk.\n"
+                            "3. Konfirmasi bahwa berkas gambar final siap tayang dirender menggunakan model visual openai/gpt-image-2 (OpenCode Zen) dan foto produk autentik Colorbox dari folder images/ dengan rasio terkunci (contain mode, tanpa stretch/gepeng).\n"
+                            "4. Pastikan kanvas bebas dari segala noise internal (tanpa label 'Slide 1/5', tanpa dot pagination, tanpa teks 'SWIPE'). Desain harus 100% siap posting ke Instagram Feed."
                         )
 
                     group_instr = (
@@ -3588,6 +3609,72 @@ class BFFHandler(BaseHTTPRequestHandler):
 
         if path == "/api/settings":
             self._send_json(200, _get_settings())
+            return
+
+        # /api/catalog/categories
+        if path in ("/api/catalog/categories", "/catalog/categories"):
+            cats: Dict[str, int] = {}
+            for r in CATALOG.rows:
+                c = r.get("category", "Lainnya")
+                cats[c] = cats.get(c, 0) + 1
+            out_cats = [{"name": k, "count": v} for k, v in sorted(cats.items(), key=lambda x: -x[1])]
+            self._send_json(200, {"ok": True, "categories": out_cats, "total_products": len(CATALOG.rows)})
+            return
+
+        # /api/catalog/products and /api/catalog/search
+        if path in ("/api/catalog/products", "/catalog/products", "/api/catalog/search", "/catalog/search"):
+            query_str = (q.get("q") or [""])[0].strip()
+            cat_filter = (q.get("category") or [""])[0].strip()
+            try:
+                limit_val = min(200, max(1, int((q.get("limit") or ["50"])[0])))
+            except ValueError:
+                limit_val = 50
+            try:
+                offset_val = max(0, int((q.get("offset") or ["0"])[0]))
+            except ValueError:
+                offset_val = 0
+
+            matched = []
+            if query_str:
+                matched = CATALOG.search(query_str, limit=100)
+            else:
+                matched = CATALOG.rows
+
+            if cat_filter:
+                matched = [m for m in matched if cat_filter.lower() in m.get("category", "").lower()]
+
+            total_matched = len(matched)
+            paged = matched[offset_val : offset_val + limit_val]
+
+            out_items = []
+            img_files = list(IMAGES_DIR.glob("*")) if IMAGES_DIR.exists() else []
+            for item in paged:
+                d = dict(item)
+                d.pop("_tokens", None)
+                d.pop("_raw", None)
+                d["price_formatted"] = f"Rp {d['price']:,}".replace(",", ".")
+                if d.get("price_original"):
+                    d["price_original_formatted"] = f"Rp {d['price_original']:,}".replace(",", ".")
+                else:
+                    d["price_original_formatted"] = None
+
+                h = d.get("url", "").split("/")[-1].lower()
+                img_matches = []
+                for img_f in img_files:
+                    fn = img_f.name.lower()
+                    if any(part in fn for part in h.split("-") if len(part) > 3):
+                        img_matches.append(f"/images/{img_f.name}")
+                d["images"] = sorted(img_matches)
+                out_items.append(d)
+
+            self._send_json(200, {
+                "ok": True,
+                "total": total_matched,
+                "count": len(out_items),
+                "offset": offset_val,
+                "limit": limit_val,
+                "items": out_items
+            })
             return
 
         if path == "/api/settings/security":

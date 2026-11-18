@@ -94,19 +94,34 @@ type Form = typeof blankForm
 
 const COLORBOX_SAMPLE: Form = {
   objective: 'Meningkatkan ketertarikan produk melalui inspirasi styling OOTD kuliah (Campus Lookbook) di Instagram',
-  product: 'Contrast Stitch Chambray Shirt & High Waist Barrel Denim Pants (Katalog Resmi Colorbox)',
+  product: 'Oversize Long Sleeve Checks Blazer (Rp 299.900 - DUSTY OLIVE)',
   channel: 'Instagram',
   contentType: 'Feed Carousel (4:5 Portrait)',
   count: '5',
   audience: 'Remaja/Pemuda Gen Z terutama perempuan (18-25 tahun, Colorbox Babes)',
   tone: 'Fun, effortless, confident, ramah, dan mendukung self-expression #NeverJustOneThing',
-  keyMessage: 'Formula styling kampus effortless: paduan kemeja chambray kontras & barrel denim yang standout seharian tanpa ribet',
+  keyMessage: 'Formula styling kampus effortless: paduan blazer checks oversize & denim chic yang standout seharian tanpa ribet',
   cta: 'Cek katalog lengkap dan ukuran di website resmi colorbox.co.id atau gerai terdekat',
-  period: '16 November - 20 November 2026',
+  period: '18 November - 22 November 2026',
   promoFacts: 'Koleksi New Arrivals Colorbox 2026 (tanpa promo diskon fiktif)',
   forbidden: 'Jangan mengarang promo, potongan harga fiktif, stok, atau bahan kain yang tidak tercantum di katalog resmi',
   unknowns: 'Pilihan varian warna tambahan di luar katalog resmi',
 }
+
+const VERIFIED_CATALOG_SUGGESTIONS = [
+  { name: 'Oversize Long Sleeve Checks Blazer', price: 'Rp 299.900', color: 'DUSTY OLIVE' },
+  { name: 'Double Breasted Crop Jacket', price: 'Rp 329.900', color: 'LT. GREY' },
+  { name: 'Contrast Detail Denim Jacket', price: 'Rp 359.900', color: 'DARK BROWN' },
+  { name: 'Oversize Collared Leather Jacket', price: 'Rp 599.900', color: 'DARK RED' },
+  { name: 'Bubble Hem Long Sleeve Hoodie', price: 'Rp 299.900', color: 'ECRU' },
+  { name: 'Suede Mini Skirt', price: 'Rp 249.900', color: 'NAVY' },
+  { name: 'Jeans with Overlap Micro Skirt Details', price: 'Rp 237.528', color: 'DARK NAVY' },
+  { name: 'Wide Leg Drawstring Pants', price: 'Rp 199.900', color: 'NAVY' },
+  { name: 'Denim Sling Bag', price: 'Rp 129.900', color: 'DENIM' },
+  { name: 'Lace Sneakers', price: 'Rp 299.900', color: 'NAVY' },
+  { name: 'Contrast Stitch Chambray Shirt', price: 'Rp 140.900', color: 'DARK BLUE' },
+  { name: 'High Waist Barrel Denim Pants', price: 'Rp 329.900', color: 'BLACK' },
+]
 
 const FIELDS: [keyof Form, string][] = [
   ['audience', 'Target audiens & demografi'],
@@ -287,13 +302,13 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
 
   function callBram() {
     const prompt =
-      'Bram (@sketchwriter), tulis naskah lengkap 5 slide carousel Instagram (AIDA hook, headline, body copy, CTA), caption Instagram dengan hashtag resmi #NeverJustOneThing, serta prompt visual detail format 4:5 Feed Portrait (untuk model openai/gpt-image-2 via OpenCode) untuk setiap slide sesuai data katalog dari Raka. Lalu serahkan ke Vina (@visualcarousel).'
+      'Bram (@sketchwriter), rancang naskah kreatif dan master AI prompt untuk postingan Instagram tanpa menggunakan template baku (JANGAN GUNAKAN TEMPLATE / ZERO RIGID FORMULAS). Buat konsep unik dari nol sesuai produk terpilih dari Raka, susun on-screen micro-copy minimalis (1-2 kata, tanpa harga), caption Instagram lengkap hashtag #NeverJustOneThing dan harga resmi katalog, serta AI Visual Generation Prompt yang sangat detail, fotorealistik, dan kaya arahan artistik (lighting, angle 4:5 Feed Portrait, lensa 35mm, latar arsitektur nyata, dan model styling) untuk model openai/gpt-image-2 via OpenCode. Lalu serahkan ke Vina (@visualcarousel).'
     void executeAgent(3, 'bram', prompt, 'Naskah & Prompt AI')
   }
 
   function callVina() {
     const prompt =
-      'Vina (@visualcarousel), eksekusi arahan visual dan naskah dari Bram. Render 5 slide berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080x1350 px PNG) menggunakan model visual openai/gpt-image-2 (OpenCode Zen) dan foto produk resmi Colorbox. Tampilkan pratinjau gambar dan link live interactive preview, lalu serahkan ke Bimo dan Tim Reviewer Manusia.'
+      'Vina (@visualcarousel), eksekusi arahan visual dan master prompt dari Bram secara bespoke tanpa template baku. Render 5 slide berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080x1350 px PNG) menggunakan model visual openai/gpt-image-2 (OpenCode Zen) dan foto produk resmi Colorbox tanpa distorsi aspek rasio (contain mode, tidak gepeng) dan bebas dari noise wireframe/dots. Tampilkan pratinjau gambar dan link live interactive preview, lalu serahkan ke Bimo dan Tim Reviewer Manusia.'
     void executeAgent(4, 'vina', prompt, 'Aset Gambar Carousel')
   }
 
@@ -319,7 +334,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
       if (!medaOut) throw new Error('Meda gagal merumuskan konsep.')
 
       // Step 3: Raka
-      setCascadeMsg('Tahap 3/5: Raka (@researcher) memeriksa 1.206 katalog & ukuran cm...')
+      setCascadeMsg('Tahap 3/5: Raka (@researcher) memeriksa 1.216 katalog & ukuran cm...')
       setStage(2)
       const rakaPrompt =
         'Raka (@researcher), validasi produk dari konsep Meda ke katalog resmi Colorbox (product-catalog.md), sertakan harga normal/diskon Rp, bedah panduan ukuran cm (lingkar dada, pinggang, panjang) dari product-size-reference.md, cek ketersediaan foto di images/, dan buat Creative Research Brief 5 slide. Lalu teruskan ke Bram (@sketchwriter).'
@@ -327,10 +342,10 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
       if (!rakaOut) throw new Error('Raka gagal memvalidasi katalog.')
 
       // Step 4: Bram
-      setCascadeMsg('Tahap 4/5: Bram (@sketchwriter) menulis naskah & visual prompter...')
+      setCascadeMsg('Tahap 4/5: Bram (@sketchwriter) menulis naskah & visual prompter bespoke...')
       setStage(3)
       const bramPrompt =
-        'Bram (@sketchwriter), tulis naskah lengkap 5 slide carousel Instagram (AIDA hook, headline, body copy, CTA), caption Instagram dengan hashtag resmi #NeverJustOneThing, serta prompt visual detail format 4:5 Feed Portrait (untuk model openai/gpt-image-2 via OpenCode) untuk setiap slide sesuai data katalog dari Raka. Lalu serahkan ke Vina (@visualcarousel).'
+        'Bram (@sketchwriter), rancang naskah kreatif dan master AI prompt untuk postingan Instagram tanpa menggunakan template baku (JANGAN GUNAKAN TEMPLATE / ZERO RIGID FORMULAS). Buat konsep unik dari nol sesuai produk terpilih dari Raka, susun on-screen micro-copy minimalis (1-2 kata, tanpa harga), caption Instagram lengkap hashtag #NeverJustOneThing dan harga resmi katalog, serta AI Visual Generation Prompt yang sangat detail, fotorealistik, dan kaya arahan artistik (lighting, angle 4:5 Feed Portrait, lensa 35mm, latar arsitektur nyata, dan model styling) untuk model openai/gpt-image-2 via OpenCode. Lalu serahkan ke Vina (@visualcarousel).'
       const bramOut = await executeAgent(3, 'bram', bramPrompt, 'Naskah & Prompt AI')
       if (!bramOut) throw new Error('Bram gagal menulis naskah.')
 
@@ -338,7 +353,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
       setCascadeMsg('Tahap 5/5: Vina (@visualcarousel) merender gambar visual final (openai/gpt-image-2)...')
       setStage(4)
       const vinaPrompt =
-        'Vina (@visualcarousel), eksekusi arahan visual dan naskah dari Bram. Render 5 slide berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080x1350 px PNG) menggunakan model visual openai/gpt-image-2 (OpenCode Zen) dan foto produk resmi Colorbox. Tampilkan pratinjau gambar dan link live interactive preview, lalu serahkan ke Bimo dan Tim Reviewer Manusia.'
+        'Vina (@visualcarousel), eksekusi arahan visual dan master prompt dari Bram secara bespoke tanpa template baku. Render 5 slide berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080x1350 px PNG) menggunakan model visual openai/gpt-image-2 (OpenCode Zen) dan foto produk resmi Colorbox tanpa distorsi aspek rasio (contain mode, tidak gepeng) dan bebas dari noise wireframe/dots. Tampilkan pratinjau gambar dan link live interactive preview, lalu serahkan ke Bimo dan Tim Reviewer Manusia.'
       const vinaOut = await executeAgent(4, 'vina', vinaPrompt, 'Aset Gambar Carousel')
       if (!vinaOut) throw new Error('Vina gagal merender gambar.')
 
@@ -482,13 +497,40 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                     placeholder="Contoh: Inspirasi OOTD kuliah santai tapi stylish di Instagram"
                   />
                 </Field>
-                <Field label="Produk Acuan (Katalog Resmi)" err={tried ? errs.product : ''}>
+                <Field label="Produk Acuan (Katalog Resmi 1.216 Produk)" err={tried ? errs.product : ''}>
                   <input
                     value={form.product}
                     onChange={(e) => setForm({ ...form, product: e.target.value })}
                     aria-invalid={tried && !!errs.product}
-                    placeholder="Contoh: Contrast Stitch Chambray Shirt & High Waist Barrel Denim Pants"
+                    placeholder="Contoh: Oversize Long Sleeve Checks Blazer (Rp 299.900)"
                   />
+                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ fontSize: 11, color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span>✓</span>
+                      <span>Koleksi Terverifikasi (Klik untuk memilih produk acuan bebas halusinasi):</span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {VERIFIED_CATALOG_SUGGESTIONS.map((item) => (
+                        <button
+                          key={item.name}
+                          type="button"
+                          className="pill"
+                          style={{
+                            cursor: 'pointer',
+                            fontSize: 11,
+                            padding: '3px 8px',
+                            borderRadius: 12,
+                            border: form.product.includes(item.name) ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.12)',
+                            background: form.product.includes(item.name) ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.03)',
+                            color: form.product.includes(item.name) ? '#10b981' : 'inherit',
+                          }}
+                          onClick={() => setForm({ ...form, product: `${item.name} (${item.price} - ${item.color})` })}
+                        >
+                          {item.name} • {item.price}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </Field>
                 <Field label="Kanal Media Sosial" err={tried ? errs.channel : ''}>
                   <select
