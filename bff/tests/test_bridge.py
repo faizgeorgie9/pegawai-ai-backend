@@ -9,7 +9,7 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 from ruamel.yaml import YAML
 
-from bff import bridge, connections, harden, integrations
+from bff import bridge, connections, harden, integrations, kb
 from bff.errors import ApiError
 
 KEY = "test-bridge-key"
@@ -60,7 +60,7 @@ def test_ping_through_mcp_client(app):
         async with streamable_http_client(URL, http_client=http) as (r, w, _):
             async with ClientSession(r, w) as s:
                 await s.initialize()
-                assert sorted(t.name for t in (await s.list_tools()).tools) == ["action_status", "drive_create", "drive_move", "drive_read", "drive_rename", "drive_search", "drive_trash", "drive_update", "gmail_create_draft", "gmail_label", "gmail_read", "gmail_search", "gmail_send", "gmail_send_draft", "gmail_trash", "ping", "task_ask_user", "task_cancel", "task_comment", "task_complete", "task_create", "task_list", "task_request_review"]
+                assert sorted(t.name for t in (await s.list_tools()).tools) == ["action_status", "drive_create", "drive_move", "drive_read", "drive_rename", "drive_search", "drive_trash", "drive_update", "gmail_create_draft", "gmail_label", "gmail_read", "gmail_search", "gmail_send", "gmail_send_draft", "gmail_trash", "kb_add_link", "kb_add_note", "kb_search", "ping", "task_ask_user", "task_cancel", "task_comment", "task_complete", "task_create", "task_list", "task_request_review"]
                 return (await s.call_tool("ping", {})).content[0].text
     out = run_with_manager(app, call)
     assert out.startswith("ok 20")
@@ -281,3 +281,52 @@ def test_gmail_rejects_invalid_id_and_address_and_hides_provider_errors(app, gma
         assert r.call_count == 0
         out = call_tool(app, "gmail_read", {"message_id": "msg12345"})
     assert out == "Error: Gmail menjawab dengan kesalahan 500." and "secret" not in out
+
+
+# ---------- Knowledge Base tools (kb.py DB functions replaced; the tools only wrap them) ----------
+
+def test_kb_add_link_reports_item_and_friendly_failure(app, monkeypatch):
+    async def ingest(user_id, url):
+        assert user_id == "default"
+        if "drive" in url:
+            return {"name": "drive.google.com/x", "status": "failed", "error": kb.DRIVE_NEEDS_CONNECT}
+        return {"name": "toko.id/harga", "status": "ready"}
+    monkeypatch.setattr(kb, "ingest_url", ingest)
+    ok = call_tool(app, "kb_add_link", {"url": " https://toko.id/harga "})
+    assert "toko.id/harga" in ok and "halaman Pengetahuan" in ok
+    bad = call_tool(app, "kb_add_link", {"url": "https://drive.google.com/x"})
+    assert bad.startswith("Gagal disimpan") and kb.DRIVE_NEEDS_CONNECT in bad
+
+    async def invalid(user_id, url):
+        raise ApiError(400, "Masukkan alamat web yang diawali http:// atau https://")
+    monkeypatch.setattr(kb, "ingest_url", invalid)
+    assert call_tool(app, "kb_add_link", {"url": "toko"}) == "Error: Masukkan alamat web yang diawali http:// atau https://"
+
+
+def test_kb_add_note_saves_text_file_and_limits_size(app, monkeypatch):
+    saved = []
+    async def ingest(user_id, name, data):
+        saved.append((name, data))
+        return {"name": name, "status": "ready"}
+    monkeypatch.setattr(kb, "ingest_file", ingest)
+    out = call_tool(app, "kb_add_note", {"title": "Jam CS", "text": "Sabtu tutup"})
+    assert saved == [("Jam CS.txt", b"Sabtu tutup")] and "Jam CS.txt" in out and "halaman Pengetahuan" in out
+    assert "terlalu panjang" in call_tool(app, "kb_add_note", {"title": "x", "text": "a" * (bridge.KB_NOTE_MAX + 1)})
+    assert "must not be empty" in call_tool(app, "kb_add_note", {"title": " ", "text": "a"})
+    assert len(saved) == 1
+
+
+def test_kb_search_snippets_with_source_and_limit(app, monkeypatch):
+    seen = {}
+    async def search(user_id, text, limit):
+        seen["limit"] = limit
+        return [{"name": "katalog.md", "text": "Kaos\n\npolos " + "x" * 600}]
+    monkeypatch.setattr(kb, "search", search)
+    out = call_tool(app, "kb_search", {"query": "harga kaos", "limit": 2})
+    assert seen["limit"] == 2 and out.startswith("- [katalog.md] Kaos polos x") and len(out) < 450
+    assert "limit must be between 1 and 5" in call_tool(app, "kb_search", {"query": "x", "limit": 6})
+
+    async def none(user_id, text, limit):
+        return []
+    monkeypatch.setattr(kb, "search", none)
+    assert call_tool(app, "kb_search", {"query": "zzz"}) == "Tidak ada yang cocok di Knowledge Base."

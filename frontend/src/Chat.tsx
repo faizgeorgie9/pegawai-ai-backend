@@ -360,6 +360,9 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
             {admin && active?.model && active.messageCount !== -1 ? ` · ${active.model}` : ''}
           </p>
         </div>
+        <button className="btn soft sm" onClick={() => setDialog({ kind: 'edit', bot })}>
+          Atur agen
+        </button>
         <button className="btn soft sm convo-new" title="Mulai percakapan baru, riwayat lama tetap ada" onClick={() => go(botPath(bot.id))}>
           Topik baru
         </button>
@@ -387,12 +390,12 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
               <p>
                 {bot.role}. Tulis pesan di bawah; {bot.name} melanjutkan topik yang sama sampai Anda memilih Topik baru.
               </p>
-              {bot.team === 'marketing' && (
+              {admin && bot.team === 'marketing' && (
                 <a className="empty-link" href="#/marketing">
                   Butuh alur brief → konten? Buka Marketing
                 </a>
               )}
-              {bot.team === 'customer_support' && (
+              {admin && bot.team === 'customer_support' && (
                 <a className="empty-link" href="#/cs">
                   Butuh simulasi pelanggan? Buka Customer Service
                 </a>

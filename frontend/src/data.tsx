@@ -7,7 +7,7 @@ import { botPath, go, groupPath } from './router'
 // App-wide data: the account, the bots, the groups and the active runs, kept fresh by the one global /api/events
 // stream. Views subscribe to the live events they care about (group messages, typing) through `on`.
 
-export type DialogState = { kind: 'bot' } | { kind: 'group'; id?: string } | { kind: 'plan' } | { kind: 'delete'; bot: Bot } | null
+export type DialogState = { kind: 'bot' } | { kind: 'group'; id?: string } | { kind: 'plan' } | { kind: 'delete'; bot: Bot } | { kind: 'edit'; bot: Bot } | null
 export interface Toast {
   id: number
   text: string

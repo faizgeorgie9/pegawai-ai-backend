@@ -151,7 +151,7 @@ export function ChatLayout({ route }: { route: Extract<Route, { name: 'bot' } | 
                     </span>
                     <span className="status-dot" data-s={b.status} role="img" aria-label={b.status === 'idle' ? 'Siap' : b.status === 'working' ? 'Bekerja' : 'Berdiskusi'} />
                   </a>
-                  {!b.builtin && (
+                  {(
                     <span className="row-menu">
                       <button
                         className="icon-btn"
@@ -166,10 +166,22 @@ export function ChatLayout({ route }: { route: Extract<Route, { name: 'bot' } | 
                       </button>
                       {menu === b.id && (
                         <div className="popmenu" role="menu">
-                          <button role="menuitem" onClick={() => setDialog({ kind: 'delete', bot: b })}>
-                            <Icon d={TRASH} />
-                            Hapus agen
+                          <button
+                            role="menuitem"
+                            onClick={() => {
+                              setMenu(null)
+                              setDialog({ kind: 'edit', bot: b })
+                            }}
+                          >
+                            <Icon d={PENCIL} />
+                            Atur agen
                           </button>
+                          {!b.builtin && (
+                            <button role="menuitem" onClick={() => setDialog({ kind: 'delete', bot: b })}>
+                              <Icon d={TRASH} />
+                              Hapus agen
+                            </button>
+                          )}
                         </div>
                       )}
                     </span>

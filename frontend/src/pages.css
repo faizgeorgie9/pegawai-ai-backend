@@ -90,7 +90,7 @@ td.st-col { min-width: 170px; }
 .ws-hist { padding: var(--pad-card); }
 
 /* tabs: Kemampuan (links) and Evaluasi (buttons). A 2px ink rule under the current one. */
-.tabs { display: flex; gap: var(--s-1); border-bottom: 1px solid var(--border); overflow-x: auto; }
+.tabs { display: flex; gap: var(--s-1); border-bottom: 1px solid var(--border); overflow-x: auto; overflow-y: hidden; }
 .tabs a, .tabs button { display: inline-flex; align-items: center; gap: var(--s-2); min-height: 44px; padding: 0 var(--s-4); margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--muted); font-weight: 500; text-decoration: none; white-space: nowrap; cursor: pointer; transition: color var(--m-in) var(--ease), border-color var(--m-in) var(--ease); }
 .tabs a:hover, .tabs button:hover:not(:disabled) { color: var(--text); }
 .tabs [aria-selected="true"] { color: var(--text); border-bottom-color: var(--text); }

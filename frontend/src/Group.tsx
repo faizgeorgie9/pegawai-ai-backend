@@ -7,6 +7,7 @@ import { useSmoothText } from './useSmoothText'
 import { MentionsCtx, Md } from './rich'
 import { ActionCard, useVisibleActions } from './ActionCard'
 import { useData } from './data'
+import { useAdminMode } from './adminMode'
 import { PlanCard, withoutPlanBlock } from './PlanCard'
 import { PanelButtons, SidePanel, Split } from './Panel'
 import { MakeTaskButton } from './TaskPanel'
@@ -32,6 +33,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
   const { groups, bots, loadState, on, setDialog, setGroup, askNotify, viewing, reload } = useData()
   const group = groups.find((g) => g.id === id)
   const asked = useVisibleActions((a) => a.source?.group_id === id) // cards for what this team's agents asked here
+  const admin = useAdminMode()
   const members = (group?.members ?? []).map((m) => bots.find((b) => b.id === m)).filter((b): b is Bot => !!b)
   const [msgs, setMsgs] = useState<GroupMsg[]>([])
   const [state, setState] = useState<'loading' | 'ok' | 'error'>('loading')
@@ -355,7 +357,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
             </div>
           )}
           {msgs.filter((m) => !pending.includes(m.id)).map((m) => (
-            <GroupBubble key={m.id} m={m} bot={bots.find((b) => b.id === m.bot_id)} queued={pending.includes(m.id)} thought={thoughts[m.run_id ?? '']} onPlanState={(st) => setMsgs((cur) => cur.map((x) => (x.id === m.id && x.plan ? { ...x, plan: { ...x.plan, ...st } } : x)))} />
+            <GroupBubble key={m.id} m={m} members={members} bot={bots.find((b) => b.id === m.bot_id)} queued={pending.includes(m.id)} thought={thoughts[m.run_id ?? '']} onPlanState={(st) => setMsgs((cur) => cur.map((x) => (x.id === m.id && x.plan ? { ...x, plan: { ...x.plan, ...st } } : x)))} />
           ))}
           {turn && <LiveBubble t={turn} bot={bots.find((b) => b.id === turn.bot)} />}
           {asked.map((a) => (
@@ -469,7 +471,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
           </div>
         </form>
         <p className="composer-note">
-          {running ? RUNNING_HINT : 'Enter untuk kirim, Shift+Enter untuk baris baru.'} <a href="#/marketing">Pakai formulir brief</a>
+          {running ? RUNNING_HINT : 'Enter untuk kirim, Shift+Enter untuk baris baru.'} {admin && <a href="#/marketing">Pakai formulir brief</a>}
         </p>
       </div>
     </section>
@@ -477,7 +479,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
   )
 }
 
-function GroupBubble({ m, bot, queued, thought, onPlanState }: { m: GroupMsg; bot?: Bot; queued: boolean; thought?: { text: string; seconds?: number }; onPlanState: (s: Pick<ContentPlan, 'task_id' | 'state'>) => void }) {
+function GroupBubble({ m, members, bot, queued, thought, onPlanState }: { m: GroupMsg; members: Bot[]; bot?: Bot; queued: boolean; thought?: { text: string; seconds?: number }; onPlanState: (s: Pick<ContentPlan, 'task_id' | 'state'>) => void }) {
   if (m.role === 'system') return <p className="sys-msg">{m.text}</p>
   if (m.role === 'user') {
     return (
@@ -488,6 +490,10 @@ function GroupBubble({ m, bot, queued, thought, onPlanState }: { m: GroupMsg; bo
       </div>
     )
   }
+  // Same rule as the server's routing (groups._mentioned): @bot-id or @first-name hands the turn to that member.
+  // shortcut: computed on the client, the server does not store who a message handed off to; store it if routing ever differs from mentions.
+  const tokens = new Set([...m.text.matchAll(/@(\w+)/g)].map((x) => x[1].toLowerCase()))
+  const delegates = members.filter((b) => b.id !== m.bot_id && (tokens.has(b.id.toLowerCase()) || tokens.has(b.name.split(' ')[0].toLowerCase())))
   return (
     <div className="msg bot gmsg" style={{ ['--bot' as string]: botColor(bot) }}>
       <BotAvatar bot={bot ?? { name: '?', color: '' }} size={32} />
@@ -507,6 +513,17 @@ function GroupBubble({ m, bot, queued, thought, onPlanState }: { m: GroupMsg; bo
             <CopyButton text={m.plan ? withoutPlanBlock(m.text) : m.text} what="jawaban" />
             <GmailDraftButton text={m.plan ? withoutPlanBlock(m.text) : m.text} />
           </div>
+        )}
+        {delegates.length > 0 && (
+          <p className="delegates" aria-label={`Membagi tugas ke ${delegates.map((b) => b.name).join(', ')}`}>
+            Membagi tugas →
+            {delegates.map((b) => (
+              <span key={b.id} className="delegate" style={{ ['--bot' as string]: botColor(b) }}>
+                <BotAvatar bot={b} size={16} />
+                {b.name.split(' ')[0]}
+              </span>
+            ))}
+          </p>
         )}
         {m.task && <a className="task-chip" href="#/kanban">Tugas: {m.task.title}</a>}
         {m.plan && <PlanCard groupId={m.group_id} messageId={m.id} plan={m.plan} onState={onPlanState} />}

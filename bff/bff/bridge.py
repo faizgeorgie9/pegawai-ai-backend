@@ -1,6 +1,6 @@
 """Internal MCP server ("pegawai") for the Hermes agents: BFF-provided tools, served as Streamable HTTP at /mcp.
 
-Tools: `ping`, Google Drive search/read/create/update/rename/move, `drive_trash` (only asks the user: see actions.py), `action_status`, and Gmail search/read/create-draft/label/trash plus send and send-draft (these only ask, see actions.py), through the workspace owner's connections, and the board tools task_* (tasks.agent_*: list, create, comment, ask_user, request_review, complete, cancel). Add tools inside build().
+Tools: `ping`, Google Drive search/read/create/update/rename/move, `drive_trash` (only asks the user: see actions.py), `action_status`, and Gmail search/read/create-draft/label/trash plus send and send-draft (these only ask, see actions.py), through the workspace owner's connections, the Knowledge Base tools kb_add_link/kb_add_note/kb_search (kb.py; reversible, no approval), and the board tools task_* (tasks.agent_*: list, create, comment, ask_user, request_review, complete, cancel). Add tools inside build().
 A tool that is risky does not act: it stores a pending action (actions.ask) for the user to approve in the app. Each Hermes profile sends `X-Pegawai-Bot: <slug>` so the card can find the chat it came from. Auth: `Authorization: Bearer <MCP_BRIDGE_KEY>`, loopback clients only.
 ensure_registered() makes every Hermes profile list this server (mcp_servers.pegawai) at BFF startup, idempotently.
 """
@@ -21,7 +21,7 @@ from ruamel.yaml import YAML
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from . import actions, config, db, integrations
+from . import actions, config, db, integrations, kb
 from .errors import ApiError
 
 log = logging.getLogger("bff.bridge")
@@ -38,6 +38,10 @@ DRIVE_NOT_CONNECTED = "Google Drive belum disambungkan. Minta pengguna menyambun
 GMAIL_NOT_CONNECTED = "Gmail belum disambungkan. Minta pengguna menyambungkannya di halaman Aplikasi."
 GMAIL_MAX_RESULTS = 10
 GMAIL_BODY_MAX = integrations.GMAIL_MAX_BODY
+
+KB_NOTE_MAX = 20_000   # chars of one note; longer text belongs in a file or link
+KB_SEARCH_MAX = 5
+KB_SNIPPET = 400
 
 
 def _user() -> str:
@@ -277,6 +281,43 @@ async def task_cancel(task_id: str, reason: str = "", ctx: Context = None) -> st
     return await _task_tool("agent_cancel", task_id, reason, ctx=ctx)
 
 
+async def kb_add_link(url: str) -> str:
+    """Same import path as "Tambah link" on the Pengetahuan page (kb.ingest_url: websites and Google Drive links)."""
+    try:
+        item = await kb.ingest_url(_user(), url.strip())
+    except ApiError as e:
+        return f"Error: {e.message}"
+    if item["status"] != "ready":
+        return f"Gagal disimpan: {item['name']}. Alasan: {item.get('error') or 'tidak diketahui'}"
+    return f"Tersimpan di Knowledge Base: {item['name']} (status: siap). Terlihat di halaman Pengetahuan."
+
+
+async def kb_add_note(title: str, text: str) -> str:
+    title, text = re.sub(r"\s+", " ", title).strip()[:80], text.strip()
+    if not title or not text:
+        return "Error: title and text must not be empty."
+    if len(text) > KB_NOTE_MAX:
+        return f"Error: catatan terlalu panjang (maksimal {KB_NOTE_MAX} karakter)."
+    try:  # a note is a small text file item, so it previews and searches like an upload
+        item = await kb.ingest_file(_user(), f"{title}.txt", text.encode())
+    except ApiError as e:
+        return f"Error: {e.message}"
+    if item["status"] != "ready":
+        return f"Gagal disimpan: {item['name']}. Alasan: {item.get('error') or 'tidak diketahui'}"
+    return f"Catatan tersimpan di Knowledge Base: {item['name']}. Terlihat di halaman Pengetahuan."
+
+
+async def kb_search(query: str, limit: int = KB_SEARCH_MAX) -> str:
+    if not query.strip():
+        return "Error: query must not be empty."
+    if not 1 <= limit <= KB_SEARCH_MAX:
+        return f"Error: limit must be between 1 and {KB_SEARCH_MAX}."
+    hits = await kb.search(_user(), query, limit)
+    if not hits:
+        return "Tidak ada yang cocok di Knowledge Base."
+    return "\n".join(f"- [{h['name']}] {' '.join(h['text'].split())[:KB_SNIPPET]}" for h in hits)
+
+
 def build() -> FastMCP:
     """The tool server. Register new tools here."""
     # shortcut: DNS-rebinding protection is off because the loopback check in BridgeApp already limits callers; revisit with a non-loopback bind
@@ -310,6 +351,9 @@ def build() -> FastMCP:
     mcp.tool(description="Finish a task by handing the result to the owner to review (summary = the result, in plain language). Use it when the owner should check or approve the work. Always end a task with task_complete, task_request_review or task_ask_user.")(task_request_review)
     mcp.tool(description="Mark a task done with a short summary of the result (use it only when nothing needs the owner's check). Always end a task with task_complete, task_request_review or task_ask_user.")(task_complete)
     mcp.tool(description="Cancel (archive) a task by task_id, with a short reason. Use it when the owner asks to cancel or drop a task or plan; it also cancels its unfinished sub-tasks and can be restored by the owner.")(task_cancel)
+    mcp.tool(description="Save a website or Google Drive link into the user's Knowledge Base (reads and stores its text). Use it when the user asks to save/remember a link in the knowledge base. Reversible: the user can delete it on the Pengetahuan page. Afterwards tell the user it is saved and visible on the Pengetahuan page; if it fails, relay the reason.")(kb_add_link)
+    mcp.tool(description="Save a short text note (title + text, max 20000 chars) into the user's Knowledge Base. Use it when the user asks to save/remember something in the knowledge base. Reversible: the user can delete it on the Pengetahuan page. Afterwards tell the user it is saved and visible on the Pengetahuan page.")(kb_add_note)
+    mcp.tool(description="Search the user's Knowledge Base by keywords (read-only). Returns up to 5 snippets, each with its source name in brackets.")(kb_search)
     return mcp
 
 

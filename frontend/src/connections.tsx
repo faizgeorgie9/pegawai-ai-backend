@@ -335,6 +335,21 @@ export function AppsPage() {
   const [how, setHow] = useState(false)
   const [q, setQ] = useState('')
   const [only, setOnly] = useState('')
+  const [tab, setTabState] = useState<'apps' | 'skills'>(() => {
+    try {
+      return localStorage.getItem('pegawai-ai.apps-tab') === 'skills' ? 'skills' : 'apps'
+    } catch {
+      return 'apps'
+    }
+  })
+  const setTab = (t: 'apps' | 'skills') => {
+    setTabState(t)
+    try {
+      localStorage.setItem('pegawai-ai.apps-tab', t)
+    } catch {
+      // storage blocked: the tab just does not persist
+    }
+  }
   const [connecting, setConnecting] = useState<HermesApp | null>(null)
   useEffect(() => {
     if (result) go('/aplikasi', true) // drop the flag so a refresh does not show the banner again
@@ -590,10 +605,25 @@ export function AppsPage() {
           {problem}
         </p>
       )}
-      {!ready && <Loading text="Memuat aplikasi..." shape="ledger" />}
-      {conns.state === 'error' && !conns.data && <ErrorLine text={conns.error} onRetry={conns.retry} />}
-      {cat.state === 'error' && !cat.data && <ErrorLine text={cat.error} onRetry={cat.retry} />}
-      {ready && (
+      <div className="tabs" role="tablist" aria-label="Aplikasi dan keahlian agen">
+        {([['apps', 'Aplikasi'], ['skills', 'Keahlian agen']] as const).map(([id, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === 'apps' && !ready && <Loading text="Memuat aplikasi..." shape="ledger" />}
+      {tab === 'apps' && conns.state === 'error' && !conns.data && <ErrorLine text={conns.error} onRetry={conns.retry} />}
+      {tab === 'apps' && cat.state === 'error' && !cat.data && <ErrorLine text={cat.error} onRetry={cat.retry} />}
+      {tab === 'skills' && (
+        <>
+          <div className="apps-tools">
+            <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari keahlian" aria-label="Cari keahlian" />
+          </div>
+          <SkillsSection q={q} />
+        </>
+      )}
+      {tab === 'apps' && ready && (
         <>
           <div className="apps-tools">
             <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari aplikasi" aria-label="Cari aplikasi" />
@@ -644,7 +674,6 @@ export function AppsPage() {
           {groups.length === 0 && <p className="quiet">Tidak ada aplikasi yang cocok dengan pencarian Anda.</p>}
         </>
       )}
-      <SkillsSection />
       {picker && createPortal(<SourcePicker provider={picker} onClose={() => setPicker(null)} onDone={(ok) => setSaved(`${ok.length} item disimpan ke Pengetahuan.`)} />, document.body)}
       {connecting && (
         <ConnectDialog

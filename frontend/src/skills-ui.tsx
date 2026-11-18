@@ -63,7 +63,7 @@ export function AgentSkills({ slug }: { slug: string }) {
 }
 
 // Aplikasi page: "Keahlian agen". One card per skill, who uses it, and "Atur" for the per-agent switches.
-export function SkillsSection() {
+export function SkillsSection({ q = '' }: { q?: string }) {
   const admin = useAdminMode()
   const fn = useCallback(() => api.skillsAll(), [])
   const r = useLoad(fn)
@@ -71,7 +71,7 @@ export function SkillsSection() {
   const [open, setOpen] = useState<string | null>(null)
   const data = agents ?? r.data?.agents ?? []
   const names = new Map<string, Skill>()
-  for (const a of data) for (const s of a.skills) if (admin || !s.technical) names.set(s.name, s)
+  for (const a of data) for (const s of a.skills) if ((admin || !s.technical) && skillText(s).join(' ').toLowerCase().includes(q.trim().toLowerCase())) names.set(s.name, s)
   const users = (name: string) => data.filter((a) => a.skills.some((s) => s.name === name && s.enabled)).map((a) => a.name)
   const current = open ? names.get(open) : undefined
 
@@ -105,6 +105,7 @@ export function SkillsSection() {
           })}
         </ul>
       )}
+      {r.data && names.size === 0 && <p className="quiet">Tidak ada keahlian yang cocok dengan pencarian Anda.</p>}
       {current && (
         <Dialog title={skillText(current)[0]} onClose={() => setOpen(null)}>
          <div className="dlg-body">
