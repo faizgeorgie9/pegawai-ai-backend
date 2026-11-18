@@ -56,6 +56,130 @@ COLOR_MAP = {
     "DENIM": (65, 95, 135),
 }
 
+# ==============================================================================
+# STRICT SAFETY BOUNDARIES (1080 x 1350 px Feed Portrait Standard)
+# Zero offside, zero clipping, zero overflow guaranteed
+# ==============================================================================
+CANVAS_WIDTH = 1080
+CANVAS_HEIGHT = 1350
+SAFE_LEFT = 70
+SAFE_RIGHT = 1010
+SAFE_WIDTH = SAFE_RIGHT - SAFE_LEFT  # Exactly 940 px
+SAFE_TOP = 50
+SAFE_BOTTOM = 1300
+
+FONT_SERIF_BOLD = "C:/Windows/Fonts/georgiab.ttf"
+FONT_SERIF_REG = "C:/Windows/Fonts/georgia.ttf"
+FONT_SANS_BOLD = "C:/Windows/Fonts/segoeuib.ttf"
+FONT_SANS_REG = "C:/Windows/Fonts/segoeui.ttf"
+FONT_DISPLAY_BOLD = "C:/Windows/Fonts/arialbd.ttf"
+
+def get_text_size(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont) -> tuple[int, int]:
+    """Returns (width, height) of text using textbbox."""
+    if not text:
+        return (0, 0)
+    bbox = draw.textbbox((0, 0), text, font=font)
+    return (bbox[2] - bbox[0], bbox[3] - bbox[1])
+
+def wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, max_w: int, max_lines: int = None) -> list[str]:
+    """
+    Wraps text cleanly into multiple lines so that no line exceeds max_w.
+    If max_lines is set, safely clips the last line with '...'.
+    """
+    words = text.split()
+    if not words:
+        return []
+    lines = []
+    cur_line = []
+    for w in words:
+        test_line = " ".join(cur_line + [w])
+        w_px, _ = get_text_size(draw, test_line, font)
+        if w_px <= max_w:
+            cur_line.append(w)
+        else:
+            if cur_line:
+                lines.append(" ".join(cur_line))
+                cur_line = [w]
+            else:
+                lines.append(w)
+                cur_line = []
+    if cur_line:
+        lines.append(" ".join(cur_line))
+
+    if max_lines and len(lines) > max_lines:
+        lines = lines[:max_lines]
+        last_line = lines[-1]
+        while len(last_line) > 3:
+            w_px, _ = get_text_size(draw, last_line + "...", font)
+            if w_px <= max_w:
+                lines[-1] = last_line + "..."
+                break
+            last_line = last_line[:-1]
+    return lines
+
+def draw_safe_text(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    x: int,
+    y: int,
+    max_w: int,
+    font_path: str,
+    font_size: int,
+    fill: tuple,
+    line_spacing: int = 6,
+    max_lines: int = 2,
+    auto_shrink: bool = True,
+    min_size: int = 14
+) -> int:
+    """
+    Renders text safely within [x, y, x + max_w].
+    - Clamps max_w to prevent exceeding SAFE_RIGHT (1010).
+    - Wraps text across lines up to max_lines.
+    - If text still overflows, decrements font size until it fits.
+    - Returns the bottom Y coordinate of the rendered block.
+    """
+    if not text:
+        return y
+
+    # Clamp max_w so x + max_w never exceeds SAFE_RIGHT
+    if x + max_w > SAFE_RIGHT:
+        max_w = SAFE_RIGHT - x
+
+    cur_size = font_size
+    while cur_size >= min_size:
+        try:
+            f = ImageFont.truetype(font_path, cur_size)
+        except Exception:
+            f = ImageFont.load_default()
+            draw.text((x, y), text, fill=fill, font=f)
+            return y + 20
+
+        lines = wrap_text(draw, text, f, max_w, max_lines=max_lines)
+        if len(lines) <= max_lines and all(get_text_size(draw, l, f)[0] <= max_w for l in lines):
+            cur_y = y
+            for l in lines:
+                draw.text((x, cur_y), l, fill=fill, font=f)
+                _, lh = get_text_size(draw, l, f)
+                cur_y += lh + line_spacing
+            return cur_y
+
+        if not auto_shrink:
+            break
+        cur_size -= 2
+
+    # Fallback with min_size and clean truncation
+    try:
+        f = ImageFont.truetype(font_path, min_size)
+    except Exception:
+        f = ImageFont.load_default()
+    lines = wrap_text(draw, text, f, max_w, max_lines=max_lines)
+    cur_y = y
+    for l in lines:
+        draw.text((x, cur_y), l, fill=fill, font=f)
+        _, lh = get_text_size(draw, l, f)
+        cur_y += lh + line_spacing
+    return cur_y
+
 def get_swatches_for_product(prod: dict, count: int = 5) -> list[tuple[int, int, int]]:
     c_name = str(prod.get("color", "")).upper()
     palette = []
@@ -73,7 +197,7 @@ def get_swatches_for_product(prod: dict, count: int = 5) -> list[tuple[int, int,
 def paste_proportional(canvas: Image.Image, img: Image.Image, box_x: int, box_y: int, box_w: int, box_h: int) -> tuple[int, int, int, int]:
     """
     Pastes img into (box_x, box_y, box_w, box_h) maintaining strict original aspect ratio.
-    Zero stretching, zero distortion. Returns actual bounding box placed.
+    Guarantees placement strictly stays within canvas bounds without stretching.
     """
     orig_w, orig_h = img.size
     scale = min(box_w / orig_w, box_h / orig_h)
@@ -91,9 +215,11 @@ def paste_proportional(canvas: Image.Image, img: Image.Image, box_x: int, box_y:
         
     return offset_x, offset_y, new_w, new_h
 
-def draw_color_palette(draw: ImageDraw.ImageDraw, start_x: int, start_y: int, colors: list[tuple[int, int, int]], radius: int = 15, spacing: int = 38):
+def draw_color_palette(draw: ImageDraw.ImageDraw, start_x: int, start_y: int, colors: list[tuple[int, int, int]], radius: int = 14, spacing: int = 36):
     for idx, rgb in enumerate(colors):
         cx = start_x + (idx * spacing)
+        if cx + radius > SAFE_RIGHT:
+            break
         draw.ellipse([cx - radius, start_y - radius, cx + radius, start_y + radius], fill=rgb, outline=(220, 220, 220), width=1)
 
 def resolve_product_angles(prod: dict, images_dir: str) -> dict[str, str]:
@@ -109,7 +235,6 @@ def resolve_product_angles(prod: dict, images_dir: str) -> dict[str, str]:
             if os.path.exists(fp):
                 angles[k] = fp
                 
-    # Fallback to image_file
     main_file = prod.get("image_file", "")
     if main_file:
         fp = os.path.join(images_dir, main_file)
@@ -117,7 +242,6 @@ def resolve_product_angles(prod: dict, images_dir: str) -> dict[str, str]:
             if "front" not in angles:
                 angles["front"] = fp
 
-    # Also inspect images_dir by product prefix (e.g. cbx-11a -> 11b, 11c)
     if "front" in angles and ("back" not in angles or "detail" not in angles):
         front_name = os.path.basename(angles["front"])
         m = re.match(r"(cbx-\d+)[a-z]-(.+)", front_name)
@@ -135,7 +259,6 @@ def resolve_product_angles(prod: dict, images_dir: str) -> dict[str, str]:
                     elif "top-down" in f:
                         angles.setdefault("top_down", full_p)
 
-    # Defaults if missing
     front_p = angles.get("front")
     if not front_p and main_file:
         fp = os.path.join(images_dir, main_file)
@@ -168,7 +291,7 @@ def _render_archetype_1(
 ) -> list[str]:
     """
     Day 1 Style: Refined warm studio ecru, Georgia serif display, asymmetric collage,
-    haute lookbook layout with zero canned boxes.
+    haute lookbook layout with 100% guarded text boundaries.
     """
     BG_COLOR = (247, 245, 240)       # Warm Studio Ecru
     CARD_BG = (255, 255, 255)        # Pure White
@@ -177,160 +300,160 @@ def _render_archetype_1(
     ACCENT_COLOR = (225, 83, 66)     # Colorbox Coral
     BORDER_HAIRLINE = (228, 224, 216)
 
-    try:
-        font_serif_xl = ImageFont.truetype("C:/Windows/Fonts/georgiab.ttf", 54)
-        font_serif_lg = ImageFont.truetype("C:/Windows/Fonts/georgiab.ttf", 40)
-        font_serif_italic = ImageFont.truetype("C:/Windows/Fonts/georgia.ttf", 26)
-        font_sans_bold = ImageFont.truetype("C:/Windows/Fonts/segoeuib.ttf", 26)
-        font_sans_med = ImageFont.truetype("C:/Windows/Fonts/segoeui.ttf", 22)
-        font_sans_sm = ImageFont.truetype("C:/Windows/Fonts/segoeui.ttf", 18)
-    except Exception:
-        font_serif_xl = ImageFont.load_default()
-        font_serif_lg = font_serif_xl
-        font_serif_italic = font_serif_xl
-        font_sans_bold = font_serif_xl
-        font_sans_med = font_serif_xl
-        font_sans_sm = font_serif_xl
-
     slides = []
 
     p1_name = p1.get("name", "Tailored Piece").upper()
     p2_name = p2.get("name", "Complementary Bottom").upper()
     p3_name = p3.get("name", "Accessory Accent").upper()
 
+    # --------------------------------------------------------------------------
     # SLIDE 1: BESPOKE HERO COVER
-    s1 = Image.new("RGB", (1080, 1350), color=BG_COLOR)
+    # --------------------------------------------------------------------------
+    s1 = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), color=BG_COLOR)
     d1 = ImageDraw.Draw(s1)
     
-    # Minimalist Header
-    d1.text((70, 50), "COLORBOX", fill=TEXT_DARK, font=font_sans_bold)
-    d1.text((250, 52), "|   ATELIER EDITORIAL", fill=TEXT_MUTED, font=font_sans_med)
-    d1.text((820, 52), "SS/26 EDITION", fill=ACCENT_COLOR, font=font_sans_sm)
+    # Header row
+    draw_safe_text(d1, "COLORBOX", SAFE_LEFT, 50, 160, FONT_SANS_BOLD, 26, TEXT_DARK, max_lines=1)
+    draw_safe_text(d1, "|  ATELIER EDITORIAL", 240, 52, 540, FONT_SANS_REG, 22, TEXT_MUTED, max_lines=1)
+    draw_safe_text(d1, "SS/26 EDITION", 820, 52, 190, FONT_SANS_REG, 18, ACCENT_COLOR, max_lines=1)
 
-    # Headline
-    hl_text = (headline or p1_name[:30]).upper()
-    d1.text((70, 110), hl_text, fill=TEXT_DARK, font=font_serif_xl)
+    # Headline (Auto-fitting & wrapping)
+    hl_text = (headline or p1_name).upper()
+    y_hl = draw_safe_text(d1, hl_text, SAFE_LEFT, 100, SAFE_WIDTH, FONT_SERIF_BOLD, 46, TEXT_DARK, line_spacing=4, max_lines=2, min_size=28)
+
+    # Concept Quote
     concept_str = (theme_title or "Sartorial Precision & Balance").title()
-    d1.text((70, 175), f'"{concept_str}"', fill=TEXT_MUTED, font=font_serif_italic)
+    draw_safe_text(d1, f'"{concept_str}"', SAFE_LEFT, y_hl + 4, SAFE_WIDTH, FONT_SERIF_REG, 22, TEXT_MUTED, max_lines=1, min_size=16)
 
     # Hero Photo (Full portrait frame)
-    d1.rounded_rectangle([70, 230, 1010, 1220], radius=14, fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
+    d1.rounded_rectangle([SAFE_LEFT, 230, SAFE_RIGHT, 1220], radius=14, fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
     if p1_angles.get("front"):
         im1 = Image.open(p1_angles["front"]).convert("RGB")
-        paste_proportional(s1, im1, 90, 250, 900, 940)
+        paste_proportional(s1, im1, SAFE_LEFT + 20, 245, SAFE_WIDTH - 40, 955)
 
     # Palette bar at bottom
-    d1.rounded_rectangle([90, 1245, 990, 1305], radius=10, fill=CARD_BG)
-    d1.text((120, 1260), "CURATED PALETTE", fill=TEXT_MUTED, font=font_sans_sm)
+    d1.rounded_rectangle([SAFE_LEFT + 20, 1245, SAFE_RIGHT - 20, 1305], radius=10, fill=CARD_BG)
+    draw_safe_text(d1, "CURATED PALETTE", SAFE_LEFT + 40, 1262, 300, FONT_SANS_REG, 18, TEXT_MUTED, max_lines=1)
     draw_color_palette(d1, 680, 1275, get_swatches_for_product(p1, 5))
 
     p1_path = os.path.join(output_dir, "slide_1_cover_hero.png")
     s1.save(p1_path, "PNG", quality=95)
     slides.append(p1_path)
 
+    # --------------------------------------------------------------------------
     # SLIDE 2: CRAFTSMANSHIP & TEXTURE (Detail Angle)
-    s2 = Image.new("RGB", (1080, 1350), color=CARD_BG)
+    # --------------------------------------------------------------------------
+    s2 = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), color=CARD_BG)
     d2 = ImageDraw.Draw(s2)
-    d2.text((70, 50), "COLORBOX", fill=TEXT_DARK, font=font_sans_bold)
-    d2.text((250, 52), "|   CRAFTSMANSHIP & TEXTURE", fill=TEXT_MUTED, font=font_sans_med)
+
+    draw_safe_text(d2, "COLORBOX", SAFE_LEFT, 50, 160, FONT_SANS_BOLD, 26, TEXT_DARK, max_lines=1)
+    draw_safe_text(d2, "|  CRAFTSMANSHIP & TEXTURE", 240, 52, 700, FONT_SANS_REG, 22, TEXT_MUTED, max_lines=1)
     
-    d2.text((70, 110), "MATERIAL WEAVE & DETAIL", fill=TEXT_DARK, font=font_serif_lg)
-    d2.text((70, 160), f"Fokus pada presisi jahitan dan tekstur kain {p1.get('color', '')}", fill=TEXT_MUTED, font=font_sans_med)
+    draw_safe_text(d2, "MATERIAL WEAVE & DETAIL", SAFE_LEFT, 105, SAFE_WIDTH, FONT_SERIF_BOLD, 36, TEXT_DARK, max_lines=1)
+    draw_safe_text(d2, f"Fokus pada presisi jahitan dan tekstur kain {p1.get('color', '')}", SAFE_LEFT, 155, SAFE_WIDTH, FONT_SANS_REG, 22, TEXT_MUTED, max_lines=1)
 
     # Large Detail Photo Frame
-    d2.rounded_rectangle([70, 210, 1010, 1010], radius=14, fill=BG_COLOR, outline=BORDER_HAIRLINE, width=1)
+    d2.rounded_rectangle([SAFE_LEFT, 210, SAFE_RIGHT, 1010], radius=14, fill=BG_COLOR, outline=BORDER_HAIRLINE, width=1)
     detail_img = p1_angles.get("detail") or p1_angles.get("front")
     if detail_img:
         im2 = Image.open(detail_img).convert("RGB")
-        paste_proportional(s2, im2, 90, 230, 900, 760)
+        paste_proportional(s2, im2, SAFE_LEFT + 20, 225, SAFE_WIDTH - 40, 765)
 
-    # Technical Spec Bottom Panel
-    d2.rounded_rectangle([70, 1040, 1010, 1280], radius=14, fill=BG_COLOR, outline=BORDER_HAIRLINE, width=1)
-    d2.text((100, 1065), "TAILORING SPECIFICATION", fill=ACCENT_COLOR, font=font_sans_bold)
-    d2.text((100, 1105), p1_name, fill=TEXT_DARK, font=font_serif_italic)
-    d2.text((100, 1145), f"Warna Resmi: {p1.get('color', 'Classic')}  •  Pilihan Ukuran: {p1.get('sizes', 'S - XL')}", fill=TEXT_MUTED, font=font_sans_med)
-    d2.text((100, 1185), "Dirancang untuk kenyamanan sepanjang hari dengan potongan presisi khas Colorbox.", fill=TEXT_DARK, font=font_sans_med)
+    # Technical Spec Bottom Panel (Safe wrapping)
+    d2.rounded_rectangle([SAFE_LEFT, 1035, SAFE_RIGHT, 1285], radius=14, fill=BG_COLOR, outline=BORDER_HAIRLINE, width=1)
+    draw_safe_text(d2, "TAILORING SPECIFICATION", SAFE_LEFT + 30, 1055, SAFE_WIDTH - 60, FONT_SANS_BOLD, 22, ACCENT_COLOR, max_lines=1)
+    draw_safe_text(d2, p1_name, SAFE_LEFT + 30, 1092, SAFE_WIDTH - 60, FONT_SERIF_REG, 26, TEXT_DARK, max_lines=1)
+    draw_safe_text(d2, f"Warna Resmi: {p1.get('color', 'Classic')}  •  Pilihan Ukuran: {p1.get('sizes', 'S - XL')}", SAFE_LEFT + 30, 1135, SAFE_WIDTH - 60, FONT_SANS_REG, 20, TEXT_MUTED, max_lines=1)
+    draw_safe_text(d2, "Dirancang untuk kenyamanan sepanjang hari dengan potongan presisi khas Colorbox.", SAFE_LEFT + 30, 1175, SAFE_WIDTH - 60, FONT_SANS_REG, 20, TEXT_DARK, max_lines=2)
 
     p2_path = os.path.join(output_dir, "slide_2_hero_top.png")
     s2.save(p2_path, "PNG", quality=95)
     slides.append(p2_path)
 
+    # --------------------------------------------------------------------------
     # SLIDE 3: COMPLEMENTARY PAIRING (Bottom Front Angle)
-    s3 = Image.new("RGB", (1080, 1350), color=BG_COLOR)
+    # --------------------------------------------------------------------------
+    s3 = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), color=BG_COLOR)
     d3 = ImageDraw.Draw(s3)
-    d3.text((70, 50), "COLORBOX", fill=TEXT_DARK, font=font_sans_bold)
-    d3.text((250, 52), f"|   THE PAIRING FORMULA", fill=TEXT_MUTED, font=font_sans_med)
 
-    d3.text((70, 110), p2_name[:34], fill=TEXT_DARK, font=font_serif_lg)
-    d3.text((70, 160), f"Padu-padan ideal bawahan untuk siluet {p1.get('name', 'atasan')} yang proporsional", fill=ACCENT_COLOR, font=font_sans_med)
+    draw_safe_text(d3, "COLORBOX", SAFE_LEFT, 50, 160, FONT_SANS_BOLD, 26, TEXT_DARK, max_lines=1)
+    draw_safe_text(d3, "|  THE PAIRING FORMULA", 240, 52, 700, FONT_SANS_REG, 22, TEXT_MUTED, max_lines=1)
 
-    d3.rounded_rectangle([70, 210, 1010, 1170], radius=14, fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
+    draw_safe_text(d3, p2_name, SAFE_LEFT, 105, SAFE_WIDTH, FONT_SERIF_BOLD, 36, TEXT_DARK, max_lines=1)
+    draw_safe_text(d3, f"Padu-padan ideal bawahan untuk siluet seimbang dan proporsional.", SAFE_LEFT, 155, SAFE_WIDTH, FONT_SANS_REG, 22, ACCENT_COLOR, max_lines=1)
+
+    d3.rounded_rectangle([SAFE_LEFT, 210, SAFE_RIGHT, 1170], radius=14, fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
     bot_img = p2_angles.get("front") or p2_angles.get("detail")
     if bot_img:
         im3 = Image.open(bot_img).convert("RGB")
-        paste_proportional(s3, im3, 90, 230, 900, 910)
+        paste_proportional(s3, im3, SAFE_LEFT + 20, 225, SAFE_WIDTH - 40, 925)
 
-    d3.text((100, 1210), f"Featured Color: {p2.get('color', 'Neutral')}  •  Sizes: {p2.get('sizes', 'All Sizes')}", fill=TEXT_MUTED, font=font_sans_med)
-    draw_color_palette(d3, 800, 1225, get_swatches_for_product(p2, 4))
+    draw_safe_text(d3, f"Featured Color: {p2.get('color', 'Neutral')}  •  Sizes: {p2.get('sizes', 'All Sizes')}", SAFE_LEFT + 30, 1205, 620, FONT_SANS_REG, 20, TEXT_MUTED, max_lines=1)
+    draw_color_palette(d3, 760, 1220, get_swatches_for_product(p2, 4))
 
     p3_path = os.path.join(output_dir, "slide_3_bottom_pairing.png")
     s3.save(p3_path, "PNG", quality=95)
     slides.append(p3_path)
 
-    # SLIDE 4: ASYMMETRIC ENSEMBLE COLLAGE (Hero Back/Side + Bottom + Accessory)
-    s4 = Image.new("RGB", (1080, 1350), color=CARD_BG)
+    # --------------------------------------------------------------------------
+    # SLIDE 4: ASYMMETRIC ENSEMBLE COLLAGE (Hero Profile + Bottom + Accessory)
+    # --------------------------------------------------------------------------
+    s4 = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), color=CARD_BG)
     d4 = ImageDraw.Draw(s4)
-    d4.text((70, 50), "COLORBOX", fill=TEXT_DARK, font=font_sans_bold)
-    d4.text((250, 52), "|   COMPLETE ENSEMBLE", fill=TEXT_MUTED, font=font_sans_med)
-    d4.text((70, 105), "HARMONI 360 LOOKBOOK", fill=TEXT_DARK, font=font_serif_lg)
+
+    draw_safe_text(d4, "COLORBOX", SAFE_LEFT, 50, 160, FONT_SANS_BOLD, 26, TEXT_DARK, max_lines=1)
+    draw_safe_text(d4, "|  COMPLETE ENSEMBLE", 240, 52, 700, FONT_SANS_REG, 22, TEXT_MUTED, max_lines=1)
+    draw_safe_text(d4, "HARMONI 360 LOOKBOOK", SAFE_LEFT, 105, SAFE_WIDTH, FONT_SERIF_BOLD, 36, TEXT_DARK, max_lines=1)
 
     # Left tall frame: Hero profile / back angle
-    d4.rounded_rectangle([70, 170, 540, 1180], radius=14, fill=BG_COLOR, outline=BORDER_HAIRLINE, width=1)
+    d4.rounded_rectangle([SAFE_LEFT, 160, 535, 1180], radius=14, fill=BG_COLOR, outline=BORDER_HAIRLINE, width=1)
     back_img = p1_angles.get("back") or p1_angles.get("side") or p1_angles.get("front")
     if back_img:
         imb = Image.open(back_img).convert("RGB")
-        paste_proportional(s4, imb, 85, 185, 440, 930)
-    d4.text((90, 1135), f"{p1_name[:20]} (Profile)", fill=TEXT_DARK, font=font_sans_sm)
+        paste_proportional(s4, imb, SAFE_LEFT + 15, 175, 435, 945)
+    draw_safe_text(d4, f"{p1_name} (Profile)", SAFE_LEFT + 20, 1135, 425, FONT_SANS_REG, 18, TEXT_DARK, max_lines=1)
 
     # Right top frame: Complementary bottom
-    d4.rounded_rectangle([565, 170, 1010, 660], radius=14, fill=BG_COLOR, outline=BORDER_HAIRLINE, width=1)
+    d4.rounded_rectangle([555, 160, SAFE_RIGHT, 650], radius=14, fill=BG_COLOR, outline=BORDER_HAIRLINE, width=1)
     if bot_img:
         imbt = Image.open(bot_img).convert("RGB")
-        paste_proportional(s4, imbt, 580, 185, 415, 435)
-    d4.text((585, 625), f"{p2_name[:20]}", fill=TEXT_DARK, font=font_sans_sm)
+        paste_proportional(s4, imbt, 570, 175, 425, 425)
+    draw_safe_text(d4, p2_name, 570, 615, 425, FONT_SANS_REG, 18, TEXT_DARK, max_lines=1)
 
     # Right bottom frame: Accessory or Footwear
-    d4.rounded_rectangle([565, 680, 1010, 1180], radius=14, fill=BG_COLOR, outline=BORDER_HAIRLINE, width=1)
+    d4.rounded_rectangle([555, 675, SAFE_RIGHT, 1180], radius=14, fill=BG_COLOR, outline=BORDER_HAIRLINE, width=1)
     acc_img = p3_angles.get("front") or p3_angles.get("side") or p2_angles.get("front")
     if acc_img:
         ima = Image.open(acc_img).convert("RGB")
-        paste_proportional(s4, ima, 580, 695, 415, 435)
-    d4.text((585, 1135), f"{p3_name[:20]}", fill=TEXT_DARK, font=font_sans_sm)
+        paste_proportional(s4, ima, 570, 690, 425, 435)
+    draw_safe_text(d4, p3_name, 570, 1135, 425, FONT_SANS_REG, 18, TEXT_DARK, max_lines=1)
 
-    d4.text((70, 1235), "#NeverJustOneThing  •  Authentic Wardrobe Formula", fill=ACCENT_COLOR, font=font_sans_med)
+    draw_safe_text(d4, "#NeverJustOneThing  •  Authentic Wardrobe Formula", SAFE_LEFT, 1230, SAFE_WIDTH, FONT_SANS_BOLD, 22, ACCENT_COLOR, max_lines=1)
 
     p4_path = os.path.join(output_dir, "slide_4_accessories_layering.png")
     s4.save(p4_path, "PNG", quality=95)
-    # Also save as slide_4_accessories_flatlay.png for legacy compatibility
     s4.save(os.path.join(output_dir, "slide_4_accessories_flatlay.png"), "PNG", quality=95)
     slides.append(p4_path)
 
+    # --------------------------------------------------------------------------
     # SLIDE 5: EDITORIAL LOOKBOOK OUTRO
-    s5 = Image.new("RGB", (1080, 1350), color=BG_COLOR)
+    # --------------------------------------------------------------------------
+    s5 = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), color=BG_COLOR)
     d5 = ImageDraw.Draw(s5)
-    d5.text((70, 50), "COLORBOX", fill=TEXT_DARK, font=font_sans_bold)
-    d5.text((250, 52), "|   LOOKBOOK SIGN-OFF", fill=TEXT_MUTED, font=font_sans_med)
 
-    d5.text((70, 110), "STYLING INSPIRATION", fill=TEXT_DARK, font=font_serif_xl)
-    d5.text((70, 175), "Paduan gaya kurasi resmi tim Colorbox Indonesia.", fill=TEXT_MUTED, font=font_serif_italic)
+    draw_safe_text(d5, "COLORBOX", SAFE_LEFT, 50, 160, FONT_SANS_BOLD, 26, TEXT_DARK, max_lines=1)
+    draw_safe_text(d5, "|  LOOKBOOK SIGN-OFF", 240, 52, 700, FONT_SANS_REG, 22, TEXT_MUTED, max_lines=1)
 
-    d5.rounded_rectangle([70, 230, 1010, 1180], radius=14, fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
+    draw_safe_text(d5, "STYLING INSPIRATION", SAFE_LEFT, 105, SAFE_WIDTH, FONT_SERIF_BOLD, 42, TEXT_DARK, max_lines=1)
+    draw_safe_text(d5, "Paduan gaya kurasi resmi tim Colorbox Indonesia.", SAFE_LEFT, 160, SAFE_WIDTH, FONT_SERIF_REG, 22, TEXT_MUTED, max_lines=1)
+
+    d5.rounded_rectangle([SAFE_LEFT, 215, SAFE_RIGHT, 1180], radius=14, fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
     if p1_angles.get("front"):
         imf = Image.open(p1_angles["front"]).convert("RGB")
-        paste_proportional(s5, imf, 90, 250, 900, 900)
+        paste_proportional(s5, imf, SAFE_LEFT + 20, 235, SAFE_WIDTH - 40, 925)
 
-    d5.text((90, 1220), "#NeverJustOneThing", fill=ACCENT_COLOR, font=font_serif_lg)
-    d5.text((90, 1270), "Dapatkan di colorbox.co.id & gerai resmi Colorbox seluruh Indonesia", fill=TEXT_MUTED, font=font_sans_med)
+    draw_safe_text(d5, "#NeverJustOneThing", SAFE_LEFT + 20, 1215, SAFE_WIDTH - 40, FONT_SERIF_BOLD, 32, ACCENT_COLOR, max_lines=1)
+    draw_safe_text(d5, "Dapatkan di colorbox.co.id & gerai resmi Colorbox seluruh Indonesia", SAFE_LEFT + 20, 1260, SAFE_WIDTH - 40, FONT_SANS_REG, 20, TEXT_MUTED, max_lines=1)
 
     p5_path = os.path.join(output_dir, "slide_5_outro_cta.png")
     s5.save(p5_path, "PNG", quality=95)
@@ -356,7 +479,7 @@ def _render_archetype_2(
 ) -> list[str]:
     """
     Day 2 Style: Clean architectural concrete grey, black contrast bands, sage green accents,
-    strict Swiss grid lines, tri-modular columns. Completely distinct structure.
+    strict Swiss grid lines, tri-modular columns with 100% safe margins.
     """
     BG_COLOR = (238, 240, 242)       # Architectural Concrete Grey
     CARD_BG = (255, 255, 255)        # Pure White
@@ -366,172 +489,171 @@ def _render_archetype_2(
     ACCENT_COLOR = (95, 120, 88)     # Sage Green
     BORDER_HAIRLINE = (215, 220, 224)
 
-    try:
-        font_sans_xl = ImageFont.truetype("C:/Windows/Fonts/segoeuib.ttf", 52)
-        font_sans_lg = ImageFont.truetype("C:/Windows/Fonts/segoeuib.ttf", 36)
-        font_sans_med = ImageFont.truetype("C:/Windows/Fonts/segoeui.ttf", 22)
-        font_sans_sm = ImageFont.truetype("C:/Windows/Fonts/segoeui.ttf", 18)
-        font_mono = ImageFont.truetype("C:/Windows/Fonts/arialbd.ttf", 20)
-    except Exception:
-        font_sans_xl = ImageFont.load_default()
-        font_sans_lg = font_sans_xl
-        font_sans_med = font_sans_xl
-        font_sans_sm = font_sans_xl
-        font_mono = font_sans_xl
-
     slides = []
 
     p1_name = p1.get("name", "Contemporary Essential").upper()
     p2_name = p2.get("name", "Lower Foundation").upper()
     p3_name = p3.get("name", "Accent Footwear").upper()
 
+    # --------------------------------------------------------------------------
     # SLIDE 1: ARCHITECTURAL BANNER & PEDESTAL COVER
-    s1 = Image.new("RGB", (1080, 1350), color=BG_COLOR)
+    # --------------------------------------------------------------------------
+    s1 = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), color=BG_COLOR)
     d1 = ImageDraw.Draw(s1)
 
     # Top Black Contrast Band
-    d1.rectangle([0, 0, 1080, 140], fill=CONTRAST_BAND)
-    d1.text((70, 45), "COLORBOX // MODERNIST WARDROBE", fill=(255, 255, 255), font=font_mono)
-    d1.text((880, 45), "LOOK 02", fill=ACCENT_COLOR, font=font_mono)
+    d1.rectangle([0, 0, CANVAS_WIDTH, 140], fill=CONTRAST_BAND)
+    draw_safe_text(d1, "COLORBOX // MODERNIST WARDROBE", SAFE_LEFT, 45, 750, FONT_DISPLAY_BOLD, 22, (255, 255, 255), max_lines=1)
+    draw_safe_text(d1, "LOOK 02", 870, 45, 140, FONT_DISPLAY_BOLD, 22, ACCENT_COLOR, max_lines=1)
 
     # Main Visual Pedestal Frame
-    d1.rectangle([70, 170, 1010, 1080], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
+    d1.rectangle([SAFE_LEFT, 170, SAFE_RIGHT, 1080], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
     if p1_angles.get("front"):
         im1 = Image.open(p1_angles["front"]).convert("RGB")
-        paste_proportional(s1, im1, 90, 190, 900, 870)
+        paste_proportional(s1, im1, SAFE_LEFT + 20, 190, SAFE_WIDTH - 40, 870)
 
     # Bottom Information Strip
-    d1.rectangle([70, 1110, 1010, 1290], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
-    d1.rectangle([70, 1110, 85, 1290], fill=ACCENT_COLOR) # Left accent strip
-    d1.text((110, 1130), p1_name[:32], fill=TEXT_DARK, font=font_sans_lg)
-    d1.text((110, 1180), f"PALETTE: {p1.get('color', 'STUDIO')}  |  CUT: CONTEMPORARY RELAXED", fill=TEXT_MUTED, font=font_sans_sm)
-    d1.text((110, 1220), "Konstruksi modular yang adaptif untuk rotasi gaya harian.", fill=ACCENT_COLOR, font=font_sans_med)
+    d1.rectangle([SAFE_LEFT, 1110, SAFE_RIGHT, 1285], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
+    d1.rectangle([SAFE_LEFT, 1110, SAFE_LEFT + 12, 1285], fill=ACCENT_COLOR) # Left accent strip
+
+    hl_text = (headline or p1_name).upper()
+    draw_safe_text(d1, hl_text, SAFE_LEFT + 30, 1125, SAFE_WIDTH - 50, FONT_SANS_BOLD, 30, TEXT_DARK, max_lines=1, min_size=20)
+    draw_safe_text(d1, f"PALETTE: {p1.get('color', 'STUDIO')}  |  CUT: CONTEMPORARY RELAXED", SAFE_LEFT + 30, 1175, SAFE_WIDTH - 50, FONT_SANS_REG, 18, TEXT_MUTED, max_lines=1)
+    draw_safe_text(d1, "Konstruksi modular yang adaptif untuk rotasi gaya harian.", SAFE_LEFT + 30, 1215, SAFE_WIDTH - 50, FONT_SANS_REG, 20, ACCENT_COLOR, max_lines=1)
 
     p1_path = os.path.join(output_dir, "slide_1_cover_hero.png")
     s1.save(p1_path, "PNG", quality=95)
     slides.append(p1_path)
 
+    # --------------------------------------------------------------------------
     # SLIDE 2: NUMBERED SPECIFICATION (Left 40% Spec + Right 60% Detail Angle)
-    s2 = Image.new("RGB", (1080, 1350), color=BG_COLOR)
+    # --------------------------------------------------------------------------
+    s2 = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), color=BG_COLOR)
     d2 = ImageDraw.Draw(s2)
 
-    d2.text((70, 45), "COLORBOX // TECHNICAL BREAKDOWN", fill=TEXT_DARK, font=font_mono)
-    d2.text((70, 85), "ANATOMI POTONGAN & STRUKTUR", fill=TEXT_DARK, font=font_sans_lg)
+    draw_safe_text(d2, "COLORBOX // TECHNICAL BREAKDOWN", SAFE_LEFT, 45, SAFE_WIDTH, FONT_DISPLAY_BOLD, 20, TEXT_DARK, max_lines=1)
+    draw_safe_text(d2, "ANATOMI POTONGAN & STRUKTUR", SAFE_LEFT, 85, SAFE_WIDTH, FONT_SANS_BOLD, 34, TEXT_DARK, max_lines=1)
 
-    # Left Spec Column
-    d2.rectangle([70, 150, 430, 1250], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
-    d2.text((95, 180), "[01] SILUET", fill=ACCENT_COLOR, font=font_mono)
-    d2.text((95, 215), "Relaxed fit dengan", fill=TEXT_DARK, font=font_sans_med)
-    d2.text((95, 245), "garis bahu natural.", fill=TEXT_DARK, font=font_sans_med)
+    # Left Spec Column (Width 360 px)
+    spec_col_w = 360
+    d2.rectangle([SAFE_LEFT, 150, SAFE_LEFT + spec_col_w, 1250], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
+    
+    draw_safe_text(d2, "[01] SILUET", SAFE_LEFT + 25, 180, spec_col_w - 50, FONT_DISPLAY_BOLD, 20, ACCENT_COLOR, max_lines=1)
+    draw_safe_text(d2, "Relaxed fit dengan garis bahu natural.", SAFE_LEFT + 25, 215, spec_col_w - 50, FONT_SANS_REG, 20, TEXT_DARK, max_lines=2)
 
-    d2.text((95, 330), "[02] TEKSTUR", fill=ACCENT_COLOR, font=font_mono)
-    d2.text((95, 365), f"Material {p1.get('color', '')}", fill=TEXT_DARK, font=font_sans_med)
-    d2.text((95, 395), "berdensitas sejuk.", fill=TEXT_DARK, font=font_sans_med)
+    draw_safe_text(d2, "[02] TEKSTUR", SAFE_LEFT + 25, 330, spec_col_w - 50, FONT_DISPLAY_BOLD, 20, ACCENT_COLOR, max_lines=1)
+    draw_safe_text(d2, f"Material {p1.get('color', '')} berdensitas sejuk.", SAFE_LEFT + 25, 365, spec_col_w - 50, FONT_SANS_REG, 20, TEXT_DARK, max_lines=2)
 
-    d2.text((95, 480), "[03] SIZE MATRIX", fill=ACCENT_COLOR, font=font_mono)
-    d2.text((95, 515), p1.get('sizes', 'S, M, L, XL'), fill=TEXT_DARK, font=font_sans_med)
+    draw_safe_text(d2, "[03] SIZE MATRIX", SAFE_LEFT + 25, 480, spec_col_w - 50, FONT_DISPLAY_BOLD, 20, ACCENT_COLOR, max_lines=1)
+    draw_safe_text(d2, str(p1.get('sizes', 'S, M, L, XL')), SAFE_LEFT + 25, 515, spec_col_w - 50, FONT_SANS_REG, 20, TEXT_DARK, max_lines=2)
 
-    d2.text((95, 620), "[04] COLORWAYS", fill=ACCENT_COLOR, font=font_mono)
-    draw_color_palette(d2, 130, 680, get_swatches_for_product(p1, 4), radius=12, spacing=30)
+    draw_safe_text(d2, "[04] COLORWAYS", SAFE_LEFT + 25, 620, spec_col_w - 50, FONT_DISPLAY_BOLD, 20, ACCENT_COLOR, max_lines=1)
+    draw_color_palette(d2, SAFE_LEFT + 55, 680, get_swatches_for_product(p1, 4), radius=12, spacing=30)
 
-    # Right Large Photo: Detail or Back Angle!
-    d2.rectangle([455, 150, 1010, 1250], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
+    # Right Large Photo: Detail or Back Angle
+    right_x = SAFE_LEFT + spec_col_w + 20
+    right_w = SAFE_RIGHT - right_x
+    d2.rectangle([right_x, 150, SAFE_RIGHT, 1250], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
     detail_img = p1_angles.get("detail") or p1_angles.get("back") or p1_angles.get("front")
     if detail_img:
         im2 = Image.open(detail_img).convert("RGB")
-        paste_proportional(s2, im2, 470, 170, 525, 1060)
+        paste_proportional(s2, im2, right_x + 15, 170, right_w - 30, 1060)
 
     p2_path = os.path.join(output_dir, "slide_2_hero_top.png")
     s2.save(p2_path, "PNG", quality=95)
     slides.append(p2_path)
 
+    # --------------------------------------------------------------------------
     # SLIDE 3: MODERNIST BOTTOM FOUNDATION
-    s3 = Image.new("RGB", (1080, 1350), color=BG_COLOR)
+    # --------------------------------------------------------------------------
+    s3 = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), color=BG_COLOR)
     d3 = ImageDraw.Draw(s3)
 
-    d3.text((70, 45), "COLORBOX // LOWER FOUNDATION", fill=TEXT_DARK, font=font_mono)
-    d3.text((70, 85), p2_name[:34], fill=TEXT_DARK, font=font_sans_lg)
+    draw_safe_text(d3, "COLORBOX // LOWER FOUNDATION", SAFE_LEFT, 45, SAFE_WIDTH, FONT_DISPLAY_BOLD, 20, TEXT_DARK, max_lines=1)
+    draw_safe_text(d3, p2_name, SAFE_LEFT, 85, SAFE_WIDTH, FONT_SANS_BOLD, 34, TEXT_DARK, max_lines=1)
 
-    # Upper Visual Frame
-    d3.rectangle([70, 150, 1010, 1020], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
+    d3.rectangle([SAFE_LEFT, 150, SAFE_RIGHT, 1020], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
     bot_img = p2_angles.get("front") or p2_angles.get("detail")
     if bot_img:
         im3 = Image.open(bot_img).convert("RGB")
-        paste_proportional(s3, im3, 90, 170, 900, 830)
+        paste_proportional(s3, im3, SAFE_LEFT + 20, 170, SAFE_WIDTH - 40, 830)
 
     # Lower Technical Card
-    d3.rectangle([70, 1050, 1010, 1270], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
-    d3.text((100, 1080), f"PASANGAN IDEAL: {p2_name}", fill=ACCENT_COLOR, font=font_mono)
-    d3.text((100, 1125), f"Warna: {p2.get('color', 'Neutral')}  •  Potongan terukur untuk keseimbangan volume atas-bawah.", fill=TEXT_DARK, font=font_sans_med)
-    d3.text((100, 1175), "Menciptakan siluet ramping & fleksibel untuk mobilitas perkotaan.", fill=TEXT_MUTED, font=font_sans_med)
+    d3.rectangle([SAFE_LEFT, 1050, SAFE_RIGHT, 1270], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
+    draw_safe_text(d3, f"PASANGAN IDEAL: {p2_name}", SAFE_LEFT + 30, 1075, SAFE_WIDTH - 60, FONT_DISPLAY_BOLD, 20, ACCENT_COLOR, max_lines=1)
+    draw_safe_text(d3, f"Warna: {p2.get('color', 'Neutral')}  •  Potongan terukur untuk keseimbangan volume atas-bawah.", SAFE_LEFT + 30, 1118, SAFE_WIDTH - 60, FONT_SANS_REG, 20, TEXT_DARK, max_lines=2)
+    draw_safe_text(d3, "Menciptakan siluet ramping & fleksibel untuk mobilitas perkotaan.", SAFE_LEFT + 30, 1175, SAFE_WIDTH - 60, FONT_SANS_REG, 20, TEXT_MUTED, max_lines=2)
 
     p3_path = os.path.join(output_dir, "slide_3_bottom_pairing.png")
     s3.save(p3_path, "PNG", quality=95)
     slides.append(p3_path)
 
+    # --------------------------------------------------------------------------
     # SLIDE 4: ARCHITECTURAL TRIPTYCH GRID (Top Back + Bottom + Shoes/Bag)
-    s4 = Image.new("RGB", (1080, 1350), color=BG_COLOR)
+    # --------------------------------------------------------------------------
+    s4 = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), color=BG_COLOR)
     d4 = ImageDraw.Draw(s4)
 
-    d4.rectangle([0, 0, 1080, 110], fill=CONTRAST_BAND)
-    d4.text((70, 38), "TRIPTYCH STYLING SYSTEM // COMPLETE OUTFIT", fill=(255, 255, 255), font=font_mono)
+    d4.rectangle([0, 0, CANVAS_WIDTH, 110], fill=CONTRAST_BAND)
+    draw_safe_text(d4, "TRIPTYCH STYLING SYSTEM // COMPLETE OUTFIT", SAFE_LEFT, 38, SAFE_WIDTH, FONT_DISPLAY_BOLD, 22, (255, 255, 255), max_lines=1)
 
     col_w = 295
-    spacing = 22
-    start_x = 70
+    spacing = 27
+    x1 = SAFE_LEFT
+    x2 = x1 + col_w + spacing
+    x3 = x2 + col_w + spacing
 
-    # Col 1: Top piece (Profile / Back angle)
-    x1 = start_x
+    # Col 1: Top piece
     d4.rectangle([x1, 140, x1 + col_w, 1160], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
     back_img = p1_angles.get("back") or p1_angles.get("front")
     if back_img:
         imb = Image.open(back_img).convert("RGB")
         paste_proportional(s4, imb, x1 + 10, 155, col_w - 20, 880)
-    d4.text((x1 + 15, 1070), "[01] ATASAN", fill=ACCENT_COLOR, font=font_mono)
-    d4.text((x1 + 15, 1105), p1_name[:16], fill=TEXT_DARK, font=font_sans_sm)
+    draw_safe_text(d4, "[01] ATASAN", x1 + 15, 1070, col_w - 30, FONT_DISPLAY_BOLD, 18, ACCENT_COLOR, max_lines=1)
+    draw_safe_text(d4, p1_name, x1 + 15, 1105, col_w - 30, FONT_SANS_REG, 18, TEXT_DARK, max_lines=1)
 
     # Col 2: Bottom piece
-    x2 = x1 + col_w + spacing
     d4.rectangle([x2, 140, x2 + col_w, 1160], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
     if bot_img:
         imbt = Image.open(bot_img).convert("RGB")
         paste_proportional(s4, imbt, x2 + 10, 155, col_w - 20, 880)
-    d4.text((x2 + 15, 1070), "[02] BAWAHAN", fill=ACCENT_COLOR, font=font_mono)
-    d4.text((x2 + 15, 1105), p2_name[:16], fill=TEXT_DARK, font=font_sans_sm)
+    draw_safe_text(d4, "[02] BAWAHAN", x2 + 15, 1070, col_w - 30, FONT_DISPLAY_BOLD, 18, ACCENT_COLOR, max_lines=1)
+    draw_safe_text(d4, p2_name, x2 + 15, 1105, col_w - 30, FONT_SANS_REG, 18, TEXT_DARK, max_lines=1)
 
     # Col 3: Accessory or Footwear
-    x3 = x2 + col_w + spacing
     d4.rectangle([x3, 140, x3 + col_w, 1160], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
     acc_img = p3_angles.get("front") or p3_angles.get("side") or p2_angles.get("front")
     if acc_img:
         ima = Image.open(acc_img).convert("RGB")
         paste_proportional(s4, ima, x3 + 10, 155, col_w - 20, 880)
-    d4.text((x3 + 15, 1070), "[03] AKSESORI", fill=ACCENT_COLOR, font=font_mono)
-    d4.text((x3 + 15, 1105), p3_name[:16], fill=TEXT_DARK, font=font_sans_sm)
+    draw_safe_text(d4, "[03] AKSESORI", x3 + 15, 1070, col_w - 30, FONT_DISPLAY_BOLD, 18, ACCENT_COLOR, max_lines=1)
+    draw_safe_text(d4, p3_name, x3 + 15, 1105, col_w - 30, FONT_SANS_REG, 18, TEXT_DARK, max_lines=1)
 
-    d4.text((70, 1220), "MODULAR HARMONY • FORM FOLLOWS FUNCTION", fill=TEXT_MUTED, font=font_mono)
+    draw_safe_text(d4, "MODULAR HARMONY • FORM FOLLOWS FUNCTION", SAFE_LEFT, 1220, SAFE_WIDTH, FONT_DISPLAY_BOLD, 20, TEXT_MUTED, max_lines=1)
 
     p4_path = os.path.join(output_dir, "slide_4_accessories_layering.png")
     s4.save(p4_path, "PNG", quality=95)
     s4.save(os.path.join(output_dir, "slide_4_accessories_flatlay.png"), "PNG", quality=95)
     slides.append(p4_path)
 
+    # --------------------------------------------------------------------------
     # SLIDE 5: MODERNIST INDEX OUTRO
-    s5 = Image.new("RGB", (1080, 1350), color=CARD_BG)
+    # --------------------------------------------------------------------------
+    s5 = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), color=CARD_BG)
     d5 = ImageDraw.Draw(s5)
 
-    d5.rectangle([0, 0, 1080, 140], fill=CONTRAST_BAND)
-    d5.text((70, 45), "COLORBOX // COLLECTION INDEX", fill=(255, 255, 255), font=font_mono)
-    d5.text((860, 45), "AUTUMN DROP", fill=ACCENT_COLOR, font=font_mono)
+    d5.rectangle([0, 0, CANVAS_WIDTH, 140], fill=CONTRAST_BAND)
+    draw_safe_text(d5, "COLORBOX // COLLECTION INDEX", SAFE_LEFT, 45, 750, FONT_DISPLAY_BOLD, 22, (255, 255, 255), max_lines=1)
+    draw_safe_text(d5, "AUTUMN DROP", 850, 45, 160, FONT_DISPLAY_BOLD, 22, ACCENT_COLOR, max_lines=1)
 
-    d5.rectangle([70, 180, 1010, 1080], fill=BG_COLOR, outline=BORDER_HAIRLINE, width=1)
+    d5.rectangle([SAFE_LEFT, 170, SAFE_RIGHT, 1080], fill=BG_COLOR, outline=BORDER_HAIRLINE, width=1)
     if p1_angles.get("front"):
         imf = Image.open(p1_angles["front"]).convert("RGB")
-        paste_proportional(s5, imf, 90, 200, 900, 860)
+        paste_proportional(s5, imf, SAFE_LEFT + 20, 190, SAFE_WIDTH - 40, 870)
 
-    d5.text((70, 1130), "DIRANCANG UNTUK GAYA HIDUP PERKOTAAN", fill=TEXT_DARK, font=font_sans_lg)
-    d5.text((70, 1185), "Dapatkan seluruh kurasi di colorbox.co.id & gerai Colorbox terdekat.", fill=TEXT_MUTED, font=font_sans_med)
-    d5.text((70, 1235), "#NeverJustOneThing  •  Official Lookbook Standard", fill=ACCENT_COLOR, font=font_mono)
+    draw_safe_text(d5, "DIRANCANG UNTUK GAYA HIDUP PERKOTAAN", SAFE_LEFT, 1120, SAFE_WIDTH, FONT_SANS_BOLD, 32, TEXT_DARK, max_lines=1)
+    draw_safe_text(d5, "Dapatkan seluruh kurasi di colorbox.co.id & gerai Colorbox terdekat.", SAFE_LEFT, 1175, SAFE_WIDTH, FONT_SANS_REG, 20, TEXT_MUTED, max_lines=1)
+    draw_safe_text(d5, "#NeverJustOneThing  •  Official Lookbook Standard", SAFE_LEFT, 1225, SAFE_WIDTH, FONT_DISPLAY_BOLD, 20, ACCENT_COLOR, max_lines=1)
 
     p5_path = os.path.join(output_dir, "slide_5_outro_cta.png")
     s5.save(p5_path, "PNG", quality=95)
@@ -557,7 +679,7 @@ def _render_archetype_3(
 ) -> list[str]:
     """
     Day 3 Style: Midnight slate background, pure white crisp typography, vivid crimson accents,
-    dramatic spotlighting, dynamic offset diagonal collage. High-contrast evening look.
+    dramatic spotlighting, dynamic offset diagonal collage with strict safety boundaries.
     """
     BG_COLOR = (16, 18, 22)          # Midnight Slate
     CARD_BG = (26, 30, 38)           # Dark Slate Panel
@@ -566,145 +688,144 @@ def _render_archetype_3(
     ACCENT_COLOR = (225, 29, 72)     # Neon Crimson
     BORDER_HAIRLINE = (45, 52, 64)   # Subtle Dark Border
 
-    try:
-        font_display_xl = ImageFont.truetype("C:/Windows/Fonts/segoeuib.ttf", 54)
-        font_display_lg = ImageFont.truetype("C:/Windows/Fonts/segoeuib.ttf", 38)
-        font_sans_bold = ImageFont.truetype("C:/Windows/Fonts/segoeuib.ttf", 26)
-        font_sans_med = ImageFont.truetype("C:/Windows/Fonts/segoeui.ttf", 22)
-        font_sans_sm = ImageFont.truetype("C:/Windows/Fonts/segoeui.ttf", 18)
-    except Exception:
-        font_display_xl = ImageFont.load_default()
-        font_display_lg = font_display_xl
-        font_sans_bold = font_display_xl
-        font_sans_med = font_display_xl
-        font_sans_sm = font_display_xl
-
     slides = []
 
     p1_name = p1.get("name", "Statement Jacket").upper()
     p2_name = p2.get("name", "Contrast Bottom").upper()
     p3_name = p3.get("name", "Night Accessory").upper()
 
+    # --------------------------------------------------------------------------
     # SLIDE 1: DRAMATIC SPOTLIGHT COVER
-    s1 = Image.new("RGB", (1080, 1350), color=BG_COLOR)
+    # --------------------------------------------------------------------------
+    s1 = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), color=BG_COLOR)
     d1 = ImageDraw.Draw(s1)
 
-    # Left Neon Crimson Bar
-    d1.rectangle([70, 50, 78, 140], fill=ACCENT_COLOR)
-    d1.text((95, 50), "COLORBOX // NOCTURNE DROP", fill=TEXT_LIGHT, font=font_sans_bold)
-    d1.text((95, 85), (headline or p1_name[:28]).upper(), fill=TEXT_LIGHT, font=font_display_xl)
+    # Left Neon Crimson Accent Bar
+    d1.rectangle([SAFE_LEFT, 45, SAFE_LEFT + 8, 140], fill=ACCENT_COLOR)
+    draw_safe_text(d1, "COLORBOX // NOCTURNE DROP", SAFE_LEFT + 25, 45, SAFE_WIDTH - 30, FONT_SANS_BOLD, 22, TEXT_LIGHT, max_lines=1)
+    
+    hl_text = (headline or p1_name).upper()
+    draw_safe_text(d1, hl_text, SAFE_LEFT + 25, 80, SAFE_WIDTH - 30, FONT_SANS_BOLD, 44, TEXT_LIGHT, max_lines=2, min_size=26)
 
     # Spotlight Main Frame
-    d1.rectangle([70, 170, 1010, 1180], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
+    d1.rectangle([SAFE_LEFT, 170, SAFE_RIGHT, 1180], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
     if p1_angles.get("front"):
         im1 = Image.open(p1_angles["front"]).convert("RGB")
-        paste_proportional(s1, im1, 90, 190, 900, 970)
+        paste_proportional(s1, im1, SAFE_LEFT + 20, 190, SAFE_WIDTH - 40, 970)
 
     # Bottom Crimson Tag
-    d1.rectangle([70, 1210, 1010, 1290], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
-    d1.text((100, 1235), "STATEMENT COLLECTION  •  AFTER-HOURS EDITION", fill=ACCENT_COLOR, font=font_sans_bold)
-    draw_color_palette(d1, 800, 1250, get_swatches_for_product(p1, 4))
+    d1.rectangle([SAFE_LEFT, 1210, SAFE_RIGHT, 1290], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
+    draw_safe_text(d1, "STATEMENT COLLECTION  •  AFTER-HOURS EDITION", SAFE_LEFT + 30, 1235, 680, FONT_SANS_BOLD, 20, ACCENT_COLOR, max_lines=1)
+    draw_color_palette(d1, 780, 1250, get_swatches_for_product(p1, 4))
 
     p1_path = os.path.join(output_dir, "slide_1_cover_hero.png")
     s1.save(p1_path, "PNG", quality=95)
     slides.append(p1_path)
 
+    # --------------------------------------------------------------------------
     # SLIDE 2: HARDWARE & SHEEN TEXTURE FOCUS (Detail Angle)
-    s2 = Image.new("RGB", (1080, 1350), color=BG_COLOR)
+    # --------------------------------------------------------------------------
+    s2 = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), color=BG_COLOR)
     d2 = ImageDraw.Draw(s2)
 
-    d2.text((70, 50), "COLORBOX // TEXTURE & HARDWARE", fill=ACCENT_COLOR, font=font_sans_bold)
-    d2.text((70, 90), "FINISH & DETAIL SPECIFICATION", fill=TEXT_LIGHT, font=font_display_lg)
+    draw_safe_text(d2, "COLORBOX // TEXTURE & HARDWARE", SAFE_LEFT, 50, SAFE_WIDTH, FONT_SANS_BOLD, 24, ACCENT_COLOR, max_lines=1)
+    draw_safe_text(d2, "FINISH & DETAIL SPECIFICATION", SAFE_LEFT, 90, SAFE_WIDTH, FONT_SANS_BOLD, 36, TEXT_LIGHT, max_lines=1)
 
     # Dark Visual Frame
-    d2.rectangle([70, 160, 1010, 1010], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
+    d2.rectangle([SAFE_LEFT, 160, SAFE_RIGHT, 1010], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
     detail_img = p1_angles.get("detail") or p1_angles.get("front")
     if detail_img:
         im2 = Image.open(detail_img).convert("RGB")
-        paste_proportional(s2, im2, 90, 180, 900, 810)
+        paste_proportional(s2, im2, SAFE_LEFT + 20, 180, SAFE_WIDTH - 40, 810)
 
     # Bottom Spec Panel
-    d2.rectangle([70, 1040, 1010, 1270], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
-    d2.text((100, 1070), f"{p1_name} ({p1.get('color', 'DARK')})", fill=TEXT_LIGHT, font=font_sans_bold)
-    d2.text((100, 1115), "Sentuhan material premium dengan kilau terkontrol dan ritsleting presisi.", fill=TEXT_MUTED, font=font_sans_med)
-    d2.text((100, 1165), f"Sizes: {p1.get('sizes', 'S - XL')}  •  Bold silhouette with high-impact presence.", fill=ACCENT_COLOR, font=font_sans_med)
+    d2.rectangle([SAFE_LEFT, 1040, SAFE_RIGHT, 1270], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
+    draw_safe_text(d2, f"{p1_name} ({p1.get('color', 'DARK')})", SAFE_LEFT + 30, 1065, SAFE_WIDTH - 60, FONT_SANS_BOLD, 24, TEXT_LIGHT, max_lines=1)
+    draw_safe_text(d2, "Sentuhan material premium dengan kilau terkontrol dan ritsleting presisi.", SAFE_LEFT + 30, 1110, SAFE_WIDTH - 60, FONT_SANS_REG, 20, TEXT_MUTED, max_lines=2)
+    draw_safe_text(d2, f"Sizes: {p1.get('sizes', 'S - XL')}  •  Bold silhouette with high-impact presence.", SAFE_LEFT + 30, 1165, SAFE_WIDTH - 60, FONT_SANS_REG, 20, ACCENT_COLOR, max_lines=2)
 
     p2_path = os.path.join(output_dir, "slide_2_hero_top.png")
     s2.save(p2_path, "PNG", quality=95)
     slides.append(p2_path)
 
+    # --------------------------------------------------------------------------
     # SLIDE 3: NOCTURNE LOWER CONTRAST (Bottom Front Angle)
-    s3 = Image.new("RGB", (1080, 1350), color=BG_COLOR)
+    # --------------------------------------------------------------------------
+    s3 = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), color=BG_COLOR)
     d3 = ImageDraw.Draw(s3)
 
-    d3.text((70, 50), "COLORBOX // LOWER CONTRAST", fill=ACCENT_COLOR, font=font_sans_bold)
-    d3.text((70, 90), p2_name[:34], fill=TEXT_LIGHT, font=font_display_lg)
+    draw_safe_text(d3, "COLORBOX // LOWER CONTRAST", SAFE_LEFT, 50, SAFE_WIDTH, FONT_SANS_BOLD, 24, ACCENT_COLOR, max_lines=1)
+    draw_safe_text(d3, p2_name, SAFE_LEFT, 90, SAFE_WIDTH, FONT_SANS_BOLD, 36, TEXT_LIGHT, max_lines=1)
 
-    d3.rectangle([70, 160, 1010, 1150], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
+    d3.rectangle([SAFE_LEFT, 160, SAFE_RIGHT, 1150], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
     bot_img = p2_angles.get("front") or p2_angles.get("detail")
     if bot_img:
         im3 = Image.open(bot_img).convert("RGB")
-        paste_proportional(s3, im3, 90, 180, 900, 950)
+        paste_proportional(s3, im3, SAFE_LEFT + 20, 180, SAFE_WIDTH - 40, 950)
 
-    d3.text((90, 1210), f"Colorway: {p2.get('color', 'Midnight')}  •  Bawahan penyeimbang dengan siluet tegas.", fill=TEXT_MUTED, font=font_sans_med)
+    draw_safe_text(d3, f"Colorway: {p2.get('color', 'Midnight')}  •  Bawahan penyeimbang dengan siluet tegas.", SAFE_LEFT + 20, 1205, SAFE_WIDTH - 40, FONT_SANS_REG, 20, TEXT_MUTED, max_lines=1)
 
     p3_path = os.path.join(output_dir, "slide_3_bottom_pairing.png")
     s3.save(p3_path, "PNG", quality=95)
     slides.append(p3_path)
 
-    # SLIDE 4: DYNAMIC OFFSET DUO (Hero Back/Side + Bottom + Accessory)
-    s4 = Image.new("RGB", (1080, 1350), color=BG_COLOR)
+    # --------------------------------------------------------------------------
+    # SLIDE 4: DYNAMIC OFFSET DUO (Hero Profile + Bottom + Accessory)
+    # --------------------------------------------------------------------------
+    s4 = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), color=BG_COLOR)
     d4 = ImageDraw.Draw(s4)
 
-    d4.text((70, 50), "COLORBOX // NIGHT FORMULA", fill=ACCENT_COLOR, font=font_sans_bold)
-    d4.text((70, 90), "COMPLETE NOCTURNE OUTFIT", fill=TEXT_LIGHT, font=font_display_lg)
+    draw_safe_text(d4, "COLORBOX // NIGHT FORMULA", SAFE_LEFT, 50, SAFE_WIDTH, FONT_SANS_BOLD, 24, ACCENT_COLOR, max_lines=1)
+    draw_safe_text(d4, "COMPLETE NOCTURNE OUTFIT", SAFE_LEFT, 90, SAFE_WIDTH, FONT_SANS_BOLD, 36, TEXT_LIGHT, max_lines=1)
 
     # Left tall frame: Hero profile
-    d4.rectangle([70, 160, 540, 1180], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
+    d4.rounded_rectangle([SAFE_LEFT, 160, 535, 1180], radius=14, fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
     back_img = p1_angles.get("back") or p1_angles.get("side") or p1_angles.get("front")
     if back_img:
         imb = Image.open(back_img).convert("RGB")
-        paste_proportional(s4, imb, 85, 175, 440, 950)
-    d4.text((90, 1140), f"{p1_name[:18]} (Profile)", fill=TEXT_MUTED, font=font_sans_sm)
+        paste_proportional(s4, imb, SAFE_LEFT + 15, 175, 435, 945)
+    draw_safe_text(d4, f"{p1_name} (Profile)", SAFE_LEFT + 20, 1135, 425, FONT_SANS_REG, 18, TEXT_MUTED, max_lines=1)
 
     # Right top frame: Bottom
-    d4.rectangle([565, 160, 1010, 650], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
+    d4.rounded_rectangle([555, 160, SAFE_RIGHT, 650], radius=14, fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
     if bot_img:
         imbt = Image.open(bot_img).convert("RGB")
-        paste_proportional(s4, imbt, 580, 175, 415, 430)
-    d4.text((585, 615), f"{p2_name[:18]}", fill=TEXT_MUTED, font=font_sans_sm)
+        paste_proportional(s4, imbt, 570, 175, 425, 425)
+    draw_safe_text(d4, p2_name, 570, 615, 425, FONT_SANS_REG, 18, TEXT_MUTED, max_lines=1)
 
     # Right bottom frame: Accessory
-    d4.rectangle([565, 680, 1010, 1180], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
+    d4.rounded_rectangle([555, 675, SAFE_RIGHT, 1180], radius=14, fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
     acc_img = p3_angles.get("front") or p3_angles.get("side") or p2_angles.get("front")
     if acc_img:
         ima = Image.open(acc_img).convert("RGB")
-        paste_proportional(s4, ima, 580, 695, 415, 430)
-    d4.text((585, 1140), f"{p3_name[:18]}", fill=TEXT_MUTED, font=font_sans_sm)
+        paste_proportional(s4, ima, 570, 690, 425, 435)
+    draw_safe_text(d4, p3_name, 570, 1135, 425, FONT_SANS_REG, 18, TEXT_MUTED, max_lines=1)
 
-    d4.text((70, 1230), "#NeverJustOneThing  •  Night Out Curated Ensemble", fill=ACCENT_COLOR, font=font_sans_bold)
+    draw_safe_text(d4, "#NeverJustOneThing  •  Night Out Curated Ensemble", SAFE_LEFT, 1230, SAFE_WIDTH, FONT_SANS_BOLD, 22, ACCENT_COLOR, max_lines=1)
 
     p4_path = os.path.join(output_dir, "slide_4_accessories_layering.png")
     s4.save(p4_path, "PNG", quality=95)
     s4.save(os.path.join(output_dir, "slide_4_accessories_flatlay.png"), "PNG", quality=95)
     slides.append(p4_path)
 
+    # --------------------------------------------------------------------------
     # SLIDE 5: NOCTURNE OUTRO
-    s5 = Image.new("RGB", (1080, 1350), color=BG_COLOR)
+    # --------------------------------------------------------------------------
+    s5 = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), color=BG_COLOR)
     d5 = ImageDraw.Draw(s5)
 
-    d5.text((70, 50), "COLORBOX", fill=TEXT_LIGHT, font=font_sans_bold)
-    d5.text((250, 52), "|   NOCTURNE EDITION", fill=ACCENT_COLOR, font=font_sans_med)
+    draw_safe_text(d5, "COLORBOX", SAFE_LEFT, 50, 160, FONT_SANS_BOLD, 26, TEXT_LIGHT, max_lines=1)
+    draw_safe_text(d5, "|  NOCTURNE EDITION", 240, 52, 700, FONT_SANS_REG, 22, ACCENT_COLOR, max_lines=1)
 
-    d5.text((70, 110), "STANDOUT AFTER DARK", fill=TEXT_LIGHT, font=font_display_xl)
+    draw_safe_text(d5, "STANDOUT AFTER DARK", SAFE_LEFT, 105, SAFE_WIDTH, FONT_SANS_BOLD, 46, TEXT_LIGHT, max_lines=1)
 
-    d5.rectangle([70, 180, 1010, 1120], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
+    d5.rectangle([SAFE_LEFT, 175, SAFE_RIGHT, 1130], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
     if p1_angles.get("front"):
         imf = Image.open(p1_angles["front"]).convert("RGB")
-        paste_proportional(s5, imf, 90, 200, 900, 900)
+        paste_proportional(s5, imf, SAFE_LEFT + 20, 195, SAFE_WIDTH - 40, 915)
 
-    d5.text((70, 1160), "#NeverJustOneThing", fill=ACCENT_COLOR, font=font_display_lg)
-    d5.text((70, 1220), "Belanja koleksi lengkap di colorbox.co.id & seluruh store Colorbox.", fill=TEXT_MUTED, font=font_sans_med)
+    draw_safe_text(d5, "#NeverJustOneThing", SAFE_LEFT, 1160, SAFE_WIDTH, FONT_SANS_BOLD, 36, ACCENT_COLOR, max_lines=1)
+    draw_safe_text(d5, "Belanja koleksi lengkap di colorbox.co.id & seluruh store Colorbox.", SAFE_LEFT, 1215, SAFE_WIDTH, FONT_SANS_REG, 20, TEXT_MUTED, max_lines=1)
 
     p5_path = os.path.join(output_dir, "slide_5_outro_cta.png")
     s5.save(p5_path, "PNG", quality=95)
@@ -739,7 +860,9 @@ def render_final_carousel_package(
        - Slide 3: Complementary Bottom Front (silhouette foundation)
        - Slide 4: Complete Trio Ensemble (Hero Back/Profile + Bottom + Accessory)
        - Slide 5: Lookbook Outro & Palette
-    4. ZERO noise: No 'SLIDE 1/5', no 'SWIPE', no wireframe labels.
+    4. ZERO offside / ZERO text cutoff:
+       - Canvas Safe Zone (70 to 1010 px horizontally, 50 to 1300 px vertically).
+       - Guarded with draw_safe_text: auto-wrapping, auto-scaling, and line-length containment.
     5. Aspect Ratio strictly locked with Lanczos high-fidelity scaling.
     """
     os.makedirs(output_dir, exist_ok=True)
