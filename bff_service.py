@@ -3129,41 +3129,49 @@ def build_curated_wardrobe_outfit(hero_ref: Any = None, day_num: int = 1) -> Lis
     - Dresses pair with Outerwear Layers + Shoes / Bags.
     - Bags / Shoes pair with complete Top + Bottom outfit.
     - Guarantees 3 DISTINCT real items with multi-angle image assets.
+    - Each day uses a ROTATED OFFSET so products NEVER repeat across days.
     """
+    import hashlib
+
     hero = find_authentic_product(hero_ref) if hero_ref else None
     if not hero:
-        if day_num == 1:
-            hero = find_authentic_product("checks blazer")
-        elif day_num == 2:
-            hero = find_authentic_product("hoodie")
-        else:
-            hero = find_authentic_product("leather jacket")
+        # Rotate hero fallback across days using different catalog items
+        fallback_heroes = ["checks blazer", "hoodie", "leather jacket", "suede jacket", "chambray shirt"]
+        hero = find_authentic_product(fallback_heroes[(day_num - 1) % len(fallback_heroes)])
 
     subcat = hero.get("subcat", "outerwear")
 
-    # Available items segregated by role
-    bottoms_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] == "bottoms"]
+    # Available items segregated by role — EXCLUDE hero to avoid duplication
+    bottoms_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] == "bottoms" and x["id"] != hero["id"]]
     tops_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] in ["outerwear", "tops"] and x["id"] != hero["id"]]
-    acc_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] in ["bags", "shoes"]]
+    acc_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] in ["bags", "shoes"] and x["id"] != hero["id"]]
+
+    # Use a day-specific prime offset so each day picks DIFFERENT items from pool
+    # day_num 1→offset 0, 2→offset 2, 3→offset 4 etc to avoid same-index collision
+    day_offset = (day_num - 1) * 2
 
     if subcat in ["outerwear", "tops"]:
-        # Pairing 1: Complementary Bottom!
-        p2 = bottoms_pool[(day_num - 1) % len(bottoms_pool)]
-        # Pairing 2: Complementary Accessory or Shoes!
-        p3 = acc_pool[(day_num - 1) % len(acc_pool)]
+        p2 = bottoms_pool[day_offset % len(bottoms_pool)] if bottoms_pool else AUTHENTIC_IMAGE_CATALOG[0]
+        # Pick accessory at day_offset+1 to ensure different from p2's neighbour
+        p3 = acc_pool[(day_offset + 1) % len(acc_pool)] if acc_pool else AUTHENTIC_IMAGE_CATALOG[0]
     elif subcat == "bottoms":
-        # Pairing 1: Complementary Top / Outerwear!
-        p2 = tops_pool[(day_num - 1) % len(tops_pool)]
-        # Pairing 2: Complementary Accessory or Shoes!
-        p3 = acc_pool[(day_num - 1) % len(acc_pool)]
+        p2 = tops_pool[day_offset % len(tops_pool)] if tops_pool else AUTHENTIC_IMAGE_CATALOG[0]
+        p3 = acc_pool[(day_offset + 1) % len(acc_pool)] if acc_pool else AUTHENTIC_IMAGE_CATALOG[0]
     elif subcat == "dress":
-        # Pairing 1: Complementary Outerwear layer
-        outer_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] == "outerwear"]
-        p2 = outer_pool[(day_num - 1) % len(outer_pool)]
-        p3 = acc_pool[(day_num - 1) % len(acc_pool)]
-    else: # bags or shoes
-        p2 = bottoms_pool[(day_num - 1) % len(bottoms_pool)]
-        p3 = tops_pool[(day_num - 1) % len(tops_pool)]
+        outer_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] == "outerwear" and x["id"] != hero["id"]]
+        p2 = outer_pool[day_offset % len(outer_pool)] if outer_pool else AUTHENTIC_IMAGE_CATALOG[0]
+        p3 = acc_pool[(day_offset + 1) % len(acc_pool)] if acc_pool else AUTHENTIC_IMAGE_CATALOG[0]
+    else:  # bags or shoes
+        p2 = bottoms_pool[day_offset % len(bottoms_pool)] if bottoms_pool else AUTHENTIC_IMAGE_CATALOG[0]
+        p3 = tops_pool[(day_offset + 1) % len(tops_pool)] if tops_pool else AUTHENTIC_IMAGE_CATALOG[0]
+
+    # Final dedup guard — if p2==p3 (edge case), shift p3 by 1
+    if p2["id"] == p3["id"]:
+        shift_pool = acc_pool if subcat in ["outerwear", "tops", "bottoms", "dress"] else tops_pool
+        for candidate in shift_pool:
+            if candidate["id"] != hero["id"] and candidate["id"] != p2["id"]:
+                p3 = candidate
+                break
 
     return [hero, p2, p3]
 
@@ -3176,6 +3184,11 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
     except Exception as e:
         print(f"[Vina Visual Engine Import Error]: {e}")
         return ""
+
+    # --- DEBUG LOG: trace exactly what mandate + transcript Vina receives ---
+    mandate_names = [p.get("name", "?") for p in user_mandate_prods]
+    print(f"[Vina] user_mandate_prods ({len(user_mandate_prods)}): {mandate_names}")
+    print(f"[Vina] transcript_lines count: {len(transcript_lines)}")
 
     out_dir = str(MARKETING_OUTPUT_DIR / "carousel_latest")
     img_dir = str(IMAGES_DIR)
@@ -3200,11 +3213,44 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
 
     hero_input = user_mandate_prods[0] if user_mandate_prods else None
 
+    # --- FIX: Extract ALL product mentions from transcript so each day gets a DIFFERENT hero ---
+    # Collect up to 5 unique mandated products from transcript scan; fall back to catalog rotation
+    all_mandate_prods = list(user_mandate_prods)  # copy
+    if len(all_mandate_prods) < 3 and transcript_lines:
+        extra_text = " ".join(transcript_lines[-20:])
+        extra_prods, _ = _detect_user_product_mandate(extra_text)
+        for ep in extra_prods:
+            if not any(m["name"] == ep["name"] for m in all_mandate_prods):
+                all_mandate_prods.append(ep)
+                if len(all_mandate_prods) >= 5:
+                    break
+
+    # Build authentic heroes for each day — prefer mandate order, then fall back to catalog rotation
+    _auth_tops = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] in ["outerwear", "tops"]]
+    _auth_bottoms = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] == "bottoms"]
+    _auth_all = _auth_tops + _auth_bottoms  # all wearable hero candidates
+
+    def _pick_hero(day: int, exclude_ids: list) -> Any:
+        """Pick hero for a given day from mandate or rotating catalog — NEVER repeat."""
+        idx = day - 1
+        if idx < len(all_mandate_prods):
+            cand = find_authentic_product(all_mandate_prods[idx])
+            if cand["id"] not in exclude_ids:
+                return cand
+        # Fall back: rotate through catalog avoiding already-used heroes
+        for item in _auth_all[idx % len(_auth_all):] + _auth_all[:idx % len(_auth_all)]:
+            if item["id"] not in exclude_ids:
+                return item
+        return _auth_all[idx % len(_auth_all)]  # last resort
+
     if is_three_days:
-        # Build 3 truly distinct category-aware outfits
-        day1_prods = build_curated_wardrobe_outfit(hero_input or "checks blazer", day_num=1)
-        day2_prods = build_curated_wardrobe_outfit("hoodie", day_num=2)
-        day3_prods = build_curated_wardrobe_outfit("leather jacket", day_num=3)
+        # Build 3 truly distinct category-aware outfits with UNIQUE heroes per day
+        h1 = _pick_hero(1, [])
+        h2 = _pick_hero(2, [h1["id"]])
+        h3 = _pick_hero(3, [h1["id"], h2["id"]])
+        day1_prods = build_curated_wardrobe_outfit(h1, day_num=1)
+        day2_prods = build_curated_wardrobe_outfit(h2, day_num=2)
+        day3_prods = build_curated_wardrobe_outfit(h3, day_num=3)
 
         try:
             d1_title = bram_concept or f"ATELIER SARTORIAL // {day1_prods[0]['name'].upper()}"
@@ -3377,7 +3423,7 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                 who = "User" if m["role"] == "user" else by_id.get(m["bot_id"], {}).get("name", m["bot_id"] or "Agen")
                 transcript_lines.append(f"{who}: {m['text']}")
 
-            # Detect product mandate from user
+            # Detect product mandate from user AND from agent transcript (Meda/Raka/Bram may mention product names)
             user_text_candidate = batch_text
             if not user_text_candidate and transcript_lines:
                 for ln in transcript_lines:
@@ -3385,6 +3431,16 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                         user_text_candidate = ln[5:].strip()
                         break
             user_mandate_prods, user_mandate_note = _detect_user_product_mandate(user_text_candidate)
+
+            # --- FIX: If still no product mandate, scan FULL transcript for product mentions ---
+            # Agents (Meda/Raka/Bram) often explicitly name products in their outputs;
+            # we scan last 15 transcript lines so Vina receives correct hero product.
+            if not user_mandate_prods and transcript_lines:
+                agent_text_scan = " ".join(transcript_lines[-15:])
+                agent_prods, agent_note = _detect_user_product_mandate(agent_text_scan)
+                if agent_prods:
+                    user_mandate_prods = agent_prods
+                    user_mandate_note = agent_note + "\n[Produk terdeteksi dari brief agen Meda/Raka/Bram]"
 
             posted = 0
             tokens_used = 0
@@ -3529,7 +3585,20 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                             if cleaned:
                                 if bid == "vina":
                                     try:
-                                        vina_carousel_md = _render_vina_visual_carousel(transcript_lines, user_mandate_prods)
+                                        # --- FIX: Re-scan transcript JUST before Vina renders ---
+                                        # By this point Meda/Raka/Bram have all spoken; their product
+                                        # mentions are now in transcript_lines. Refresh mandate so Vina
+                                        # receives ACTUAL brief products, not just the user's first text.
+                                        live_scan_text = " ".join(transcript_lines[-20:])
+                                        live_prods, _ = _detect_user_product_mandate(live_scan_text)
+                                        # Merge: prefer original mandate, then add live discoveries
+                                        merged_prods = list(user_mandate_prods)
+                                        for lp in live_prods:
+                                            if not any(m["name"] == lp["name"] for m in merged_prods):
+                                                merged_prods.append(lp)
+                                        effective_mandate = merged_prods or user_mandate_prods
+                                        print(f"[Vina Inject] effective_mandate: {[p.get('name') for p in effective_mandate]}")
+                                        vina_carousel_md = _render_vina_visual_carousel(transcript_lines, effective_mandate)
                                         if vina_carousel_md:
                                             cleaned += "\n\n" + vina_carousel_md
                                     except Exception as ex:
