@@ -26,13 +26,31 @@ export const toolsFrom = (x: unknown): ToolChip[] | undefined =>
 // A run that ended: nothing is still "running".
 export const settle = (tools: ToolChip[]): ToolChip[] => (tools.some((t) => t.status === 'run') ? tools.map((t) => (t.status === 'run' ? { ...t, status: 'done' as const } : t)) : tools)
 
+// The one place that turns an engine tool name (session_search, read_file...) into words for the user.
+// shortcut: pattern list, add a line when the engine ships a new tool; unknown names fall back to a readable form of the name.
 const LABELS: [RegExp, string][] = [
   [/^skills?_/, 'Membaca panduan'],
-  [/^session_search/, 'Mencari riwayat'],
+  [/^session_search/, 'Mencari percakapan lama'],
   [/^web/, 'Mencari di web'],
-  [/^memory/, 'Membuka memori'],
+  [/^(browser|navigate)/, 'Membuka halaman web'],
+  [/^(read_file|file_read|search_files|list_files|grep|glob)/, 'Membaca berkas'],
+  [/^(write_file|patch|edit_file|file_write)/, 'Menulis berkas'],
+  [/^(terminal|shell|bash|execute|process)/, 'Menjalankan perintah'],
+  [/^(code_exec|python)/, 'Menjalankan kode'],
+  [/^memory/, 'Membuka ingatan'],
   [/^vision/, 'Melihat gambar'],
   [/^image_gen/, 'Membuat gambar'],
   [/^todo/, 'Menyusun langkah'],
+  [/^clarify/, 'Bertanya kepada Anda'],
+  [/^(delegate|delegation)/, 'Membagi tugas'],
+  [/^(cron|schedule)/, 'Mengatur jadwal'],
+  [/^kanban/, 'Mengelola tugas'],
+  [/^(kb_|knowledge)/, 'Membaca pengetahuan'],
+  [/^(drive|gdrive|gmail|notion|connection)/, 'Memakai aplikasi tersambung'],
 ]
-export const toolLabel = (tool: string): string => LABELS.find(([re]) => re.test(tool))?.[1] ?? tool
+export const toolLabel = (tool: string): string => {
+  const hit = LABELS.find(([re]) => re.test(tool))?.[1]
+  if (hit) return hit
+  const words = tool.replace(/[_.-]+/g, ' ').trim()
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : 'Langkah kerja'
+}

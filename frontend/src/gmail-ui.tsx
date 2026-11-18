@@ -25,7 +25,8 @@ export function GmailDraftButton({ text }: { text: string }) {
 
 function DraftDialog({ text, onClose }: { text: string; onClose: () => void }) {
   const conns = useConnections()
-  const status = conns.data?.find((c) => c.provider === 'gmail')?.status
+  const conn = conns.data?.find((c) => c.provider === 'gmail')
+  const status = conn?.status === 'needs_scope' ? 'connected' : conn?.status // reading and drafting still work without the newer permission
   const first = firstLine(text)
   const [to, setTo] = useState('')
   const [subject, setSubject] = useState(first.length <= 120 ? first : '')
@@ -57,13 +58,14 @@ function DraftDialog({ text, onClose }: { text: string; onClose: () => void }) {
           <p>
             {status === 'not_configured' && 'Gmail belum diatur oleh administrator.'}
             {status === 'reconnect' && 'Sambungan Gmail perlu disambungkan ulang.'}
+            {status === 'broken' && (conn?.reason ?? 'Gmail sedang bermasalah.')}
             {(status === 'disconnected' || !status) && 'Gmail belum tersambung.'}
           </p>
           <div className="dlg-foot">
             <button className="btn quiet-btn" type="button" onClick={onClose}>
               Tutup
             </button>
-            {status !== 'not_configured' && (
+            {status !== 'not_configured' && !(status === 'broken' && conn?.needs === 'admin') && (
               <a className="btn primary" href="#/aplikasi" onClick={onClose}>
                 Buka Aplikasi
               </a>

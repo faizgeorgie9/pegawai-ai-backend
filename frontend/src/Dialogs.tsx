@@ -235,13 +235,13 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
   }
 
   return (
-    <Dialog title={id ? 'Atur anggota' : 'Grup baru'} onClose={onClose}>
+    <Dialog title={id ? 'Atur anggota' : 'Tim baru'} onClose={onClose}>
       <form onSubmit={(e) => void submit(e)} className="dlg-body" noValidate>
         <fieldset disabled={busy}>
           <label className="field">
-            <span>Nama grup</span>
+            <span>Nama tim</span>
             <input value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="Contoh: Kampanye Desember" aria-invalid={tried && !name.trim()} />
-            {tried && !name.trim() && <small className="err" role="alert">Nama grup wajib diisi.</small>}
+            {tried && !name.trim() && <small className="err" role="alert">Nama tim wajib diisi.</small>}
           </label>
           <div className="field">
             <span className="field-row">
@@ -272,7 +272,7 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
               ))}
             </div>
             {tried && picked.length < 2 && <small className="err" role="alert">Pilih minimal 2 anggota.</small>}
-            {teamsPicked.size > 1 && <p className="note-line">Grup lintas tim</p>}
+            {teamsPicked.size > 1 && <p className="note-line">Anggota dari beberapa tim</p>}
           </div>
         </fieldset>
         <ProblemLine p={problem} onPlan={() => setDialog({ kind: 'plan' })} />
@@ -281,7 +281,7 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
             Batal
           </button>
           <button type="submit" className="btn primary" disabled={busy}>
-            {busy ? 'Menyimpan...' : id ? 'Simpan' : 'Buat grup'}
+            {busy ? 'Menyimpan...' : id ? 'Simpan' : 'Buat tim'}
           </button>
         </footer>
       </form>
@@ -343,7 +343,7 @@ function PlanDialog({ onClose }: { onClose: () => void }) {
                 <ul className="plan-limits num">
                   <li>{p.monthly_usd === null ? 'Biaya tanpa batas' : `Batas biaya ${p.monthly_usd.label} per bulan`}</li>
                   <li>{p.max_bots} agen</li>
-                  <li>{p.max_groups} grup</li>
+                  <li>{p.max_groups} tim</li>
                   <li>{p.max_concurrent_runs} tugas berjalan bersamaan</li>
                 </ul>
                 {current ? (
@@ -389,7 +389,7 @@ function DeleteBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
     <Dialog title={`Hapus ${bot.name}?`} onClose={onClose}>
       <div className="dlg-body">
         <p>
-          {bot.name} dihapus dari daftar agen dan dari semua grup. Riwayat chat dengan {bot.name} tidak bisa dibuka lagi. Agen yang sedang bekerja tidak bisa dihapus.
+          {bot.name} dihapus dari daftar agen dan dari semua tim. Riwayat chat dengan {bot.name} tidak bisa dibuka lagi. Agen yang sedang bekerja tidak bisa dihapus.
         </p>
         <ProblemLine p={problem} onPlan={() => {}} />
         <footer className="dlg-foot">

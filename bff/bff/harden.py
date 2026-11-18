@@ -22,7 +22,7 @@ from datetime import date
 import httpx
 from ruamel.yaml import YAML
 
-from . import config, hermes
+from . import bridge, config, hermes
 
 DENY = {"terminal", "file", "code_execution", "browser", "computer_use", "cronjob", "delegation"}
 ALLOW = {"clarify"}  # added to api_server when missing
@@ -65,6 +65,7 @@ def harden(slug: str) -> bool:
     if list(data["platform_toolsets"].get("api_server") or []) != wanted or "api_server" not in data["platform_toolsets"]:
         data["platform_toolsets"]["api_server"] = wanted
         changed = True
+    changed |= bridge._toolset_for(data)  # keep the `pegawai` MCP server selectable when api_server names MCP servers
     cli = data["platform_toolsets"].get("cli")
     if not isinstance(cli, list):
         cli = cli_enabled_toolsets(slug)  # not set yet: start from what the cli platform has now

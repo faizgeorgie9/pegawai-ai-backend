@@ -4,7 +4,8 @@ import type { Bot, BotDetail } from './bff'
 import { useData } from './data'
 import { agenPath, botPath, go } from './router'
 import { BotAvatar, COLORS, ErrorLine, botColor, nf, stamp, teamLabel } from './ui'
-import { CapChip, Empty, EffortSelect, Loading, ModelSelect, PageHead, Opt, defaultEffortLabel, defaultModelLabel, effortWord, modelKey, splitModel, statusText, toolsetText, useLoad } from './ui-extra'
+import { AgentSkills } from './skills-ui'
+import { Empty, EffortSelect, Loading, ModelSelect, PageHead, Opt, defaultEffortLabel, defaultModelLabel, effortWord, modelKey, splitModel, statusText, useLoad } from './ui-extra'
 
 // ---------- Daftar ----------
 export function AgentList() {
@@ -103,10 +104,6 @@ export function AgentDetail({ id }: { id: string }) {
         api.runs('recent', 8, id),
         api.usageBots('month'),
         api.usageBots('all'),
-        api.tools(id).then(
-          (t) => t.bots[0] ?? null,
-          () => null,
-        ),
         api.models().catch(() => null),
       ]),
     [id],
@@ -124,7 +121,7 @@ export function AgentDetail({ id }: { id: string }) {
       </section>
     )
   const b = bot.data as BotDetail
-  const [sessions, runs, um, ua, tools, cat] = extra.data ?? [[], [], [], [], null, null]
+  const [sessions, runs, um, ua, cat] = extra.data ?? [[], [], [], [], null]
   const month = um.find((x) => x.bot_id === id)
   const all = ua.find((x) => x.bot_id === id)
 
@@ -210,21 +207,8 @@ export function AgentDetail({ id }: { id: string }) {
           </dl>
 
           <div className="cbox">
-            <h2>Alat yang aktif</h2>
-            {!tools || !tools.ok ? (
-              <p className="quiet">
-                <CapChip cap="unknown" /> Daftar alat belum bisa dimuat. Coba lagi sebentar.
-              </p>
-            ) : (
-              <div className="chip-row">
-                {tools.toolsets.filter((t) => t.enabled).map((t) => (
-                  <span key={t.name} className="chip" title={toolsetText(t.name, '', t.description)[1]}>
-                    {toolsetText(t.name, '', t.description)[0]}
-                  </span>
-                ))}
-                {tools.toolsets.every((t) => !t.enabled) && <span className="quiet">Tidak ada alat aktif.</span>}
-              </div>
-            )}
+            <h2>Keahlian agen</h2>
+            <AgentSkills slug={id} />
           </div>
 
           <div className="block">

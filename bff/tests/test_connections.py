@@ -1,5 +1,5 @@
-"""Connections (Google Drive, Gmail, Notion): OAuth state and PKCE, encrypted token storage, refresh and revoked grants,
-Drive / Notion import, Gmail draft shape, user scoping. Provider endpoints are mocked with respx; nothing leaves the machine.
+"""Connections (Google Drive, Gmail): OAuth state and PKCE, encrypted token storage, refresh and revoked grants,
+Drive import, Gmail draft shape, user scoping. Provider endpoints are mocked with respx; nothing leaves the machine.
 The tests marked with_db need TEST_DATABASE_URL (see test_scheduler.py)."""
 import asyncio
 import base64
@@ -24,8 +24,6 @@ from bff.errors import ApiError
 def creds(monkeypatch):
     monkeypatch.setattr(config, "GOOGLE_CLIENT_ID", "gid")
     monkeypatch.setattr(config, "GOOGLE_CLIENT_SECRET", "gsecret")
-    monkeypatch.setattr(config, "NOTION_CLIENT_ID", "nid")
-    monkeypatch.setattr(config, "NOTION_CLIENT_SECRET", "nsecret")
     monkeypatch.setattr(config, "CONNECTIONS_KEY", Fernet.generate_key().decode())
     monkeypatch.setattr(config, "PUBLIC_BASE_URL", "http://localhost:5173")
 
@@ -47,7 +45,7 @@ def google_ok(scope, refresh="rt-1", expires_in=3600):
     return {"access_token": "at-1", "refresh_token": refresh, "expires_in": expires_in, "scope": scope}
 
 
-DRIVE_SCOPE = "openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/drive.readonly"
+DRIVE_SCOPE = "openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/drive"
 GMAIL_SCOPE = "openid https://www.googleapis.com/auth/gmail.compose"
 
 
@@ -63,9 +61,11 @@ async def connect_google(user, provider="gdrive", scope=DRIVE_SCOPE):
 
 def test_missing_env_means_not_configured(monkeypatch):
     monkeypatch.setattr(config, "GOOGLE_CLIENT_ID", "")
-    assert not connections.configured("gdrive") and not connections.configured("gmail") and connections.configured("notion")
+    assert not connections.configured("gdrive") and not connections.configured("gmail")
+    monkeypatch.setattr(config, "GOOGLE_CLIENT_ID", "gid")
+    assert connections.configured("gdrive")
     monkeypatch.setattr(config, "CONNECTIONS_KEY", "")
-    assert not connections.configured("notion")  # no key: no tokens are ever stored
+    assert not connections.configured("gdrive")  # no key: no tokens are ever stored
     with pytest.raises(ApiError) as e:
         connections.encrypt("secret-token")
     assert e.value.status == 503
@@ -87,7 +87,7 @@ async def test_list_states_and_start_refuses_when_not_configured(db):
     u = uid()
     config.GOOGLE_CLIENT_SECRET = ""  # the autouse fixture restores it
     got = {c["provider"]: c["status"] for c in await connections.list_all(u)}
-    assert got == {"gdrive": "not_configured", "gmail": "not_configured", "notion": "disconnected"}
+    assert got == {"gdrive": "not_configured", "gmail": "not_configured"}
     with pytest.raises(ApiError) as e:
         await connections.start(u, "gdrive")
     assert e.value.status == 409 and "administrator" in e.value.message
@@ -100,13 +100,11 @@ async def test_list_tells_the_admin_what_is_missing_without_exposing_values(db):
     config.GOOGLE_CLIENT_ID = ""
     config.CONNECTIONS_KEY = ""
     got = {c["provider"]: c for c in await connections.list_all(uid())}
-    g, n = got["gdrive"], got["notion"]
+    g = got["gdrive"]
     assert g["redirect_uri"] == got["gmail"]["redirect_uri"] == "http://localhost:5173/bff/api/connections/google/callback"
-    assert n["redirect_uri"] == "http://localhost:5173/bff/api/connections/notion/callback"
     filled = lambda c: {i["env"]: i["filled"] for i in c["setup"]}  # noqa: E731
     assert filled(g) == {"GOOGLE_CLIENT_ID": False, "GOOGLE_CLIENT_SECRET": True, "CONNECTIONS_KEY": False}
-    assert filled(n) == {"NOTION_CLIENT_ID": True, "NOTION_CLIENT_SECRET": True, "CONNECTIONS_KEY": False}
-    assert "gsecret" not in json.dumps(got) and "nsecret" not in json.dumps(got)  # only filled / not filled
+    assert "gsecret" not in json.dumps(got)  # only filled / not filled
 
 
 # ---------- start: consent address, state, PKCE ----------
@@ -117,21 +115,15 @@ async def test_google_consent_url_has_state_pkce_and_exact_scopes(db):
     q = qs((await connections.start(u, "gdrive"))["url"])
     assert q["client_id"] == "gid" and q["response_type"] == "code" and q["access_type"] == "offline"
     assert q["redirect_uri"] == "http://localhost:5173/bff/api/connections/google/callback"
-    assert q["scope"].split() == ["openid", "email", "https://www.googleapis.com/auth/drive.readonly"]
+    assert q["scope"].split() == ["openid", "email", "https://www.googleapis.com/auth/drive"]
     assert q["code_challenge_method"] == "S256" and len(q["state"]) >= 40
     row = await db.q1("select * from oauth_states where user_id = %s", u)
     assert row["state_hash"] != q["state"] and row["provider"] == "gdrive"  # only the hash is stored
     expected = base64.urlsafe_b64encode(hashlib.sha256(row["verifier"].encode()).digest()).rstrip(b"=").decode()
     assert q["code_challenge"] == expected
     gm = qs((await connections.start(u, "gmail"))["url"])
-    assert gm["scope"].split() == ["openid", "email", "https://www.googleapis.com/auth/gmail.compose"]
-
-
-@with_db
-async def test_notion_consent_url(db):
-    q = qs((await connections.start(uid(), "notion"))["url"])
-    assert q["client_id"] == "nid" and q["owner"] == "user" and q["state"] and "code_challenge" not in q
-    assert q["redirect_uri"] == "http://localhost:5173/bff/api/connections/notion/callback"
+    assert gm["scope"].split() == ["openid", "email", "https://www.googleapis.com/auth/gmail.compose", "https://www.googleapis.com/auth/gmail.readonly",
+                              "https://www.googleapis.com/auth/gmail.modify", "https://www.googleapis.com/auth/gmail.send"]
 
 
 # ---------- callback: state ----------
@@ -148,9 +140,9 @@ async def test_state_wrong_user_expired_reused_and_wrong_family(db):
     s = await consent(a, "gdrive")
     await db.ex("update oauth_states set expires_at = now() - interval '1 minute' where user_id = %s", a)
     assert "reason=state" in await connections.callback(a, "google", {"code": "c", "state": s})
-    # a Google state does not finish a Notion callback
+    # a Google state does not finish another family's callback
     s = await consent(a, "gdrive")
-    assert "reason=state" in await connections.callback(a, "notion", {"code": "c", "state": s})
+    assert "reason=state" in await connections.callback(a, "other", {"code": "c", "state": s})
     # unknown or missing
     assert "reason=state" in await connections.callback(a, "google", {"code": "c", "state": "nope"})
     assert "reason=state" in await connections.callback(a, "google", {"code": "c"})
@@ -184,7 +176,7 @@ async def test_callback_stores_encrypted_tokens_with_pkce_verifier(db):
     row = await db.q1("select * from connections where user_id = %s", u)
     assert "at-1" not in json.dumps(row, default=str) and "rt-1" not in json.dumps(row, default=str)  # no plaintext in the database
     assert connections.decrypt(row["access_enc"]) == "at-1" and connections.decrypt(row["refresh_enc"]) == "rt-1"
-    assert row["account"] == "owner@example.com" and "https://www.googleapis.com/auth/drive.readonly" in row["scopes"]
+    assert row["account"] == "owner@example.com" and "https://www.googleapis.com/auth/drive" in row["scopes"]
     assert row["expires_at"] > datetime.now(timezone.utc) + timedelta(minutes=50)
     got = {c["provider"]: c for c in await connections.list_all(u)}
     assert got["gdrive"]["status"] == "connected" and got["gdrive"]["account"] == "owner@example.com"
@@ -207,22 +199,6 @@ async def test_callback_token_failure_is_an_error_not_a_connection(db):
         respx.post(connections.GOOGLE_TOKEN).respond(400, json={"error": "invalid_grant"})
         url = await connections.callback(u, "google", {"code": "bad", "state": state})
     assert "reason=exchange" in url and not await db.q1("select 1 from connections where user_id = %s", u)
-
-
-@with_db
-async def test_notion_callback_uses_basic_auth_and_labels_workspace(db):
-    u = uid()
-    state = await consent(u, "notion")
-    with respx.mock:
-        tok = respx.post(connections.NOTION_TOKEN).respond(json={"access_token": "secret_n", "workspace_name": "Toko Kaos"})
-        url = await connections.callback(u, "notion", {"code": "nc", "state": state})
-    assert "connect=ok" in url
-    req = tok.calls[0].request
-    assert req.headers["authorization"] == "Basic " + base64.b64encode(b"nid:nsecret").decode()
-    assert json.loads(req.content)["redirect_uri"].endswith("/bff/api/connections/notion/callback")
-    row = await db.q1("select * from connections where user_id = %s", u)
-    assert row["account"] == "Toko Kaos" and row["expires_at"] is None and "secret_n" not in json.dumps(row, default=str)
-    assert await connections.access_token(u, "notion") == "secret_n"
 
 
 # ---------- refresh, revoked, disconnect, scoping ----------
@@ -419,75 +395,6 @@ def test_drive_needs_connect_message_is_kept():
     assert "tanpa login" in kb.DRIVE_NEEDS_CONNECT and "Google Drive" in kb.DRIVE_NEEDS_CONNECT
 
 
-# ---------- Notion ----------
-
-def rt(text):
-    return [{"plain_text": text}]
-
-
-def test_block_to_text():
-    L = integrations.block_line
-    assert L({"type": "heading_2", "heading_2": {"rich_text": rt("Harga")}}) == "## Harga"
-    assert L({"type": "paragraph", "paragraph": {"rich_text": [{"plain_text": "Halo "}, {"plain_text": "dunia"}]}}) == "Halo dunia"
-    assert L({"type": "to_do", "to_do": {"rich_text": rt("Kirim"), "checked": True}}) == "- [x] Kirim"
-    assert L({"type": "bulleted_list_item", "bulleted_list_item": {"rich_text": rt("a")}}) == "- a"
-    assert L({"type": "code", "code": {"rich_text": rt("x=1"), "language": "python"}}) == "```python\nx=1\n```"
-    assert L({"type": "table_row", "table_row": {"cells": [rt("A"), rt("B")]}}) == "A | B"
-    assert L({"type": "divider", "divider": {}}) == "---"
-    assert L({"type": "unsupported", "unsupported": {}}) is None
-
-
-@with_db
-async def test_notion_search_and_import_with_pagination_and_nesting(db):
-    u = uid()
-    state = await consent(u, "notion")
-    with respx.mock:
-        respx.post(connections.NOTION_TOKEN).respond(json={"access_token": "secret_n", "workspace_name": "Toko"})
-        await connections.callback(u, "notion", {"code": "c", "state": state})
-        s = respx.post(f"{integrations.NOTION_API}/search").respond(json={"has_more": False, "results": [
-            {"object": "page", "id": "page-1111", "last_edited_time": "2026-11-12T00:00:00Z",
-             "properties": {"Name": {"type": "title", "title": rt("Panduan Toko")}}},
-            {"object": "database", "id": "db-2222"}]})
-        found = await integrations.notion_pages(u, "panduan")
-        body = json.loads(s.calls[0].request.content)
-        assert body["query"] == "panduan" and body["filter"] == {"property": "object", "value": "page"}
-        assert s.calls[0].request.headers["notion-version"] and s.calls[0].request.headers["authorization"] == "Bearer secret_n"
-        assert [p["name"] for p in found["pages"]] == ["Panduan Toko"] and found["next"] is None
-
-        respx.get(f"{integrations.NOTION_API}/pages/page-1111").respond(json={"id": "page-1111", "url": "https://notion.so/p", "properties": {
-            "title": {"type": "title", "title": rt("Panduan Toko")}}})
-        kids = respx.get(f"{integrations.NOTION_API}/blocks/page-1111/children")
-        kids.side_effect = [
-            httpx.Response(200, json={"has_more": True, "next_cursor": "cur2", "results": [
-                {"id": "b1", "type": "heading_1", "heading_1": {"rich_text": rt("Jam buka")}},
-                {"id": "b2", "type": "bulleted_list_item", "bulleted_list_item": {"rich_text": rt("Senin")}, "has_children": True}]}),
-            httpx.Response(200, json={"has_more": False, "results": [
-                {"id": "b3", "type": "paragraph", "paragraph": {"rich_text": rt("Tutup hari Minggu")}}]})]
-        respx.get(f"{integrations.NOTION_API}/blocks/b2/children").respond(json={"has_more": False, "results": [
-            {"id": "b4", "type": "bulleted_list_item", "bulleted_list_item": {"rich_text": rt("09.00 sampai 17.00")}}]})
-        items = await integrations.notion_import(u, ["page-1111"])
-    assert qs(str(kids.calls[1].request.url))["start_cursor"] == "cur2"
-    assert items[0]["status"] == "ready" and items[0]["kind"] == "notion" and items[0]["name"] == "Panduan Toko" and items[0]["refreshable"]
-    text = (await db.q1("select string_agg(text, E'\\n' order by pos) as t from kb_chunks where item_id = %s", items[0]["id"]))["t"]
-    assert "# Jam buka" in text and "- Senin" in text and "  - 09.00 sampai 17.00" in text and "Tutup hari Minggu" in text
-
-
-@with_db
-async def test_notion_depth_and_request_caps(db):
-    u = uid()
-    state = await consent(u, "notion")
-    integrations.NOTION_MAX_REQUESTS = 3
-    with respx.mock:
-        respx.post(connections.NOTION_TOKEN).respond(json={"access_token": "secret_n", "workspace_name": "Toko"})
-        await connections.callback(u, "notion", {"code": "c", "state": state})
-        respx.get(f"{integrations.NOTION_API}/pages/pp-1111").respond(json={"id": "pp-1111", "properties": {}})
-        kids = respx.get(url__regex=rf"{integrations.NOTION_API}/blocks/.*/children").respond(json={"has_more": True, "next_cursor": "x", "results": [
-            {"id": "bb-1111", "type": "paragraph", "paragraph": {"rich_text": rt("baris")}}]})
-        name, _, text = await integrations.notion_read(u, "pp-1111")
-    integrations.NOTION_MAX_REQUESTS = 60
-    assert kids.call_count == 3 and "dipotong" in text and name == "Tanpa judul"
-
-
 # ---------- Gmail ----------
 
 def test_draft_message_shape():
@@ -525,3 +432,112 @@ async def test_gmail_draft_request(db):
     with pytest.raises(ApiError) as e:  # a Drive-only user has no Gmail connection
         await integrations.gmail_draft(uid(), "a@b.com", "s", "b")
     assert e.value.extra["needs"] == "connect"
+
+
+# ---------- provider errors and honest status ----------
+
+def google_err(*reasons, code=403):
+    return json.dumps({"error": {"code": code, "message": "secret detail", "errors": [{"reason": r} for r in reasons]}}).encode()
+
+
+def test_403_body_is_mapped_to_what_the_user_can_do(caplog):
+    e = integrations._denied("gdrive", "Google Drive", google_err("accessNotConfigured"))
+    assert e.status == 503 and e.extra["needs"] == "admin" and e.message == "Layanan Google Drive belum diaktifkan oleh admin. Hubungi admin Anda."
+    disabled = json.dumps({"error": {"status": "PERMISSION_DENIED", "details": [{"reason": "SERVICE_DISABLED"}]}}).encode()
+    assert integrations._denied("gmail", "Gmail", disabled).extra["needs"] == "admin"
+    e = integrations._denied("gdrive", "Google Drive", google_err("insufficientPermissions"))
+    assert e.status == 403 and e.extra["needs"] == "reconnect" and e.message == "Izin Google Drive kurang. Sambungkan ulang dan centang semua izin."
+    other = integrations._denied("gdrive", "Google Drive", google_err("rateLimitExceeded"))
+    assert other.status == 403 and "needs" not in other.extra
+    assert "menolak" in integrations._denied("gdrive", "Google Drive", b"not json").message
+    assert "secret detail" not in caplog.text and "accessNotConfigured" in caplog.text  # reason is logged, the Google message is not
+
+
+@pytest.fixture
+def fake_drive(monkeypatch):
+    """Drive connected for one user without a database: list_all and the token are stubbed, the provider call is real (respx)."""
+    async def list_all(user_id):
+        return [{"provider": "gdrive", "name": "Google Drive", "status": "connected", "connected_at": "t1"},
+                {"provider": "gmail", "name": "Gmail", "status": "disconnected", "connected_at": None}]
+
+    async def token(user_id, provider):
+        return "at-1"
+    monkeypatch.setattr(connections, "list_all", list_all)
+    async def missing(user_id, provider):
+        return list(missing_for.get(provider, []))
+    missing_for = {}
+    monkeypatch.setattr(connections, "access_token", token)
+    monkeypatch.setattr(connections, "missing_scopes", missing)
+    integrations._cache.clear()
+    return missing_for
+
+
+def test_disabled_api_makes_the_connection_broken_not_green(fake_drive):
+    asyncio.run(_test_disabled_api_makes_the_connection_broken_not_green())
+
+
+async def _test_disabled_api_makes_the_connection_broken_not_green():
+    with respx.mock:
+        r = respx.get(f"{integrations.DRIVE_API}/files").respond(403, content=google_err("accessNotConfigured"))
+        got = {c["provider"]: c for c in await integrations.list_checked("u1")}
+        d = got["gdrive"]
+        assert d["status"] == "broken" and d["needs"] == "admin" and "belum diaktifkan oleh admin" in d["reason"]
+        assert "secret detail" not in json.dumps(got)
+        assert qs(str(r.calls[0].request.url))["pageSize"] == "1"
+        await integrations.list_checked("u1")
+        assert r.call_count == 1  # the verdict is cached for a minute
+        with pytest.raises(ApiError) as e:
+            await integrations.drive_list("u1")
+        assert e.value.status == 503 and e.value.extra["needs"] == "admin"
+    assert got["gmail"]["status"] == "disconnected"
+
+
+def test_working_connection_is_checked_once_and_stays_connected(fake_drive):
+    asyncio.run(_test_working_connection_is_checked_once_and_stays_connected())
+
+
+async def _test_working_connection_is_checked_once_and_stays_connected():
+    with respx.mock:
+        r = respx.get(f"{integrations.DRIVE_API}/files").respond(json={"files": []})
+        for _ in range(2):
+            assert {c["provider"]: c["status"] for c in await integrations.list_checked("u1")}["gdrive"] == "connected"
+        assert r.call_count == 1
+        await integrations.list_checked("u1", fresh=True)
+        assert r.call_count == 2
+        r.respond(403, content=google_err("insufficientPermissions"))
+        c = {c["provider"]: c for c in await integrations.list_checked("u1", fresh=True)}["gdrive"]
+    assert c["status"] == "broken" and c["needs"] == "reconnect" and "Sambungkan ulang" in c["reason"]
+
+
+def test_connected_without_the_new_permission_needs_scope_but_still_reads(fake_drive):
+    fake_drive["gdrive"] = ["https://www.googleapis.com/auth/drive"]
+    asyncio.run(_test_needs_scope(fake_drive))
+
+
+async def _test_needs_scope(missing_for):
+    with respx.mock:
+        respx.get(f"{integrations.DRIVE_API}/files").respond(json={"files": []})
+        d = {c["provider"]: c for c in await integrations.list_checked("u1")}["gdrive"]
+        assert d["status"] == "needs_scope" and d["reason"] == integrations.NEEDS_SCOPE_REASON["gdrive"] and "needs" not in d
+        assert "Agen tetap bisa mencari dan membaca" in d["reason"]
+        assert (await integrations.drive_list("u1"))["files"] == []  # reading still works
+        missing_for["gdrive"] = []  # reconnected with every permission
+        assert {c["provider"]: c["status"] for c in await integrations.list_checked("u1")}["gdrive"] == "connected"
+        missing_for["gdrive"] = ["x"]
+        respx.get(f"{integrations.DRIVE_API}/files").respond(403, content=google_err("accessNotConfigured"))
+        integrations._cache.clear()
+        assert {c["provider"]: c["status"] for c in await integrations.list_checked("u1")}["gdrive"] == "broken"  # a failed check wins
+
+
+def test_gmail_reason_and_missing_scopes_helper(monkeypatch):
+    assert "merapikan dan mengirim email" in integrations.NEEDS_SCOPE_REASON["gmail"]
+    rows = {"gdrive": {"scopes": ["openid", "https://www.googleapis.com/auth/drive.readonly"]},
+            "gmail": {"scopes": [s for s in connections.PROVIDERS["gmail"][1] if s.startswith("https://") and not s.endswith("gmail.send")]}}
+
+    async def q1(sql, user_id, provider):
+        return rows.get(provider)
+    monkeypatch.setattr(connections.db, "q1", q1)
+    assert asyncio.run(connections.missing_scopes("u1", "gdrive")) == ["https://www.googleapis.com/auth/drive"]
+    assert asyncio.run(connections.missing_scopes("u1", "gmail")) == ["https://www.googleapis.com/auth/gmail.send"]
+    rows.clear()
+    assert asyncio.run(connections.missing_scopes("u1", "gdrive")) == []

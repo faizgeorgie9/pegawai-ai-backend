@@ -1,5 +1,5 @@
-"""Scheduler and plan approval. The pure parts always run; the tests marked `db` need a throwaway Postgres: set
-TEST_DATABASE_URL (e.g. postgresql://postgres@127.0.0.1:5433/pegawai_ai_test, an empty database) and they run the real SQL."""
+"""Scheduler and plan helpers. The pure parts always run; `with_db` (used by test_tasks.py too) needs a throwaway Postgres: set
+TEST_DATABASE_URL (e.g. postgresql://postgres@127.0.0.1:5433/pegawai_test, an empty database) and the tests run the real SQL."""
 import asyncio
 import os
 import uuid
@@ -62,19 +62,19 @@ def test_slots_are_future_local_times():
 
 def test_plan_slots_reject_past_day():
     plan = plan_schema.parse(fenced(PLAN))[0]
-    out = scheduler.plan_slots(plan, "Asia/Jakarta", JKT_NOW)
+    out = plan_schema.plan_slots(plan, "Asia/Jakarta", JKT_NOW)
     assert out[0][0] == datetime(2026, 11, 17, 2, 0, tzinfo=timezone.utc) and out[0][1].startswith("Hari 1 dari 2")
     with pytest.raises(ApiError) as e:
-        scheduler.plan_slots(plan, "Asia/Jakarta", datetime(2026, 11, 18, 5, 0, tzinfo=timezone.utc))
+        plan_schema.plan_slots(plan, "Asia/Jakarta", datetime(2026, 11, 18, 5, 0, tzinfo=timezone.utc))
     assert e.value.status == 400
 
 
 def test_find_executors_by_role():
     mems = [{"bot_id": "pm", "role": "Project Manager", "name": "Bimo"}, {"bot_id": "w", "role": "Content Writer", "name": "Bram"},
             {"bot_id": "v", "role": "Visual Designer", "name": "Vina"}]
-    assert scheduler.find_executors(mems) == ["w", "v"]
+    assert plan_schema.find_executors(mems) == ["w", "v"]
     with pytest.raises(ApiError) as e:
-        scheduler.find_executors(mems[:2])
+        plan_schema.find_executors(mems[:2])
     assert e.value.status == 409
 
 
@@ -171,128 +171,9 @@ def with_db(fn):
     return db_only(wrapper)
 
 
-async def make_sched(db, uid, at, kind="recurring"):
-    sid = str(uuid.uuid4())
-    await db.ex("insert into schedules (id, user_id, kind, title, bot_id, prompt, days, time_of_day, timezone) "
-                "values (%s, %s, %s, 't', 'rian', 'halo', '{0}', '09:00', 'Asia/Jakarta')", sid, uid, kind)
-    await db.ex("insert into schedule_occurrences (schedule_id, user_id, planned_at, brief) values (%s, %s, %s, 'halo')",
-                sid, uid, at)
-    return sid
-
-
-@with_db
-async def test_claim_is_idempotent_across_concurrent_loops(db):
-    uid = f"u-{uuid.uuid4().hex[:8]}"
-    past = datetime.now(timezone.utc) - timedelta(minutes=5)
-    await make_sched(db, uid, past)
-    got = await asyncio.gather(*[scheduler.claim() for _ in range(8)])
-    mine = [g for g in got if g and g["user_id"] == uid]
-    assert len(mine) == 1 and mine[0]["status"] == "running"
-    assert not await db.q1("select 1 from schedule_occurrences where user_id = %s and status = 'planned'", uid)
-
-
-@with_db
-async def test_claim_skips_future_paused_and_late(db):
-    uid = f"u-{uuid.uuid4().hex[:8]}"
-    now = datetime.now(timezone.utc)
-    future = await make_sched(db, uid, now + timedelta(hours=1))
-    paused = await make_sched(db, uid, now - timedelta(minutes=1))
-    late = await make_sched(db, uid, now - timedelta(hours=3))
-    await db.ex("update schedules set status = 'paused' where id = %s", paused)
-    await scheduler.expire_late()
-    while (c := await scheduler.claim()):  # other tests' rows may be due too
-        assert c["user_id"] != uid
-    rows = {str(r["schedule_id"]): r for r in await db.q("select * from schedule_occurrences where user_id = %s", uid)}
-    assert rows[future]["status"] == rows[paused]["status"] == "planned"
-    assert rows[late]["status"] == "skipped" and rows[late]["skip_reason"] == scheduler.LATE_REASON
-
-
-@with_db
-async def test_run_occurrence_quota_refusal_is_recorded_not_raised(db):
-    from bff import engine
-    uid = f"u-{uuid.uuid4().hex[:8]}"
-    await make_sched(db, uid, datetime.now(timezone.utc) - timedelta(minutes=1))
-    occ = next(c for c in iter(lambda: asyncio.run_coroutine_threadsafe(scheduler.claim(), asyncio.get_running_loop()), None)) \
-        if False else None
-    orig = engine.start_run
-
-    async def refuse(*a, **k):
-        raise ApiError(402, "Batas biaya bulan ini tercapai.", upgrade=True)
-    engine.start_run = refuse
-    try:
-        while (c := await scheduler.claim()):
-            if c["user_id"] == uid:
-                occ = c
-                break
-        res = await scheduler.run_occurrence(occ)
-    finally:
-        engine.start_run = orig
-    row = await db.q1("select * from schedule_occurrences where id = %s", occ["id"])
-    assert res["status"] == "skipped" and row["status"] == "skipped" and "Batas biaya" in row["skip_reason"]
-
-
 async def make_group(db, uid):
     gid = str(uuid.uuid4())
     await db.ex("insert into groups (id, user_id, name) values (%s, %s, 'Tim')", gid, uid)
     for i, b in enumerate(("diana", "rian", "budi")):  # lead, copywriting (writer), visual designer
         await db.ex("insert into group_members (group_id, bot_id, position) values (%s, %s, %s)", gid, b, i)
     return gid
-
-
-def tomorrow_plan():
-    d = (datetime.now(timezone.utc) + timedelta(days=2)).date()
-    return fenced({"plan": {"title": "Uji", "days": [{**DAY, "date": d.isoformat()},
-                                                      {**DAY, "date": (d + timedelta(days=1)).isoformat()}]}})
-
-
-@with_db
-async def test_approve_twice_creates_one_schedule_and_scoping(db):
-    from bff import groups
-    uid = "default"
-    gid = await make_group(db, uid)
-    msg = await groups.post(gid, "bot", tomorrow_plan(), "diana")
-    assert msg["plan"]["schedule_id"] is None
-    a, b = await asyncio.gather(scheduler.approve_plan(uid, gid, msg["id"]), scheduler.approve_plan(uid, gid, msg["id"]))
-    again = await scheduler.approve_plan(uid, gid, msg["id"])
-    assert a["id"] == b["id"] == again["id"]
-    assert (await db.q1("select count(*)::int as n from schedules where source_message_id = %s", msg["id"]))["n"] == 1
-    occs = await db.q("select * from schedule_occurrences where schedule_id = %s", a["id"])
-    assert len(occs) == 2 and all(o["targets"] == ["rian", "budi"] for o in occs)  # writer, then visual
-    listed = (await groups.list_messages(uid, gid, None, 50))
-    assert [m["plan"]["schedule_id"] for m in listed if "plan" in m] == [a["id"]]
-    with pytest.raises(ApiError):  # approved plans cannot be sent back for revision
-        await scheduler.request_revision(uid, gid, msg["id"], "ubah")
-    # another user sees and touches nothing
-    other = f"u-{uuid.uuid4().hex[:8]}"
-    assert await scheduler.views(other) == []
-    for call in (scheduler.pause, scheduler.cancel, scheduler.delete):
-        with pytest.raises(ApiError) as e:
-            await call(other, a["id"])
-        assert e.value.status == 404
-    with pytest.raises(ApiError):
-        await scheduler.approve_plan(other, gid, msg["id"])
-
-
-@with_db
-async def test_invalid_plan_message_cannot_be_approved(db):
-    from bff import groups
-    gid = await make_group(db, "default")
-    msg = await groups.post(gid, "bot", "Rencana: hari 1 posting.", "diana")
-    assert "plan" not in msg
-    with pytest.raises(ApiError) as e:
-        await scheduler.approve_plan("default", gid, msg["id"])
-    assert e.value.status == 404
-
-
-@with_db
-async def test_cancel_marks_planned_occurrences_and_recurring_materializes(db):
-    uid = "default"  # the builtin bots belong to this user
-    v = await scheduler.create(uid, {"title": "Pagi", "prompt": "halo", "days": [0, 1, 2, 3, 4, 5, 6], "time": "09:00", "bot_id": "rian"})
-    n = len([o for o in v["occurrences"] if o["status"] == "planned"])
-    assert n >= 14 and v["next_at"] is not None
-    await scheduler.materialize()  # idempotent: no duplicates
-    assert len((await scheduler.get_view(uid, v["id"]))["occurrences"]) == len(v["occurrences"])
-    c = await scheduler.cancel(uid, v["id"])
-    assert c["status"] == "cancelled" and all(o["status"] == "cancelled" for o in c["occurrences"])
-    await scheduler.delete(uid, v["id"])
-    assert v["id"] not in [x["id"] for x in await scheduler.views(uid)]

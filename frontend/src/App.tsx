@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import Activity from './Activity'
+import { useActions } from './ActionCard'
 import { AgentDetail, AgentEdit, AgentList, AgentNew } from './Agents'
+import { useAdminMode } from './adminMode'
 import { api, errText } from './bff'
 import { ChatLayout, GroupLayout } from './ChatLayout'
 import Dashboard from './Dashboard'
@@ -11,6 +13,7 @@ import { Kemampuan } from './Platform'
 import { AppsPage } from './connections'
 import CS from './CS'
 import Marketing from './Marketing'
+import Pengetahuan from './Pengetahuan'
 import Settings from './Settings'
 import Uji from './Uji'
 import { botPath, go, groupPath, useRoute } from './router'
@@ -74,8 +77,9 @@ function Shell() {
         {route.name === 'agen-baru' && <AgentNew />}
         {route.name === 'agen-detail' && <AgentDetail key={route.id} id={route.id} />}
         {route.name === 'agen-ubah' && <AgentEdit key={route.id} id={route.id} />}
-        {(route.name === 'tools' || route.name === 'computer-use' || route.name === 'scheduler') && <Kemampuan tab={route.name} />}
+        {(route.name === 'tools' || route.name === 'computer-use') && <Kemampuan tab={route.name} />}
         {route.name === 'aplikasi' && <AppsPage />}
+        {route.name === 'pengetahuan' && <Pengetahuan />}
         {route.name === 'marketing' && <Marketing />}
         {route.name === 'cs' && <CS />}
         {route.name === 'uji' && <Uji />}
@@ -119,9 +123,11 @@ function Shell() {
 }
 
 // ---------- sidebar ----------
-// Four groups. The agent and group lists live on the Chat and Grup pages, not here.
+// Seven items for everyone; the Admin group (developer and QA screens) shows with admin mode. Admin routes open either way.
 function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
   const { settings } = useData()
+  const admin = useAdminMode()
+  const waiting = useActions().filter((a) => a.status === 'pending').length // risky agent actions (delete a file, send an email) waiting for the user
   return (
     <aside className="side" aria-label="Menu utama">
       <div className="side-top">
@@ -138,45 +144,21 @@ function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
       </div>
 
       <nav className="side-scroll" aria-label="Halaman">
-        <NavGroup label="Percakapan">
-          <NavItem href="#/" icon={I.home} current={route.name === 'home'}>
+        <NavGroup>
+          <NavItem href="#/" icon={I.home} current={route.name === 'home'} badge={waiting}>
             Beranda
+          </NavItem>
+          <NavItem href="#/grup" icon={I.group} current={route.name === 'grup-list' || route.name === 'grup'}>
+            Tim
           </NavItem>
           <NavItem href="#/chat" icon={I.chat} current={route.name === 'chat' || route.name === 'bot'}>
             Chat
           </NavItem>
-          <NavItem href="#/grup" icon={I.group} current={route.name === 'grup-list' || route.name === 'grup'}>
-            Grup
-          </NavItem>
           <NavItem href="#/kanban" icon={I.board} current={route.name === 'kanban'}>
-            Kanban
+            Jadwal &amp; tugas
           </NavItem>
-        </NavGroup>
-
-        <NavGroup label="Alur kerja">
-          <NavItem href="#/marketing" team="marketing" icon={I.marketing} current={route.name === 'marketing'}>
-            Marketing
-          </NavItem>
-          <NavItem href="#/cs" team="customer_support" icon={I.support} current={route.name === 'cs'}>
-            Layanan pelanggan
-          </NavItem>
-        </NavGroup>
-
-        <NavGroup label="Pengujian">
-          <NavItem href="#/uji" icon={I.test} current={route.name === 'uji'}>
-            Evaluasi
-          </NavItem>
-          <NavItem href="#/aktivitas" icon={I.log} current={route.name === 'aktivitas'}>
-            Aktivitas
-          </NavItem>
-        </NavGroup>
-
-        <NavGroup label="Pengaturan">
-          <NavItem href="#/agen" icon={I.agent} current={route.name.startsWith('agen')}>
-            Agen
-          </NavItem>
-          <NavItem href="#/tools" icon={I.skills} current={route.name === 'tools' || route.name === 'computer-use' || route.name === 'scheduler'}>
-            Kemampuan
+          <NavItem href="#/pengetahuan" icon={I.book} current={route.name === 'pengetahuan'}>
+            Pengetahuan
           </NavItem>
           <NavItem href="#/aplikasi" icon={I.apps} current={route.name === 'aplikasi'}>
             Aplikasi
@@ -185,6 +167,29 @@ function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
             Pengaturan
           </NavItem>
         </NavGroup>
+
+        {admin && (
+          <NavGroup label="Admin">
+            <NavItem href="#/marketing" team="marketing" icon={I.marketing} current={route.name === 'marketing'}>
+              Marketing (formulir)
+            </NavItem>
+            <NavItem href="#/cs" team="customer_support" icon={I.support} current={route.name === 'cs'}>
+              Layanan pelanggan
+            </NavItem>
+            <NavItem href="#/agen" icon={I.agent} current={route.name.startsWith('agen')}>
+              Agen
+            </NavItem>
+            <NavItem href="#/tools" icon={I.skills} current={route.name === 'tools' || route.name === 'computer-use'}>
+              Kemampuan
+            </NavItem>
+            <NavItem href="#/uji" icon={I.test} current={route.name === 'uji'}>
+              Evaluasi
+            </NavItem>
+            <NavItem href="#/aktivitas" icon={I.log} current={route.name === 'aktivitas'}>
+              Aktivitas
+            </NavItem>
+          </NavGroup>
+        )}
       </nav>
 
       <footer className="side-foot">
@@ -196,20 +201,27 @@ function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
   )
 }
 
-function NavItem({ href, icon, current, team, children }: { href: string; icon: string; current: boolean; team?: string; children: React.ReactNode }) {
+function NavItem({ href, icon, current, team, badge, children }: { href: string; icon: string; current: boolean; team?: string; badge?: number; children: React.ReactNode }) {
   return (
     <a className="nav-link" data-team={team} href={href} aria-current={current ? 'page' : undefined}>
       <Icon d={icon} size={16} />
       {children}
+      {!!badge && (
+        <span className="nav-badge" aria-label={`${badge} menunggu persetujuan`}>
+          {badge}
+        </span>
+      )}
     </a>
   )
 }
 
-function NavGroup({ label, children }: { label: string; children: React.ReactNode }) {
-  const id = 'ng-' + label.toLowerCase()
+function NavGroup({ label, children }: { label?: string; children: React.ReactNode }) {
+  const id = 'ng-' + (label ?? 'utama').toLowerCase()
   return (
     <section className="nav-group" aria-labelledby={id}>
-      <h2 id={id}>{label}</h2>
+      <h2 id={id} className={label ? undefined : 'sr'}>
+        {label ?? 'Menu'}
+      </h2>
       <div className="group-body">{children}</div>
     </section>
   )

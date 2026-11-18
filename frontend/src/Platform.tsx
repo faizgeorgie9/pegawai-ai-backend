@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useAdminMode } from './adminMode'
 import { api } from './bff'
 import { ErrorLine } from './ui'
 import { BlockedBanner, CapChip, Empty, Loading, OFF_WHY, PageHead, SampleBadge, toolsetText, useLoad } from './ui-extra'
-import { Scheduler } from './Scheduler'
 import { AppsLink, forwardOldConnectLink } from './connections'
 import { go } from './router'
 import type { Route } from './router'
@@ -40,7 +40,7 @@ export function Tools() {
   return (
     <div className="tab-body">
       <AppsLink />
-      <p className="note-box">Pengaturan alat per agen belum tersedia. Halaman ini hanya untuk melihat.</p>
+      <p className="note-box">Halaman ini hanya untuk melihat. Untuk mengatur keahlian tiap agen, buka <a href="#/aplikasi">Aplikasi</a> atau detail agennya.</p>
       {t.state === 'loading' && !slow && <Loading text="Memuat daftar alat..." shape="ledger" />}
       {t.state === 'loading' && slow && <ErrorLine text="Daftar alat belum bisa ditampilkan. Coba lagi sebentar." onRetry={t.retry} />}
       {t.state === 'error' && <ErrorLine text={t.error} onRetry={t.retry} />}
@@ -169,16 +169,17 @@ export function ComputerUse() {
 const TABS = [
   { name: 'tools', label: 'Alat', path: '/tools' },
   { name: 'computer-use', label: 'Computer Use', path: '/computer-use' },
-  { name: 'scheduler', label: 'Jadwal', path: '/scheduler' },
 ] as const
 
-export function Kemampuan({ tab }: { tab: Extract<Route['name'], 'tools' | 'computer-use' | 'scheduler'> }) {
-  const i = TABS.findIndex((t) => t.name === tab)
+export function Kemampuan({ tab }: { tab: Extract<Route['name'], 'tools' | 'computer-use'> }) {
+  const admin = useAdminMode()
+  const tabs = TABS.filter((t) => admin || t.name !== 'computer-use' || tab === 'computer-use') // Computer Use is an admin screen; a direct link still opens it
+  const i = tabs.findIndex((t) => t.name === tab)
   function onKey(e: React.KeyboardEvent) {
     const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
     if (!d) return
     e.preventDefault()
-    const n = TABS[(i + d + TABS.length) % TABS.length]
+    const n = tabs[(i + d + tabs.length) % tabs.length]
     go(n.path, true)
     document.getElementById('tab-' + n.name)?.focus()
   }
@@ -186,7 +187,7 @@ export function Kemampuan({ tab }: { tab: Extract<Route['name'], 'tools' | 'comp
     <section className="page">
       <PageHead title="Kemampuan" sub="Apa yang bisa dan belum bisa dipakai agen." />
       <div className="tabs" role="tablist" aria-label="Kemampuan" onKeyDown={onKey}>
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <a key={t.name} id={'tab-' + t.name} role="tab" href={'#' + t.path} aria-selected={t.name === tab} aria-controls="tabpanel" tabIndex={t.name === tab ? 0 : -1}>
             {t.label}
             {t.name === 'computer-use' && <span className="tab-tag">Nonaktif</span>}
@@ -196,7 +197,6 @@ export function Kemampuan({ tab }: { tab: Extract<Route['name'], 'tools' | 'comp
       <div id="tabpanel" role="tabpanel" aria-labelledby={'tab-' + tab}>
         {tab === 'tools' && <Tools />}
         {tab === 'computer-use' && <ComputerUse />}
-        {tab === 'scheduler' && <Scheduler />}
       </div>
     </section>
   )

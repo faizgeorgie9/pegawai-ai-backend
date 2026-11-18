@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import Activity from './Activity'
 import { api, errText } from './bff'
 import type { Bot, Group, Scope, Usage } from './bff'
+import { useAdminMode } from './adminMode'
 import { useData } from './data'
 import { CostMeter, Perkiraan } from './ui-extra'
 import { go } from './router'
@@ -208,6 +209,7 @@ function Bar({ ratio, color }: { ratio: number; color: string }) {
 }
 
 function Tokens({ scope, version, bot, members, group }: Scoped) {
+  const admin = useAdminMode() // token counts are for admins; everyone sees the cost
   const { bots, me } = useData()
   const u = useRemote<Usage>(() => api.usage(scope), scopeKey(scope), version)
   const month = useRemote(() => api.usageBots('month'), 'month', version)
@@ -222,6 +224,7 @@ function Tokens({ scope, version, bot, members, group }: Scoped) {
         {u.data && u.data.total.runs === 0 && <p className="quiet">Belum ada biaya di percakapan ini.</p>}
         {u.data && u.data.total.runs > 0 && (
           <>
+            {admin && (
             <dl className="stats num">
               <div>
                 <dt>Teks masuk</dt>
@@ -242,11 +245,12 @@ function Tokens({ scope, version, bot, members, group }: Scoped) {
                 </dd>
               </div>
             </dl>
-            <p className="quiet small">Angka di atas dalam token: potongan kecil teks yang dibaca dan ditulis agen. Biaya dihitung dari jumlahnya.</p>
+            )}
+            {admin && <p className="quiet small">Angka di atas dalam token: potongan kecil teks yang dibaca dan ditulis agen. Biaya dihitung dari jumlahnya.</p>}
             <p className="cost-line">
               Biaya percakapan ini <b className="num">{u.data.cost.label}</b> {u.data.basis === 'estimated' && <Perkiraan reasons={u.data.estimate_reasons} />}
             </p>
-            {group && (
+            {admin && group && (
               <p className="quiet small">
                 Batas per kiriman grup: <b>{me?.limits.group_send_token_budget == null ? 'Tanpa batas' : `${dash(me.limits.group_send_token_budget)} token`}</b>
               </p>
@@ -259,12 +263,12 @@ function Tokens({ scope, version, bot, members, group }: Scoped) {
                     <span className="bar-top">
                       <span>{b.name}</span>
                       <span className="num">
-                        {dash(b.total)} <small className="quiet">· {b.runs} tugas</small>
+                        {admin ? dash(b.total) : b.cost.label} <small className="quiet">· {b.runs} tugas</small>
                       </span>
                     </span>
                     <Bar ratio={b.total / Math.max(1, u.data!.by_bot[0].total)} color="var(--accent)" />
                     <small className="quiet num">
-                      {dash(b.input)} teks masuk, {dash(b.output)} teks keluar · {b.cost.label}
+                      {admin ? `${dash(b.input)} teks masuk, ${dash(b.output)} teks keluar · ` : ''}{b.cost.label}
                       {b.estimated && ' (perkiraan)'}
                     </small>
                   </li>
@@ -281,11 +285,17 @@ function Tokens({ scope, version, bot, members, group }: Scoped) {
                   </span>
                   <span className="quiet">{clock(t.created_at)}</span>
                   <span className="turn-tok">
-                    <small className="quiet">
-                      {dash(t.input)} / {dash(t.output)}
-                    </small>{' '}
-                    <b>{dash(t.total)}</b>
-                    <small className="quiet"> · {t.cost.label}</small>
+                    {admin ? (
+                      <>
+                        <small className="quiet">
+                          {dash(t.input)} / {dash(t.output)}
+                        </small>{' '}
+                        <b>{dash(t.total)}</b>
+                        <small className="quiet"> · {t.cost.label}</small>
+                      </>
+                    ) : (
+                      <b>{t.cost.label}</b>
+                    )}
                   </span>
                 </li>
               ))}
@@ -307,7 +317,7 @@ function Tokens({ scope, version, bot, members, group }: Scoped) {
                   <span>{b.name}</span>
                   <span className="num">
                     {b.cost.label}
-                    {b.estimated && <small className="quiet"> perkiraan</small>} <small className="quiet">· {dash(b.total)}</small>
+                    {b.estimated && <small className="quiet"> perkiraan</small>} {admin && <small className="quiet">· {dash(b.total)}</small>}
                   </span>
                 </span>
                 <Bar ratio={b.total / Math.max(1, month.data![0].total)} color="var(--accent)" />
@@ -395,7 +405,7 @@ function GroupInfo({ group, members }: { group: Group; members: Bot[] }) {
   return (
     <div className="p-scroll">
       <label className="field">
-        <span>Nama grup</span>
+        <span>Nama tim</span>
         <input
           value={name}
           maxLength={60}
@@ -434,16 +444,16 @@ function GroupInfo({ group, members }: { group: Group; members: Bot[] }) {
       <div className="danger-zone">
         {!confirm ? (
           <button className="btn quiet-btn danger-text" onClick={() => setConfirm(true)}>
-            Hapus grup
+            Hapus tim
           </button>
         ) : (
           <div role="alert" className="confirm-box">
             <p>
-              Hapus grup &ldquo;{group.name}&rdquo;? Diskusi yang berjalan dihentikan dan grup hilang dari daftar.
+              Hapus tim &ldquo;{group.name}&rdquo;? Diskusi yang berjalan dihentikan dan tim hilang dari daftar.
             </p>
             <div className="confirm-actions">
               <button className="btn danger" disabled={busy} onClick={() => void remove()}>
-                {busy ? 'Menghapus...' : 'Hapus grup'}
+                {busy ? 'Menghapus...' : 'Hapus tim'}
               </button>
               <button className="btn quiet-btn" disabled={busy} onClick={() => setConfirm(false)}>
                 Batal

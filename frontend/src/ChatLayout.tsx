@@ -21,6 +21,9 @@ const remember = (key: string, id?: string) => {
   }
 }
 
+// The team's project manager is the main contact: listed first in its team.
+const isLead = (b: Bot) => /project manager/i.test(b.role)
+
 const titleOf = (s: Session) => s.title || s.preview.replace(/\.{3}$/, '') || 'Topik tanpa judul'
 
 // The session list of the open bot: both the rail and the chat use it.
@@ -99,6 +102,7 @@ export function ChatLayout({ route }: { route: Extract<Route, { name: 'bot' } | 
   const [open, setOpen] = useState(false)
   const [menu, setMenu] = useState<string | null>(null)
   const teams = bots.reduce<Record<string, Bot[]>>((acc, b) => ((acc[b.team] ??= []).push(b), acc), {})
+  for (const list of Object.values(teams)) list.sort((a, b) => Number(isLead(b)) - Number(isLead(a))) // stable: the rest keep their order
 
   useEffect(() => setOpen(false), [route])
   // On a wide screen "Chat" opens the agent you used last (or the first one); on a phone the list is the page.
@@ -142,6 +146,7 @@ export function ChatLayout({ route }: { route: Extract<Route, { name: 'bot' } | 
                     <BotAvatar bot={b} size={28} />
                     <span className="bot-text">
                       <b>{b.name}</b>
+                      {isLead(b) && <small className="lead">Kontak utama</small>}
                       <small className="st">{b.status === 'idle' && !b.deleteError ? b.role : statusText(b)}</small>
                     </span>
                     <span className="status-dot" data-s={b.status} role="img" aria-label={b.status === 'idle' ? 'Siap' : b.status === 'working' ? 'Bekerja' : 'Berdiskusi'} />
@@ -185,17 +190,12 @@ export function ChatLayout({ route }: { route: Extract<Route, { name: 'bot' } | 
             <PageState what="Agen" loadState={loadState} error={error} reload={reload} />
           )
         ) : (
-          <Intro title="Chat" text="Tanya bebas ke satu agen. Pilih agen dari daftar.">
+          <Intro title="Chat" text="Tanya satu agen secara langsung. Untuk pekerjaan besar, mulai dari Tim.">
             <p className="quiet small">
-              Butuh alur kerja? Buka{' '}
-              <a className="empty-link" href="#/marketing">
-                Marketing
-              </a>{' '}
-              atau{' '}
-              <a className="empty-link" href="#/cs">
-                Customer Service
+              <a className="empty-link" href="#/grup">
+                Mulai dari Tim
               </a>
-              .
+              , lalu pilih agen dari daftar bila perlu.
             </p>
           </Intro>
         )}
@@ -220,19 +220,19 @@ export function GroupLayout({ route }: { route: Extract<Route, { name: 'grup' } 
   return (
     <div className="with-rail" data-picked={gid ? '' : undefined}>
       <Rail
-        label="Daftar grup"
-        title="Grup"
+        label="Daftar tim"
+        title="Tim"
         action={
           <button className="btn soft sm" onClick={() => setDialog({ kind: 'group' })}>
-            Grup baru
+            Tim baru
           </button>
         }
         open={open}
         onClose={() => setOpen(false)}
       >
-        {loadState === 'loading' && <p className="quiet pad">Memuat grup...</p>}
+        {loadState === 'loading' && <p className="quiet pad">Memuat tim...</p>}
         {loadState === 'error' && groups.length === 0 && <ErrorLine text={error} onRetry={reload} />}
-        {loadState === 'ok' && groups.length === 0 && <p className="quiet pad">Belum ada grup. Gabungkan 2 sampai 6 agen lewat Grup baru.</p>}
+        {loadState === 'ok' && groups.length === 0 && <p className="quiet pad">Belum ada tim. Gabungkan 2 sampai 6 agen lewat Tim baru.</p>}
         <ul>
           {groups.map((g) => {
             const ms = g.members.map((m) => bots.find((b) => b.id === m)).filter((b): b is Bot => !!b)
@@ -260,9 +260,9 @@ export function GroupLayout({ route }: { route: Extract<Route, { name: 'grup' } 
         {gid ? (
           <GroupChat key={gid} id={gid} onRail={() => setOpen(true)} />
         ) : (
-          <Intro title="Grup" text="Beberapa agen berdiskusi dalam satu percakapan. Pilih grup dari daftar.">
+          <Intro title="Tim" text="Beberapa agen bekerja sama dalam satu percakapan. Pilih tim dari daftar.">
             <button className="btn primary" onClick={() => setDialog({ kind: 'group' })}>
-              Grup baru
+              Tim baru
             </button>
           </Intro>
         )}

@@ -113,21 +113,45 @@ async def list_messages(user_id: str, gid: str, before: int | None, limit: int) 
     rows = await db.q("select * from (select id, group_id, author, bot_id, text, run_id, created_at from group_messages "
                       "where group_id = %s and (%s::bigint is null or id < %s) order by id desc limit %s) t order by id",
                       gid, before, before, limit)
-    return await with_plans(rows)
+    return await with_tasks(await with_plans(rows))
+
+
+async def with_tasks(rows: list[dict]) -> list[dict]:
+    """Adds `task` {id, title} to a bot message whose run worked on a task or created one with the task tools (the chat shows a link chip)."""
+    ids = [str(r["run_id"]) for r in rows if r["author"] == "bot" and r["run_id"]]
+    if not ids:
+        return rows
+    found = {r["rid"]: r for r in await db.q(
+        "select r.id::text as rid, t.id::text as id, t.title from runs r join tasks t on t.id = r.task_id where r.id::text = any(%s) "
+        "union select t.source_ref->>'run_id', t.id::text, t.title from tasks t where t.source_ref->>'run_id' = any(%s)", ids, ids)}
+    return [{**r, "task": {"id": found[str(r["run_id"])]["id"], "title": found[str(r["run_id"])]["title"]}} if r["run_id"] and str(r["run_id"]) in found else r
+            for r in rows]
 
 
 async def with_plans(rows: list[dict]) -> list[dict]:
     """Adds `plan` to a bot message that ends with a valid plan block (see plan_schema): the plan, its errors never. `plan` has
-    `schedule_id` (the schedule created when the user approved it, else null). Invalid or absent: the message is plain text."""
+    `task_id` (the plan task, null until there is one) and `state` (pending | approved | cancelled | replaced).
+    Invalid or absent: the message is plain text."""
     found = {}
     for r in rows:
         if r["author"] == "bot":
             p, _ = plan_schema.parse(r["text"])
             if p:
                 found[r["id"]] = p
-    sched = {r["source_message_id"]: str(r["id"]) for r in await db.q(
-        "select id, source_message_id from schedules where source_message_id = any(%s)", list(found))} if found else {}
-    return [{**r, "plan": {**found[r["id"]], "schedule_id": sched.get(r["id"])}} if r["id"] in found else r for r in rows]
+    mine = {r["mid"]: r for r in await db.q(
+        "select id, status, outcome, source_ref, source_ref->>'message_id' as mid from tasks where kind = 'plan' and "
+        "source_ref->>'message_id' = any(%s)", [str(i) for i in found])} if found else {}
+    return [{**r, "plan": {**found[r["id"]], "task_id": str(mine[str(r["id"])]["id"]) if str(r["id"]) in mine else None,
+                           "state": plan_state(mine.get(str(r["id"])))}} if r["id"] in found else r for r in rows]
+
+
+def plan_state(t: dict | None) -> str:
+    """What a plan card says, from the plan's task row: pending (also when there is no task yet), approved, cancelled, replaced."""
+    if not t or t["status"] == "review":
+        return "pending"
+    if t["status"] == "archived" and t["outcome"] == "cancelled":
+        return "replaced" if t["source_ref"].get("replaced") else "cancelled"
+    return "approved"
 
 
 async def remove_bot_from_groups(bot_id: str) -> None:
@@ -142,6 +166,11 @@ async def post(gid: str, author: str, text: str, bot_id: str | None = None, run_
                       "values (%s, %s, %s, %s, %s, %s, %s) returning id, group_id, author, bot_id, text, run_id, created_at",
                       gid, author, bot_id, text, run_id, send_id, kb_items or None)
     row = (await with_plans([row]))[0]
+    if "plan" in row:  # a valid plan becomes a task waiting for approval (Papan Tugas)
+        from . import tasks  # lazy: tasks imports groups
+        await tasks.plan_posted(gid, row)
+        row = (await with_plans([row]))[0]
+    row = (await with_tasks([row]))[0]
     hub.publish("*", "group_message", {"group_id": gid, "message": row})
     return row
 
@@ -188,16 +217,55 @@ async def send(user_id: str, gid: str, text, mode: str, kb_items=None) -> dict:
     await db.ex("insert into group_sends (id, group_id, message_id, status) values (%s, %s, %s, 'queued')",
                 str(uuid.uuid4()), gid, msg["id"])
     if mode == "steer":
-        st.cancel_round = True
-        if st.run_id and st.bot:
-            try:
-                await engine.steer(user_id, st.run_id, f"User: {text}")
-                await db.ex("insert into group_cursors (group_id, bot_id, last_message_id) values (%s, %s, %s) "
-                            "on conflict (group_id, bot_id) do update set last_message_id = greatest("
-                            "group_cursors.last_message_id, excluded.last_message_id)", gid, st.bot, msg["id"])
-            except ApiError:
-                pass  # run just finished: the message waits for the next loop like a queued one
+        await _steer_now(user_id, gid, st, msg["id"], text)
     return {"message": msg, "queued": True}
+
+
+async def _steer_now(user_id: str, gid: str, st: SendState, message_id: int, text: str) -> None:
+    """Hand a message to the bot that is working right now, in the middle of its run."""
+    st.cancel_round = True
+    if st.run_id and st.bot:
+        try:
+            await engine.steer(user_id, st.run_id, f"User: {text}")
+            await db.ex("insert into group_cursors (group_id, bot_id, last_message_id) values (%s, %s, %s) "
+                        "on conflict (group_id, bot_id) do update set last_message_id = greatest("
+                        "group_cursors.last_message_id, excluded.last_message_id)", gid, st.bot, message_id)
+        except ApiError:
+            pass  # run just finished: the message waits for the next loop like a queued one
+
+
+def _check_message_id(message_id) -> int:
+    if isinstance(message_id, bool) or not isinstance(message_id, int) or message_id < 1:
+        raise ApiError(404, "Pesan tidak ditemukan")
+    return message_id
+
+
+TOO_LATE = "Pesan ini sudah dibaca agen, jadi tidak bisa diubah lagi."
+
+
+async def steer_queued(user_id: str, gid: str, message_id: int) -> dict:
+    """'Kirim sekarang' on a message waiting in the queue: same steer as sending with Ctrl+Enter."""
+    await get_group(user_id, gid)
+    mid = _check_message_id(message_id)
+    row = await db.q1("select gm.text from group_sends gs join group_messages gm on gm.id = gs.message_id "
+                      "where gs.group_id = %s and gs.message_id = %s and gs.status = 'queued' and gm.author = 'user'", gid, mid)
+    st = ACTIVE.get(gid)
+    if not row or st is None:
+        raise ApiError(409, TOO_LATE)
+    await _steer_now(user_id, gid, st, mid, row["text"])
+    return {"steered": True}
+
+
+async def cancel_queued(user_id: str, gid: str, message_id: int) -> dict:
+    """The x on a queued message: removes it from the queue and from the transcript, in one statement, only while still queued."""
+    await get_group(user_id, gid)
+    mid = _check_message_id(message_id)
+    gone = await db.q("with d as (delete from group_sends where group_id = %s and message_id = %s and status = 'queued' returning message_id) "
+                      "delete from group_messages where group_id = %s and author = 'user' and id in (select message_id from d) returning id",
+                      gid, mid, gid)
+    if not gone:
+        raise ApiError(409, TOO_LATE)
+    return {"deleted": True}
 
 
 def _start_loop(user_id: str, gid: str, msgs: list[tuple[int, str]]) -> None:

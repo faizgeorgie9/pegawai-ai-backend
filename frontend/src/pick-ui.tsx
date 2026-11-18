@@ -5,19 +5,19 @@ import { useConnections } from './connections'
 import { Dialog, ErrorLine } from './ui'
 import { Loading } from './ui-extra'
 
-// One picker for Google Drive files and Notion pages: search, tick, import into the Knowledge Base (BFF does the reading).
+// One picker for Google Drive files: search, tick, import into the Knowledge Base (BFF does the reading).
 const COPY = {
   gdrive: { name: 'Google Drive', title: 'Pilih dari Drive', search: 'Cari nama berkas', what: 'berkas' },
-  notion: { name: 'Notion', title: 'Pilih dari Notion', search: 'Cari judul halaman', what: 'halaman' },
 } as const
 
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '')
 const size = (n: number | null) => (n == null ? '' : n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`)
 
-export function SourcePicker({ provider, onClose, onDone }: { provider: Extract<ConnProvider, 'gdrive' | 'notion'>; onClose: () => void; onDone: (ok: ImportResult[]) => void }) {
+export function SourcePicker({ provider, onClose, onDone }: { provider: Extract<ConnProvider, 'gdrive'>; onClose: () => void; onDone: (ok: ImportResult[]) => void }) {
   const t = COPY[provider]
   const conns = useConnections()
-  const status = conns.data?.find((c) => c.provider === provider)?.status
+  const conn = conns.data?.find((c) => c.provider === provider)
+  const status = conn?.status === 'needs_scope' ? 'connected' : conn?.status // reading and drafting still work without the newer permission
   const [q, setQ] = useState('')
   const [term, setTerm] = useState('')
   const [items, setItems] = useState<PickItem[]>([])
@@ -32,7 +32,7 @@ export function SourcePicker({ provider, onClose, onDone }: { provider: Extract<
     setLoad('loading')
     setError('')
     try {
-      const r = await (provider === 'gdrive' ? api.driveFiles(search, cursor) : api.notionPages(search, cursor))
+      const r = await api.driveFiles(search, cursor)
       setItems((cur) => (cursor ? [...cur, ...r.items] : r.items))
       setNext(r.next)
       setLoad('idle')
@@ -50,7 +50,7 @@ export function SourcePicker({ provider, onClose, onDone }: { provider: Extract<
     setBusy(true)
     setFailed([])
     try {
-      const res = await (provider === 'gdrive' ? api.driveImport(pick) : api.notionImport(pick))
+      const res = await api.driveImport(pick)
       const bad = res.filter((r) => r.status === 'failed')
       const ok = res.filter((r) => r.status === 'ready')
       if (ok.length) onDone(ok)
@@ -77,8 +77,9 @@ export function SourcePicker({ provider, onClose, onDone }: { provider: Extract<
               {status === 'not_configured' && `${t.name} belum diatur oleh administrator.`}
               {status === 'disconnected' && `${t.name} belum tersambung.`}
               {status === 'reconnect' && `Sambungan ${t.name} perlu disambungkan ulang.`}
+              {status === 'broken' && (conn?.reason ?? `${t.name} sedang bermasalah.`)}
             </p>
-            {status !== 'not_configured' && (
+            {status !== 'not_configured' && !(status === 'broken' && conn?.needs === 'admin') && (
               <a className="btn soft" href="#/aplikasi">
                 Buka Aplikasi
               </a>
@@ -105,7 +106,7 @@ export function SourcePicker({ provider, onClose, onDone }: { provider: Extract<
             {load === 'loading' && !items.length && <Loading text={`Memuat ${t.what}...`} shape="lines" />}
             {load !== 'loading' && load !== 'error' && !items.length && (
               <p className="quiet">
-                {term ? `Tidak ada ${t.what} yang cocok dengan "${term}".` : provider === 'notion' ? 'Belum ada halaman yang dibagikan ke aplikasi ini. Di Notion, buka halaman lalu pilih Hubungkan ke aplikasi ini.' : 'Belum ada berkas yang bisa dipilih.'}
+                {term ? `Tidak ada ${t.what} yang cocok dengan "${term}".` : 'Belum ada berkas yang bisa dipilih.'}
               </p>
             )}
             {items.length > 0 && (

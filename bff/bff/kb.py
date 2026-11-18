@@ -319,7 +319,7 @@ def drive_target(url: str) -> tuple[str, str] | None:
 
 def view(row: dict) -> dict:
     return {**{k: row[k] for k in ("kind", "name", "source", "status", "error", "size_bytes", "chars", "created_at")},
-            "id": str(row["id"]), "refreshable": bool(row.get("ext_id"))}
+            "id": str(row["id"]), "refreshable": bool(row.get("ext_id")), "has_file": bool(row.get("has_file"))}
 
 
 async def _new_item(user_id: str, kind: str, name: str, source: str | None, size: int | None) -> dict:
@@ -346,6 +346,17 @@ async def _ready(item: dict, text: str, name: str | None = None, kind: str | Non
             return view(await cur.fetchone())
 
 
+# Content types an original may be served with (allowlist; the browser never sniffs, see main.py kb_file).
+FILE_MIMES = {".pdf": "application/pdf", ".txt": "text/plain; charset=utf-8", ".md": "text/plain; charset=utf-8",
+              ".csv": "text/csv; charset=utf-8",
+              ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+MAX_VIEW_CHARS = 200_000             # stored text returned for preview
+
+
+def file_mime(name: str) -> str:
+    return FILE_MIMES["." + name.lower().rsplit(".", 1)[-1]]
+
+
 def check_file(name: str, size: int) -> None:
     """Server-side type and size check; rejected files never become an item."""
     if not name.lower().endswith(FILE_TYPES):
@@ -366,7 +377,10 @@ async def ingest_file(user_id: str, name: str, data: bytes) -> dict:
         return await _fail(item, str(e))
     except Exception:
         return await _fail(item, "Berkas ini tidak bisa diproses.")
-    return await _ready(item, text)
+    item = await _ready(item, text)
+    await db.ex("insert into kb_files (item_id, mime, data) values (%s, %s, %s)", item["id"], file_mime(name), data)
+    item["has_file"] = True
+    return item
 
 
 def _label(url: str) -> str:
@@ -441,7 +455,35 @@ async def ingest_url(user_id: str, url: str) -> dict:
 
 
 async def list_items(user_id: str) -> list[dict]:
-    return [view(r) for r in await db.q("select * from kb_items where user_id = %s order by created_at desc", user_id)]
+    return [view(r) for r in await db.q(
+        "select i.*, exists(select 1 from kb_files f where f.item_id = i.id) as has_file "
+        "from kb_items i where i.user_id = %s order by i.created_at desc", user_id)]
+
+
+def _own_id(item_id: str) -> str:
+    try:
+        return str(uuid.UUID(item_id))
+    except ValueError:
+        raise ApiError(404, "Item tidak ditemukan")
+
+
+async def get_file(user_id: str, item_id: str) -> tuple[str, str, bytes]:
+    """(name, mime, bytes) of the original file of one of the user's items. 404 when the item or its original does not exist."""
+    r = await db.q1("select i.name, f.mime, f.data from kb_items i join kb_files f on f.item_id = i.id "
+                    "where i.id = %s and i.user_id = %s", _own_id(item_id), user_id)
+    if not r:
+        raise ApiError(404, "Berkas asli tidak tersimpan. Unggah ulang bila perlu.")
+    return r["name"], r["mime"], bytes(r["data"])
+
+
+async def get_text(user_id: str, item_id: str) -> dict:
+    """The stored text (chunks in order) of one of the user's items, capped at MAX_VIEW_CHARS."""
+    item = await db.q1("select * from kb_items where id = %s and user_id = %s", _own_id(item_id), user_id)
+    if not item:
+        raise ApiError(404, "Item tidak ditemukan")
+    rows = await db.q("select text from kb_chunks where item_id = %s order by pos", item["id"])
+    text = (chr(10) * 2).join(r["text"] for r in rows)
+    return {"text": text[:MAX_VIEW_CHARS], "truncated": len(text) > MAX_VIEW_CHARS}
 
 
 async def delete_item(user_id: str, item_id: str) -> None:

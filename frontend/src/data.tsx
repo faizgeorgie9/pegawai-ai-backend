@@ -39,7 +39,7 @@ interface Data {
   askNotify: () => void
   answerNotify: (yes: boolean) => void
   viewing: (href: string) => void
-  flash: (text: string) => void
+  flash: (text: string, href?: string) => void
 }
 
 const Ctx = createContext<Data | null>(null)
@@ -140,10 +140,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Plain success toast (no link).
-  const flash = useCallback((text: string) => {
+  // Plain success toast (optional link: clicking it opens href).
+  const flash = useCallback((text: string, href = '') => {
     const id = Date.now() + Math.random()
-    setToasts((t) => [...t.slice(-3), { id, text, href: '' }])
+    setToasts((t) => [...t.slice(-3), { id, text, href }])
     window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4000)
   }, [])
 
@@ -185,6 +185,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         bot_status: (d) =>
           setBots((cur) => cur.map((b) => (b.id === asStr(d.bot_id) ? { ...b, status: (['working', 'discussing'].includes(asStr(d.status)) ? asStr(d.status) : 'idle') as BotStatus, activity: asStr(d.activity) } : b))),
         group_message: (d) => emit('group_message', { ...d, message: toGroupMsg((d.message ?? {}) as Raw), group_id: asStr(d.group_id) }),
+        action: (d) => emit('action', d),
         group_typing: (d) => emit('group_typing', d),
         group_reasoning: (d) => emit('group_reasoning', d),
         group_send: (d) => {

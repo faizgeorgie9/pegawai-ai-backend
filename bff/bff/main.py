@@ -4,20 +4,26 @@ import hmac
 import json
 import uuid
 from contextlib import asynccontextmanager
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, FastAPI, File, Header, Request, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bots, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kanban, kb, scheduler, sequences, settings, usage
+from . import actions, apps, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, scheduler, sequences, settings, tasks, usage
 from .engine import LIVE, hub
 from .errors import ApiError
 
 
+bridge_app = bridge.BridgeApp(bridge.build())  # MCP tools for the Hermes agents at /mcp (see bridge.py)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    bridge.ensure_key()
+    await asyncio.to_thread(bridge.ensure_registered)
     await db.open_pool()
     await catalog.sync()
     hermes.start_client()
@@ -29,7 +35,8 @@ async def lifespan(app: FastAPI):
     await bots.adopt_sessions()
     cleaner = asyncio.create_task(db.cleanup_loop())
     sched = asyncio.create_task(scheduler.loop())
-    yield
+    async with bridge_app.mcp.session_manager.run():
+        yield
     cleaner.cancel()
     sched.cancel()
     await hermes.stop_client()
@@ -208,6 +215,43 @@ async def tools(bot: str | None = None):
         if not rows:
             raise ApiError(404, "Bot tidak ditemukan")
     return {"deny": sorted(harden.DENY), "bots": await asyncio.gather(*(one(b) for b in rows))}
+
+
+# ---- Aplikasi: Hermes connector catalog and per-agent skills (apps.py) ----
+@api.get("/apps/catalog")
+async def apps_catalog(fresh: int = 0):
+    return {"categories": [{"id": i, "name": n} for i, n in apps.CATEGORIES], "apps": await apps.catalog(bool(fresh))}
+
+
+@api.post("/apps/{app_id}/connect")
+async def apps_connect(app_id: str):
+    return await apps.connect(app_id)
+
+
+@api.get("/apps/{app_id}/status")
+async def apps_status(app_id: str):
+    return await apps.status(app_id)
+
+
+@api.post("/apps/{app_id}/disconnect", status_code=204)
+async def apps_disconnect(app_id: str):
+    await apps.disconnect(app_id)
+
+
+@api.get("/skills")
+async def skills_all():
+    return await apps.all_skills(current_user())
+
+
+@api.get("/agents/{slug}/skills")
+async def agent_skills(slug: str):
+    return {"skills": await apps.agent_skills(current_user(), slug)}
+
+
+@api.put("/agents/{slug}/skills")
+async def agent_skill_set(slug: str, request: Request):
+    b = await body_of(request)
+    return {"skills": await apps.set_skill(current_user(), slug, b.get("name"), b.get("enabled") is True)}
 
 
 @api.delete("/bots/{bot_id}", status_code=204)
@@ -470,16 +514,30 @@ async def kb_delete(item_id: str):
     await kb.delete_item(current_user(), item_id)
 
 
+@api.get("/kb/{item_id}/file")
+async def kb_file(item_id: str):
+    name, mime, data = await kb.get_file(current_user(), item_id)
+    disp = "attachment" if mime.endswith("wordprocessingml.document") else "inline"  # Word cannot be shown by a browser
+    return Response(data, media_type=mime, headers={
+        "Content-Disposition": f"{disp}; filename*=UTF-8''{quote(name, safe='')}",
+        "X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store"})
+
+
+@api.get("/kb/{item_id}/text")
+async def kb_text(item_id: str):
+    return await kb.get_text(current_user(), item_id)
+
+
 @api.post("/kb/items/{item_id}/refresh")
 async def kb_refresh(item_id: str):
     return await integrations.refresh_item(current_user(), item_id)
 
 
-# ---------- connections (Google Drive, Gmail, Notion) ----------
+# ---------- connections (Google Drive, Gmail) ----------
 
 @api.get("/connections")
-async def connections_list():
-    return await connections.list_all(current_user())
+async def connections_list(fresh: bool = False):
+    return await integrations.list_checked(current_user(), fresh)
 
 
 @api.post("/connections/{provider}/start")
@@ -490,7 +548,7 @@ async def connections_start(provider: str):
 @api.get("/connections/{family}/callback")
 async def connections_callback(family: str, request: Request):
     """The provider sends the browser here after consent (through the same proxy as the app, so the key header is present)."""
-    if family not in ("google", "notion"):
+    if family != "google":
         raise ApiError(404, "Tidak ditemukan")
     return RedirectResponse(await connections.callback(current_user(), family, dict(request.query_params)), status_code=303)
 
@@ -510,20 +568,27 @@ async def drive_import(request: Request):
     return {"items": await integrations.drive_import(current_user(), (await body_of(request)).get("ids"))}
 
 
-@api.get("/connections/notion/pages")
-async def notion_pages(q: str = "", cursor: str | None = None):
-    return await integrations.notion_pages(current_user(), q, cursor)
-
-
-@api.post("/connections/notion/import")
-async def notion_import(request: Request):
-    return {"items": await integrations.notion_import(current_user(), (await body_of(request)).get("ids"))}
-
-
 @api.post("/connections/gmail/draft", status_code=201)
 async def gmail_draft(request: Request):
     b = await body_of(request)
     return await integrations.gmail_draft(current_user(), b.get("to"), b.get("subject"), b.get("body"))
+
+
+# ---------- approvals of risky agent actions ----------
+
+@api.get("/actions")
+async def list_actions(status: str | None = None):
+    return await actions.list_actions(current_user(), status)
+
+
+@api.post("/actions/{aid}/approve")
+async def approve_action(aid: str):
+    return await actions.approve(current_user(), aid)
+
+
+@api.post("/actions/{aid}/reject")
+async def reject_action(aid: str):
+    return await actions.reject(current_user(), aid)
 
 
 @api.get("/export/history")
@@ -583,19 +648,9 @@ async def resume_schedule(sid: str):
     return await scheduler.resume(current_user(), _sched_id(sid))
 
 
-@api.post("/schedules/{sid}/cancel")
-async def cancel_schedule(sid: str):
-    return await scheduler.cancel(current_user(), _sched_id(sid))
-
-
 @api.delete("/schedules/{sid}", status_code=204)
 async def delete_schedule(sid: str):
     await scheduler.delete(current_user(), _sched_id(sid))
-
-
-@api.post("/schedule-occurrences/{oid}/stop")
-async def stop_occurrence(oid: str):
-    return await scheduler.stop(current_user(), _sched_id(oid))
 
 
 def _sched_id(v: str) -> str:
@@ -652,14 +707,29 @@ async def send_group_message(gid: str, request: Request):
     return await groups.send(current_user(), _uuid(gid), b.get("text"), b.get("mode") or "queue", b.get("kb_items"))
 
 
+@api.post("/groups/{gid}/messages/{message_id}/steer")
+async def steer_group_message(gid: str, message_id: int):
+    return await groups.steer_queued(current_user(), _uuid(gid), message_id)
+
+
+@api.delete("/groups/{gid}/messages/{message_id}/queued")
+async def cancel_group_message(gid: str, message_id: int):
+    return await groups.cancel_queued(current_user(), _uuid(gid), message_id)
+
+
 @api.post("/groups/{gid}/plans/{message_id}/approve")
 async def approve_plan(gid: str, message_id: int):
-    return await scheduler.approve_plan(current_user(), _uuid(gid), message_id)
+    return await tasks.approve_plan(current_user(), _uuid(gid), message_id)
+
+
+@api.post("/groups/{gid}/plans/{message_id}/cancel")
+async def cancel_plan(gid: str, message_id: int):
+    return await tasks.cancel_plan(current_user(), _uuid(gid), message_id)
 
 
 @api.post("/groups/{gid}/plans/{message_id}/revise", status_code=202)
 async def revise_plan(gid: str, message_id: int, request: Request):
-    return await scheduler.request_revision(current_user(), _uuid(gid), message_id, (await body_of(request)).get("feedback"))
+    return await tasks.revise_plan(current_user(), _uuid(gid), message_id, (await body_of(request)).get("feedback"))
 
 
 @api.post("/groups/{gid}/stop")
@@ -667,13 +737,40 @@ async def stop_group(gid: str):
     return await groups.stop(current_user(), _uuid(gid))
 
 
-# ---------- kanban ----------
+# ---------- tasks ----------
 
-@api.get("/kanban")
-async def get_kanban(agent: str | None = None, group: str | None = None, period: str = "7d"):
-    if period not in kanban.PERIOD_DAYS:
-        raise ApiError(400, "Periode harus today, 7d, atau 30d")
-    return await kanban.get(current_user(), agent or None, _uuid(group) if group else None, period)
+def _task_id(v: str) -> str:
+    return tasks._task_uuid(v)
+
+
+@api.get("/tasks/board")
+async def tasks_board(agent: str | None = None, group: str | None = None, q: str | None = None, archived: bool = False):
+    return await tasks.board(current_user(), agent or None, _uuid(group) if group else None, q, archived)
+
+
+@api.post("/tasks", status_code=201)
+async def create_task(request: Request):
+    return await tasks.create(current_user(), await body_of(request))
+
+
+@api.get("/tasks/{tid}")
+async def get_task(tid: str):
+    return await tasks.detail(current_user(), _task_id(tid))
+
+
+@api.patch("/tasks/{tid}")
+async def edit_task(tid: str, request: Request):
+    return await tasks.edit(current_user(), _task_id(tid), await body_of(request))
+
+
+@api.post("/tasks/{tid}/comments", status_code=201)
+async def comment_task(tid: str, request: Request):
+    return await tasks.comment(current_user(), _task_id(tid), (await body_of(request)).get("text"))
+
+
+@api.post("/tasks/{tid}/{verb}")
+async def task_verb(tid: str, verb: str, request: Request):
+    return await tasks.do(current_user(), _task_id(tid), verb, await body_of(request))
 
 
 # ---------- activity, events, office ----------
@@ -784,3 +881,4 @@ async def update_evaluation(eid: str, request: Request):
 
 app.include_router(public)
 app.include_router(api)
+app.router.routes.append(bridge_app.route())

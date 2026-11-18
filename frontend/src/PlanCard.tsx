@@ -11,19 +11,35 @@ const dayLabel = (iso: string) => {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
+type PlanState = Pick<ContentPlan, 'task_id' | 'state'>
+
 // Approval card inside the group chat: one decision for the whole bundle. After approval the Writer and Visual run on their days.
-export function PlanCard({ groupId, messageId, plan, onApproved }: { groupId: string; messageId: string; plan: ContentPlan; onApproved: (scheduleId: string) => void }) {
+// The state is the plan's real state on the board; it refreshes with the chat (shortcut: a change made on the board shows after a reload).
+export function PlanCard({ groupId, messageId, plan, onState }: { groupId: string; messageId: string; plan: ContentPlan; onState: (s: PlanState) => void }) {
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState('')
   const [revising, setRevising] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [revised, setRevised] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
 
   async function approve() {
     setBusy(true)
     setProblem('')
     try {
-      onApproved((await api.approvePlan(groupId, messageId)).id)
+      onState(await api.approvePlan(groupId, messageId))
+    } catch (e) {
+      setProblem(errText(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+  async function cancel() {
+    setBusy(true)
+    setProblem('')
+    try {
+      onState(await api.cancelPlan(groupId, messageId))
+      setCancelling(false)
     } catch (e) {
       setProblem(errText(e))
     } finally {
@@ -47,7 +63,7 @@ export function PlanCard({ groupId, messageId, plan, onApproved }: { groupId: st
     }
   }
 
-  const approved = plan.schedule_id !== null
+  const closed = plan.state === 'cancelled' || plan.state === 'replaced'
   return (
     <div className="approval plan-card" role="group" aria-label="Persetujuan rencana konten">
       <p className="approval-title">
@@ -65,12 +81,16 @@ export function PlanCard({ groupId, messageId, plan, onApproved }: { groupId: st
           </li>
         ))}
       </ol>
-      {approved ? (
+      {closed ? (
         <p className="plan-done">
-          <b>Disetujui · terjadwal.</b> <a href="#/scheduler">Lihat jadwal</a>
+          <b>{plan.state === 'replaced' ? 'Sudah diganti rencana yang lebih baru.' : 'Rencana dibatalkan.'}</b>
+        </p>
+      ) : plan.state === 'approved' ? (
+        <p className="plan-done">
+          <b>Disetujui · terjadwal.</b> <a href="#/kanban">Lihat di papan tugas</a>
         </p>
       ) : revised ? (
-        <p className="plan-done">Catatan revisi terkirim ke grup. Rencana baru akan muncul di sini.</p>
+        <p className="plan-done">Catatan revisi terkirim ke tim. Rencana baru akan muncul di sini.</p>
       ) : (
         <>
           <p className="plan-note">Setelah disetujui, hanya Writer dan Visual yang bekerja, satu hari satu kali sesuai jadwal.</p>
@@ -100,8 +120,31 @@ export function PlanCard({ groupId, messageId, plan, onApproved }: { groupId: st
                 Minta revisi
               </button>
             )}
+            {!revising && (
+              <button className="btn link" disabled={busy} onClick={() => setCancelling(true)}>
+                Batalkan
+              </button>
+            )}
           </div>
         </>
+      )}
+      {!closed && plan.state === 'approved' && !cancelling && (
+        <div className="approval-actions">
+          <button className="btn link" disabled={busy} onClick={() => setCancelling(true)}>
+            Batalkan rencana
+          </button>
+        </div>
+      )}
+      {cancelling && !closed && (
+        <div className="approval-actions">
+          <span className="small">Batalkan rencana ini? Hari yang belum selesai tidak akan dikerjakan.</span>
+          <button className="btn stop sm" disabled={busy} onClick={() => void cancel()}>
+            Ya, batalkan
+          </button>
+          <button className="btn link sm" disabled={busy} onClick={() => setCancelling(false)}>
+            Tidak
+          </button>
+        </div>
       )}
       {problem && (
         <p className="plan-problem" role="alert">

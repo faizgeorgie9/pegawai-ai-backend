@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError, api, asStr, errText, isAbort, newKey, subscribe, toClarify, usageOf } from './bff'
 import type { Bot, ChatMessage, Session, SseState } from './bff'
+import { ActionCard, useVisibleActions } from './ActionCard'
+import { useAdminMode } from './adminMode'
 import { useData } from './data'
 import { Cs21Card } from './ResultCards'
 import { partialReplyDraft, toCs21 } from './results'
@@ -12,8 +14,10 @@ import type { Cs21 } from './results'
 import { go, botPath } from './router'
 import { GmailDraftButton } from './gmail-ui'
 import { KbAttach, KbLines, KbTrayView, asksToSave, useKbTray } from './kb-ui'
+import { RUNNING_HINT, RUNNING_PLACEHOLDER, STEER_KEY, STEER_TIP, isSteerKey } from './composerKeys'
 import { ClarifyCard, CopyButton, RunProgress, statusText } from './ui-extra'
 import { PanelButtons, SidePanel, Split } from './Panel'
+import { MakeTaskButton } from './TaskPanel'
 import { BotAvatar, CLOSE, Icon, ThinkingBlock, botColor, nf } from './ui'
 
 const THINK_KEY = 'pegawai.showThinking'
@@ -30,6 +34,7 @@ type Problem = { text: string; upgrade?: boolean } | null
 export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: Bot; sid?: string; sessions: Session[]; onSessions: () => void; onRail: () => void }) {
   const [pv, setPv] = useState(0) // bumped whenever the side panel's data may have changed
   const bump = () => setPv((n) => n + 1)
+  const admin = useAdminMode()
   const { setDialog, askNotify, refreshMe, viewing, runs } = useData()
   const attached = useRef('') // last run this view followed, so a run is never attached twice
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -80,7 +85,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
           }),
         )
       },
-      () => {}, // optional: the block falls back to "Proses berpikir"
+      () => {}, // optional: the block falls back to "Tampilkan langkah kerja"
     )
   }
 
@@ -280,10 +285,13 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
     else void startRun(text, ids)
   }
 
-  async function steer() {
-    const text = draft.trim()
+  // Sends text to the running agent now. From the composer (no argument) it uses the draft; from a queued chip it uses that chip's text.
+  async function steer(queuedAt?: number) {
+    const fromQueue = queuedAt !== undefined
+    const text = fromQueue ? queue[queuedAt]?.text : draft.trim()
     if (!text || !run) return
-    setDraft('')
+    if (fromQueue) setQueue((q) => q.filter((_, n) => n !== queuedAt))
+    else setDraft('')
     if (!run.id) return setQueue((q) => [...q, { text, kb: [] }])
     try {
       await api.steerRun(run.id, text)
@@ -293,7 +301,8 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
       if (e instanceof ApiError && e.status === 409) setQueue((q) => [...q, { text, kb: [] }])
       else {
         setProblem({ text: errText(e) })
-        setDraft(text)
+        if (fromQueue) setQueue((q) => [{ text, kb: [] }, ...q])
+        else setDraft(text)
       }
     }
   }
@@ -334,6 +343,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
   }
 
   const running = !!run
+  const asked = useVisibleActions((a) => !!sid && a.source?.session_id === sid) // cards for what this agent asked in this chat
 
   return (
     <Split panel={<SidePanel scope={sid ? { session_id: sid } : null} version={pv} bot={bot} />}>
@@ -347,7 +357,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
           <h1>{bot.name}</h1>
           <p>
             {bot.role} · {statusText(bot)}
-            {active?.model && active.messageCount !== -1 ? ` · ${active.model}` : ''}
+            {admin && active?.model && active.messageCount !== -1 ? ` · ${active.model}` : ''}
           </p>
         </div>
         <button className="btn soft sm convo-new" title="Mulai percakapan baru, riwayat lama tetap ada" onClick={() => go(botPath(bot.id))}>
@@ -355,7 +365,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
         </button>
         <button className="switch" role="switch" aria-checked={showThink} onClick={toggleThink}>
           <span className="knob" aria-hidden="true" />
-          Proses berpikir
+          Tampilkan langkah kerja
         </button>
         <PanelButtons />
       </header>
@@ -402,21 +412,29 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
               onAnswer={(t) => answer(m, t)}
             />
           ))}
-          {queue.map((t, i) => (
-            <div key={i} className="msg user pending">
-              <p>{t.text}</p>
-              <span className="pending-tag">
-                Antre
-                <button className="icon-btn tiny" aria-label="Batalkan pesan antre" onClick={() => setQueue((q) => q.filter((_, n) => n !== i))}>
-                  <Icon d={CLOSE} size={12} />
-                </button>
-              </span>
-            </div>
+          {asked.map((a) => (
+            <ActionCard key={a.id} action={a} />
           ))}
         </div>
       </div>
 
       <div className="composer-wrap">
+        {queue.length > 0 && (
+          <ul className="queue-rows" aria-label="Pesan menunggu giliran">
+            {queue.map((t, i) => (
+              <li key={i} className="queue-row">
+                <span className="queue-text">{t.text}</span>
+                <small>Menunggu giliran</small>
+                <button type="button" className="btn link" disabled={!run?.id} onClick={() => void steer(i)} title={STEER_TIP}>
+                  Kirim sekarang
+                </button>
+                <button type="button" className="icon-btn tiny" aria-label="Hapus pesan ini dari antrean" onClick={() => setQueue((q) => q.filter((_, n) => n !== i))}>
+                  <Icon d={CLOSE} size={12} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         {problem && (
           <p className="problem-bar" role="alert">
             {problem.text}
@@ -443,12 +461,13 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
             ref={box}
             rows={1}
             value={draft}
-            placeholder={running ? `Agen sedang bekerja. Pesan baru masuk antrean.` : `Tulis pesan untuk ${bot.name}`}
+            placeholder={running ? RUNNING_PLACEHOLDER : `Tulis pesan untuk ${bot.name}`}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault()
-                send()
+                if (running && isSteerKey(e)) void steer()
+                else send()
               }
             }}
           />
@@ -460,17 +479,17 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
                   <span className="square" aria-hidden="true" />
                   Berhenti
                 </button>
-                <button type="button" className="btn soft" onClick={() => void steer()} disabled={!draft.trim()}>
-                  Arahkan sekarang
+                <button type="button" className="btn soft" onClick={() => void steer()} disabled={!draft.trim()} title={STEER_TIP}>
+                  Kirim sekarang <kbd>{STEER_KEY}</kbd>
                 </button>
               </>
             )}
             <button type="submit" className="btn primary" disabled={!draft.trim()}>
-              {running ? 'Antre' : 'Kirim'}
+              {running ? <>Kirim setelah selesai <kbd>Enter</kbd></> : 'Kirim'}
             </button>
           </div>
         </form>
-        <p className="composer-note">Enter untuk kirim, Shift+Enter untuk baris baru.</p>
+        <p className="composer-note">{running ? RUNNING_HINT : 'Enter untuk kirim, Shift+Enter untuk baris baru.'}</p>
       </div>
     </section>
     </Split>
@@ -501,6 +520,7 @@ function Message(p: {
   onAnswer: (text: string) => Promise<void>
 }) {
   const { m, bot, live } = p
+  const admin = useAdminMode() // model names and token counts are admin detail
   const cs = useMemo(() => (m.role === 'assistant' ? csFromText(m.content) : null), [m.role, m.content])
   const draft = useMemo(() => (live && m.role === 'assistant' ? partialReplyDraft(m.content) : null), [live, m.role, m.content]) // CS reply while its JSON is still open
   const sm = useSmoothText(m.content, live && m.role === 'assistant')
@@ -509,6 +529,7 @@ function Message(p: {
       <div className="msg user">
         <p>{m.content}</p>
         <KbLines items={m.kb} busy={m.kbBusy} />
+        {m.content.trim() && <div className="msg-tools user-tools"><MakeTaskButton text={m.content} bot={bot.id} /></div>}
       </div>
     )
   }
@@ -569,7 +590,7 @@ function Message(p: {
           </p>
         )}
         {m.stopped && <p className="meta">Dihentikan.</p>}
-        {m.tokens && !live && (
+        {admin && m.tokens && !live && (
           <p className="meta num">
             {[p.model, `${nf.format(m.tokens.input)} masuk, ${nf.format(m.tokens.output)} keluar`].filter(Boolean).join(' · ')}
           </p>
