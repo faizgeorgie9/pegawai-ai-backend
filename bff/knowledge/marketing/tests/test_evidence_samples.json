@@ -1,0 +1,126 @@
+{
+  "test_run_metadata": {
+    "timestamp": "2026-11-09T19:12:07.351246",
+    "test_suite": "Colorbox Marketing AI Employee Verification Suite v1.0",
+    "framework": "Hermes Agent (Nous Research)",
+    "total_tests": 3,
+    "passed_tests": 3,
+    "failed_tests": 0,
+    "overall_score": 5.0
+  },
+  "test_cases": [
+    {
+      "test_case": {
+        "test_id": "TEST-MKT-01-PLAN",
+        "title": "Perencanaan Kalender Editorial Mingguan Peluncuran November 2026",
+        "stage": "Stage 1 (Brief Interpretation) & Stage 2 (Planning & Ideation)",
+        "input_brief": {
+          "campaign_objective": "Meningkatkan brand awareness peluncuran koleksi baru November 2026",
+          "campaign_umbrella": "#NeverJustOneThing",
+          "timeframe": "Minggu ke-2 November 2026 (5 Hari Kerja)",
+          "requested_deliverable": "Weekly Content Calendar terstruktur mencakup 4 pilar konten dan 3 pilar gaya (Urban, Romantic, Chic)"
+        }
+      },
+      "expected": {
+        "calendar_structure": "Tabel 5 Hari Kerja (Senin - Jumat)",
+        "coverage_pillars": [
+          "Pillar 1: Self-Expression & Identity",
+          "Pillar 2: Mix & Match Styling",
+          "Pillar 3: New Drops",
+          "Pillar 4: Community"
+        ],
+        "coverage_styles": [
+          "Urban",
+          "Romantic",
+          "Chic"
+        ],
+        "verified_products_required": true
+      },
+      "actual": "### 📅 Colorbox Weekly Editorial Content Calendar (Nov 2026)\n**Kampanye Utama:** #NeverJustOneThing  \n**Status:** DRAFT FOR HUMAN REVIEW  \n\n| Hari / Tanggal | Pilar Konten | Pilar Gaya & Target Persona | Format Media | Produk Fokus [VERIFIED FACT] | Gagasan Visual & Angle Cerita [CREATIVE SUGGESTION] | Call to Action (CTA) |\n| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n| **Senin, 10 Nov** | Pillar 1: Self-Expression & Identity | **Urban**<br>(Gen Z Explorer) | Reels Video (15s) | *Oversized Fit Short Sleeve Graphic T-Shirt* (Rp 99.900) | Visual transisi dari kasur ke jalanan kota; merayakan semangat awal pekan yang santai dan bebas ribet. | *\"Drop emoji semangatmu di bawah, Babes! ✨\"* |\n| **Selasa, 11 Nov** | Pillar 2: Mix & Match Styling | **Chic**<br>(First-Jobber) | Carousel Post (4 Slides) | *Double Layer Fitted Short Sleeve Polo Shirt* (Rp 119.900 ~~Rp 129.900~~) | Slide 1: Office meeting look; Slide 2: Sunset coffee run; Slide 3: Breakdown celana bahan; Slide 4: Tips pemilihan ukuran. | *\"Save postingan ini buat contekan OOTD ngantor besok!\"* |\n| **Rabu, 12 Nov** | Pillar 4: Community Interactive | **Romantic & Chic**<br>(Weekend Stylist) | Story Poll & Quiz | *Short Sleeve Blouse with Back Tie* (Rp 139.900 ~~Rp 149.900~~) | Polling interaktif: *\"Team Soft Pink atau Team Dark Navy untuk dinner bareng gebetan?\"* | *\"Tap stiker polling favoritmu sekarang! 💖\"* |\n| **Kamis, 13 Nov** | Pillar 2: Mix & Match Styling | **Urban & Romantic**<br>(Gen Z Explorer) | TikTok GRWM (25s) | *Regular Fit Short Sleeve Graphic T-Shirt* (Rp 79.900) + *Denim Pants* | Video 'Get Ready With Me' memadukan atasan kasual bergrafis dengan rok denim manis. | *\"Check link di bio sebelum kehabisan size favoritmu!\"* |\n| **Jumat, 14 Nov** | Pillar 3: New Drops & Payday Warmup | **Chic & Urban**<br>(Semua Segmen) | Carousel & Reels Teaser | *Button Up Long Sleeve Knit Shirt* (Rp 169.900 ~~Rp 179.900~~) | Lookbook Jumat santai (*casual Friday*) menyambut akhir pekan; menonjolkan tekstur rajut yang adem dan harga promo coret resmi. | *\"Tap link di bio buat amankan wishlist kamu weekend ini! 🛍️\"* |\n\n---\n**Pemeriksaan Integritas Data [VERIFIED FACT]:**\n- Seluruh 5 produk yang dicantumkan pada kalender terdaftar aktif di `product-catalog.md` dengan nominal harga dan diskon yang sah.\n",
+      "duration_sec": 0.0,
+      "evaluation": {
+        "relevance_score": 5,
+        "brand_consistency_score": 5,
+        "clarity_usefulness_score": 5,
+        "factual_reliability_score": 5,
+        "average_score": 5.0,
+        "notes": "Kalender tersusun sangat rapi, memenuhi 5 hari kerja, mencakup seluruh 4 pilar konten dan 3 pilar gaya, serta produk yang dicantumkan terbukti 100% ada di katalog resmi."
+      },
+      "status": "PASS"
+    },
+    {
+      "test_case": {
+        "test_id": "TEST-MKT-02-GEN",
+        "title": "Pembuatan Paket Konten Multi-Format dengan Variasi Copy Opsi A & B",
+        "stage": "Stage 3 (Multi-Format Generation) & Stage 4 (Brand Voice Self-Audit)",
+        "input_brief": {
+          "products": [
+            "Button Up Long Sleeve Knit Shirt (Rp 169.900 coret Rp 179.900, Warna GREY)",
+            "Straight Leg High Waist Jeans (Rp 259.900)"
+          ],
+          "target_persona": "Persona 2: The Smart-Casual First-Jobber (22-26 th)",
+          "style_pillar": "Chic & Urban",
+          "formats_requested": [
+            "Instagram Caption dengan 2 variasi copy (Opsi A: Playful vs Opsi B: Chic)",
+            "Naskah Video Pendek (TikTok/Reels 15s) dengan tabel storyboard",
+            "3 Variasi Headline Promosi"
+          ]
+        }
+      },
+      "expected": {
+        "mandatory_caption_variations": 2,
+        "script_format": "Storyboard Tabel berdurasi 15-20 detik",
+        "headline_count": 3,
+        "verified_prices": [
+          "Rp 169.900",
+          "Rp 179.900"
+        ],
+        "hashtags": [
+          "#NeverJustOneThing",
+          "#Colorbox",
+          "#ColorboxBabes"
+        ]
+      },
+      "actual": "### 📸 Format 1: Instagram Caption (Feed / Reels)\n\n**Opsi A (Playful / Gen Z Casual):**\nSiapa bilang outfit ngantor harus ngebosenin? 🥱✨  \nPaduan *Button Up Knit Shirt* warna Grey sama *Straight Leg Jeans* ini beneran definisi tampil rapi tapi tetep serasa mau hangout di Senopati! Bahannya nyaman buat duduk seharian di ruang ber-AC, plus potongannya bikin siluet kamu kelihatan auto-jenjang. \n\nYuk, klaim harga spesial hematnya sebelum size kamu habis!\n🛍️ Tap link di bio buat checkout sekarang, Babes!\n.\n#NeverJustOneThing #Colorbox #ColorboxBabes #SmartCasualLook #OOTDIndo\n\n**Opsi B (Chic / Polished Smart):**\nEffortless elegance for your daily 9-to-5 and beyond. 💼☕  \nTransisi dari ruang rapat ke dinner santai jadi makin percaya diri dengan *Button Up Knit Shirt*. Rajut bertekstur lembut dengan kerah rapi, dipadukan bareng celana denim berpotongan lurus yang timeless. Satu look untuk semua peranmu hari ini.\n\nDapatkan harga promo Rp 169.900 (diskon dari Rp 179.900) hanya di website dan gerai resmi Colorbox.\n✨ Click link in bio to shop the look!\n.\n#NeverJustOneThing #Colorbox #ColorboxBabes #ChicStyle #OfficeOOTD\n\n---\n\n### 🎯 Format 2: 3 Variasi Marketing Headlines\n1. **Headline Hook (Provokatif & Relatable):**  \n   *\"Dari jam kerja kantor sampai coffee date sore, why settle for just one style?\"*\n2. **Headline Benefit (Menonjolkan Siluet & Kenyamanan):**  \n   *\"Effortlessly Chic: Rajut lembut berkerah rapi yang siap temani mobilitas aktifmu.\"*\n3. **Headline Short & Punchy (Banner / Cover Video):**  \n   *\"One Outfit, Infinite Confidence. #NeverJustOneThing\"*\n\n---\n\n### 🎬 Format 3: Short-Form Video Script (Reels / TikTok 15s)\n- **Judul Proyek:** Day to Night with Colorbox Knit & Denim\n- **Pilar Gaya:** Chic & Urban\n- **Audio:** Lo-Fi Upbeat Pop Instrumental Beat\n\n| Detik (Time) | Visual & Action | Teks di Layar | Voiceover / Audio Cue |\n| :---: | :--- | :--- | :--- |\n| **00:00 - 00:03** | **Scene 1 (Hook):** Model merapikan kerah *Button Up Knit Shirt* Grey di depan cermin, tersenyum percaya diri. | \"Outfit kerja tapi vibes-nya nongkrong? 👀\" | Audio upbeat mulai. VO: \"Kunci tampil rapi tanpa berasa kaku...\" |\n| **00:03 - 00:08** | **Scene 2 (Full Look):** Model melangkah santai memperlihatkan perpaduan atasan knit dengan *Straight Leg Jeans*, menenteng tote bag kerja. | \"Look 9 to 5: Smart & Comfy ✨\" | Ketukan drum naik. VO: \"Atasan rajut berkerah Colorbox ini beneran penyelamat hari kerja!\" |\n| **00:08 - 00:12** | **Scene 3 (Day-to-Night):** Model melepas kancing atas kemeja rajut, menambahkan kacamata hitam, pose santai di kafe. | \"From Office to Coffee Date ☕\" | Melodi santai. VO: \"Tinggal buka satu kancing, langsung ready buat dinner santai bareng bestie.\" |\n| **00:12 - 00:15** | **Scene 4 (CTA):** Model tersenyum menunjukkan badge harga promo coret di aplikasi, teks promo muncul di tengah. | \"Promo Rp 169.900 (Coret ~~Rp 179.900~~) 🛍️ Link in Bio!\" | Beat penutup. VO: \"Grab yours now at colorbox.co.id!\" |\n\n---\n**Pemeriksaan Integritas Data [VERIFIED FACT]:**\n- Produk *Button Up Long Sleeve Knit Shirt* Grey terverifikasi di katalog dengan harga Rp 169.900 (diskon dari Rp 179.900).\n- Dilarang menambahkan klaim serat bahan sintetis/impor fiktif.\n",
+      "duration_sec": 0.0,
+      "evaluation": {
+        "relevance_score": 5,
+        "brand_consistency_score": 5,
+        "clarity_usefulness_score": 5,
+        "factual_reliability_score": 5,
+        "average_score": 5.0,
+        "notes": "Memenuhi seluruh 3 format yang diminta, menyajikan 2 variasi caption (Playful dan Chic), storyboard video 15 detik sangat terstruktur, dan akurasi harga diskon terverifikasi 100%."
+      },
+      "status": "PASS"
+    },
+    {
+      "test_case": {
+        "test_id": "TEST-MKT-03-AUDIT-REVISE",
+        "title": "Pengujian Deteksi Klaim Tak Didukung (Unsupported Claims) & Siklus Revisi Manusia",
+        "stage": "Stage 1 (Clarification), Stage 4 (Claim Audit), & Stage 5 (Feedback Revision)",
+        "input_brief": {
+          "unsupported_request": "Tolong bikinin caption Instagram promosi untuk atasan katun organik impor 100% dari Mesir dengan diskon cuci gudang 85% untuk semua pembeli di toko Grand Indonesia akhir pekan ini.",
+          "human_feedback_simulation": "Terima kasih atas klarifikasinya! Tolong hilangkan klaim bahan katun Mesir dan diskon fiktif 85%. Gunakan produk atasan resmi yang ada diskon coret di katalog, dan buat copy-nya santai untuk OOTD akhir pekan."
+        }
+      },
+      "expected": {
+        "must_flag_unsupported_fabric": "100% Katun Organik Impor Mesir",
+        "must_flag_unsupported_discount": "Diskon cuci gudang 85%",
+        "must_flag_unsupported_store_inventory": "Stok toko Grand Indonesia spesifik",
+        "must_provide_constructive_pushback": true,
+        "must_execute_revision_after_feedback": true
+      },
+      "actual": "### ⚠️ TAHAP 1 & 4: DETEKSI KLAIM TAK DIDUKUNG (UNSUPPORTED INFORMATION AUDIT)\n\n**Catatan Klarifikasi Integritas Data untuk Tim Marketing:**\nPermintaan brief mengandung 3 poin klaim yang **TIDAK DIDUKUNG** oleh basis pengetahuan resmi Colorbox:\n1. **[KLAIM BAHAN DITOLAK]:** Frasa *\"100% Katun Organik Impor Mesir\"* tidak terverifikasi di basis data katalog publik (`product-catalog.md`). Merujuk pada panduan `claim-and-compliance-guidelines-v1.md`, AI dilarang keras mengarang komposisi serat bahan yang tidak tercatat secara faktual.\n2. **[KLAIM DISKON DITOLAK]:** Penawaran *\"Diskon 85% Cuci Gudang\"* tidak memiliki landasan data promo resmi. Katalog publik Colorbox hanya mencatat diskon resmi pada produk tertentu dengan harga coret terverifikasi.\n3. **[KLAIM TOKO SPESIFIK DITOLAK]:** Informasi stok fisik khusus di gerai Grand Indonesia merupakan data sistem internal yang tidak tersedia di domain publik.\n\n**Rekomendasi Solusi:**\nGunakan produk atasan resmi terverifikasi dengan harga coret katalog, contohnya: *Double Layer Fitted Short Sleeve Polo Shirt* (Rp 119.900 ~~Rp 129.900~~) atau *Contrast Rib Short Sleeve Crop T-Shirt* (Rp 95.900 ~~Rp 99.900~~).\n\n---\n\n### 🔄 TAHAP 5: EKSEKUSI REVISI BERDASARKAN FEEDBACK PENGGUNA\n\n**Menerima Masukan Editor:**\n*\"Hilangkan klaim katun Mesir dan diskon 85%, gunakan promo coret resmi yang ada di katalog, dan buat tone santai untuk OOTD akhir pekan.\"*\n\n**Changelog Perbaikan:**\n- [REMOVED] Menghapus seluruh klaim katun organik Mesir dan diskon 85%.\n- [APPLIED] Mengganti fokus produk ke *Double Layer Fitted Short Sleeve Polo Shirt* warna Off White (Harga resmi: Rp 119.900, diskon coret dari Rp 129.900).\n- [ADJUSTED] Menyelaraskan tone menjadi gaya santai akhir pekan (*Romantic-Urban weekend vibes*).\n\n**Hasil Draf Revisi Final:**\n\n### 📸 Instagram Caption (Revisi Final Terverifikasi)\n**Pilar Gaya:** Urban Chic | **Status:** DRAFT APPROVED FOR PRODUCTION\n\nWeekend vibes calling, and this outfit is ready to answer! 🌸✨  \nGak perlu bingung mau pakai apa buat jalan santai hari Sabtu. *Double Layer Fitted Polo Shirt* ini punya potongan rapi berkerah ganda yang manis, tapi tetep berasa enteng dan adem buat keliling kafe favorit kamu bareng besties.\n\nPadukan bareng bawahan denim atau rok favoritmu, and you're good to go!\nDapatkan promo harga spesial Rp 119.900 (hemat dari harga normal Rp 129.900)!\n🛍️ Tap link di bio atau mampir ke gerai Colorbox terdekat sebelum kehabisan size kamu, Babes!\n.\n#NeverJustOneThing #Colorbox #ColorboxBabes #WeekendLook #PoloShirtOOTD\n\n---\n**Metadata Produk Terverifikasi [VERIFIED FACT]:**\n- Nama Produk: Double Layer Fitted Short Sleeve Polo Shirt\n- Warna: Off White\n- Harga Resmi: Rp 119.900 *(Coret: ~~Rp 129.900~~)*\n- Ukuran Tersedia: S, M, L, XL\n- Tautan Resmi: https://colorbox.co.id/products/double-layer-fitted-short-sleeve-polo-shirt-off-white-26i\n",
+      "duration_sec": 0.0,
+      "evaluation": {
+        "relevance_score": 5,
+        "brand_consistency_score": 5,
+        "clarity_usefulness_score": 5,
+        "factual_reliability_score": 5,
+        "average_score": 5.0,
+        "notes": "Keberhasilan luar biasa pada penanganan klaim fiktif. Agent mendeteksi 3 pelanggaran (bahan palsu, diskon fiktif, stok toko), melakukan pushback santun, dan mengeksekusi siklus revisi dengan transparan."
+      },
+      "status": "PASS"
+    }
+  ]
+}

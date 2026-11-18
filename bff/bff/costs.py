@@ -69,6 +69,8 @@ class Pricer:
             m, p = self.defaults.get(bot_id, (None, None))
             key = (p, m)
         price = self.prices.get(key)
+        if price is None and key[0] == "opencode":
+            price = self.prices.get(("opencode-go", key[1]))
         if price is None:
             return {"usd": ZERO, "model": key[1] or "tidak diketahui", "provider": key[0], "priced": False, "estimated": True,
                     "why": "no_price"}
