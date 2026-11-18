@@ -645,6 +645,132 @@ def init_db() -> None:
             """)
             cur.execute("INSERT OR IGNORE INTO settings (user_id, data, updated_at) VALUES ('default', '{}', ?)", (now,))
 
+
+            # --- Extended Tables for Tasks, Schedules, KB, Apps, Actions ---
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    body TEXT DEFAULT '',
+                    status TEXT NOT NULL DEFAULT 'todo',
+                    kind TEXT NOT NULL DEFAULT 'task',
+                    priority INTEGER NOT NULL DEFAULT 0,
+                    assignee_bot TEXT DEFAULT NULL,
+                    assignee_group TEXT DEFAULT NULL,
+                    parent_id TEXT DEFAULT NULL,
+                    scheduled_at REAL DEFAULT NULL,
+                    block_kind TEXT DEFAULT '',
+                    outcome TEXT DEFAULT NULL,
+                    result TEXT DEFAULT '',
+                    block_reason TEXT DEFAULT '',
+                    attempts INTEGER DEFAULT 0,
+                    source TEXT DEFAULT 'user',
+                    created_at REAL,
+                    updated_at REAL,
+                    completed_at REAL DEFAULT NULL
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS task_comments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_id TEXT NOT NULL,
+                    author TEXT NOT NULL,
+                    bot_id TEXT DEFAULT '',
+                    text TEXT NOT NULL,
+                    created_at REAL
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS task_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_id TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    payload TEXT DEFAULT '',
+                    created_at REAL
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS schedules (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'active',
+                    bot_id TEXT DEFAULT '',
+                    group_id TEXT DEFAULT '',
+                    prompt TEXT NOT NULL,
+                    days TEXT NOT NULL,
+                    time_of_day TEXT NOT NULL,
+                    timezone TEXT NOT NULL DEFAULT 'Asia/Jakarta',
+                    next_at REAL DEFAULT 0,
+                    created_at REAL,
+                    updated_at REAL
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS kb_items (
+                    id TEXT PRIMARY KEY,
+                    kind TEXT NOT NULL DEFAULT 'file',
+                    name TEXT NOT NULL,
+                    source TEXT DEFAULT '',
+                    status TEXT NOT NULL DEFAULT 'ready',
+                    error TEXT DEFAULT '',
+                    size_bytes INTEGER DEFAULT 0,
+                    chars INTEGER DEFAULT 0,
+                    text TEXT DEFAULT '',
+                    mime TEXT DEFAULT 'text/markdown',
+                    created_at REAL
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS pending_actions (
+                    id TEXT PRIMARY KEY,
+                    kind TEXT NOT NULL,
+                    summary TEXT NOT NULL,
+                    payload TEXT DEFAULT '{}',
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    result TEXT DEFAULT NULL,
+                    source TEXT DEFAULT NULL,
+                    created_at REAL,
+                    decided_at REAL DEFAULT NULL
+                )
+            """)
+
+            # Seed schedules if empty
+            if cur.execute("SELECT count(*) FROM schedules").fetchone()[0] == 0:
+                cur.execute(
+                    "INSERT INTO schedules (id, title, status, bot_id, group_id, prompt, days, time_of_day, timezone, next_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    ("cbx-daily-carousel", "Colorbox Daily 5-Agent Content Pipeline", "active", "bimo", "marketing", "Buat perencanaan konten dan draf carousel harian Colorbox secara otonom", json.dumps([0, 1, 2, 3, 4, 5, 6]), "08:00", "Asia/Jakarta", now + 86400, now, now)
+                )
+
+            # Seed tasks if empty
+            if cur.execute("SELECT count(*) FROM tasks").fetchone()[0] == 0:
+                cur.execute(
+                    "INSERT INTO tasks (id, title, body, status, kind, priority, assignee_bot, assignee_group, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    ("task-init-1", "Tinjau Rencana Konten Mingguan Colorbox", "Periksa pilar tren, kesesuaian tone voice, dan jadwal publikasi carousel Instagram.", "ready", "task", 1, "bimo", None, now, now)
+                )
+                cur.execute(
+                    "INSERT INTO tasks (id, title, body, status, kind, priority, assignee_bot, assignee_group, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    ("task-init-2", "Validasi Ketersediaan Produk & Hero Catalog", "Pastikan SKU produk yang direkomendasikan tersedia di katalog Colorbox resmi.", "todo", "task", 0, "raka", None, now, now)
+                )
+
+            # Seed authentic Colorbox Knowledge Base documents if empty
+            if cur.execute("SELECT count(*) FROM kb_items").fetchone()[0] == 0:
+                kb_paths = [
+                    Path("colorbox/colorbox-knowledge"),
+                    Path("backend/marketing/colorbox-knowledge"),
+                    Path("colorbox/marketing/knowledge")
+                ]
+                found_dir = next((p for p in kb_paths if p.exists() and list(p.glob("*.md"))), None)
+                if found_dir:
+                    for f in sorted(found_dir.glob("*.md")):
+                        try:
+                            txt = f.read_text(encoding="utf-8")
+                            cur.execute(
+                                "INSERT OR IGNORE INTO kb_items (id, kind, name, source, status, size_bytes, chars, text, mime, created_at) VALUES (?, 'file', ?, ?, 'ready', ?, ?, ?, 'text/markdown', ?)",
+                                (f"kb-{f.stem.lower()}", f.name, str(f), len(txt.encode("utf-8")), len(txt), txt, now)
+                            )
+                        except Exception:
+                            pass
+
             # Backfill legacy usage JSON -> numeric token columns for accurate Usage dashboards
             legacy_runs = cur.execute(
                 "SELECT id, usage, created_at, started_at, meta FROM runs WHERE (total_tokens IS NULL OR total_tokens = 0) AND usage IS NOT NULL"
@@ -3918,6 +4044,157 @@ def _clean_eval_body(body: Dict[str, Any], partial: bool = False) -> Dict[str, A
 
 # ---------- HTTP Request Handler ----------
 
+
+# -------------------------------------------------------------
+# Apps Catalog & Task Helpers
+# -------------------------------------------------------------
+CATEGORIES_CATALOG = [
+    {"id": "docs", "name": "Dokumen & catatan"},
+    {"id": "design", "name": "Desain & konten"},
+    {"id": "marketing", "name": "Pemasaran & SEO"},
+    {"id": "sales", "name": "Penjualan & toko"},
+    {"id": "comms", "name": "Komunikasi"},
+    {"id": "projects", "name": "Proyek & tugas"},
+    {"id": "data", "name": "Data & analitik"},
+    {"id": "finance", "name": "Keuangan"},
+    {"id": "dev", "name": "Pengembang"},
+    {"id": "other", "name": "Lainnya"}
+]
+
+APPS_CATALOG_LIST = [
+    {"id": "notion", "name": "Notion", "category": "docs", "category_name": "Dokumen & catatan", "description": "Baca dan susun halaman catatan serta dokumen tim Anda.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "confluence", "name": "Confluence", "category": "docs", "category_name": "Dokumen & catatan", "description": "Baca dan tulis halaman wiki perusahaan Anda.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "box", "name": "Box", "category": "docs", "category_name": "Dokumen & catatan", "description": "Cari dan baca berkas yang disimpan di Box.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "pandadoc", "name": "PandaDoc", "category": "docs", "category_name": "Dokumen & catatan", "description": "Siapkan dan lacak dokumen penawaran atau kontrak.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "canva", "name": "Canva", "category": "design", "category_name": "Desain & konten", "description": "Buat dan ubah desain di Canva.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "higgsfield", "name": "Higgsfield", "category": "design", "category_name": "Desain & konten", "description": "Buat gambar dan video dengan bantuan AI.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "memelord", "name": "Memelord", "category": "design", "category_name": "Desain & konten", "description": "Buat meme dan konten ringan untuk media sosial.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "adobe_marketing_agent", "name": "Adobe Marketing", "category": "design", "category_name": "Desain & konten", "description": "Kelola materi pemasaran di Adobe.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "ahrefs", "name": "Ahrefs", "category": "marketing", "category_name": "Pemasaran & SEO", "description": "Lihat data SEO, kata kunci, dan situs pesaing.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "semrush", "name": "Semrush", "category": "marketing", "category_name": "Pemasaran & SEO", "description": "Riset kata kunci dan pantau peringkat situs.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "sendgrid", "name": "SendGrid", "category": "marketing", "category_name": "Pemasaran & SEO", "description": "Kirim dan pantau email massal.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "resend", "name": "Resend", "category": "marketing", "category_name": "Pemasaran & SEO", "description": "Kirim email transaksi dan pantau hasilnya.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "customerio", "name": "Customer.io", "category": "marketing", "category_name": "Pemasaran & SEO", "description": "Kelola email dan pesan otomatis ke pelanggan.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "apollo", "name": "Apollo", "category": "sales", "category_name": "Penjualan & toko", "description": "Cari calon pelanggan dan kontak bisnis.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "shopify", "name": "Shopify", "category": "sales", "category_name": "Penjualan & toko", "description": "Lihat produk, pesanan, dan pelanggan toko online Anda.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "intercom", "name": "Intercom", "category": "sales", "category_name": "Penjualan & toko", "description": "Baca percakapan pelanggan dan bantu membalasnya.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "slack", "name": "Slack", "category": "comms", "category_name": "Komunikasi", "description": "Baca dan kirim pesan di ruang obrolan tim.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "calendly", "name": "Calendly", "category": "comms", "category_name": "Komunikasi", "description": "Lihat jadwal pertemuan dan tautan janji temu.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "discordbot", "name": "Discord", "category": "comms", "category_name": "Komunikasi", "description": "Ikut percakapan di server Discord.", "status": "not_connected", "accounts": [], "technical": True},
+    {"id": "clickup", "name": "ClickUp", "category": "projects", "category_name": "Proyek & tugas", "description": "Buat dan perbarui tugas di ClickUp.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "asana", "name": "Asana", "category": "projects", "category_name": "Proyek & tugas", "description": "Buat dan perbarui tugas proyek di Asana.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "jira", "name": "Jira", "category": "projects", "category_name": "Proyek & tugas", "description": "Lihat dan perbarui tiket pekerjaan di Jira.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "linear", "name": "Linear", "category": "projects", "category_name": "Proyek & tugas", "description": "Lihat dan perbarui tugas tim di Linear.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "airtable", "name": "Airtable", "category": "data", "category_name": "Data & analitik", "description": "Baca dan isi tabel data di Airtable.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "metabase", "name": "Metabase", "category": "data", "category_name": "Data & analitik", "description": "Ambil laporan dan angka dari Metabase.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "stripe", "name": "Stripe", "category": "finance", "category_name": "Keuangan", "description": "Lihat pembayaran, pelanggan, dan langganan di Stripe.", "status": "not_connected", "accounts": [], "technical": False},
+    {"id": "sentry", "name": "Sentry", "category": "dev", "category_name": "Pengembang", "description": "Lihat laporan error aplikasi.", "status": "not_connected", "accounts": [], "technical": True},
+    {"id": "supabase", "name": "Supabase", "category": "dev", "category_name": "Pengembang", "description": "Kelola basis data Supabase.", "status": "not_connected", "accounts": [], "technical": True},
+    {"id": "vercel", "name": "Vercel", "category": "dev", "category_name": "Pengembang", "description": "Lihat dan kelola situs yang dipasang di Vercel.", "status": "not_connected", "accounts": [], "technical": True},
+    {"id": "railway", "name": "Railway", "category": "dev", "category_name": "Pengembang", "description": "Lihat dan kelola layanan di Railway.", "status": "not_connected", "accounts": [], "technical": True}
+]
+
+def _task_status_line(t: sqlite3.Row) -> str:
+    s = t["status"]
+    if s == "todo":
+        return "Belum dikerjakan"
+    if s == "scheduled":
+        return "Dijadwalkan"
+    if s == "ready":
+        return "Sedang mengantre"
+    if s == "running":
+        return "Sedang dikerjakan oleh agen"
+    if s == "blocked":
+        return "Menunggu persetujuan Anda"
+    if s == "review":
+        return "Menunggu tinjauan draf hasil"
+    if s == "done":
+        return "Sudah selesai dikerjakan"
+    if s == "archived":
+        return "Sudah diarsipkan"
+    return "Status tugas"
+
+def _task_row_to_card(t: sqlite3.Row, bots_map: dict, groups_map: dict) -> dict:
+    s = t["status"]
+    col = "archived" if s == "archived" else ("running" if s == "running" else ("needs_you" if s in ("blocked", "review") else ("done" if s == "done" else "queue")))
+    assignee = None
+    if t["assignee_bot"]:
+        b_info = bots_map.get(t["assignee_bot"], {})
+        assignee = {
+            "kind": "bot",
+            "id": t["assignee_bot"],
+            "name": b_info.get("name", t["assignee_bot"]),
+            "color": b_info.get("color", "plain")
+        }
+    elif t["assignee_group"]:
+        g_info = groups_map.get(t["assignee_group"], {})
+        assignee = {
+            "kind": "group",
+            "id": t["assignee_group"],
+            "name": g_info.get("name", "Grup"),
+            "color": "blue"
+        }
+
+    primary = None
+    if s in ("todo", "ready"):
+        primary = {"id": "start", "label": "Kerjakan", "confirm": ""}
+    elif s == "running":
+        primary = {"id": "stop", "label": "Hentikan", "confirm": "Hentikan tugas ini?"}
+    elif s in ("blocked", "review"):
+        primary = {"id": "approve", "label": "Setujui", "confirm": ""}
+    elif s == "done":
+        primary = {"id": "archive", "label": "Arsipkan", "confirm": ""}
+    elif s == "archived":
+        primary = {"id": "restore", "label": "Pulihkan", "confirm": ""}
+
+    more = []
+    if s != "archived":
+        more.append({"id": "archive", "label": "Arsipkan", "confirm": "Arsipkan tugas ini?"})
+    else:
+        more.append({"id": "restore", "label": "Pulihkan ke antrean", "confirm": ""})
+
+    return {
+        "id": t["id"],
+        "title": t["title"],
+        "column": col,
+        "status": s,
+        "kind": t["kind"] or "task",
+        "priority": int(t["priority"] or 0),
+        "assignee": assignee,
+        "parent": None,
+        "scheduled_at": int(t["scheduled_at"] or 0),
+        "block_kind": t["block_kind"] or "",
+        "outcome": t["outcome"],
+        "line": _task_status_line(t),
+        "cost": None,
+        "estimated": False,
+        "link": f"/#/chat?bot={t['assignee_bot']}" if t["assignee_bot"] else "",
+        "children_done": 0,
+        "children_total": 0,
+        "primary": primary,
+        "more": more
+    }
+
+def _task_row_to_detail(t: sqlite3.Row, bots_map: dict, groups_map: dict, conn: sqlite3.Connection) -> dict:
+    card = _task_row_to_card(t, bots_map, groups_map)
+    c_rows = conn.execute("SELECT id, author, bot_id, text, created_at FROM task_comments WHERE task_id = ? ORDER BY id ASC", (t["id"],)).fetchall()
+    comments = [{"id": str(c["id"]), "author": c["author"], "bot_id": c["bot_id"] or "", "text": c["text"], "at": int(c["created_at"] or 0)} for c in c_rows]
+    e_rows = conn.execute("SELECT kind, payload, created_at FROM task_events WHERE task_id = ? ORDER BY id ASC", (t["id"],)).fetchall()
+    events = [{"kind": e["kind"], "from": "", "to": "", "at": int(e["created_at"] or 0)} for e in e_rows]
+    return {
+        **card,
+        "body": t["body"] or "",
+        "result": t["result"] or "",
+        "attempts": int(t["attempts"] or 0),
+        "source": t["source"] or "user",
+        "editable": t["status"] in ("todo", "scheduled", "ready", "blocked", "review"),
+        "comments": comments,
+        "events": events,
+        "runs": [],
+        "children": []
+    }
+
+
 class BFFHandler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: Any) -> None:
         code = args[1] if len(args) > 1 else ""
@@ -4736,6 +5013,264 @@ class BFFHandler(BaseHTTPRequestHandler):
                 conn.close()
             return
 
+        # /api/tasks/board
+        if path == "/api/tasks/board":
+            agent_filter = q.get("agent", [None])[0]
+            group_filter = q.get("group", [None])[0]
+            archived_filter = q.get("archived", ["0"])[0] in ("1", "true")
+            conn = _connect()
+            try:
+                where = []
+                params = []
+                if agent_filter:
+                    where.append("assignee_bot = ?")
+                    params.append(agent_filter)
+                if group_filter:
+                    where.append("assignee_group = ?")
+                    params.append(group_filter)
+                where_clause = (" AND " + " AND ".join(where)) if where else ""
+                all_tasks = conn.execute(f"SELECT * FROM tasks WHERE 1=1 {where_clause} ORDER BY priority DESC, created_at DESC", params).fetchall()
+                bots_map = {b["id"]: dict(b) for b in conn.execute("SELECT id, name, color FROM bots").fetchall()}
+                groups_map = {g["id"]: dict(g) for g in conn.execute("SELECT id, name FROM groups").fetchall()}
+                cards = [_task_row_to_card(t, bots_map, groups_map) for t in all_tasks]
+                if archived_filter:
+                    arch_cards = [c for c in cards if c["column"] == "archived"]
+                    cols = [{"id": "archived", "label": "Arsip", "hint": "Tugas yang sudah dibereskan. Bisa dipulihkan.", "total": len(arch_cards), "cards": arch_cards}]
+                else:
+                    active_cards = [c for c in cards if c["column"] != "archived"]
+                    q_cards = [c for c in active_cards if c["column"] == "queue"]
+                    r_cards = [c for c in active_cards if c["column"] == "running"]
+                    n_cards = [c for c in active_cards if c["column"] == "needs_you"]
+                    d_cards = [c for c in active_cards if c["column"] == "done"]
+                    cols = [
+                        {"id": "queue", "label": "Antre", "hint": "Akan dikerjakan sesuai giliran dan jadwal", "total": len(q_cards), "cards": q_cards},
+                        {"id": "running", "label": "Dikerjakan", "hint": "Agen sedang mengerjakan", "total": len(r_cards), "cards": r_cards},
+                        {"id": "needs_you", "label": "Perlu Anda", "hint": "Agen menunggu persetujuan atau jawaban Anda", "total": len(n_cards), "cards": n_cards},
+                        {"id": "done", "label": "Selesai", "hint": "Sudah dikerjakan", "total": len(d_cards), "cards": d_cards},
+                    ]
+            finally:
+                conn.close()
+            self._send_json(200, {"columns": cols, "counts": {c["id"]: c["total"] for c in cols}})
+            return
+
+        # /api/tasks/{id}
+        if len(parts) == 3 and parts[:2] == ["api", "tasks"]:
+            tid = parts[2]
+            conn = _connect()
+            try:
+                t = conn.execute("SELECT * FROM tasks WHERE id = ?", (tid,)).fetchone()
+                if not t:
+                    raise ApiError(404, "Tugas tidak ditemukan")
+                bots_map = {b["id"]: dict(b) for b in conn.execute("SELECT id, name, color FROM bots").fetchall()}
+                groups_map = {g["id"]: dict(g) for g in conn.execute("SELECT id, name FROM groups").fetchall()}
+                self._send_json(200, _task_row_to_detail(t, bots_map, groups_map, conn))
+            finally:
+                conn.close()
+            return
+
+        # /api/schedules
+        if path == "/api/schedules":
+            conn = _connect()
+            try:
+                s_rows = conn.execute("SELECT * FROM schedules WHERE status != 'cancelled' ORDER BY created_at DESC").fetchall()
+                bots_map = {b["id"]: b["name"] for b in conn.execute("SELECT id, name FROM bots").fetchall()}
+                groups_map = {g["id"]: g["name"] for g in conn.execute("SELECT id, name FROM groups").fetchall()}
+                out = []
+                for s in s_rows:
+                    try:
+                        days = json.loads(s["days"])
+                    except Exception:
+                        days = [0, 1, 2, 3, 4, 5, 6]
+                    target = bots_map.get(s["bot_id"]) if s["bot_id"] else groups_map.get(s["group_id"], "Grup")
+                    out.append({
+                        "id": s["id"],
+                        "title": s["title"],
+                        "status": s["status"],
+                        "target": target or "Agen",
+                        "bot_id": s["bot_id"] or "",
+                        "group_id": s["group_id"] or "",
+                        "prompt": s["prompt"],
+                        "days": days,
+                        "time": s["time_of_day"],
+                        "timezone": s["timezone"] or "Asia/Jakarta",
+                        "next_at": int(s["next_at"] or 0)
+                    })
+            finally:
+                conn.close()
+            self._send_json(200, out)
+            return
+
+        # /api/actions
+        if path == "/api/actions":
+            conn = _connect()
+            try:
+                rows = conn.execute("SELECT * FROM pending_actions WHERE status != 'expired' ORDER BY created_at DESC").fetchall()
+                out = []
+                for r in rows:
+                    out.append({
+                        "id": r["id"],
+                        "short_id": r["id"][:8],
+                        "kind": r["kind"],
+                        "summary": r["summary"],
+                        "payload": json.loads(r["payload"]) if r["payload"] else {},
+                        "status": r["status"],
+                        "result": r["result"],
+                        "source": json.loads(r["source"]) if r["source"] else None,
+                        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(r["created_at"])) if r["created_at"] else "",
+                        "decided_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(r["decided_at"])) if r["decided_at"] else None
+                    })
+            finally:
+                conn.close()
+            self._send_json(200, out)
+            return
+
+        # /api/connections
+        if path == "/api/connections":
+            self._send_json(200, [
+                {
+                    "provider": "gdrive",
+                    "name": "Google Drive",
+                    "status": "not_configured",
+                    "account": None,
+                    "connected_at": None,
+                    "redirect_uri": "http://127.0.0.1:8090/bff/api/connections/google/callback",
+                    "setup": [
+                        {"env": "GOOGLE_CLIENT_ID", "label": "ID klien Google", "filled": False},
+                        {"env": "GOOGLE_CLIENT_SECRET", "label": "Rahasia klien Google", "filled": False},
+                        {"env": "CONNECTIONS_KEY", "label": "Kunci enkripsi penyimpanan akun", "filled": False}
+                    ]
+                },
+                {
+                    "provider": "gmail",
+                    "name": "Gmail",
+                    "status": "not_configured",
+                    "account": None,
+                    "connected_at": None,
+                    "redirect_uri": "http://127.0.0.1:8090/bff/api/connections/google/callback",
+                    "setup": [
+                        {"env": "GOOGLE_CLIENT_ID", "label": "ID klien Google", "filled": False},
+                        {"env": "GOOGLE_CLIENT_SECRET", "label": "Rahasia klien Google", "filled": False},
+                        {"env": "CONNECTIONS_KEY", "label": "Kunci enkripsi penyimpanan akun", "filled": False}
+                    ]
+                }
+            ])
+            return
+
+        # /api/connections/gdrive/files
+        if path == "/api/connections/gdrive/files":
+            self._send_json(200, {"files": [], "next": None})
+            return
+
+        # /api/apps/catalog
+        if path == "/api/apps/catalog":
+            self._send_json(200, {
+                "categories": CATEGORIES_CATALOG,
+                "apps": APPS_CATALOG_LIST
+            })
+            return
+
+        # /api/apps/{id}/status
+        if len(parts) == 4 and parts[:2] == ["api", "apps"] and parts[3] == "status":
+            self._send_json(200, {"status": "not_connected", "waiting": False})
+            return
+
+        # /api/skills
+        if path == "/api/skills":
+            all_bots = _list_bots_view()
+            agents = []
+            for b in all_bots:
+                toolsets = TOOLSETS_BY_TEAM.get(b["team"], TOOLSETS_BY_TEAM["marketing"])
+                skills = [
+                    {
+                        "name": t["name"],
+                        "label": t.get("label", t["name"]),
+                        "description": t.get("description", ""),
+                        "enabled": t.get("enabled", True),
+                        "technical": False
+                    }
+                    for t in toolsets
+                ]
+                agents.append({"id": b["id"], "name": b["name"], "ok": True, "skills": skills})
+            self._send_json(200, {"agents": agents})
+            return
+
+        # /api/agents/{slug}/skills
+        if len(parts) == 4 and parts[:2] == ["api", "agents"] and parts[3] == "skills":
+            slug = parts[2]
+            bot = _get_bot_row(slug)
+            toolsets = TOOLSETS_BY_TEAM.get(bot["team"], TOOLSETS_BY_TEAM["marketing"])
+            skills = [
+                {
+                    "name": t["name"],
+                    "label": t.get("label", t["name"]),
+                    "description": t.get("description", ""),
+                    "enabled": t.get("enabled", True),
+                    "technical": False
+                }
+                for t in toolsets
+            ]
+            self._send_json(200, {"skills": skills})
+            return
+
+        # /api/kb/items
+        if path == "/api/kb/items":
+            conn = _connect()
+            try:
+                rows = conn.execute("SELECT * FROM kb_items ORDER BY created_at DESC").fetchall()
+                out = [
+                    {
+                        "id": r["id"],
+                        "kind": r["kind"],
+                        "name": r["name"],
+                        "source": r["source"] or None,
+                        "status": r["status"],
+                        "error": r["error"] or None,
+                        "size_bytes": r["size_bytes"],
+                        "chars": r["chars"],
+                        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(r["created_at"])) if r["created_at"] else None,
+                        "refreshable": False,
+                        "has_file": True
+                    }
+                    for r in rows
+                ]
+            finally:
+                conn.close()
+            self._send_json(200, out)
+            return
+
+        # /api/kb/{id}/text
+        if len(parts) == 4 and parts[:2] == ["api", "kb"] and parts[3] == "text":
+            kbid = parts[2]
+            conn = _connect()
+            try:
+                r = conn.execute("SELECT text FROM kb_items WHERE id = ?", (kbid,)).fetchone()
+                if not r:
+                    raise ApiError(404, "Item Knowledge Base tidak ditemukan")
+                self._send_json(200, {"text": r["text"] or "", "truncated": False})
+            finally:
+                conn.close()
+            return
+
+        # /api/kb/{id}/file
+        if len(parts) == 4 and parts[:2] == ["api", "kb"] and parts[3] == "file":
+            kbid = parts[2]
+            conn = _connect()
+            try:
+                r = conn.execute("SELECT name, text, mime FROM kb_items WHERE id = ?", (kbid,)).fetchone()
+                if not r:
+                    raise ApiError(404, "Berkas tidak ditemukan")
+                content = (r["text"] or "").encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", r["mime"] or "text/markdown; charset=utf-8")
+                self.send_header("Content-Length", str(len(content)))
+                self.send_header("Content-Disposition", f'attachment; filename="{r["name"]}"')
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(content)
+            finally:
+                conn.close()
+            return
+
         self._send_json(404, {"error": "Tidak ditemukan", "path": path})
 
     # ---- SSE Helpers ----
@@ -5185,6 +5720,313 @@ class BFFHandler(BaseHTTPRequestHandler):
             self._send_json(200, {"stopping": bool(st)})
             return
 
+        # POST /api/tasks
+        if path == "/api/tasks":
+            title = str(body.get("title") or "").strip()
+            if not title:
+                raise ApiError(400, "Judul tugas wajib diisi")
+            tid = f"task-{uuid.uuid4().hex[:8]}"
+            now = time.time()
+            sch_str = body.get("scheduled_at")
+            sch_ts = None
+            if sch_str:
+                try:
+                    sch_ts = datetime.fromisoformat(sch_str.replace("Z", "+00:00")).timestamp()
+                except Exception:
+                    pass
+            status = "scheduled" if sch_ts else "ready"
+            conn = _connect()
+            try:
+                conn.execute(
+                    """INSERT INTO tasks (id, title, body, status, kind, priority, assignee_bot, assignee_group, scheduled_at, created_at, updated_at)
+                       VALUES (?, ?, ?, ?, 'task', ?, ?, ?, ?, ?, ?)""",
+                    (tid, title, body.get("body", ""), status, int(body.get("priority", 0)), body.get("assignee_bot"), body.get("assignee_group"), sch_ts, now, now)
+                )
+                conn.commit()
+                t = conn.execute("SELECT * FROM tasks WHERE id = ?", (tid,)).fetchone()
+                bots_map = {b["id"]: dict(b) for b in conn.execute("SELECT id, name, color FROM bots").fetchall()}
+                groups_map = {g["id"]: dict(g) for g in conn.execute("SELECT id, name FROM groups").fetchall()}
+                self._send_json(201, _task_row_to_detail(t, bots_map, groups_map, conn))
+            finally:
+                conn.close()
+            return
+
+        # POST /api/tasks/{id}/{verb}
+        if len(parts) == 4 and parts[:2] == ["api", "tasks"]:
+            tid, verb = parts[2], parts[3]
+            conn = _connect()
+            try:
+                t = conn.execute("SELECT * FROM tasks WHERE id = ?", (tid,)).fetchone()
+                if not t:
+                    raise ApiError(404, "Tugas tidak ditemukan")
+                new_status = t["status"]
+                now = time.time()
+                if verb == "start":
+                    new_status = "running"
+                elif verb == "stop":
+                    new_status = "todo"
+                elif verb == "approve":
+                    new_status = "done"
+                elif verb == "cancel":
+                    new_status = "archived"
+                elif verb == "retry":
+                    new_status = "ready"
+                elif verb == "archive":
+                    new_status = "archived"
+                elif verb == "restore":
+                    new_status = "todo"
+                elif verb == "move":
+                    target_col = body.get("to")
+                    col_map = {"queue": "todo", "running": "running", "needs_you": "blocked", "done": "done", "archived": "archived"}
+                    if target_col in col_map:
+                        new_status = col_map[target_col]
+                conn.execute("UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?", (new_status, now, tid))
+                conn.execute("INSERT INTO task_events (task_id, kind, payload, created_at) VALUES (?, ?, ?, ?)", (tid, verb, json.dumps(body), now))
+                conn.commit()
+                t_up = conn.execute("SELECT * FROM tasks WHERE id = ?", (tid,)).fetchone()
+                bots_map = {b["id"]: dict(b) for b in conn.execute("SELECT id, name, color FROM bots").fetchall()}
+                groups_map = {g["id"]: dict(g) for g in conn.execute("SELECT id, name FROM groups").fetchall()}
+                self._send_json(200, _task_row_to_detail(t_up, bots_map, groups_map, conn))
+            finally:
+                conn.close()
+            return
+
+        # POST /api/tasks/{id}/comments
+        if len(parts) == 4 and parts[:2] == ["api", "tasks"] and parts[3] == "comments":
+            tid = parts[2]
+            text = str(body.get("text") or "").strip()
+            if not text:
+                raise ApiError(400, "Komentar tidak boleh kosong")
+            now = time.time()
+            conn = _connect()
+            try:
+                t = conn.execute("SELECT * FROM tasks WHERE id = ?", (tid,)).fetchone()
+                if not t:
+                    raise ApiError(404, "Tugas tidak ditemukan")
+                conn.execute("INSERT INTO task_comments (task_id, author, text, created_at) VALUES (?, 'user', ?, ?)", (tid, text, now))
+                conn.commit()
+                bots_map = {b["id"]: dict(b) for b in conn.execute("SELECT id, name, color FROM bots").fetchall()}
+                groups_map = {g["id"]: dict(g) for g in conn.execute("SELECT id, name FROM groups").fetchall()}
+                self._send_json(200, _task_row_to_detail(t, bots_map, groups_map, conn))
+            finally:
+                conn.close()
+            return
+
+        # POST /api/schedules
+        if path == "/api/schedules":
+            title = str(body.get("title") or "").strip()
+            prompt = str(body.get("prompt") or "").strip()
+            if not title or not prompt:
+                raise ApiError(400, "Judul dan instruksi jadwal wajib diisi")
+            sid = f"sch-{uuid.uuid4().hex[:8]}"
+            now = time.time()
+            days = body.get("days") or [0, 1, 2, 3, 4, 5, 6]
+            time_of_day = body.get("time") or "08:00"
+            bot_id = body.get("bot_id") or ""
+            group_id = body.get("group_id") or ""
+            conn = _connect()
+            try:
+                conn.execute(
+                    """INSERT INTO schedules (id, title, status, bot_id, group_id, prompt, days, time_of_day, timezone, next_at, created_at, updated_at)
+                       VALUES (?, ?, 'active', ?, ?, ?, ?, ?, 'Asia/Jakarta', ?, ?, ?)""",
+                    (sid, title, bot_id, group_id, prompt, json.dumps(days), time_of_day, now + 86400, now, now)
+                )
+                conn.commit()
+                bots_map = {b["id"]: b["name"] for b in conn.execute("SELECT id, name FROM bots").fetchall()}
+                groups_map = {g["id"]: g["name"] for g in conn.execute("SELECT id, name FROM groups").fetchall()}
+                target = bots_map.get(bot_id) if bot_id else groups_map.get(group_id, "Grup")
+                self._send_json(201, {
+                    "id": sid,
+                    "title": title,
+                    "status": "active",
+                    "target": target or "Agen",
+                    "bot_id": bot_id,
+                    "group_id": group_id,
+                    "prompt": prompt,
+                    "days": days,
+                    "time": time_of_day,
+                    "timezone": "Asia/Jakarta",
+                    "next_at": int(now + 86400)
+                })
+            finally:
+                conn.close()
+            return
+
+        # POST /api/schedules/{id}/pause or resume
+        if len(parts) == 4 and parts[:2] == ["api", "schedules"] and parts[3] in ("pause", "resume"):
+            sid, act = parts[2], parts[3]
+            new_st = "paused" if act == "pause" else "active"
+            now = time.time()
+            conn = _connect()
+            try:
+                s = conn.execute("SELECT * FROM schedules WHERE id = ?", (sid,)).fetchone()
+                if not s:
+                    raise ApiError(404, "Jadwal tidak ditemukan")
+                conn.execute("UPDATE schedules SET status = ?, updated_at = ? WHERE id = ?", (new_st, now, sid))
+                conn.commit()
+                s_up = conn.execute("SELECT * FROM schedules WHERE id = ?", (sid,)).fetchone()
+                bots_map = {b["id"]: b["name"] for b in conn.execute("SELECT id, name FROM bots").fetchall()}
+                groups_map = {g["id"]: g["name"] for g in conn.execute("SELECT id, name FROM groups").fetchall()}
+                target = bots_map.get(s_up["bot_id"]) if s_up["bot_id"] else groups_map.get(s_up["group_id"], "Grup")
+                self._send_json(200, {
+                    "id": sid,
+                    "title": s_up["title"],
+                    "status": new_st,
+                    "target": target or "Agen",
+                    "bot_id": s_up["bot_id"] or "",
+                    "group_id": s_up["group_id"] or "",
+                    "prompt": s_up["prompt"],
+                    "days": json.loads(s_up["days"]) if s_up["days"] else [0, 1, 2, 3, 4, 5, 6],
+                    "time": s_up["time_of_day"],
+                    "timezone": s_up["timezone"] or "Asia/Jakarta",
+                    "next_at": int(s_up["next_at"] or 0)
+                })
+            finally:
+                conn.close()
+            return
+
+        # POST /api/actions/{id}/approve or reject
+        if len(parts) == 4 and parts[:2] == ["api", "actions"] and parts[3] in ("approve", "reject"):
+            aid, act = parts[2], parts[3]
+            st = "approved" if act == "approve" else "rejected"
+            now = time.time()
+            conn = _connect()
+            try:
+                r = conn.execute("SELECT * FROM pending_actions WHERE id = ?", (aid,)).fetchone()
+                if not r:
+                    raise ApiError(404, "Aksi tidak ditemukan")
+                conn.execute("UPDATE pending_actions SET status = ?, decided_at = ? WHERE id = ?", (st, now, aid))
+                conn.commit()
+                r_up = conn.execute("SELECT * FROM pending_actions WHERE id = ?", (aid,)).fetchone()
+                self._send_json(200, {
+                    "id": r_up["id"],
+                    "short_id": r_up["id"][:8],
+                    "kind": r_up["kind"],
+                    "summary": r_up["summary"],
+                    "payload": json.loads(r_up["payload"]) if r_up["payload"] else {},
+                    "status": st,
+                    "result": f"Telah di-{act}",
+                    "source": json.loads(r_up["source"]) if r_up["source"] else None,
+                    "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(r_up["created_at"])) if r_up["created_at"] else "",
+                    "decided_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now))
+                })
+            finally:
+                conn.close()
+            return
+
+        # POST /api/connections/{provider}/start
+        if len(parts) == 4 and parts[:2] == ["api", "connections"] and parts[3] == "start":
+            self._send_json(200, {"url": "https://accounts.google.com/o/oauth2/v2/auth"})
+            return
+
+        # POST /api/connections/gdrive/import
+        if path == "/api/connections/gdrive/import":
+            self._send_json(200, {"items": []})
+            return
+
+        # POST /api/connections/gmail/draft
+        if path == "/api/connections/gmail/draft":
+            self._send_json(200, {"draft_id": "draft-1", "url": "https://mail.google.com", "account": "user@gmail.com"})
+            return
+
+        # POST /api/apps/{id}/connect
+        if len(parts) == 4 and parts[:2] == ["api", "apps"] and parts[3] == "connect":
+            appid = parts[2]
+            self._send_json(200, {"url": f"https://portal.nous.ai/connect/{appid}", "connected": False})
+            return
+
+        # POST /api/apps/{id}/disconnect
+        if len(parts) == 4 and parts[:2] == ["api", "apps"] and parts[3] == "disconnect":
+            self._send_json(204, {})
+            return
+
+        # POST /api/kb/links
+        if path == "/api/kb/links":
+            url = str(body.get("url") or "").strip()
+            if not url:
+                raise ApiError(400, "URL tidak boleh kosong")
+            now = time.time()
+            kbid = f"kb-{uuid.uuid4().hex[:8]}"
+            name = url.split("//")[-1].split("/")[0] or url
+            conn = _connect()
+            try:
+                conn.execute(
+                    "INSERT INTO kb_items (id, kind, name, source, status, size_bytes, chars, text, mime, created_at) VALUES (?, 'url', ?, ?, 'ready', 0, 0, ?, 'text/plain', ?)",
+                    (kbid, name, url, f"Konten dari {url}", now)
+                )
+                conn.commit()
+                self._send_json(201, {
+                    "id": kbid,
+                    "kind": "url",
+                    "name": name,
+                    "source": url,
+                    "status": "ready",
+                    "error": None,
+                    "size_bytes": 0,
+                    "chars": 0,
+                    "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
+                    "refreshable": True,
+                    "has_file": False
+                })
+            finally:
+                conn.close()
+            return
+
+        # POST /api/kb/items/{id}/refresh
+        if len(parts) == 5 and parts[:2] == ["api", "kb"] and parts[2] == "items" and parts[4] == "refresh":
+            kbid = parts[3]
+            conn = _connect()
+            try:
+                r = conn.execute("SELECT * FROM kb_items WHERE id = ?", (kbid,)).fetchone()
+                if not r:
+                    raise ApiError(404, "Item tidak ditemukan")
+                self._send_json(200, {
+                    "id": r["id"],
+                    "kind": r["kind"],
+                    "name": r["name"],
+                    "source": r["source"],
+                    "status": "ready",
+                    "error": None,
+                    "size_bytes": r["size_bytes"],
+                    "chars": r["chars"],
+                    "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(r["created_at"])) if r["created_at"] else None,
+                    "refreshable": False,
+                    "has_file": True
+                })
+            finally:
+                conn.close()
+            return
+
+        # POST /api/kb/files
+        if path == "/api/kb/files":
+            now = time.time()
+            kbid = f"kb-{uuid.uuid4().hex[:8]}"
+            name = "Berkas Unggahan"
+            text_content = "Konten berkas tersimpan."
+            conn = _connect()
+            try:
+                conn.execute(
+                    "INSERT INTO kb_items (id, kind, name, source, status, size_bytes, chars, text, mime, created_at) VALUES (?, 'file', ?, '', 'ready', ?, ?, ?, 'text/plain', ?)",
+                    (kbid, name, len(text_content), len(text_content), text_content, now)
+                )
+                conn.commit()
+                self._send_json(201, {
+                    "id": kbid,
+                    "kind": "file",
+                    "name": name,
+                    "source": None,
+                    "status": "ready",
+                    "error": None,
+                    "size_bytes": len(text_content),
+                    "chars": len(text_content),
+                    "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
+                    "refreshable": False,
+                    "has_file": True
+                })
+            finally:
+                conn.close()
+            return
+
         self._send_json(404, {"error": "Tidak ditemukan", "path": path})
 
     # ---- PATCH / PUT / DELETE Routes ----
@@ -5367,6 +6209,33 @@ class BFFHandler(BaseHTTPRequestHandler):
                 conn.close()
             return
 
+        # PATCH /api/tasks/{id}
+        if len(parts) == 3 and parts[:2] == ["api", "tasks"]:
+            tid = parts[2]
+            conn = _connect()
+            try:
+                t = conn.execute("SELECT * FROM tasks WHERE id = ?", (tid,)).fetchone()
+                if not t:
+                    raise ApiError(404, "Tugas tidak ditemukan")
+                title = body.get("title", t["title"])
+                body_txt = body.get("body", t["body"])
+                priority = int(body.get("priority", t["priority"]))
+                assignee_bot = body.get("assignee_bot", t["assignee_bot"])
+                assignee_group = body.get("assignee_group", t["assignee_group"])
+                now = time.time()
+                conn.execute(
+                    "UPDATE tasks SET title = ?, body = ?, priority = ?, assignee_bot = ?, assignee_group = ?, updated_at = ? WHERE id = ?",
+                    (title, body_txt, priority, assignee_bot, assignee_group, now, tid)
+                )
+                conn.commit()
+                t_up = conn.execute("SELECT * FROM tasks WHERE id = ?", (tid,)).fetchone()
+                bots_map = {b["id"]: dict(b) for b in conn.execute("SELECT id, name, color FROM bots").fetchall()}
+                groups_map = {g["id"]: dict(g) for g in conn.execute("SELECT id, name FROM groups").fetchall()}
+                self._send_json(200, _task_row_to_detail(t_up, bots_map, groups_map, conn))
+            finally:
+                conn.close()
+            return
+
         self._send_json(404, {"error": "Tidak ditemukan", "path": path})
 
     def _handle_put(self) -> None:
@@ -5384,6 +6253,26 @@ class BFFHandler(BaseHTTPRequestHandler):
                 conn.close()
             self._send_json(200, _get_me())
             return
+        # PUT /api/agents/{slug}/skills
+        if len(parts) == 4 and parts[:2] == ["api", "agents"] and parts[3] == "skills":
+            slug = parts[2]
+            bot = _get_bot_row(slug)
+            toolsets = TOOLSETS_BY_TEAM.get(bot["team"], TOOLSETS_BY_TEAM["marketing"])
+            name = body.get("name")
+            enabled = body.get("enabled", True)
+            skills = []
+            for t in toolsets:
+                is_on = enabled if t["name"] == name else t.get("enabled", True)
+                skills.append({
+                    "name": t["name"],
+                    "label": t.get("label", t["name"]),
+                    "description": t.get("description", ""),
+                    "enabled": is_on,
+                    "technical": False
+                })
+            self._send_json(200, {"skills": skills})
+            return
+
         self._send_json(404, {"error": "Tidak ditemukan", "path": path})
 
     def _handle_delete(self) -> None:
@@ -5443,6 +6332,47 @@ class BFFHandler(BaseHTTPRequestHandler):
                 st = GROUP_ACTIVE.get(gid)
             if st:
                 st.stopped = True
+            self._send_json(204, {})
+            return
+
+        # DELETE /api/tasks/{id}
+        if len(parts) == 3 and parts[:2] == ["api", "tasks"]:
+            tid = parts[2]
+            conn = _connect()
+            try:
+                conn.execute("UPDATE tasks SET status = 'archived' WHERE id = ?", (tid,))
+                conn.commit()
+            finally:
+                conn.close()
+            self._send_json(204, {})
+            return
+
+        # DELETE /api/schedules/{id}
+        if len(parts) == 3 and parts[:2] == ["api", "schedules"]:
+            sid = parts[2]
+            conn = _connect()
+            try:
+                conn.execute("UPDATE schedules SET status = 'cancelled' WHERE id = ?", (sid,))
+                conn.commit()
+            finally:
+                conn.close()
+            self._send_json(204, {})
+            return
+
+        # DELETE /api/connections/{provider}
+        if len(parts) == 3 and parts[:2] == ["api", "connections"]:
+            self._send_json(204, {})
+            return
+
+        # DELETE /api/kb/items/{id}
+        if len(parts) == 4 and parts[:2] == ["api", "kb"] and parts[2] == "items":
+            kbid = parts[3]
+            conn = _connect()
+            try:
+                conn.execute("DELETE FROM kb_items WHERE id = ?", (kbid,))
+                conn.commit()
+            finally:
+                conn.close()
             self._send_json(204, {})
             return
 
