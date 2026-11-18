@@ -22,35 +22,130 @@ except Exception:
 DEFAULT_DAYS_PLAN = [
     {
         "day": 1,
-        "title": "URBAN Y2K DENIM",
-        "topic": "Inspirasi street style casual denim anak muda Jakarta",
-        "palette": "Soft Cream, Cobalt Denim Blue, Colorbox Coral",
+        "title": "ATELIER HAUTE-MINIMALIST",
+        "topic": "Sartorial check tailoring dipadukan dengan suede skirt & sling bag",
+        "palette": "Warm Studio Ecru, Charcoal Black, Colorbox Coral",
         "products": [
-            {"name": "Contrast Stitch Chambray Shirt", "price": "Rp 140.900", "color": "DARK BLUE", "image_file": "cbx-01-contrast-stitch-chambray-shirt.jpg", "sizes": "S, M, L, XL"},
-            {"name": "High Waist Barrel Denim Pants", "price": "Rp 329.900", "color": "BLACK", "image_file": "cbx-02-high-waist-barrel-denim-black.jpg", "sizes": "26, 27, 28, 29, 30"},
-            {"name": "Colorbox x Liunic Tote Bag", "price": "Rp 199.900", "color": "ECRU", "image_file": "cbx-10-colorbox-x-liunic-tote-bag-ecru.jpg", "sizes": "One Size"}
+            {
+                "name": "Oversize Long Sleeve Checks Blazer",
+                "price": "Rp 299.900",
+                "color": "DUSTY OLIVE",
+                "sizes": "S, M, L, XL",
+                "angles": {
+                    "front": "cbx-11a-oversize-checks-blazer-dusty-olive-front.jpg",
+                    "back": "cbx-11b-oversize-checks-blazer-dusty-olive-back.jpg",
+                    "detail": "cbx-11c-oversize-checks-blazer-dusty-olive-detail.jpg"
+                },
+                "image_file": "cbx-11a-oversize-checks-blazer-dusty-olive-front.jpg"
+            },
+            {
+                "name": "Suede Mini Skirt",
+                "price": "Rp 249.900",
+                "color": "NAVY",
+                "sizes": "S, M, L, XL",
+                "angles": {
+                    "front": "cbx-16a-suede-mini-skirt-navy-front.jpg",
+                    "back": "cbx-16b-suede-mini-skirt-navy-back.jpg",
+                    "detail": "cbx-16c-suede-mini-skirt-navy-detail.jpg"
+                },
+                "image_file": "cbx-16a-suede-mini-skirt-navy-front.jpg"
+            },
+            {
+                "name": "Denim Sling Bag",
+                "price": "Rp 129.900",
+                "color": "DENIM",
+                "sizes": "One Size",
+                "angles": {
+                    "front": "cbx-19a-denim-sling-bag-denim-front.jpg",
+                    "side": "cbx-19b-denim-sling-bag-denim-side.jpg",
+                    "detail": "cbx-19c-denim-sling-bag-denim-detail.jpg"
+                },
+                "image_file": "cbx-19a-denim-sling-bag-denim-front.jpg"
+            }
         ]
     },
     {
         "day": 2,
-        "title": "WARM AUTUMN CAFE",
-        "topic": "OOTD akhir pekan santai & cafe hopping bernuansa warm earthy",
-        "palette": "Warm Oatmeal, Dusty Olive, Espresso Dark Brown",
+        "title": "MODERNIST ARCHITECTURAL WARDROBE",
+        "topic": "Cozy relaxed hoodie dipadukan dengan overlap micro skirt & lace sneakers",
+        "palette": "Architectural Concrete, Ink Black, Sage Olive Green",
         "products": [
-            {"name": "Oversize Checks Blazer", "price": "Rp 299.900", "color": "DUSTY OLIVE", "image_file": "cbx-11a-oversize-checks-blazer-dusty-olive-front.jpg", "sizes": "S, M, L, XL"},
-            {"name": "Double Pocket Flared Denim Pants", "price": "Rp 251.929", "color": "LT. GREY", "image_file": "cbx-05-double-pocket-flared-denim-grey.jpg", "sizes": "26, 27, 28, 29, 30"},
-            {"name": "Denim Sling Bag", "price": "Rp 129.900", "color": "DENIM", "image_file": "cbx-19a-denim-sling-bag-denim-front.jpg", "sizes": "One Size"}
+            {
+                "name": "Bubble Hem Long Sleeve Hoodie",
+                "price": "Rp 259.900",
+                "color": "ECRU",
+                "sizes": "S, M, L, XL",
+                "angles": {
+                    "front": "cbx-15a-bubble-hem-hoodie-ecru-front.jpg",
+                    "back": "cbx-15b-bubble-hem-hoodie-ecru-back.jpg",
+                    "detail": "cbx-15c-bubble-hem-hoodie-ecru-detail.jpg"
+                },
+                "image_file": "cbx-15a-bubble-hem-hoodie-ecru-front.jpg"
+            },
+            {
+                "name": "Jeans with Overlap Micro Skirt Details",
+                "price": "Rp 299.900",
+                "color": "DARK NAVY",
+                "sizes": "26 - 30",
+                "angles": {
+                    "front": "cbx-17a-jeans-overlap-micro-skirt-dark-navy-front.jpg",
+                    "back": "cbx-17b-jeans-overlap-micro-skirt-dark-navy-back.jpg",
+                    "detail": "cbx-17c-jeans-overlap-micro-skirt-dark-navy-detail.jpg"
+                },
+                "image_file": "cbx-17a-jeans-overlap-micro-skirt-dark-navy-front.jpg"
+            },
+            {
+                "name": "Lace Sneakers",
+                "price": "Rp 299.900",
+                "color": "NAVY",
+                "sizes": "36 - 40",
+                "angles": {
+                    "front": "cbx-20a-lace-sneakers-navy-front-pair.jpg",
+                    "side": "cbx-20b-lace-sneakers-navy-side-profile.jpg",
+                    "detail": "cbx-20c-lace-sneakers-navy-top-down.jpg"
+                },
+                "image_file": "cbx-20a-lace-sneakers-navy-front-pair.jpg"
+            }
         ]
     },
     {
         "day": 3,
-        "title": "CHIC EDGY NIGHT",
-        "topic": "Padu padan bold edgy look untuk night out & dinner",
-        "palette": "Studio Off-White, Dark Red Leather, Jet Black",
+        "title": "AVANT-GARDE NOCTURNE DROP",
+        "topic": "Leather statement jacket dipadukan dengan flared denim & liunic tote",
+        "palette": "Midnight Slate, Pure White, Neon Crimson",
         "products": [
-            {"name": "Oversize Collared Leather Jacket", "price": "Rp 599.900", "color": "DARK RED", "image_file": "cbx-14a-oversize-collared-leather-jacket-dark-red-front.jpg", "sizes": "S, M, L, XL"},
-            {"name": "Suede Mini Skirt", "price": "Rp 249.900", "color": "NAVY", "image_file": "cbx-16a-suede-mini-skirt-navy-front.jpg", "sizes": "S, M, L, XL"},
-            {"name": "Lace Sneakers", "price": "Rp 299.900", "color": "NAVY", "image_file": "cbx-20a-lace-sneakers-navy-front-pair.jpg", "sizes": "36 - 40"}
+            {
+                "name": "Oversize Collared Leather Jacket",
+                "price": "Rp 599.900",
+                "color": "DARK RED",
+                "sizes": "S, M, L, XL",
+                "angles": {
+                    "front": "cbx-14a-oversize-collared-leather-jacket-dark-red-front.jpg",
+                    "back": "cbx-14b-oversize-collared-leather-jacket-dark-red-back.jpg",
+                    "detail": "cbx-14c-oversize-collared-leather-jacket-dark-red-detail.jpg"
+                },
+                "image_file": "cbx-14a-oversize-collared-leather-jacket-dark-red-front.jpg"
+            },
+            {
+                "name": "Double Pocket Flared Denim Pants",
+                "price": "Rp 251.929",
+                "color": "LT. GREY",
+                "sizes": "26 - 30",
+                "angles": {
+                    "front": "cbx-05-double-pocket-flared-denim-grey.jpg"
+                },
+                "image_file": "cbx-05-double-pocket-flared-denim-grey.jpg"
+            },
+            {
+                "name": "Colorbox x Liunic Tote Bag",
+                "price": "Rp 199.900",
+                "color": "ECRU",
+                "sizes": "One Size",
+                "angles": {
+                    "front": "cbx-10-colorbox-x-liunic-tote-bag-ecru.jpg"
+                },
+                "image_file": "cbx-10-colorbox-x-liunic-tote-bag-ecru.jpg"
+            }
         ]
     }
 ]

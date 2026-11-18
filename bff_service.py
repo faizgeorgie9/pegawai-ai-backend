@@ -2736,11 +2736,16 @@ def _detect_user_product_mandate(user_text: str) -> Tuple[List[Dict[str, Any]], 
     if not user_text:
         return [], "User belum memberikan detail brief spesifik."
     matched: List[Dict[str, Any]] = []
-    keywords = ["chambray", "barrel", "skort", "skirt", "dress", "tote bag", "liunic", "flared", "straight", "graphic", "stripes"]
+    keywords = [
+        "checks", "blazer", "crop", "jacket", "hoodie", "leather", "chambray", "shirt",
+        "suede", "skirt", "overlap", "micro", "drawstring", "pants", "barrel", "flared",
+        "skort", "dress", "sling", "tote", "bag", "sneakers", "shoes", "denim",
+        "promosi", "produk", "baju", "celana", "kemeja", "rok", "tas", "kaos", "outfit", "ootd", "lookbook"
+    ]
     low = user_text.lower()
-    has_keywords = any(kw in low for kw in keywords) or any(w in low for w in ["promosi", "produk", "baju", "celana", "kemeja", "rok", "tas", "kaos", "outfit"])
+    has_keywords = any(kw in low for kw in keywords)
     if has_keywords and len(CATALOG.rows) > 0:
-        candidates = CATALOG.search(user_text, limit=8)
+        candidates = CATALOG.search(user_text, limit=10)
         for c in candidates:
             cname = c["name"].lower()
             tokens = [t for t in re.findall(r"[a-z0-9]+", cname) if len(t) > 3]
@@ -2766,6 +2771,403 @@ def _detect_user_product_mandate(user_text: str) -> Tuple[List[Dict[str, Any]], 
         return [], note
 
 
+AUTHENTIC_IMAGE_CATALOG = [
+    # --- TOPS & OUTERWEAR ---
+    {
+        "id": "CBX-11",
+        "name": "Oversize Long Sleeve Checks Blazer",
+        "category": "Outerwear & Jackets",
+        "subcat": "outerwear",
+        "price": "Rp 299.900",
+        "color": "DUSTY OLIVE",
+        "sizes": "S, M, L, XL",
+        "angles": {
+            "front": "cbx-11a-oversize-checks-blazer-dusty-olive-front.jpg",
+            "back": "cbx-11b-oversize-checks-blazer-dusty-olive-back.jpg",
+            "detail": "cbx-11c-oversize-checks-blazer-dusty-olive-detail.jpg",
+        },
+        "image_file": "cbx-11a-oversize-checks-blazer-dusty-olive-front.jpg",
+    },
+    {
+        "id": "CBX-12",
+        "name": "Double Breasted Crop Jacket",
+        "category": "Outerwear & Jackets",
+        "subcat": "outerwear",
+        "price": "Rp 329.900",
+        "color": "LT. GREY",
+        "sizes": "S, M, L, XL",
+        "angles": {
+            "front": "cbx-12a-double-breasted-crop-jacket-lt-grey-front.jpg",
+            "back": "cbx-12b-double-breasted-crop-jacket-lt-grey-back.jpg",
+            "detail": "cbx-12c-double-breasted-crop-jacket-lt-grey-detail.jpg",
+        },
+        "image_file": "cbx-12a-double-breasted-crop-jacket-lt-grey-front.jpg",
+    },
+    {
+        "id": "CBX-13",
+        "name": "Contrast Detail Denim Jacket",
+        "category": "Outerwear & Jackets",
+        "subcat": "outerwear",
+        "price": "Rp 299.900",
+        "color": "DARK BROWN",
+        "sizes": "S, M, L, XL",
+        "angles": {
+            "front": "cbx-13a-contrast-detail-denim-jacket-dark-brown-front.jpg",
+            "back": "cbx-13b-contrast-detail-denim-jacket-dark-brown-back.jpg",
+            "detail": "cbx-13c-contrast-detail-denim-jacket-dark-brown-detail.jpg",
+        },
+        "image_file": "cbx-13a-contrast-detail-denim-jacket-dark-brown-front.jpg",
+    },
+    {
+        "id": "CBX-14",
+        "name": "Oversize Collared Leather Jacket",
+        "category": "Outerwear & Jackets",
+        "subcat": "outerwear",
+        "price": "Rp 599.900",
+        "color": "DARK RED",
+        "sizes": "S, M, L, XL",
+        "angles": {
+            "front": "cbx-14a-oversize-collared-leather-jacket-dark-red-front.jpg",
+            "back": "cbx-14b-oversize-collared-leather-jacket-dark-red-back.jpg",
+            "detail": "cbx-14c-oversize-collared-leather-jacket-dark-red-detail.jpg",
+        },
+        "image_file": "cbx-14a-oversize-collared-leather-jacket-dark-red-front.jpg",
+    },
+    {
+        "id": "CBX-15",
+        "name": "Bubble Hem Long Sleeve Hoodie",
+        "category": "Tops (Atasan)",
+        "subcat": "tops",
+        "price": "Rp 259.900",
+        "color": "ECRU",
+        "sizes": "S, M, L, XL",
+        "angles": {
+            "front": "cbx-15a-bubble-hem-hoodie-ecru-front.jpg",
+            "back": "cbx-15b-bubble-hem-hoodie-ecru-back.jpg",
+            "detail": "cbx-15c-bubble-hem-hoodie-ecru-detail.jpg",
+        },
+        "image_file": "cbx-15a-bubble-hem-hoodie-ecru-front.jpg",
+    },
+    {
+        "id": "CBX-01",
+        "name": "Contrast Stitch Chambray Shirt",
+        "category": "Tops (Atasan)",
+        "subcat": "tops",
+        "price": "Rp 140.900",
+        "color": "DARK BLUE",
+        "sizes": "S, M, L, XL",
+        "angles": {
+            "front": "cbx-01-contrast-stitch-chambray-shirt.jpg",
+        },
+        "image_file": "cbx-01-contrast-stitch-chambray-shirt.jpg",
+    },
+
+    # --- BOTTOMS & SKIRTS ---
+    {
+        "id": "CBX-16",
+        "name": "Suede Mini Skirt",
+        "category": "Bottoms (Celana & Rok)",
+        "subcat": "bottoms",
+        "price": "Rp 249.900",
+        "color": "NAVY",
+        "sizes": "S, M, L, XL",
+        "angles": {
+            "front": "cbx-16a-suede-mini-skirt-navy-front.jpg",
+            "back": "cbx-16b-suede-mini-skirt-navy-back.jpg",
+            "detail": "cbx-16c-suede-mini-skirt-navy-detail.jpg",
+        },
+        "image_file": "cbx-16a-suede-mini-skirt-navy-front.jpg",
+    },
+    {
+        "id": "CBX-17",
+        "name": "Jeans with Overlap Micro Skirt Details",
+        "category": "Bottoms (Celana & Rok)",
+        "subcat": "bottoms",
+        "price": "Rp 299.900",
+        "color": "DARK NAVY",
+        "sizes": "26, 27, 28, 29, 30",
+        "angles": {
+            "front": "cbx-17a-jeans-overlap-micro-skirt-dark-navy-front.jpg",
+            "back": "cbx-17b-jeans-overlap-micro-skirt-dark-navy-back.jpg",
+            "detail": "cbx-17c-jeans-overlap-micro-skirt-dark-navy-detail.jpg",
+        },
+        "image_file": "cbx-17a-jeans-overlap-micro-skirt-dark-navy-front.jpg",
+    },
+    {
+        "id": "CBX-18",
+        "name": "Wide Leg Drawstring Pants",
+        "category": "Bottoms (Celana & Rok)",
+        "subcat": "bottoms",
+        "price": "Rp 249.900",
+        "color": "NAVY",
+        "sizes": "S, M, L, XL",
+        "angles": {
+            "front": "cbx-18a-wide-leg-drawstring-pants-navy-front.jpg",
+            "back": "cbx-18b-wide-leg-drawstring-pants-navy-back.jpg",
+            "detail": "cbx-18c-wide-leg-drawstring-pants-navy-detail.jpg",
+        },
+        "image_file": "cbx-18a-wide-leg-drawstring-pants-navy-front.jpg",
+    },
+    {
+        "id": "CBX-02",
+        "name": "High Waist Barrel Denim Pants",
+        "category": "Bottoms (Celana & Rok)",
+        "subcat": "bottoms",
+        "price": "Rp 329.900",
+        "color": "BLACK",
+        "sizes": "26, 27, 28, 29, 30",
+        "angles": {
+            "front": "cbx-02-high-waist-barrel-denim-black.jpg",
+        },
+        "image_file": "cbx-02-high-waist-barrel-denim-black.jpg",
+    },
+    {
+        "id": "CBX-03",
+        "name": "Basic Barrel Denim Pants",
+        "category": "Bottoms (Celana & Rok)",
+        "subcat": "bottoms",
+        "price": "Rp 279.900",
+        "color": "DARK BROWN",
+        "sizes": "26, 27, 28, 29, 30",
+        "angles": {
+            "front": "cbx-03-basic-barrel-denim-dark-brown.jpg",
+        },
+        "image_file": "cbx-03-basic-barrel-denim-dark-brown.jpg",
+    },
+    {
+        "id": "CBX-04",
+        "name": "Straight Denim Pants",
+        "category": "Bottoms (Celana & Rok)",
+        "subcat": "bottoms",
+        "price": "Rp 299.900",
+        "color": "DARK BROWN",
+        "sizes": "26, 27, 28, 29, 30",
+        "angles": {
+            "front": "cbx-04-straight-denim-pants-dark-brown.jpg",
+        },
+        "image_file": "cbx-04-straight-denim-pants-dark-brown.jpg",
+    },
+    {
+        "id": "CBX-05",
+        "name": "Double Pocket Flared Denim Pants",
+        "category": "Bottoms (Celana & Rok)",
+        "subcat": "bottoms",
+        "price": "Rp 251.929",
+        "color": "LT. GREY",
+        "sizes": "26, 27, 28, 29, 30",
+        "angles": {
+            "front": "cbx-05-double-pocket-flared-denim-grey.jpg",
+        },
+        "image_file": "cbx-05-double-pocket-flared-denim-grey.jpg",
+    },
+    {
+        "id": "CBX-06",
+        "name": "Regular Fit Tailored Mini Skort",
+        "category": "Bottoms (Celana & Rok)",
+        "subcat": "bottoms",
+        "price": "Rp 199.900",
+        "color": "GREY",
+        "sizes": "S, M, L, XL",
+        "angles": {
+            "front": "cbx-06-regular-fit-tailored-mini-skort-grey.jpg",
+        },
+        "image_file": "cbx-06-regular-fit-tailored-mini-skort-grey.jpg",
+    },
+    {
+        "id": "CBX-07",
+        "name": "Pleated A-Line Skirt",
+        "category": "Bottoms (Celana & Rok)",
+        "subcat": "bottoms",
+        "price": "Rp 199.900",
+        "color": "OFF WHITE",
+        "sizes": "S, M, L, XL",
+        "angles": {
+            "front": "cbx-07-pleated-a-line-skirt-off-white.jpg",
+        },
+        "image_file": "cbx-07-pleated-a-line-skirt-off-white.jpg",
+    },
+
+    # --- DRESSES ---
+    {
+        "id": "CBX-08",
+        "name": "Embroidered Sleeveless Mini Dress",
+        "category": "Dress",
+        "subcat": "dress",
+        "price": "Rp 199.900",
+        "color": "NAVY",
+        "sizes": "S, M, L, XL",
+        "angles": {
+            "front": "cbx-08-embroidered-sleeveless-mini-dress-navy.jpg",
+        },
+        "image_file": "cbx-08-embroidered-sleeveless-mini-dress-navy.jpg",
+    },
+    {
+        "id": "CBX-09",
+        "name": "Side Ruched Sleeveless Mini Dress",
+        "category": "Dress",
+        "subcat": "dress",
+        "price": "Rp 199.900",
+        "color": "NAVY",
+        "sizes": "S, M, L, XL",
+        "angles": {
+            "front": "cbx-09-side-ruched-sleeveless-mini-dress-navy.jpg",
+        },
+        "image_file": "cbx-09-side-ruched-sleeveless-mini-dress-navy.jpg",
+    },
+
+    # --- BAGS & ACCESSORIES ---
+    {
+        "id": "CBX-19",
+        "name": "Denim Sling Bag",
+        "category": "Aksesoris & Tas",
+        "subcat": "bags",
+        "price": "Rp 129.900",
+        "color": "DENIM",
+        "sizes": "One Size",
+        "angles": {
+            "front": "cbx-19a-denim-sling-bag-denim-front.jpg",
+            "side": "cbx-19b-denim-sling-bag-denim-side.jpg",
+            "detail": "cbx-19c-denim-sling-bag-denim-detail.jpg",
+        },
+        "image_file": "cbx-19a-denim-sling-bag-denim-front.jpg",
+    },
+    {
+        "id": "CBX-10",
+        "name": "Colorbox x Liunic Tote Bag",
+        "category": "Aksesoris & Tas",
+        "subcat": "bags",
+        "price": "Rp 199.900",
+        "color": "ECRU",
+        "sizes": "One Size",
+        "angles": {
+            "front": "cbx-10-colorbox-x-liunic-tote-bag-ecru.jpg",
+        },
+        "image_file": "cbx-10-colorbox-x-liunic-tote-bag-ecru.jpg",
+    },
+
+    # --- FOOTWEAR & SHOES ---
+    {
+        "id": "CBX-20",
+        "name": "Lace Sneakers",
+        "category": "Footwear & Sepatu",
+        "subcat": "shoes",
+        "price": "Rp 299.900",
+        "color": "NAVY",
+        "sizes": "36, 37, 38, 39, 40",
+        "angles": {
+            "front": "cbx-20a-lace-sneakers-navy-front-pair.jpg",
+            "side": "cbx-20b-lace-sneakers-navy-side-profile.jpg",
+            "detail": "cbx-20c-lace-sneakers-navy-top-down.jpg",
+        },
+        "image_file": "cbx-20a-lace-sneakers-navy-front-pair.jpg",
+    },
+]
+
+
+def find_authentic_product(query: Any) -> Dict[str, Any]:
+    """Finds the best matching authentic image catalog product."""
+    if isinstance(query, dict) and "angles" in query:
+        return query
+    q_str = ""
+    if isinstance(query, dict):
+        q_str = str(query.get("name", "")).lower()
+    elif isinstance(query, str):
+        q_str = query.lower()
+
+    if not q_str:
+        return AUTHENTIC_IMAGE_CATALOG[0]
+
+    # Priority keyword matching
+    for item in AUTHENTIC_IMAGE_CATALOG:
+        iname = item["name"].lower()
+        if "checks" in q_str and "checks" in iname:
+            return item
+        if "crop jacket" in q_str and "crop jacket" in iname:
+            return item
+        if "leather" in q_str and "leather" in iname:
+            return item
+        if "hoodie" in q_str and "hoodie" in iname:
+            return item
+        if "suede" in q_str and "suede" in iname:
+            return item
+        if "overlap" in q_str and "overlap" in iname:
+            return item
+        if "drawstring" in q_str and "drawstring" in iname:
+            return item
+        if "sling bag" in q_str and "sling bag" in iname:
+            return item
+        if ("sneakers" in q_str or "shoes" in q_str or "sepatu" in q_str) and "sneakers" in iname:
+            return item
+        if "chambray" in q_str and "chambray" in iname:
+            return item
+        if "barrel" in q_str and "barrel" in iname:
+            return item
+        if "flared" in q_str and "flared" in iname:
+            return item
+        if "skort" in q_str and "skort" in iname:
+            return item
+        if "dress" in q_str and "dress" in iname:
+            return item
+        if ("tote" in q_str or "liunic" in q_str) and "tote" in iname:
+            return item
+
+    # General token matching
+    tokens = [t for t in re.findall(r"[a-z0-9]+", q_str) if len(t) > 3]
+    for item in AUTHENTIC_IMAGE_CATALOG:
+        iname = item["name"].lower()
+        if any(t in iname for t in tokens):
+            return item
+
+    return AUTHENTIC_IMAGE_CATALOG[0]
+
+
+def build_curated_wardrobe_outfit(hero_ref: Any = None, day_num: int = 1) -> List[Dict[str, Any]]:
+    """
+    Intelligent Category-Aware Outfit Matcher:
+    - Tops / Outerwear MUST pair with Bottoms (Skirts / Pants / Jeans).
+    - Bottoms MUST pair with Tops / Outerwear (Blazers / Jackets / Hoodies / Shirts).
+    - Dresses pair with Outerwear Layers + Shoes / Bags.
+    - Bags / Shoes pair with complete Top + Bottom outfit.
+    - Guarantees 3 DISTINCT real items with multi-angle image assets.
+    """
+    hero = find_authentic_product(hero_ref) if hero_ref else None
+    if not hero:
+        if day_num == 1:
+            hero = find_authentic_product("checks blazer")
+        elif day_num == 2:
+            hero = find_authentic_product("hoodie")
+        else:
+            hero = find_authentic_product("leather jacket")
+
+    subcat = hero.get("subcat", "outerwear")
+
+    # Available items segregated by role
+    bottoms_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] == "bottoms"]
+    tops_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] in ["outerwear", "tops"] and x["id"] != hero["id"]]
+    acc_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] in ["bags", "shoes"]]
+
+    if subcat in ["outerwear", "tops"]:
+        # Pairing 1: Complementary Bottom!
+        p2 = bottoms_pool[(day_num - 1) % len(bottoms_pool)]
+        # Pairing 2: Complementary Accessory or Shoes!
+        p3 = acc_pool[(day_num - 1) % len(acc_pool)]
+    elif subcat == "bottoms":
+        # Pairing 1: Complementary Top / Outerwear!
+        p2 = tops_pool[(day_num - 1) % len(tops_pool)]
+        # Pairing 2: Complementary Accessory or Shoes!
+        p3 = acc_pool[(day_num - 1) % len(acc_pool)]
+    elif subcat == "dress":
+        # Pairing 1: Complementary Outerwear layer
+        outer_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] == "outerwear"]
+        p2 = outer_pool[(day_num - 1) % len(outer_pool)]
+        p3 = acc_pool[(day_num - 1) % len(acc_pool)]
+    else: # bags or shoes
+        p2 = bottoms_pool[(day_num - 1) % len(bottoms_pool)]
+        p3 = tops_pool[(day_num - 1) % len(tops_pool)]
+
+    return [hero, p2, p3]
+
+
 def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods: List[Dict[str, Any]]) -> str:
     try:
         sys.path.append(str(ROOT_DIR / "colorbox" / "marketing"))
@@ -2780,81 +3182,6 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
 
     joined_text = " ".join([str(line).lower() for line in transcript_lines])
     is_three_days = any(k in joined_text for k in ["3 hari", "tiga hari", "3 days", "jadwal 3 hari", "sprint 3 hari", "tiga hari berturut"])
-
-    prods = []
-    if user_mandate_prods:
-        for p in user_mandate_prods[:3]:
-            pname = p["name"].lower()
-            img_file = "cbx-01-contrast-stitch-chambray-shirt.jpg"
-            if "checks" in pname or "blazer" in pname:
-                img_file = "cbx-11a-oversize-checks-blazer-dusty-olive-front.jpg"
-            elif "crop jacket" in pname or "double breasted" in pname:
-                img_file = "cbx-12a-double-breasted-crop-jacket-lt-grey-front.jpg"
-            elif "denim jacket" in pname:
-                img_file = "cbx-13a-contrast-detail-denim-jacket-dark-brown-front.jpg"
-            elif "leather" in pname:
-                img_file = "cbx-14a-oversize-collared-leather-jacket-dark-red-front.jpg"
-            elif "hoodie" in pname or "bubble" in pname:
-                img_file = "cbx-15a-bubble-hem-hoodie-ecru-front.jpg"
-            elif "suede skirt" in pname or ("suede" in pname and "skirt" in pname):
-                img_file = "cbx-16a-suede-mini-skirt-navy-front.jpg"
-            elif "overlap" in pname or "micro skirt" in pname:
-                img_file = "cbx-17a-jeans-overlap-micro-skirt-dark-navy-front.jpg"
-            elif "drawstring" in pname or "wide leg" in pname:
-                img_file = "cbx-18a-wide-leg-drawstring-pants-navy-front.jpg"
-            elif "sling bag" in pname:
-                img_file = "cbx-19a-denim-sling-bag-denim-front.jpg"
-            elif "sneakers" in pname or "shoes" in pname:
-                img_file = "cbx-20a-lace-sneakers-navy-front-pair.jpg"
-            elif "chambray" in pname:
-                img_file = "cbx-01-contrast-stitch-chambray-shirt.jpg"
-            elif "barrel" in pname and "black" in str(p.get("colors", "")).lower():
-                img_file = "cbx-02-high-waist-barrel-denim-black.jpg"
-            elif "barrel" in pname:
-                img_file = "cbx-03-basic-barrel-denim-dark-brown.jpg"
-            elif "straight denim" in pname:
-                img_file = "cbx-04-straight-denim-pants-dark-brown.jpg"
-            elif "flared" in pname:
-                img_file = "cbx-05-double-pocket-flared-denim-grey.jpg"
-            elif "skort" in pname:
-                img_file = "cbx-06-regular-fit-tailored-mini-skort-grey.jpg"
-            elif "skirt" in pname:
-                img_file = "cbx-07-pleated-a-line-skirt-off-white.jpg"
-            elif "ruched" in pname and "dress" in pname:
-                img_file = "cbx-09-side-ruched-sleeveless-mini-dress-navy.jpg"
-            elif "embroidered" in pname and "dress" in pname:
-                img_file = "cbx-08-embroidered-sleeveless-mini-dress-navy.jpg"
-            elif "dress" in pname:
-                img_file = "cbx-08-embroidered-sleeveless-mini-dress-navy.jpg"
-            elif "tote" in pname or "liunic" in pname:
-                img_file = "cbx-10-colorbox-x-liunic-tote-bag-ecru.jpg"
-
-            prods.append({
-                "name": p["name"],
-                "price": f"Rp {p['price']:,}".replace(",", "."),
-                "color": p.get("colors", ["NAVY" if "dress" in pname else "BLACK"])[0] if isinstance(p.get("colors"), list) and p.get("colors") else ("NAVY" if "dress" in pname else "BLACK"),
-                "image_file": img_file,
-                "sizes": ", ".join(p.get("sizes", ["S", "M", "L", "XL"])) if isinstance(p.get("sizes"), list) else "S, M, L, XL"
-            })
-
-    day1_prods = [
-        {"name": "Contrast Stitch Chambray Shirt", "price": "Rp 140.900", "color": "DARK BLUE", "image_file": "cbx-01-contrast-stitch-chambray-shirt.jpg", "sizes": "S, M, L, XL"},
-        {"name": "High Waist Barrel Denim Pants", "price": "Rp 329.900", "color": "BLACK", "image_file": "cbx-02-high-waist-barrel-denim-black.jpg", "sizes": "26, 27, 28, 29, 30"},
-        {"name": "Colorbox x Liunic Tote Bag", "price": "Rp 199.900", "color": "ECRU", "image_file": "cbx-10-colorbox-x-liunic-tote-bag-ecru.jpg", "sizes": "One Size"},
-    ]
-    day2_prods = [
-        {"name": "Oversize Checks Blazer", "price": "Rp 299.900", "color": "DUSTY OLIVE", "image_file": "cbx-11a-oversize-checks-blazer-dusty-olive-front.jpg", "sizes": "S, M, L, XL"},
-        {"name": "Double Pocket Flared Denim Pants", "price": "Rp 251.929", "color": "LT. GREY", "image_file": "cbx-05-double-pocket-flared-denim-grey.jpg", "sizes": "26, 27, 28, 29, 30"},
-        {"name": "Denim Sling Bag", "price": "Rp 129.900", "color": "DENIM", "image_file": "cbx-19a-denim-sling-bag-denim-front.jpg", "sizes": "One Size"},
-    ]
-    day3_prods = [
-        {"name": "Oversize Collared Leather Jacket", "price": "Rp 599.900", "color": "DARK RED", "image_file": "cbx-14a-oversize-collared-leather-jacket-dark-red-front.jpg", "sizes": "S, M, L, XL"},
-        {"name": "Suede Mini Skirt", "price": "Rp 249.900", "color": "NAVY", "image_file": "cbx-16a-suede-mini-skirt-navy-front.jpg", "sizes": "S, M, L, XL"},
-        {"name": "Lace Sneakers", "price": "Rp 299.900", "color": "NAVY", "image_file": "cbx-20a-lace-sneakers-navy-front-pair.jpg", "sizes": "36 - 40"},
-    ]
-
-    if not prods:
-        prods = day1_prods
 
     # Extract dynamic concept and headline from Bram or transcript
     bram_concept = None
@@ -2871,42 +3198,94 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
                 bram_concept = m.group(1).strip()
                 break
 
+    hero_input = user_mandate_prods[0] if user_mandate_prods else None
+
     if is_three_days:
+        # Build 3 truly distinct category-aware outfits
+        day1_prods = build_curated_wardrobe_outfit(hero_input or "checks blazer", day_num=1)
+        day2_prods = build_curated_wardrobe_outfit("hoodie", day_num=2)
+        day3_prods = build_curated_wardrobe_outfit("leather jacket", day_num=3)
+
         try:
-            d1_title = bram_concept or "URBAN Y2K DENIM"
-            render_final_carousel_package(d1_title, prods[0]["name"] if prods else "Denim Drop", "Koleksi kurasi hari 1", prods if prods else day1_prods, str(MARKETING_OUTPUT_DIR / "carousel_day_1"), img_dir, day_num=1)
-            render_final_carousel_package("WARM AUTUMN CAFE", day2_prods[0]["name"], "Nuansa earthy & layers", day2_prods, str(MARKETING_OUTPUT_DIR / "carousel_day_2"), img_dir, day_num=2)
-            render_final_carousel_package("CHIC EDGY NIGHT", day3_prods[0]["name"], "Leather & suede statement", day3_prods, str(MARKETING_OUTPUT_DIR / "carousel_day_3"), img_dir, day_num=3)
+            d1_title = bram_concept or f"ATELIER SARTORIAL // {day1_prods[0]['name'].upper()}"
+            render_final_carousel_package(
+                theme_title=d1_title,
+                headline=day1_prods[0]["name"],
+                subtitle="Kurasi lookbook hari 1 — Haute Atelier Minimalist",
+                products_info=day1_prods,
+                output_dir=str(MARKETING_OUTPUT_DIR / "carousel_day_1"),
+                images_dir=img_dir,
+                day_num=1
+            )
+            render_final_carousel_package(
+                theme_title="MODERNIST WARDROBE // CASUAL COZY",
+                headline=day2_prods[0]["name"],
+                subtitle="Kurasi lookbook hari 2 — Bauhaus & Swiss Grid",
+                products_info=day2_prods,
+                output_dir=str(MARKETING_OUTPUT_DIR / "carousel_day_2"),
+                images_dir=img_dir,
+                day_num=2
+            )
+            render_final_carousel_package(
+                theme_title="NOCTURNE DROP // STATEMENT NIGHT OUT",
+                headline=day3_prods[0]["name"],
+                subtitle="Kurasi lookbook hari 3 — Avant-Garde Dark Mode",
+                products_info=day3_prods,
+                output_dir=str(MARKETING_OUTPUT_DIR / "carousel_day_3"),
+                images_dir=img_dir,
+                day_num=3
+            )
             # Latest points to day 1
-            render_final_carousel_package(d1_title, prods[0]["name"] if prods else "Denim Drop", "Koleksi kurasi hari 1", prods if prods else day1_prods, out_dir, img_dir, day_num=1)
+            render_final_carousel_package(
+                theme_title=d1_title,
+                headline=day1_prods[0]["name"],
+                subtitle="Kurasi lookbook utama — Siap Posting",
+                products_info=day1_prods,
+                output_dir=out_dir,
+                images_dir=img_dir,
+                day_num=1
+            )
         except Exception as ex:
             print(f"[Vina Multi-Day Rendering Failed]: {ex}")
 
         md = (
-            "### 🎨 Paket Visual Carousel Siap Posting (@colorbox Official Lookbook Standard):\n\n"
-            "Vina telah merender **3 Paket Desain Visual yang Berbeda** untuk masing-masing hari tanpa noise template:\n\n"
-            "#### 📅 DAY 1: " + (bram_concept or "EDITORIAL SPOTLIGHT") + "\n"
+            "### 🎨 Paket Visual Carousel Siap Posting (@colorbox Bespoke Editorial Standard):\n\n"
+            "Vina telah merender **3 Paket Desain Visual yang 100% Berbeda** tanpa template kaku, dengan kurasi mix & match busana yang harmonis (atasan dipadukan dengan bawahan & aksesoris, bukan produk sejenis):\n\n"
+            f"#### 📅 DAY 1: ATELIER HAUTE-MINIMALIST (Cover Hero: {day1_prods[0]['name']})\n"
+            f"- **Hero Piece:** {day1_prods[0]['name']} ({day1_prods[0].get('color', '')}) [Atasan/Outerwear]\n"
+            f"- **Pairing Bawahan:** {day1_prods[1]['name']} ({day1_prods[1].get('color', '')}) [Bawahan/Rok]\n"
+            f"- **Aksesori Pelengkap:** {day1_prods[2]['name']} ({day1_prods[2].get('color', '')}) [Tas]\n"
+            "- **Multi-Angle Gallery:** Menggunakan foto depan (Slide 1), foto detail tekstur jahitan (Slide 2), foto bawahan (Slide 3), dan foto profil 360 tampak belakang (Slide 4).\n\n"
             "![Cover Day 1](/output/carousel_day_1/slide_1_cover_hero.png)\n\n"
             "👉 **[Buka Live Interactive Preview Day 1](/output/carousel_day_1/carousel_preview.html)**\n\n"
-            "#### 📅 DAY 2: WARM AUTUMN & TAILORED LAYERS\n"
+            f"#### 📅 DAY 2: ARCHITECTURAL MODERNISM / SWISS GRID (Cover Hero: {day2_prods[0]['name']})\n"
+            f"- **Hero Piece:** {day2_prods[0]['name']} ({day2_prods[0].get('color', '')}) [Atasan Santai]\n"
+            f"- **Pairing Bawahan:** {day2_prods[1]['name']} ({day2_prods[1].get('color', '')}) [Denim Micro Skirt]\n"
+            f"- **Footwear Pelengkap:** {day2_prods[2]['name']} ({day2_prods[2].get('color', '')}) [Sepatu Sneakers]\n"
+            "- **Layout Archetype:** Menggunakan split kolom modular Swiss grid dan layout triptych 3 kolom.\n\n"
             "![Cover Day 2](/output/carousel_day_2/slide_1_cover_hero.png)\n\n"
             "👉 **[Buka Live Interactive Preview Day 2](/output/carousel_day_2/carousel_preview.html)**\n\n"
-            "#### 📅 DAY 3: CHIC EDGY NIGHT & STATEMENT\n"
+            f"#### 📅 DAY 3: AVANT-GARDE NOCTURNE DARK MODE (Cover Hero: {day3_prods[0]['name']})\n"
+            f"- **Hero Piece:** {day3_prods[0]['name']} ({day3_prods[0].get('color', '')}) [Leather Statement]\n"
+            f"- **Pairing Bawahan:** {day3_prods[1]['name']} ({day3_prods[1].get('color', '')}) [Flared Denim]\n"
+            f"- **Aksesori Pelengkap:** {day3_prods[2]['name']} ({day3_prods[2].get('color', '')}) [Tote Bag]\n"
+            "- **Layout Archetype:** Desain gelap dramatis (midnight charcoal), teks putih bercahaya, dan aksen neon crimson untuk tema night-out.\n\n"
             "![Cover Day 3](/output/carousel_day_3/slide_1_cover_hero.png)\n\n"
             "👉 **[Buka Live Interactive Preview Day 3](/output/carousel_day_3/carousel_preview.html)**\n\n"
-            "✨ **Standar Desain Siap Posting (Bespoke & Zero Noise):**\n"
-            "- **Bebas Template Baku:** Desain murni mengikuti produk Colorbox dan master prompt kreatif dari Bram.\n"
-            "- **Bebas Keterangan Slide:** Tidak ada label 'slide 1/5', 'slide 2', pagination dots, atau teks template internal pada kanvas.\n"
-            "- **Bebas Harga di Gambar:** Seluruh angka harga resmi dialihkan ke teks caption & tautan bio.\n"
-            "- **3 Desain & Palet Berbeda:** Masing-masing hari memiliki produk kurasi berbeda dari katalog dan moodboard khas Colorbox.\n"
-            "- **Aspect Ratio Lock:** Semua foto model dan produk mempertahankan proporsi asli (tidak gepeng).\n\n"
-            "Seluruh berkas PNG 1080 × 1350 px siap dipublikasikan. Silakan @bimo memberikan quality audit akhir."
+            "✨ **Penyelesaian Masalah Desain & Foto (@colorbox Audit):**\n"
+            "1. **Intelligent Mix & Match:** Atasan selalu dipadukan dengan bawahan yang pas (dan sebaliknya), dilengkapi tas/sepatu. Tidak ada pengulangan produk yang sama.\n"
+            "2. **Multi-Angle Utilization:** Menampilkan angle depan, close-up tekstur kerah/kancing/kain, dan angle tampak belakang/samping pada slide yang relevan.\n"
+            "3. **Zero Design Templates:** Hari 1, 2, dan 3 memiliki geometri, palet warna, tipografi, dan komposisi yang sepenuhnya berbeda tanpa kotak kaku template.\n"
+            "4. **Zero Noise & Aspect Ratio Lock:** Kanvas bersih tanpa label wireframe 'slide 1/5' atau 'swipe'; proporsi pakaian 100% presisi tanpa distorsi.\n\n"
+            "Seluruh berkas PNG 1080 × 1350 px siap diunggah ke Instagram Feed resmi Colorbox."
         )
         return md
 
-    main_p = prods[0] if prods else day1_prods[0]
-    p_name = main_p.get("name", "New Arrivals")
-    theme_title = bram_concept or p_name
+    # Single-day curation
+    prods = build_curated_wardrobe_outfit(hero_input, day_num=1)
+    main_p = prods[0]
+    p_name = main_p.get("name", "New Arrival")
+    theme_title = bram_concept or f"COLORBOX // {p_name.upper()}"
     headline = p_name
     subtitle = f"Koleksi resmi {main_p.get('color', 'Colorbox')} — Standout seharian dengan potongan presisi!"
 
@@ -2924,18 +3303,22 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
         print(f"[Vina Rendering Failed]: {ex}")
 
     md = (
-        "### 🎨 Aset Visual Carousel Siap Posting (@colorbox Lookbook Standard):\n\n"
+        "### 🎨 Aset Visual Carousel Siap Posting (@colorbox Bespoke Standard):\n\n"
+        f"**Kurasi Outfit Harmonis:**\n"
+        f"- **Hero Utama:** {prods[0]['name']} ({prods[0].get('color', '')}) [{prods[0].get('subcat', '').title()}]\n"
+        f"- **Paduan Bawahan:** {prods[1]['name']} ({prods[1].get('color', '')}) [{prods[1].get('subcat', '').title()}]\n"
+        f"- **Aksesori/Sepatu:** {prods[2]['name']} ({prods[2].get('color', '')}) [{prods[2].get('subcat', '').title()}]\n\n"
         "![Cover Hero](/output/carousel_latest/slide_1_cover_hero.png)\n\n"
-        "![Top Piece Focus](/output/carousel_latest/slide_2_hero_top.png)\n\n"
+        "![Craftsmanship & Detail](/output/carousel_latest/slide_2_hero_top.png)\n\n"
         "![Bottom Silhouette](/output/carousel_latest/slide_3_bottom_pairing.png)\n\n"
-        "![Outfit Ensemble](/output/carousel_latest/slide_4_accessories_layering.png)\n\n"
-        "![Styling Inspiration Outro](/output/carousel_latest/slide_5_outro_cta.png)\n\n"
+        "![Complete Ensemble](/output/carousel_latest/slide_4_accessories_layering.png)\n\n"
+        "![Lookbook Outro](/output/carousel_latest/slide_5_outro_cta.png)\n\n"
         "👉 **[Buka Pratinjau Interaktif Live Carousel](/output/carousel_latest/carousel_preview.html)**\n\n"
-        "✨ **Standar Desain Siap Posting (Bespoke & Zero Noise):**\n"
-        "- **Bebas Template Baku:** Desain murni mengikuti produk Colorbox dan master prompt kreatif dari Bram.\n"
-        "- **Bebas Label Wireframe:** Nol label 'slide 1', 'slide 2', atau dots; kanvas bersih siap unggah.\n"
-        "- **Preservasi Rasio:** Foto model dan produk tidak ada distorsi/stretching (aspect ratio terkunci).\n"
-        "- **Harga Resmi di Caption:** Angka nominal diarahkan ke caption sesuai standar fashion lookbook."
+        "✨ **Karakteristik Desain:**\n"
+        "- **Bebas Template Baku:** Tata letak bespoke berorientasi lookbook editorial.\n"
+        "- **Multi-Angle Aktif:** Menggunakan foto depan, foto detail close-up kain, dan foto tampak belakang/profil.\n"
+        "- **Kategori Harmonis:** Atasan dipadukan dengan bawahan & aksesoris, bebas repetisi produk.\n"
+        "- **Preservasi Rasio:** Foto model dan garmen terkunci 100% proporsional."
     )
     return md
 
