@@ -184,6 +184,43 @@ def generate_cs_reply(bot_id: str, customer_name: str, message: str, intent: str
                 "Siti siap membantu dengan senang hati!"
             )
 
+async def send_meta_whatsapp_message(to: str, text: str) -> bool:
+    """Send an outbound WhatsApp message back to the customer via Meta Cloud API."""
+    token = os.environ.get("WHATSAPP_API_TOKEN") or WHATSAPP_API_TOKEN
+    phone_number_id = os.environ.get("WHATSAPP_PHONE_NUMBER_ID") or WHATSAPP_PHONE_NUMBER_ID
+    if not token or not phone_number_id:
+        return False
+    
+    clean_to = "".join(filter(str.isdigit, to))
+    url = f"https://graph.facebook.com/v21.0/{phone_number_id}/messages"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": clean_to,
+        "type": "text",
+        "text": {
+            "preview_url": False,
+            "body": text
+        }
+    }
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(url, headers=headers, json=payload)
+            if resp.status_code in (200, 201):
+                log.info("Successfully sent WhatsApp reply to %s", clean_to)
+                return True
+            else:
+                log.warning("Meta API failed to send message to %s: %s - %s", clean_to, resp.status_code, resp.text)
+                return False
+    except Exception as e:
+        log.warning("Exception sending WhatsApp message via Meta API: %s", e)
+        return False
+
 async def route_and_process_message(user_id: str, sender: str, customer_name: str, message: str,
                                     requested_bot: Optional[str] = None, metadata: Optional[dict] = None) -> dict:
     """Process incoming WhatsApp message, execute CS routing, log to database, and return response."""
@@ -211,6 +248,13 @@ async def route_and_process_message(user_id: str, sender: str, customer_name: st
         """, msg_id, user_id, sender, customer_name, message, bot_id, status, reply_text, json.dumps(meta))
     except Exception as e:
         log.warning("Failed to store whatsapp_message into db (will continue): %s", e)
+
+    # If Meta Cloud API credentials are configured, send outbound reply to customer's WhatsApp
+    token = os.environ.get("WHATSAPP_API_TOKEN") or WHATSAPP_API_TOKEN
+    phone_id = os.environ.get("WHATSAPP_PHONE_NUMBER_ID") or WHATSAPP_PHONE_NUMBER_ID
+    if token and phone_id:
+        import asyncio
+        asyncio.create_task(send_meta_whatsapp_message(sender, reply_text))
 
     return {
         "id": str(msg_id),
