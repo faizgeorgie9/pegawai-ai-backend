@@ -189,6 +189,58 @@ export interface ImportResult {
   status: 'ready' | 'failed' | 'processing'
   error?: string | null
 }
+export interface WhatsAppStatus {
+  channel: string
+  status: string
+  mode: string
+  webhook_url: string
+  webhook_verify_token_configured: boolean
+  api_token_configured: boolean
+  primary_agent: { id: string; name: string; role: string }
+  escalation_agent: { id: string; name: string; role: string }
+  total_messages_processed: number
+  last_activity: string | null
+}
+export interface WhatsAppMessage {
+  id: string
+  sender: string
+  customer_name: string
+  direction: 'inbound' | 'outbound'
+  message: string
+  bot_id: string
+  status: string
+  response_text: string | null
+  metadata: Record<string, unknown>
+  created_at: string | null
+}
+export interface WhatsAppSimulateResult {
+  id: string
+  sender: string
+  customer_name: string
+  routed_bot: string
+  bot_name: string
+  bot_role: string
+  intent: string
+  priority: string
+  status: string
+  message: string
+  reply: string
+  created_at: string
+}
+export interface ToolsIntegrationsResult {
+  tools: {
+    id: string
+    name: string
+    category: string
+    type: string
+    configured: boolean
+    status: string
+    account?: string | null
+    redirect_uri?: string
+    webhook_url?: string
+    waiting?: boolean
+  }[]
+}
 export interface Template {
   id: string
   name: string
@@ -858,6 +910,13 @@ export const api = {
   },
   driveImport: async (ids: string[]) => (await call<{ items: ImportResult[] }>('POST', '/connections/gdrive/import', { ids })).items,
   gmailDraft: (d: { to: string; subject: string; body: string }) => call<{ draft_id: string | null; url: string; account: string | null }>('POST', '/connections/gmail/draft', d),
+  whatsappStatus: () => call<WhatsAppStatus>('GET', '/whatsapp/status'),
+  whatsappMessages: (sender?: string) => call<WhatsAppMessage[]>('GET', `/whatsapp/messages${sender ? `?sender=${enc(sender)}` : ''}`),
+  whatsappSimulate: (payload: { sender?: string; customer_name?: string; message: string; bot_id?: string }) =>
+    call<WhatsAppSimulateResult>('POST', '/whatsapp/simulate', payload),
+  toolsIntegrations: () => call<ToolsIntegrationsResult>('GET', '/tools/integrations'),
+  notionStatus: () => call<{ status: 'connected' | 'not_connected'; waiting: boolean }>('GET', '/connections/notion/status'),
+  notionStart: () => call<{ url?: string; opened?: boolean }>('POST', '/connections/notion/start'),
   exportHistory: async (): Promise<Blob> => {
     let res: Response
     try {
