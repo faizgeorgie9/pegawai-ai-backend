@@ -314,8 +314,9 @@ def _render_archetype_1(
     
     # Header row
     draw_safe_text(d1, "COLORBOX", SAFE_LEFT, 50, 160, FONT_SANS_BOLD, 26, TEXT_DARK, max_lines=1)
-    draw_safe_text(d1, "|  ATELIER EDITORIAL", 240, 52, 540, FONT_SANS_REG, 22, TEXT_MUTED, max_lines=1)
-    draw_safe_text(d1, "SS/26 EDITION", 820, 52, 190, FONT_SANS_REG, 18, ACCENT_COLOR, max_lines=1)
+    tag_title = f"|  {theme_title.upper()[:35]}" if theme_title else "|  COLLECTION EDITORIAL"
+    draw_safe_text(d1, tag_title, 240, 52, 540, FONT_SANS_REG, 22, TEXT_MUTED, max_lines=1)
+    draw_safe_text(d1, "OFFICIAL", 820, 52, 190, FONT_SANS_REG, 18, ACCENT_COLOR, max_lines=1)
 
     # Headline (Auto-fitting & wrapping)
     hl_text = (headline or p1_name).upper()
@@ -501,10 +502,11 @@ def _render_archetype_2(
     s1 = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), color=BG_COLOR)
     d1 = ImageDraw.Draw(s1)
 
-    # Top Black Contrast Band
+    # Top Contrast Band
     d1.rectangle([0, 0, CANVAS_WIDTH, 140], fill=CONTRAST_BAND)
-    draw_safe_text(d1, "COLORBOX // MODERNIST WARDROBE", SAFE_LEFT, 45, 750, FONT_DISPLAY_BOLD, 22, (255, 255, 255), max_lines=1)
-    draw_safe_text(d1, "LOOK 02", 870, 45, 140, FONT_DISPLAY_BOLD, 22, ACCENT_COLOR, max_lines=1)
+    tag_title = f"COLORBOX // {theme_title.upper()[:35]}" if theme_title else "COLORBOX // COLLECTION EDITORIAL"
+    draw_safe_text(d1, tag_title, SAFE_LEFT, 45, 750, FONT_DISPLAY_BOLD, 22, (255, 255, 255), max_lines=1)
+    draw_safe_text(d1, "CURATED", 870, 45, 140, FONT_DISPLAY_BOLD, 22, ACCENT_COLOR, max_lines=1)
 
     # Main Visual Pedestal Frame
     d1.rectangle([SAFE_LEFT, 170, SAFE_RIGHT, 1080], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
@@ -700,9 +702,10 @@ def _render_archetype_3(
     s1 = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), color=BG_COLOR)
     d1 = ImageDraw.Draw(s1)
 
-    # Left Neon Crimson Accent Bar
+    # Left Accent Bar
     d1.rectangle([SAFE_LEFT, 45, SAFE_LEFT + 8, 140], fill=ACCENT_COLOR)
-    draw_safe_text(d1, "COLORBOX // NOCTURNE DROP", SAFE_LEFT + 25, 45, SAFE_WIDTH - 30, FONT_SANS_BOLD, 22, TEXT_LIGHT, max_lines=1)
+    tag_title = f"COLORBOX // {theme_title.upper()[:35]}" if theme_title else "COLORBOX // COLLECTION DROP"
+    draw_safe_text(d1, tag_title, SAFE_LEFT + 25, 45, SAFE_WIDTH - 30, FONT_SANS_BOLD, 22, TEXT_LIGHT, max_lines=1)
     
     hl_text = (headline or p1_name).upper()
     draw_safe_text(d1, hl_text, SAFE_LEFT + 25, 80, SAFE_WIDTH - 30, FONT_SANS_BOLD, 44, TEXT_LIGHT, max_lines=2, min_size=26)
@@ -775,8 +778,8 @@ def _render_archetype_3(
     s4 = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), color=BG_COLOR)
     d4 = ImageDraw.Draw(s4)
 
-    draw_safe_text(d4, "COLORBOX // NIGHT FORMULA", SAFE_LEFT, 50, SAFE_WIDTH, FONT_SANS_BOLD, 24, ACCENT_COLOR, max_lines=1)
-    draw_safe_text(d4, "COMPLETE NOCTURNE OUTFIT", SAFE_LEFT, 90, SAFE_WIDTH, FONT_SANS_BOLD, 36, TEXT_LIGHT, max_lines=1)
+    draw_safe_text(d4, "COLORBOX // OUTFIT FORMULA", SAFE_LEFT, 50, SAFE_WIDTH, FONT_SANS_BOLD, 24, ACCENT_COLOR, max_lines=1)
+    draw_safe_text(d4, "COMPLETE CURATED ENSEMBLE", SAFE_LEFT, 90, SAFE_WIDTH, FONT_SANS_BOLD, 36, TEXT_LIGHT, max_lines=1)
 
     # Left tall frame: Hero profile
     d4.rounded_rectangle([SAFE_LEFT, 160, 535, 1180], radius=14, fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
@@ -815,9 +818,11 @@ def _render_archetype_3(
     d5 = ImageDraw.Draw(s5)
 
     draw_safe_text(d5, "COLORBOX", SAFE_LEFT, 50, 160, FONT_SANS_BOLD, 26, TEXT_LIGHT, max_lines=1)
-    draw_safe_text(d5, "|  NOCTURNE EDITION", 240, 52, 700, FONT_SANS_REG, 22, ACCENT_COLOR, max_lines=1)
+    tag_sub = f"|  {theme_title.upper()[:35]}" if theme_title else "|  LOOKBOOK FINALE"
+    draw_safe_text(d5, tag_sub, 240, 52, 700, FONT_SANS_REG, 22, ACCENT_COLOR, max_lines=1)
 
-    draw_safe_text(d5, "STANDOUT AFTER DARK", SAFE_LEFT, 105, SAFE_WIDTH, FONT_SANS_BOLD, 46, TEXT_LIGHT, max_lines=1)
+    d5_hl = (headline or theme_title or "NEVER JUST ONE THING").upper()
+    draw_safe_text(d5, d5_hl, SAFE_LEFT, 105, SAFE_WIDTH, FONT_SANS_BOLD, 42, TEXT_LIGHT, max_lines=1)
 
     d5.rectangle([SAFE_LEFT, 175, SAFE_RIGHT, 1130], fill=CARD_BG, outline=BORDER_HAIRLINE, width=1)
     if p1_angles.get("front"):

@@ -2203,17 +2203,19 @@ def start_run_job(
                     vina_md = _render_vina_visual_carousel([], user_mandate_prods)
 
                     out_dir = Path(MARKETING_OUTPUT_DIR) / "carousel_latest"
+                    s4_ok = (out_dir / "slide_4_accessories_layering.png").exists() or (out_dir / "slide_4_accessories_flatlay.png").exists()
                     required_slides = [
                         out_dir / "slide_1_cover_hero.png",
                         out_dir / "slide_2_hero_top.png",
                         out_dir / "slide_3_bottom_pairing.png",
-                        out_dir / "slide_4_accessories_flatlay.png",
                         out_dir / "slide_5_outro_cta.png",
                     ]
-                    if all(s.exists() and s.stat().st_size > 1000 for s in required_slides):
+                    if all(s.exists() and s.stat().st_size > 1000 for s in required_slides) and s4_ok:
                         img_gen_ok = True
                     else:
                         missing = [s.name for s in required_slides if not (s.exists() and s.stat().st_size > 1000)]
+                        if not s4_ok:
+                            missing.append("slide_4_accessories_layering.png")
                         err_cause = f"Berkas gambar tidak lengkap di disk: {', '.join(missing)}"
                 except Exception as ex:
                     err_cause = str(ex)
@@ -2736,27 +2738,38 @@ def _detect_user_product_mandate(user_text: str) -> Tuple[List[Dict[str, Any]], 
     if not user_text:
         return [], "User belum memberikan detail brief spesifik."
     matched: List[Dict[str, Any]] = []
-    keywords = [
-        "checks", "blazer", "crop", "jacket", "hoodie", "leather", "chambray", "shirt",
-        "suede", "skirt", "overlap", "micro", "drawstring", "pants", "barrel", "flared",
-        "skort", "dress", "sling", "tote", "bag", "sneakers", "shoes", "denim",
-        "promosi", "produk", "baju", "celana", "kemeja", "rok", "tas", "kaos", "outfit", "ootd", "lookbook"
-    ]
     low = user_text.lower()
-    has_keywords = any(kw in low for kw in keywords)
-    if has_keywords and len(CATALOG.rows) > 0:
-        candidates = CATALOG.search(user_text, limit=10)
+
+    # 1. First check AUTHENTIC_IMAGE_CATALOG (items with real scraped photos)
+    for item in AUTHENTIC_IMAGE_CATALOG:
+        iname = item["name"].lower()
+        if iname in low:
+            if not any(m["name"] == item["name"] for m in matched):
+                matched.append(item)
+        else:
+            tokens = [t for t in re.findall(r"[a-z0-9]+", iname) if len(t) > 3]
+            # If at least 2 distinct tokens match (or 1 unique long token)
+            match_cnt = sum(1 for t in tokens if t in low)
+            if match_cnt >= 2 or (len(tokens) == 1 and match_cnt == 1):
+                if not any(m["name"] == item["name"] for m in matched):
+                    matched.append(item)
+
+    # 2. Check full CATALOG (1,216 products)
+    if len(CATALOG.rows) > 0:
+        candidates = CATALOG.search(user_text, limit=15)
         for c in candidates:
             cname = c["name"].lower()
             tokens = [t for t in re.findall(r"[a-z0-9]+", cname) if len(t) > 3]
-            if any(t in low for t in tokens):
+            match_cnt = sum(1 for t in tokens if t in low)
+            if match_cnt >= 2 or cname in low:
                 if not any(m["name"] == c["name"] for m in matched):
                     matched.append(c)
+
     if matched:
         note = (
             "📌 [MANDAT USER - PRODUK TERPILIH]:\n"
             "User secara spesifik telah memilih dan meminta produk berikut untuk dipromosikan:\n"
-            + "\n".join(f"- {p['name']} ({p.get('colors', [''])[0] if isinstance(p.get('colors'), list) and p.get('colors') else ''}) - Rp {p['price']:,}".replace(",", ".") for p in matched[:3])
+            + "\n".join(f"- {p['name']} ({p.get('colors', [''])[0] if isinstance(p.get('colors'), list) and p.get('colors') else p.get('color', '')}) - {p.get('price', '')}" for p in matched[:5])
             + "\nATURAN WAJIB:\n"
             "1. @meda (@marketingstrategist) WAJIB mengunci produk pilihan user di atas sebagai fokus utama konten.\n"
             "2. Jangan mengganti produk utama ini dengan produk lain di luar permintaan user.\n"
@@ -2766,7 +2779,7 @@ def _detect_user_product_mandate(user_text: str) -> Tuple[List[Dict[str, Any]], 
     else:
         note = (
             "📌 [PROMPT UMUM USER]:\n"
-            "User tidak menentukan produk spesifik. @meda (@marketingstrategist) bebas memilih dan mengkurasi 2-3 produk terbaik dari katalog Colorbox (product-catalog.md) sesuai dengan konsep brief."
+            "User tidak menentukan produk spesifik. @meda (@marketingstrategist) bebas memilih dan mengkurasi produk terbaik langsung dari katalog Colorbox (product-catalog.md) sesuai dengan konsep brief."
         )
         return [], note
 
@@ -3064,116 +3077,123 @@ AUTHENTIC_IMAGE_CATALOG = [
 ]
 
 
-def find_authentic_product(query: Any) -> Dict[str, Any]:
-    """Finds the best matching authentic image catalog product."""
-    if isinstance(query, dict) and "angles" in query:
+def find_authentic_product(query: Any) -> Optional[Dict[str, Any]]:
+    """Finds matching product from authentic image catalog or catalog index. Returns None if not found - NEVER fakes a product."""
+    if not query:
+        return None
+    if isinstance(query, dict) and ("angles" in query or "image_file" in query):
         return query
+
     q_str = ""
     if isinstance(query, dict):
         q_str = str(query.get("name", "")).lower()
     elif isinstance(query, str):
-        q_str = query.lower()
+        q_str = query.lower().strip()
 
     if not q_str:
-        return AUTHENTIC_IMAGE_CATALOG[0]
+        return None
 
-    # Priority keyword matching
+    # Exact or substring match in AUTHENTIC_IMAGE_CATALOG (items with real photos)
     for item in AUTHENTIC_IMAGE_CATALOG:
         iname = item["name"].lower()
-        if "checks" in q_str and "checks" in iname:
-            return item
-        if "crop jacket" in q_str and "crop jacket" in iname:
-            return item
-        if "leather" in q_str and "leather" in iname:
-            return item
-        if "hoodie" in q_str and "hoodie" in iname:
-            return item
-        if "suede" in q_str and "suede" in iname:
-            return item
-        if "overlap" in q_str and "overlap" in iname:
-            return item
-        if "drawstring" in q_str and "drawstring" in iname:
-            return item
-        if "sling bag" in q_str and "sling bag" in iname:
-            return item
-        if ("sneakers" in q_str or "shoes" in q_str or "sepatu" in q_str) and "sneakers" in iname:
-            return item
-        if "chambray" in q_str and "chambray" in iname:
-            return item
-        if "barrel" in q_str and "barrel" in iname:
-            return item
-        if "flared" in q_str and "flared" in iname:
-            return item
-        if "skort" in q_str and "skort" in iname:
-            return item
-        if "dress" in q_str and "dress" in iname:
-            return item
-        if ("tote" in q_str or "liunic" in q_str) and "tote" in iname:
+        if iname == q_str or iname in q_str or q_str in iname:
             return item
 
-    # General token matching
+    # Token overlap match in AUTHENTIC_IMAGE_CATALOG
     tokens = [t for t in re.findall(r"[a-z0-9]+", q_str) if len(t) > 3]
+    best_item = None
+    best_score = 0
     for item in AUTHENTIC_IMAGE_CATALOG:
         iname = item["name"].lower()
-        if any(t in iname for t in tokens):
-            return item
+        match_count = sum(1 for t in tokens if t in iname)
+        if match_count > best_score:
+            best_score = match_count
+            best_item = item
+    if best_item and best_score >= 1:
+        return best_item
 
-    return AUTHENTIC_IMAGE_CATALOG[0]
+    # If query is a dict from CATALOG without image, return query as-is with catalog info
+    if isinstance(query, dict) and "name" in query:
+        return query
+
+    # Check 1,216 products CATALOG
+    cat_matches = CATALOG.search(q_str, limit=1) if len(CATALOG.rows) > 0 else []
+    if cat_matches:
+        cat_p = cat_matches[0]
+        # Match with an authentic image category if possible
+        for a_item in AUTHENTIC_IMAGE_CATALOG:
+            if a_item["category"].lower() in cat_p.get("category", "").lower() or cat_p.get("category", "").lower() in a_item["category"].lower():
+                merged = dict(cat_p)
+                merged["angles"] = a_item.get("angles", {})
+                merged["image_file"] = a_item.get("image_file", "")
+                return merged
+        return cat_p
+
+    return None
 
 
 def build_curated_wardrobe_outfit(hero_ref: Any = None, day_num: int = 1) -> List[Dict[str, Any]]:
     """
     Intelligent Category-Aware Outfit Matcher:
-    - Tops / Outerwear MUST pair with Bottoms (Skirts / Pants / Jeans).
-    - Bottoms MUST pair with Tops / Outerwear (Blazers / Jackets / Hoodies / Shirts).
+    - Tops / Outerwear MUST pair with Bottoms (Skirts / Pants / Jeans) + Accessory.
+    - Bottoms MUST pair with Tops / Outerwear (Blazers / Jackets / Hoodies / Shirts) + Accessory.
     - Dresses pair with Outerwear Layers + Shoes / Bags.
     - Bags / Shoes pair with complete Top + Bottom outfit.
-    - Guarantees 3 DISTINCT real items with multi-angle image assets.
-    - Each day uses a ROTATED OFFSET so products NEVER repeat across days.
+    - NEVER invents fake products; returns empty list if no valid hero product exists.
     """
-    import hashlib
+    if not hero_ref:
+        return []
 
-    hero = find_authentic_product(hero_ref) if hero_ref else None
+    hero = find_authentic_product(hero_ref)
     if not hero:
-        # Rotate hero fallback across days using different catalog items
-        fallback_heroes = ["checks blazer", "hoodie", "leather jacket", "suede jacket", "chambray shirt"]
-        hero = find_authentic_product(fallback_heroes[(day_num - 1) % len(fallback_heroes)])
+        return []
 
-    subcat = hero.get("subcat", "outerwear")
+    subcat = hero.get("subcat")
+    if not subcat:
+        cat_low = (hero.get("category") or "").lower()
+        if any(k in cat_low for k in ["outerwear", "jacket", "blazer"]):
+            subcat = "outerwear"
+        elif any(k in cat_low for k in ["top", "shirt", "t-shirt", "kaos", "kemeja"]):
+            subcat = "tops"
+        elif any(k in cat_low for k in ["bottom", "skirt", "pants", "celana", "rok", "denim"]):
+            subcat = "bottoms"
+        elif "dress" in cat_low or "gaun" in cat_low:
+            subcat = "dress"
+        elif "bag" in cat_low or "tas" in cat_low:
+            subcat = "bags"
+        elif "shoe" in cat_low or "sepatu" in cat_low or "sneakers" in cat_low:
+            subcat = "shoes"
+        else:
+            subcat = "outerwear"
 
-    # Available items segregated by role — EXCLUDE hero to avoid duplication
-    bottoms_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] == "bottoms" and x["id"] != hero["id"]]
-    tops_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] in ["outerwear", "tops"] and x["id"] != hero["id"]]
-    acc_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] in ["bags", "shoes"] and x["id"] != hero["id"]]
+    hero_id = hero.get("id")
+    bottoms_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] == "bottoms" and x.get("id") != hero_id]
+    tops_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] in ["outerwear", "tops"] and x.get("id") != hero_id]
+    acc_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] in ["bags", "shoes"] and x.get("id") != hero_id]
 
-    # Use a day-specific prime offset so each day picks DIFFERENT items from pool
-    # day_num 1→offset 0, 2→offset 2, 3→offset 4 etc to avoid same-index collision
     day_offset = (day_num - 1) * 2
 
     if subcat in ["outerwear", "tops"]:
-        p2 = bottoms_pool[day_offset % len(bottoms_pool)] if bottoms_pool else AUTHENTIC_IMAGE_CATALOG[0]
-        # Pick accessory at day_offset+1 to ensure different from p2's neighbour
-        p3 = acc_pool[(day_offset + 1) % len(acc_pool)] if acc_pool else AUTHENTIC_IMAGE_CATALOG[0]
+        p2 = bottoms_pool[day_offset % len(bottoms_pool)] if bottoms_pool else None
+        p3 = acc_pool[(day_offset + 1) % len(acc_pool)] if acc_pool else None
     elif subcat == "bottoms":
-        p2 = tops_pool[day_offset % len(tops_pool)] if tops_pool else AUTHENTIC_IMAGE_CATALOG[0]
-        p3 = acc_pool[(day_offset + 1) % len(acc_pool)] if acc_pool else AUTHENTIC_IMAGE_CATALOG[0]
+        p2 = tops_pool[day_offset % len(tops_pool)] if tops_pool else None
+        p3 = acc_pool[(day_offset + 1) % len(acc_pool)] if acc_pool else None
     elif subcat == "dress":
-        outer_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] == "outerwear" and x["id"] != hero["id"]]
-        p2 = outer_pool[day_offset % len(outer_pool)] if outer_pool else AUTHENTIC_IMAGE_CATALOG[0]
-        p3 = acc_pool[(day_offset + 1) % len(acc_pool)] if acc_pool else AUTHENTIC_IMAGE_CATALOG[0]
+        outer_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] == "outerwear" and x.get("id") != hero_id]
+        p2 = outer_pool[day_offset % len(outer_pool)] if outer_pool else None
+        p3 = acc_pool[(day_offset + 1) % len(acc_pool)] if acc_pool else None
     else:  # bags or shoes
-        p2 = bottoms_pool[day_offset % len(bottoms_pool)] if bottoms_pool else AUTHENTIC_IMAGE_CATALOG[0]
-        p3 = tops_pool[(day_offset + 1) % len(tops_pool)] if tops_pool else AUTHENTIC_IMAGE_CATALOG[0]
+        p2 = bottoms_pool[day_offset % len(bottoms_pool)] if bottoms_pool else None
+        p3 = tops_pool[(day_offset + 1) % len(tops_pool)] if tops_pool else None
 
-    # Final dedup guard — if p2==p3 (edge case), shift p3 by 1
-    if p2["id"] == p3["id"]:
-        shift_pool = acc_pool if subcat in ["outerwear", "tops", "bottoms", "dress"] else tops_pool
-        for candidate in shift_pool:
-            if candidate["id"] != hero["id"] and candidate["id"] != p2["id"]:
-                p3 = candidate
-                break
+    outfit = [hero]
+    if p2:
+        outfit.append(p2)
+    if p3 and p3.get("id") != (p2.get("id") if p2 else None):
+        outfit.append(p3)
 
-    return [hero, p2, p3]
+    return outfit
 
 
 def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods: List[Dict[str, Any]]) -> str:
@@ -3185,102 +3205,98 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
         print(f"[Vina Visual Engine Import Error]: {e}")
         return ""
 
-    # --- DEBUG LOG: trace exactly what mandate + transcript Vina receives ---
-    mandate_names = [p.get("name", "?") for p in user_mandate_prods]
-    print(f"[Vina] user_mandate_prods ({len(user_mandate_prods)}): {mandate_names}")
-    print(f"[Vina] transcript_lines count: {len(transcript_lines)}")
-
     out_dir = str(MARKETING_OUTPUT_DIR / "carousel_latest")
     img_dir = str(IMAGES_DIR)
+
+    # Re-scan transcript for any product mentions from agents if mandate is low
+    all_mandate = list(user_mandate_prods or [])
+    if len(all_mandate) < 3 and transcript_lines:
+        recent_text = " ".join(transcript_lines[-20:])
+        disc_prods, _ = _detect_user_product_mandate(recent_text)
+        for dp in disc_prods:
+            if not any(m.get("name") == dp.get("name") for m in all_mandate):
+                all_mandate.append(dp)
+
+    # HONEST CHECK: If NO product was ever specified in the brief or discussion, STOP.
+    if not all_mandate:
+        return (
+            "### ⚠️ Visual Carousel Tertunda — Belum Ada Produk Terpilih\n\n"
+            "Vina tidak dapat membuat visual carousel karena belum ada produk resmi dari katalog Colorbox "
+            "(`product-catalog.md`) yang dipilih dalam brief atau hasil diskusi tim.\n\n"
+            "Silakan minta @marketingstrategist (Meda) atau @researcher (Raka) untuk menentukan produk resmi "
+            "dari katalog terlebih dahulu agar visual dapat diproduksi secara akurat sesuai produk riil."
+        )
 
     joined_text = " ".join([str(line).lower() for line in transcript_lines])
     is_three_days = any(k in joined_text for k in ["3 hari", "tiga hari", "3 days", "jadwal 3 hari", "sprint 3 hari", "tiga hari berturut"])
 
-    # Extract dynamic concept and headline from Bram or transcript
+    # Extract dynamic concepts/themes from Bram or Meda
     bram_concept = None
+    day_concepts = {}
     for line in reversed(transcript_lines):
         line_str = str(line)
-        if "Konsep Kreatif:" in line_str:
-            m = re.search(r'Konsep Kreatif:\s*([^\n]+)', line_str)
+        if not bram_concept:
+            m = re.search(r'(?:Konsep Kreatif|Tema|Creative Concept):\s*([^\n]+)', line_str, re.IGNORECASE)
             if m:
                 bram_concept = m.group(1).strip()
-                break
-        elif "Tema:" in line_str:
-            m = re.search(r'Tema:\s*([^\n]+)', line_str)
-            if m:
-                bram_concept = m.group(1).strip()
-                break
-
-    hero_input = user_mandate_prods[0] if user_mandate_prods else None
-
-    # --- FIX: Extract ALL product mentions from transcript so each day gets a DIFFERENT hero ---
-    # Collect up to 5 unique mandated products from transcript scan; fall back to catalog rotation
-    all_mandate_prods = list(user_mandate_prods)  # copy
-    if len(all_mandate_prods) < 3 and transcript_lines:
-        extra_text = " ".join(transcript_lines[-20:])
-        extra_prods, _ = _detect_user_product_mandate(extra_text)
-        for ep in extra_prods:
-            if not any(m["name"] == ep["name"] for m in all_mandate_prods):
-                all_mandate_prods.append(ep)
-                if len(all_mandate_prods) >= 5:
-                    break
-
-    # Build authentic heroes for each day — prefer mandate order, then fall back to catalog rotation
-    _auth_tops = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] in ["outerwear", "tops"]]
-    _auth_bottoms = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] == "bottoms"]
-    _auth_all = _auth_tops + _auth_bottoms  # all wearable hero candidates
-
-    def _pick_hero(day: int, exclude_ids: list) -> Any:
-        """Pick hero for a given day from mandate or rotating catalog — NEVER repeat."""
-        idx = day - 1
-        if idx < len(all_mandate_prods):
-            cand = find_authentic_product(all_mandate_prods[idx])
-            if cand["id"] not in exclude_ids:
-                return cand
-        # Fall back: rotate through catalog avoiding already-used heroes
-        for item in _auth_all[idx % len(_auth_all):] + _auth_all[:idx % len(_auth_all)]:
-            if item["id"] not in exclude_ids:
-                return item
-        return _auth_all[idx % len(_auth_all)]  # last resort
+        # Check per-day concepts
+        for d in [1, 2, 3]:
+            if d not in day_concepts:
+                dm = re.search(r'(?:Day|Hari)\s*' + str(d) + r'[:\s\-*]+([^\n\r]+)', line_str, re.IGNORECASE)
+                if dm:
+                    day_concepts[d] = dm.group(1).strip()
 
     if is_three_days:
-        # Build 3 truly distinct category-aware outfits with UNIQUE heroes per day
-        h1 = _pick_hero(1, [])
-        h2 = _pick_hero(2, [h1["id"]])
-        h3 = _pick_hero(3, [h1["id"], h2["id"]])
-        day1_prods = build_curated_wardrobe_outfit(h1, day_num=1)
-        day2_prods = build_curated_wardrobe_outfit(h2, day_num=2)
-        day3_prods = build_curated_wardrobe_outfit(h3, day_num=3)
+        # Build 3 distinct outfits from the REAL mandate products
+        h1 = all_mandate[0] if len(all_mandate) > 0 else None
+        h2 = all_mandate[1] if len(all_mandate) > 1 else None
+        h3 = all_mandate[2] if len(all_mandate) > 2 else None
+
+        day1_prods = build_curated_wardrobe_outfit(h1, day_num=1) if h1 else []
+        day2_prods = build_curated_wardrobe_outfit(h2, day_num=2) if h2 else (build_curated_wardrobe_outfit(h1, day_num=2) if h1 else [])
+        day3_prods = build_curated_wardrobe_outfit(h3, day_num=3) if h3 else (build_curated_wardrobe_outfit(h1, day_num=3) if h1 else [])
+
+        if not day1_prods:
+            return "### ⚠️ Gagal memproses outfit: Produk hero tidak valid."
+
+        d1_title = day_concepts.get(1) or (f"{bram_concept} — Part 1" if bram_concept else f"{day1_prods[0]['name'].upper()} // LOOK 01")
+        d2_title = day_concepts.get(2) or (f"{bram_concept} — Part 2" if bram_concept else (f"{day2_prods[0]['name'].upper()} // LOOK 02" if day2_prods else "LOOK 02"))
+        d3_title = day_concepts.get(3) or (f"{bram_concept} — Part 3" if bram_concept else (f"{day3_prods[0]['name'].upper()} // LOOK 03" if day3_prods else "LOOK 03"))
+
+        d1_sub = f"Kurasi gaya hari 1 — Koleksi resmi {day1_prods[0].get('color', 'Colorbox')}"
+        d2_sub = f"Kurasi gaya hari 2 — Koleksi resmi {day2_prods[0].get('color', 'Colorbox')}" if day2_prods else "Kurasi gaya hari 2"
+        d3_sub = f"Kurasi gaya hari 3 — Koleksi resmi {day3_prods[0].get('color', 'Colorbox')}" if day3_prods else "Kurasi gaya hari 3"
 
         try:
-            d1_title = bram_concept or f"ATELIER SARTORIAL // {day1_prods[0]['name'].upper()}"
             render_final_carousel_package(
                 theme_title=d1_title,
                 headline=day1_prods[0]["name"],
-                subtitle="Kurasi lookbook hari 1 — Haute Atelier Minimalist",
+                subtitle=d1_sub,
                 products_info=day1_prods,
                 output_dir=str(MARKETING_OUTPUT_DIR / "carousel_day_1"),
                 images_dir=img_dir,
                 day_num=1
             )
-            render_final_carousel_package(
-                theme_title="MODERNIST WARDROBE // CASUAL COZY",
-                headline=day2_prods[0]["name"],
-                subtitle="Kurasi lookbook hari 2 — Bauhaus & Swiss Grid",
-                products_info=day2_prods,
-                output_dir=str(MARKETING_OUTPUT_DIR / "carousel_day_2"),
-                images_dir=img_dir,
-                day_num=2
-            )
-            render_final_carousel_package(
-                theme_title="NOCTURNE DROP // STATEMENT NIGHT OUT",
-                headline=day3_prods[0]["name"],
-                subtitle="Kurasi lookbook hari 3 — Avant-Garde Dark Mode",
-                products_info=day3_prods,
-                output_dir=str(MARKETING_OUTPUT_DIR / "carousel_day_3"),
-                images_dir=img_dir,
-                day_num=3
-            )
+            if day2_prods:
+                render_final_carousel_package(
+                    theme_title=d2_title,
+                    headline=day2_prods[0]["name"],
+                    subtitle=d2_sub,
+                    products_info=day2_prods,
+                    output_dir=str(MARKETING_OUTPUT_DIR / "carousel_day_2"),
+                    images_dir=img_dir,
+                    day_num=2
+                )
+            if day3_prods:
+                render_final_carousel_package(
+                    theme_title=d3_title,
+                    headline=day3_prods[0]["name"],
+                    subtitle=d3_sub,
+                    products_info=day3_prods,
+                    output_dir=str(MARKETING_OUTPUT_DIR / "carousel_day_3"),
+                    images_dir=img_dir,
+                    day_num=3
+                )
             # Latest points to day 1
             render_final_carousel_package(
                 theme_title=d1_title,
@@ -3295,45 +3311,68 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
             print(f"[Vina Multi-Day Rendering Failed]: {ex}")
 
         md = (
-            "### 🎨 Paket Visual Carousel Siap Posting (@colorbox Bespoke Editorial Standard):\n\n"
-            "Vina telah merender **3 Paket Desain Visual yang 100% Berbeda** tanpa template kaku, dengan kurasi mix & match busana yang harmonis (atasan dipadukan dengan bawahan & aksesoris, bukan produk sejenis):\n\n"
-            f"#### 📅 DAY 1: ATELIER HAUTE-MINIMALIST (Cover Hero: {day1_prods[0]['name']})\n"
-            f"- **Hero Piece:** {day1_prods[0]['name']} ({day1_prods[0].get('color', '')}) [Atasan/Outerwear]\n"
-            f"- **Pairing Bawahan:** {day1_prods[1]['name']} ({day1_prods[1].get('color', '')}) [Bawahan/Rok]\n"
-            f"- **Aksesori Pelengkap:** {day1_prods[2]['name']} ({day1_prods[2].get('color', '')}) [Tas]\n"
-            "- **Multi-Angle Gallery:** Menggunakan foto depan (Slide 1), foto detail tekstur jahitan (Slide 2), foto bawahan (Slide 3), dan foto profil 360 tampak belakang (Slide 4).\n\n"
-            "![Cover Day 1](/output/carousel_day_1/slide_1_cover_hero.png)\n\n"
+            "### 🎨 Paket Visual Carousel Siap Posting (@colorbox Bespoke Standard):\n\n"
+            f"Vina telah memproduksi aset visual 3 hari berdasarkan konsep: **{bram_concept or 'Kampanye Colorbox'}**:\n\n"
+            f"#### 📅 HARI 1: {d1_title} (Hero: {day1_prods[0]['name']})\n"
+            f"- **Hero Utama:** {day1_prods[0]['name']} ({day1_prods[0].get('color', '')}) [{day1_prods[0].get('category', '')}]\n"
+        )
+        if len(day1_prods) > 1:
+            md += f"- **Paduan Bawahan:** {day1_prods[1]['name']} ({day1_prods[1].get('color', '')}) [{day1_prods[1].get('category', '')}]\n"
+        if len(day1_prods) > 2:
+            md += f"- **Aksesori/Pelengkap:** {day1_prods[2]['name']} ({day1_prods[2].get('color', '')}) [{day1_prods[2].get('category', '')}]\n"
+        md += (
+            "\n![Cover Day 1](/output/carousel_day_1/slide_1_cover_hero.png)\n\n"
             "👉 **[Buka Live Interactive Preview Day 1](/output/carousel_day_1/carousel_preview.html)**\n\n"
-            f"#### 📅 DAY 2: ARCHITECTURAL MODERNISM / SWISS GRID (Cover Hero: {day2_prods[0]['name']})\n"
-            f"- **Hero Piece:** {day2_prods[0]['name']} ({day2_prods[0].get('color', '')}) [Atasan Santai]\n"
-            f"- **Pairing Bawahan:** {day2_prods[1]['name']} ({day2_prods[1].get('color', '')}) [Denim Micro Skirt]\n"
-            f"- **Footwear Pelengkap:** {day2_prods[2]['name']} ({day2_prods[2].get('color', '')}) [Sepatu Sneakers]\n"
-            "- **Layout Archetype:** Menggunakan split kolom modular Swiss grid dan layout triptych 3 kolom.\n\n"
-            "![Cover Day 2](/output/carousel_day_2/slide_1_cover_hero.png)\n\n"
-            "👉 **[Buka Live Interactive Preview Day 2](/output/carousel_day_2/carousel_preview.html)**\n\n"
-            f"#### 📅 DAY 3: AVANT-GARDE NOCTURNE DARK MODE (Cover Hero: {day3_prods[0]['name']})\n"
-            f"- **Hero Piece:** {day3_prods[0]['name']} ({day3_prods[0].get('color', '')}) [Leather Statement]\n"
-            f"- **Pairing Bawahan:** {day3_prods[1]['name']} ({day3_prods[1].get('color', '')}) [Flared Denim]\n"
-            f"- **Aksesori Pelengkap:** {day3_prods[2]['name']} ({day3_prods[2].get('color', '')}) [Tote Bag]\n"
-            "- **Layout Archetype:** Desain gelap dramatis (midnight charcoal), teks putih bercahaya, dan aksen neon crimson untuk tema night-out.\n\n"
-            "![Cover Day 3](/output/carousel_day_3/slide_1_cover_hero.png)\n\n"
-            "👉 **[Buka Live Interactive Preview Day 3](/output/carousel_day_3/carousel_preview.html)**\n\n"
-            "✨ **Penyelesaian Masalah Desain & Foto (@colorbox Audit):**\n"
-            "1. **Intelligent Mix & Match:** Atasan selalu dipadukan dengan bawahan yang pas (dan sebaliknya), dilengkapi tas/sepatu. Tidak ada pengulangan produk yang sama.\n"
-            "2. **Multi-Angle Utilization:** Menampilkan angle depan, close-up tekstur kerah/kancing/kain, dan angle tampak belakang/samping pada slide yang relevan.\n"
-            "3. **Zero Design Templates:** Hari 1, 2, dan 3 memiliki geometri, palet warna, tipografi, dan komposisi yang sepenuhnya berbeda tanpa kotak kaku template.\n"
-            "4. **Zero Noise & Aspect Ratio Lock:** Kanvas bersih tanpa label wireframe 'slide 1/5' atau 'swipe'; proporsi pakaian 100% presisi tanpa distorsi.\n\n"
-            "Seluruh berkas PNG 1080 × 1350 px siap diunggah ke Instagram Feed resmi Colorbox."
+        )
+
+        if day2_prods:
+            md += (
+                f"#### 📅 HARI 2: {d2_title} (Hero: {day2_prods[0]['name']})\n"
+                f"- **Hero Utama:** {day2_prods[0]['name']} ({day2_prods[0].get('color', '')}) [{day2_prods[0].get('category', '')}]\n"
+            )
+            if len(day2_prods) > 1:
+                md += f"- **Paduan Bawahan:** {day2_prods[1]['name']} ({day2_prods[1].get('color', '')}) [{day2_prods[1].get('category', '')}]\n"
+            if len(day2_prods) > 2:
+                md += f"- **Aksesori/Pelengkap:** {day2_prods[2]['name']} ({day2_prods[2].get('color', '')}) [{day2_prods[2].get('category', '')}]\n"
+            md += (
+                "\n![Cover Day 2](/output/carousel_day_2/slide_1_cover_hero.png)\n\n"
+                "👉 **[Buka Live Interactive Preview Day 2](/output/carousel_day_2/carousel_preview.html)**\n\n"
+            )
+
+        if day3_prods:
+            md += (
+                f"#### 📅 HARI 3: {d3_title} (Hero: {day3_prods[0]['name']})\n"
+                f"- **Hero Utama:** {day3_prods[0]['name']} ({day3_prods[0].get('color', '')}) [{day3_prods[0].get('category', '')}]\n"
+            )
+            if len(day3_prods) > 1:
+                md += f"- **Paduan Bawahan:** {day3_prods[1]['name']} ({day3_prods[1].get('color', '')}) [{day3_prods[1].get('category', '')}]\n"
+            if len(day3_prods) > 2:
+                md += f"- **Aksesori/Pelengkap:** {day3_prods[2]['name']} ({day3_prods[2].get('color', '')}) [{day3_prods[2].get('category', '')}]\n"
+            md += (
+                "\n![Cover Day 3](/output/carousel_day_3/slide_1_cover_hero.png)\n\n"
+                "👉 **[Buka Live Interactive Preview Day 3](/output/carousel_day_3/carousel_preview.html)**\n\n"
+            )
+
+        md += (
+            "✨ **Karakteristik Desain:**\n"
+            "- **Bebas Template Baku:** Layout dirancang murni mengikuti karakteristik produk dan konsep brief.\n"
+            "- **Multi-Angle Aktif:** Menampilkan sudut depan, detail tekstur/fitur, dan sudut profil pada slide relevan.\n"
+            "- **Kategori Harmonis:** Padu-padan atasan, bawahan, dan aksesori yang serasi tanpa pengulangan produk.\n"
+            "- **Aspek Rasio Terkunci:** Proporsi foto produk 100% presisi tanpa distorsi."
         )
         return md
 
     # Single-day curation
+    hero_input = all_mandate[0] if all_mandate else None
     prods = build_curated_wardrobe_outfit(hero_input, day_num=1)
+    if not prods:
+        return "### ⚠️ Gagal memproses outfit: Produk hero tidak valid."
+
     main_p = prods[0]
-    p_name = main_p.get("name", "New Arrival")
+    p_name = main_p.get("name", "Produk Terpilih")
     theme_title = bram_concept or f"COLORBOX // {p_name.upper()}"
     headline = p_name
-    subtitle = f"Koleksi resmi {main_p.get('color', 'Colorbox')} — Standout seharian dengan potongan presisi!"
+    subtitle = f"Koleksi resmi {main_p.get('color', 'Colorbox')} — Potongan presisi khas Colorbox"
 
     try:
         render_final_carousel_package(
@@ -3350,11 +3389,16 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
 
     md = (
         "### 🎨 Aset Visual Carousel Siap Posting (@colorbox Bespoke Standard):\n\n"
-        f"**Kurasi Outfit Harmonis:**\n"
-        f"- **Hero Utama:** {prods[0]['name']} ({prods[0].get('color', '')}) [{prods[0].get('subcat', '').title()}]\n"
-        f"- **Paduan Bawahan:** {prods[1]['name']} ({prods[1].get('color', '')}) [{prods[1].get('subcat', '').title()}]\n"
-        f"- **Aksesori/Sepatu:** {prods[2]['name']} ({prods[2].get('color', '')}) [{prods[2].get('subcat', '').title()}]\n\n"
-        "![Cover Hero](/output/carousel_latest/slide_1_cover_hero.png)\n\n"
+        f"**Kurasi Produk Riil:**\n"
+        f"- **Hero Utama:** {prods[0]['name']} ({prods[0].get('color', '')}) [{prods[0].get('category', '')}]\n"
+    )
+    if len(prods) > 1:
+        md += f"- **Paduan Bawahan:** {prods[1]['name']} ({prods[1].get('color', '')}) [{prods[1].get('category', '')}]\n"
+    if len(prods) > 2:
+        md += f"- **Aksesori/Sepatu:** {prods[2]['name']} ({prods[2].get('color', '')}) [{prods[2].get('category', '')}]\n"
+
+    md += (
+        "\n![Cover Hero](/output/carousel_latest/slide_1_cover_hero.png)\n\n"
         "![Craftsmanship & Detail](/output/carousel_latest/slide_2_hero_top.png)\n\n"
         "![Bottom Silhouette](/output/carousel_latest/slide_3_bottom_pairing.png)\n\n"
         "![Complete Ensemble](/output/carousel_latest/slide_4_accessories_layering.png)\n\n"
