@@ -30,10 +30,18 @@ function fallbackMessage(status: number): string {
 async function call<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   let res: Response
   try {
+    const token = localStorage.getItem('pegawai_ai_token')
+    const headers: Record<string, string> = {}
+    if (body !== undefined && !(body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json'
+    }
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
     res = await fetch(BASE + path, {
       method,
       signal,
-      headers: body === undefined || body instanceof FormData ? undefined : { 'Content-Type': 'application/json' },
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
       body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
     })
   } catch (e) {
@@ -863,7 +871,24 @@ const q = (o: Record<string, string | number | undefined>) => {
 }
 const enc = encodeURIComponent
 
+export interface AuthUser {
+  id: string
+  name: string
+  email: string
+  role: string
+  company: string
+  plan_id?: string
+}
+
 export const api = {
+  auth: {
+    login: (email: string, password: string) =>
+      call<{ token: string; user: AuthUser }>('POST', '/auth/login', { email, password }),
+    register: (name: string, email: string, password: string, company = 'Colorbox') =>
+      call<{ token: string; user: AuthUser }>('POST', '/auth/register', { name, email, password, company }),
+    me: () => call<{ ok: boolean; user: AuthUser }>('GET', '/auth/me'),
+    logout: () => call<{ ok: boolean }>('POST', '/auth/logout'),
+  },
   catalog: {
     products: (q?: string, category?: string, limit = 50, signal?: AbortSignal) => {
       const sp = new URLSearchParams()

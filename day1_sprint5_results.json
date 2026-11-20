@@ -1,0 +1,83 @@
+{
+  "1. Frontend SPA Root (HTTPS)": {
+    "success": true,
+    "details": "HTTP 200, length: 666"
+  },
+  "2. Demo URL Path (/demo)": {
+    "success": true,
+    "details": "HTTP 200, length: 666"
+  },
+  "3. Login Failure with Invalid Password (POST 401)": {
+    "success": true,
+    "details": "HTTP 401, body: {\"error\":\"Email atau kata sandi tidak cocok\"}"
+  },
+  "4. Login Success with Owner Account (POST 200 + JWT)": {
+    "success": true,
+    "details": {
+      "status": 200,
+      "role": "owner",
+      "token_prefix": "eyJhbGciOiJIUzI1NiIsInR5c..."
+    }
+  },
+  "5. Login Success with Admin Account (POST 200 + JWT)": {
+    "success": true,
+    "details": {
+      "status": 200,
+      "role": "admin",
+      "token_prefix": "eyJhbGciOiJIUzI1NiIsInR5c..."
+    }
+  },
+  "6. Protected Access Denied without Token (GET 401)": {
+    "success": true,
+    "details": "HTTP 401, body: {\"error\":\"Kredensial login tidak valid atau belum login\"}"
+  },
+  "7. Protected Access Allowed with Valid Token (GET 200 /auth/me)": {
+    "success": true,
+    "details": {
+      "status": 200,
+      "user_name": "Hendrawan (Owner)",
+      "user_email": "owner@colorbox.co.id",
+      "user_role": "owner"
+    }
+  },
+  "8. User Registration Endpoint (POST 200 /auth/register)": {
+    "success": true,
+    "details": {
+      "status": 200,
+      "registered_email": "faiz_test_1795153522@colorbox.co.id",
+      "token_issued": true
+    }
+  },
+  "9. User Logout Endpoint (POST 200 /auth/logout)": {
+    "success": true,
+    "details": "HTTP 200, body: {\"ok\":true,\"message\":\"Berhasil logout\"}"
+  },
+  "10. Backend Healthcheck (/bff/api/health)": {
+    "success": true,
+    "details": {
+      "ok": true,
+      "db": true,
+      "hermes": true
+    }
+  },
+  "11. External Port Exposure & Firewall Audit (UFW)": {
+    "success": true,
+    "details": {
+      "port_22": "OPEN",
+      "port_80": "OPEN",
+      "port_443": "OPEN",
+      "port_5432": "BLOCKED/FILTERED",
+      "port_8080": "BLOCKED/FILTERED",
+      "port_8090": "BLOCKED/FILTERED",
+      "port_8642": "BLOCKED/FILTERED"
+    }
+  },
+  "12. HTTPS Security Headers (X-Frame, NoSniff, HSTS)": {
+    "success": true,
+    "details": {
+      "X-Frame-Options": "SAMEORIGIN",
+      "X-Content-Type-Options": "nosniff",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains"
+    }
+  }
+}

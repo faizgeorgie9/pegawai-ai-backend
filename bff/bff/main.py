@@ -4,6 +4,7 @@ import hmac
 import json
 import uuid
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, FastAPI, File, Header, Request, UploadFile
@@ -12,7 +13,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import actions, apps, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, scheduler, sequences, settings, tasks, usage, whatsapp
+from . import actions, apps, auth, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, scheduler, sequences, settings, tasks, usage, whatsapp
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -45,6 +46,27 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Pegawai AI BFF", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
+_current_user_var: ContextVar[str] = ContextVar("current_user", default="default")
+
+
+@app.middleware("http")
+async def auth_context_middleware(request: Request, call_next):
+    auth_header = request.headers.get("Authorization")
+    user_id = "default"
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1]
+        try:
+            payload = auth.decode_token(token)
+            user_id = payload.get("sub", "default")
+        except Exception:
+            pass
+    token_reset = _current_user_var.set(user_id)
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        _current_user_var.reset(token_reset)
+
 
 @app.exception_handler(ApiError)
 async def _api_error(_: Request, e: ApiError):
@@ -74,12 +96,57 @@ def require_key(x_pegawai_ai_key: str | None = Header(default=None)) -> None:
 
 
 def current_user() -> str:
-    """The only place that knows who is calling. Login replaces this function later."""
-    return "default"
+    """Returns the authenticated user ID extracted from Bearer token, or 'default' fallback."""
+    return _current_user_var.get()
 
 
 public = APIRouter(prefix="/api")
 api = APIRouter(prefix="/api", dependencies=[Depends(require_key)])
+
+
+# ---------- Authentication Endpoints (Sprint 5) ----------
+
+@public.post("/auth/login")
+async def auth_login(request: Request):
+    """Authenticate user with email and password, returning a JWT token and user profile."""
+    b = await body_of(request)
+    email = b.get("email", "")
+    password = b.get("password", "")
+    res = await auth.authenticate(email, password)
+    return JSONResponse(res)
+
+
+@public.post("/auth/register")
+async def auth_register(request: Request):
+    """Register a new user account with hashed password and return a JWT token."""
+    b = await body_of(request)
+    name = b.get("name", "")
+    email = b.get("email", "")
+    password = b.get("password", "")
+    company = b.get("company", "Colorbox")
+    res = await auth.register(name, email, password, company)
+    return JSONResponse(res)
+
+
+@public.get("/auth/me")
+async def auth_me(request: Request):
+    """Retrieve current authenticated user profile using Bearer token."""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise ApiError(401, "Kredensial login tidak valid atau belum login")
+    token = auth_header.split(" ", 1)[1]
+    payload = auth.decode_token(token)
+    user_id = payload.get("sub")
+    user = await auth.get_user_by_id(user_id)
+    if not user:
+        raise ApiError(404, "Data pengguna tidak ditemukan")
+    return JSONResponse(jsonable_encoder({"ok": True, "user": user}))
+
+
+@public.post("/auth/logout")
+async def auth_logout():
+    """Client-side logout acknowledgement."""
+    return JSONResponse({"ok": True, "message": "Berhasil logout"})
 
 
 async def body_of(request: Request) -> dict:

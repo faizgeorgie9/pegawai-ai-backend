@@ -4,6 +4,7 @@ import { useActions } from './ActionCard'
 import { AgentDetail, AgentEdit, AgentList, AgentNew } from './Agents'
 import { useAdminMode } from './adminMode'
 import { api, errText } from './bff'
+import type { AuthUser } from './bff'
 import { ChatLayout, GroupLayout } from './ChatLayout'
 import Dashboard from './Dashboard'
 import Kanban from './Kanban'
@@ -12,6 +13,7 @@ import { Dialogs } from './Dialogs'
 import { Kemampuan } from './Platform'
 import { AppsPage } from './connections'
 import CS from './CS'
+import { LoginModal } from './LoginModal'
 import Marketing from './Marketing'
 import Pengetahuan from './Pengetahuan'
 import Settings from './Settings'
@@ -43,8 +45,27 @@ function Shell() {
   const route = useRoute()
   const { conn, toasts, dismissToast, notifyAsk, answerNotify } = useData()
   const [drawer, setDrawer] = useState(false)
+  const [authUser, setAuthUser] = useState<AuthUser | null>(() => {
+    try {
+      const saved = localStorage.getItem('pegawai_ai_user')
+      const token = localStorage.getItem('pegawai_ai_token')
+      return saved && token ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  })
+
+  const handleLogout = () => {
+    localStorage.removeItem('pegawai_ai_token')
+    localStorage.removeItem('pegawai_ai_user')
+    setAuthUser(null)
+  }
 
   useEffect(() => setDrawer(false), [route])
+
+  if (!authUser) {
+    return <LoginModal onSuccess={(user) => setAuthUser(user)} />
+  }
 
   return (
     <div className="app" data-drawer={drawer || undefined}>
@@ -58,7 +79,7 @@ function Shell() {
         </span>
         <RunsPill />
       </header>
-      <Sidebar route={route} onClose={() => setDrawer(false)} />
+      <Sidebar route={route} authUser={authUser} onLogout={handleLogout} onClose={() => setDrawer(false)} />
       {drawer && <button className="scrim" aria-label="Tutup menu" onClick={() => setDrawer(false)} />}
 
       <main className="stage">
@@ -124,7 +145,7 @@ function Shell() {
 
 // ---------- sidebar ----------
 // Seven items for everyone; the Admin group (developer and QA screens) shows with admin mode. Admin routes open either way.
-function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
+function Sidebar({ route, authUser, onLogout, onClose }: { route: Route; authUser: AuthUser | null; onLogout: () => void; onClose: () => void }) {
   const { settings } = useData()
   const admin = useAdminMode()
   const waiting = useActions().filter((a) => a.status === 'pending').length // risky agent actions (delete a file, send an email) waiting for the user
@@ -193,6 +214,21 @@ function Sidebar({ route, onClose }: { route: Route; onClose: () => void }) {
       </nav>
 
       <footer className="side-foot">
+        {authUser && (
+          <div style={{ padding: '8px 10px', background: '#f1f5f9', borderRadius: '8px', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', border: '1px solid #e2e8f0' }}>
+            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
+              <div style={{ fontWeight: 600, color: '#0f172a' }}>{authUser.name}</div>
+              <div style={{ fontSize: '10px', color: '#64748b' }}>{authUser.role.toUpperCase()} • {authUser.company}</div>
+            </div>
+            <button
+              onClick={onLogout}
+              style={{ background: 'transparent', border: '1px solid #fecaca', borderRadius: '4px', padding: '3px 6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', color: '#b91c1c' }}
+              title="Keluar dari akun"
+            >
+              Keluar
+            </button>
+          </div>
+        )}
         <div className="runs-slot">
           <RunsPill />
         </div>
