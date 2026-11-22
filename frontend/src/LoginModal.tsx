@@ -1,45 +1,68 @@
 import { useState } from 'react'
-import { api, errText } from './bff'
+import { ApiError, api, errText, isKeyError } from './bff'
 import type { AuthUser } from './bff'
 
 interface LoginModalProps {
-  onSuccess: (user: AuthUser) => void
+  onSuccess: (user: AuthUser, token: string) => void
+  /** A calm explanation shown above the form, e.g. an expired session. */
+  notice?: string
 }
 
-export function LoginModal({ onSuccess }: LoginModalProps) {
-  const [mode, setMode] = useState<'login' | 'register'>('login')
-  const [email, setEmail] = useState('admin@pegawai.ai')
-  const [password, setPassword] = useState('Admin1234!')
-  const [name, setName] = useState('')
-  const [company, setCompany] = useState('Colorbox')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+type Mode = 'login' | 'register'
 
-  const quickLogin = (qEmail: string, qPass: string) => {
-    setEmail(qEmail)
-    setPassword(qPass)
-    setError(null)
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+export function LoginModal({ onSuccess, notice }: LoginModalProps) {
+  const [mode, setMode] = useState<Mode>('login')
+  const [name, setName] = useState('')
+  const [company, setCompany] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [reveal, setReveal] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  function switchMode(next: Mode) {
+    setMode(next)
+    setPassword('')
+    setReveal(false)
+    setError('')
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function submit(e: React.FormEvent) {
     e.preventDefault()
+    if (loading) return
+    const mail = email.trim()
+    if (mode === 'register' && !name.trim()) {
+      setError('Isi nama lengkap Anda.')
+      return
+    }
+    if (!mail) {
+      setError('Isi email Anda.')
+      return
+    }
+    if (!EMAIL_RE.test(mail)) {
+      setError('Format email belum benar. Contoh: nama@perusahaan.com.')
+      return
+    }
+    if (!password) {
+      setError('Isi kata sandi Anda.')
+      return
+    }
+    if (mode === 'register' && password.length < 6) {
+      setError('Kata sandi minimal 6 karakter.')
+      return
+    }
     setLoading(true)
-    setError(null)
-
+    setError('')
     try {
-      if (mode === 'login') {
-        const res = await api.auth.login(email, password)
-        localStorage.setItem('pegawai_ai_token', res.token)
-        localStorage.setItem('pegawai_ai_user', JSON.stringify(res.user))
-        onSuccess(res.user)
-      } else {
-        const res = await api.auth.register(name, email, password, company)
-        localStorage.setItem('pegawai_ai_token', res.token)
-        localStorage.setItem('pegawai_ai_user', JSON.stringify(res.user))
-        onSuccess(res.user)
-      }
+      const res =
+        mode === 'login'
+          ? await api.auth.login(mail, password)
+          : await api.auth.register(name.trim(), mail, password, company.trim() || undefined)
+      onSuccess(res.user, res.token)
     } catch (err) {
-      setError(errText(err))
+      setError(err instanceof ApiError && err.status === 401 && !isKeyError(err) ? 'Email atau kata sandi salah.' : errText(err))
     } finally {
       setLoading(false)
     }
@@ -47,65 +70,70 @@ export function LoginModal({ onSuccess }: LoginModalProps) {
 
   return (
     <div className="login-overlay">
-      <div className="login-card">
+      <div className="login-card" role="region" aria-label="Masuk ke Pegawai AI">
         <div className="login-header">
           <div className="login-brand">
-            <svg viewBox="0 0 32 32" width="36" height="36" aria-hidden="true">
-              <path d="M16 3 28 9.500 16 16 4 9.500z" fill="#000" />
-              <path d="M4 9.500 16 16v13L4 22.500z" fill="#333" />
-              <path d="M28 9.500 16 16v13l12-6.500z" fill="#2563eb" />
+            <svg className="mark" viewBox="0 0 32 32" width={32} height={32} aria-hidden="true">
+              <path d="M16 3 28 9.500 16 16 4 9.500z" fill="var(--control)" />
+              <path d="M4 9.500 16 16v13L4 22.500z" fill="var(--text)" />
+              <path d="M28 9.500 16 16v13l12-6.500z" fill="var(--accent)" />
             </svg>
-            <h2>Pegawai AI</h2>
+            <h1>Pegawai AI</h1>
           </div>
-          <p className="login-subtitle">
-            {mode === 'login' ? 'Platform Agen Multi-AI untuk Brand Fashion' : 'Daftar Akun Baru Pegawai AI'}
-          </p>
+          <p className="login-subtitle">Pegawai AI untuk bisnis Anda.</p>
         </div>
 
-        <div className="login-tabs">
-          <button
-            type="button"
-            className={`login-tab ${mode === 'login' ? 'active' : ''}`}
-            onClick={() => { setMode('login'); setError(null) }}
-          >
+        <div className="login-tabs" role="group" aria-label="Pilih masuk atau daftar">
+          <button type="button" className="login-tab" aria-pressed={mode === 'login'} onClick={() => switchMode('login')}>
             Masuk
           </button>
-          <button
-            type="button"
-            className={`login-tab ${mode === 'register' ? 'active' : ''}`}
-            onClick={() => { setMode('register'); setError(null) }}
-          >
-            Daftar Akun
+          <button type="button" className="login-tab" aria-pressed={mode === 'register'} onClick={() => switchMode('register')}>
+            Daftar
           </button>
         </div>
 
+        {notice && !error && (
+          <p className="login-banner notice" role="status">
+            <span className="login-banner-icon" aria-hidden="true">
+              !
+            </span>
+            <span>{notice}</span>
+          </p>
+        )}
         {error && (
-          <div className="login-error-banner" role="alert">
-            <span className="error-icon">⚠️</span>
+          <p className="login-banner error" role="alert">
+            <span className="login-banner-icon" aria-hidden="true">
+              !
+            </span>
             <span>{error}</span>
-          </div>
+          </p>
         )}
 
-        <form onSubmit={handleSubmit} className="login-form">
+        <form className="login-form" onSubmit={submit} noValidate>
           {mode === 'register' && (
             <>
-              <div className="form-group">
-                <label htmlFor="reg-name">Nama Lengkap</label>
+              <div className="login-field">
+                <label className="login-label" htmlFor="login-name">
+                  Nama lengkap
+                </label>
                 <input
-                  id="reg-name"
+                  id="login-name"
                   type="text"
-                  required
-                  placeholder="Misal: Kevin Anugerah"
+                  autoComplete="name"
+                  placeholder="Nama Anda"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
               </div>
-              <div className="form-group">
-                <label htmlFor="reg-company">Nama Perusahaan / Brand</label>
+              <div className="login-field">
+                <label className="login-label" htmlFor="login-company">
+                  Perusahaan atau brand <span className="login-optional">(opsional)</span>
+                </label>
                 <input
-                  id="reg-company"
+                  id="login-company"
                   type="text"
-                  placeholder="Misal: Colorbox"
+                  autoComplete="organization"
+                  placeholder="Nama usaha Anda"
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
                 />
@@ -113,237 +141,265 @@ export function LoginModal({ onSuccess }: LoginModalProps) {
             </>
           )}
 
-          <div className="form-group">
-            <label htmlFor="login-email">Email</label>
+          <div className="login-field">
+            <label className="login-label" htmlFor="login-email">
+              Email
+            </label>
             <input
               id="login-email"
               type="email"
-              required
+              inputMode="email"
+              autoComplete="email"
               placeholder="nama@perusahaan.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="login-password">Kata Sandi</label>
-            <input
-              id="login-password"
-              type="password"
-              required
-              placeholder="Minimal 6 karakter"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+          <div className="login-field">
+            <label className="login-label" htmlFor="login-password">
+              Kata sandi
+            </label>
+            <div className="login-password">
+              <input
+                id="login-password"
+                type={reveal ? 'text' : 'password'}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                placeholder={mode === 'register' ? 'Minimal 6 karakter' : 'Kata sandi Anda'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                className="login-eye"
+                aria-label={reveal ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+                aria-pressed={reveal}
+                onClick={() => setReveal(!reveal)}
+              >
+                {reveal ? 'Sembunyikan' : 'Lihat'}
+              </button>
+            </div>
+            {mode === 'register' && <small className="login-hint">Minimal 6 karakter.</small>}
           </div>
 
-          <button type="submit" className="login-btn-primary" disabled={loading}>
-            {loading ? 'Memproses…' : (mode === 'login' ? 'Masuk ke Platform' : 'Daftar & Masuk')}
+          <button type="submit" className="btn primary login-submit" disabled={loading}>
+            {loading && <span className="login-spinner" aria-hidden="true" />}
+            {loading ? 'Memeriksa…' : mode === 'login' ? 'Masuk' : 'Daftar dan masuk'}
           </button>
         </form>
 
-        {mode === 'login' && (
-          <div className="quick-login-section">
-            <p className="quick-login-title">Akun Demo Cepat (1-Klik):</p>
-            <div className="quick-login-chips">
-              <button
-                type="button"
-                className="chip-btn"
-                onClick={() => quickLogin('owner@colorbox.co.id', 'Admin1234!')}
-              >
-                👑 Owner
-              </button>
-              <button
-                type="button"
-                className="chip-btn"
-                onClick={() => quickLogin('cs@colorbox.co.id', 'Admin1234!')}
-              >
-                🎧 CS Lead
-              </button>
-              <button
-                type="button"
-                className="chip-btn"
-                onClick={() => quickLogin('marketing@colorbox.co.id', 'Admin1234!')}
-              >
-                📊 Marketing
-              </button>
-              <button
-                type="button"
-                className="chip-btn"
-                onClick={() => quickLogin('admin@pegawai.ai', 'Admin1234!')}
-              >
-                ⚡ Super Admin
-              </button>
-            </div>
-          </div>
-        )}
+        <p className="login-foot">
+          {mode === 'login' ? 'Lupa kata sandi? Hubungi admin tim Anda.' : 'Akun baru langsung aktif setelah didaftarkan.'}
+        </p>
       </div>
 
       <style>{`
         .login-overlay {
           position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(15, 23, 42, 0.85);
-          backdrop-filter: blur(8px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          inset: 0;
           z-index: 9999;
-          padding: 16px;
+          display: flex;
+          align-items: flex-start;
+          justify-content: center;
+          padding: var(--s-4);
+          background: var(--ground);
+          overflow-y: auto;
         }
         .login-card {
-          background: #ffffff;
-          border-radius: 16px;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
           width: 100%;
-          max-width: 440px;
-          padding: 32px;
-          color: #0f172a;
-          font-family: inherit;
+          max-width: 420px;
+          margin: auto;
+          padding: var(--s-6);
+          background: var(--surface);
+          color: var(--text);
+          border: 1px solid var(--border);
+          border-radius: 16px;
+          box-shadow: 0 24px 48px -20px rgba(0, 0, 0, 0.35);
         }
         .login-header {
+          margin-bottom: var(--s-5);
           text-align: center;
-          margin-bottom: 24px;
         }
         .login-brand {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 12px;
-          margin-bottom: 8px;
+          gap: 10px;
+          margin-bottom: 6px;
         }
-        .login-brand h2 {
-          font-size: 24px;
-          font-weight: 700;
-          margin: 0;
-          color: #0f172a;
+        .login-brand h1 {
+          font-size: 22px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
         }
         .login-subtitle {
-          font-size: 13px;
-          color: #64748b;
-          margin: 0;
+          font-size: var(--t-small);
+          color: var(--muted);
         }
         .login-tabs {
           display: flex;
-          background: #f1f5f9;
-          padding: 4px;
-          border-radius: 8px;
-          margin-bottom: 20px;
+          gap: 4px;
+          margin-bottom: var(--s-4);
+          padding: 3px;
+          background: var(--raised);
+          border: 1px solid var(--rule);
+          border-radius: var(--radius-control);
         }
         .login-tab {
           flex: 1;
-          padding: 8px 12px;
-          font-size: 13px;
-          font-weight: 600;
-          border: none;
+          height: 32px;
+          border: 0;
+          border-radius: 4px;
           background: transparent;
-          color: #64748b;
-          border-radius: 6px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .login-tab.active {
-          background: #ffffff;
-          color: #0f172a;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .login-error-banner {
-          background: #fef2f2;
-          border: 1px solid #fecaca;
-          color: #b91c1c;
-          padding: 10px 14px;
-          border-radius: 8px;
+          color: var(--muted);
           font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background-color var(--m-in) var(--ease), color var(--m-in) var(--ease);
+        }
+        .login-tab:hover {
+          color: var(--text);
+        }
+        .login-tab[aria-pressed="true"] {
+          background: var(--surface);
+          color: var(--text);
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        .login-banner {
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           gap: 8px;
-          margin-bottom: 16px;
+          margin-bottom: var(--s-4);
+          padding: 10px 12px;
+          border-radius: var(--radius-control);
+          font-size: 13px;
+          line-height: 1.45;
+        }
+        .login-banner.error {
+          background: var(--bad-bg);
+          color: var(--bad-ink);
+        }
+        .login-banner.notice {
+          background: var(--warn-bg);
+          color: var(--warn-ink);
+        }
+        .login-banner-icon {
+          flex: none;
+          display: inline-grid;
+          place-items: center;
+          width: 18px;
+          height: 18px;
+          margin-top: 1px;
+          border: 1px solid currentColor;
+          border-radius: 50%;
+          font-size: 11px;
+          font-weight: 700;
+          line-height: 1;
         }
         .login-form {
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: var(--s-4);
         }
-        .form-group {
+        .login-field {
           display: flex;
           flex-direction: column;
           gap: 6px;
-          text-align: left;
         }
-        .form-group label {
+        .login-label {
+          font-size: 13px;
+          font-weight: 500;
+        }
+        .login-optional,
+        .login-hint {
+          color: var(--muted);
+          font-weight: 400;
+        }
+        .login-hint {
           font-size: 12px;
-          font-weight: 600;
-          color: #334155;
         }
-        .form-group input {
-          padding: 10px 14px;
-          border: 1px solid #cbd5e1;
-          border-radius: 8px;
-          font-size: 14px;
-          color: #0f172a;
-          outline: none;
-          transition: border-color 0.2s;
+        .login-field input {
+          width: 100%;
+          height: 44px;
+          padding: 0 12px;
+          font-size: var(--t-body);
         }
-        .form-group input:focus {
-          border-color: #2563eb;
-          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        .login-password {
+          position: relative;
         }
-        .login-btn-primary {
-          background: #0f172a;
-          color: #ffffff;
-          border: none;
-          border-radius: 8px;
-          padding: 12px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          margin-top: 8px;
-          transition: background 0.2s;
+        .login-password input {
+          padding-right: 92px;
         }
-        .login-btn-primary:hover:not(:disabled) {
-          background: #1e293b;
-        }
-        .login-btn-primary:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-        .quick-login-section {
-          margin-top: 24px;
-          padding-top: 18px;
-          border-top: 1px dashed #e2e8f0;
-          text-align: center;
-        }
-        .quick-login-title {
-          font-size: 11px;
-          font-weight: 600;
-          text-transform: uppercase;
-          color: #94a3b8;
-          letter-spacing: 0.5px;
-          margin-bottom: 10px;
-        }
-        .quick-login-chips {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px;
-          justify-content: center;
-        }
-        .chip-btn {
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
-          border-radius: 20px;
-          padding: 6px 12px;
+        .login-eye {
+          position: absolute;
+          top: 50%;
+          right: 4px;
+          height: 34px;
+          padding: 0 10px;
+          border: 0;
+          border-radius: var(--radius-control);
+          background: transparent;
+          color: var(--link);
           font-size: 12px;
           font-weight: 500;
-          color: #475569;
           cursor: pointer;
-          transition: all 0.15s;
+          transform: translateY(-50%);
         }
-        .chip-btn:hover {
-          background: #e2e8f0;
-          color: #0f172a;
+        .login-eye:hover {
+          background: var(--raised);
+          color: var(--text);
+        }
+        .login-submit {
+          width: 100%;
+          height: 44px;
+          margin-top: var(--s-1);
+          font-size: var(--t-body);
+        }
+        .login-spinner {
+          width: 14px;
+          height: 14px;
+          border: 2px solid color-mix(in srgb, var(--on-primary) 35%, transparent);
+          border-top-color: var(--on-primary);
+          border-radius: 50%;
+          animation: login-spin 0.7s linear infinite;
+        }
+        @keyframes login-spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        .login-foot {
+          margin-top: var(--s-4);
+          text-align: center;
+          font-size: 12px;
+          line-height: 1.5;
+          color: var(--muted);
+        }
+        @media (max-width: 640px) {
+          .login-tab {
+            height: 40px;
+          }
+        }
+        @media (max-width: 420px) {
+          .login-overlay {
+            align-items: stretch;
+            padding: 0;
+          }
+          .login-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            max-width: none;
+            min-height: 100svh;
+            margin: 0;
+            padding: var(--s-5) var(--s-4);
+            border: 0;
+            border-radius: 0;
+            box-shadow: none;
+          }
+          .login-field input {
+            font-size: 16px; /* iOS does not zoom the page when a field is at least 16 px */
+          }
         }
       `}</style>
     </div>

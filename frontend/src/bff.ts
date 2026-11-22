@@ -18,7 +18,7 @@ export class ApiError extends Error {
 }
 
 function fallbackMessage(status: number): string {
-  if (status === 401) return 'Akses ditolak. Kunci BFF belum diisi atau salah.'
+  if (status === 401) return 'Sesi Anda berakhir, silakan masuk lagi.'
   if (status === 402) return 'Batas paket Anda tercapai.'
   if (status === 404) return 'Data tidak ditemukan. Mungkin sudah dihapus.'
   if (status === 409) return 'Permintaan bentrok dengan keadaan saat ini. Coba lagi.'
@@ -27,10 +27,29 @@ function fallbackMessage(status: number): string {
   return `Permintaan gagal (kode ${status}).`
 }
 
+// ---- session ----
+// A token the BFF rejects ends the session wherever the call was made; the app listens once and returns to login.
+// A BFF-key failure is a deployment problem, not an expired session, and keeps its own message.
+const sessionEnded = new Set<() => void>()
+const KEY_PROBLEM = /kunci (akses|bff)/i
+const AUTH_ENTRY: Record<string, true> = { '/auth/login': true, '/auth/register': true, '/auth/logout': true }
+
+export function onSessionEnd(fn: () => void): () => void {
+  sessionEnded.add(fn)
+  return () => void sessionEnded.delete(fn)
+}
+
+export const isKeyError = (e: unknown) => e instanceof ApiError && e.status === 401 && KEY_PROBLEM.test(e.message)
+
 async function call<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  let token = ''
+  try {
+    token = localStorage.getItem('pegawai_ai_token') ?? ''
+  } catch {
+    /* private mode: send the request without a token */
+  }
   let res: Response
   try {
-    const token = localStorage.getItem('pegawai_ai_token')
     const headers: Record<string, string> = {}
     if (body !== undefined && !(body instanceof FormData)) {
       headers['Content-Type'] = 'application/json'
@@ -56,6 +75,15 @@ async function call<T>(method: string, path: string, body?: unknown, signal?: Ab
       /* empty or non-JSON error body */
     }
     const msg = typeof j.error === 'string' && j.error ? j.error : fallbackMessage(res.status)
+    if (res.status === 401 && !KEY_PROBLEM.test(msg) && !AUTH_ENTRY[path]) {
+      // Only when this browser still holds the token the rejected request used: a late reply after logout
+      // must not revive the expired-session notice.
+      try {
+        if (token && localStorage.getItem('pegawai_ai_token') === token) sessionEnded.forEach((fn) => fn())
+      } catch {
+        /* private mode: nothing to end */
+      }
+    }
     // 402 = plan limit reached. The BFF message says which limit; the plan UI is hidden, so never offer an upgrade button.
     throw new ApiError(msg, res.status, res.status !== 402 && j.upgrade === true)
   }
