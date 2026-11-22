@@ -21,6 +21,9 @@ const STAGES = [
   '6. Review Manusia',
 ] as const
 
+// The stepper shows short, everyday words; STAGES stays as the agent's stage id.
+const STAGE_LABELS = ['Permintaan', 'Strategi', 'Riset katalog', 'Naskah', 'Gambar', 'Persetujuan'] as const
+
 const KIND: MarketingKind[] = ['brief', 'plan', 'content', 'review', 'revision']
 const CHANNELS = ['Instagram', 'TikTok', 'WhatsApp', 'Website / marketplace']
 const CONTENT_TYPES = [
@@ -31,32 +34,39 @@ const CONTENT_TYPES = [
   'Deskripsi produk',
   'Skrip Reels',
 ]
+const CONTENT_TYPE_LABELS: Record<string, string> = {
+  'Feed Carousel (4:5 Portrait)': 'Carousel Instagram (4:5)',
+  'Caption Instagram': 'Caption Instagram',
+  'Copy promosi': 'Teks promosi',
+  Headline: 'Judul',
+  'Deskripsi produk': 'Deskripsi produk',
+  'Skrip Reels': 'Naskah Reels',
+}
 
 interface AgentInfo {
   id: string
   name: string
   role: string
-  handle: string
   tagline: string
   badgeColor: string
   modelInfo: string
 }
 
 const AGENTS: AgentInfo[] = [
-  { id: 'bimo', name: 'Bimo', role: 'AI Project Manager', handle: '@projectmanager', tagline: 'Inisialisasi Kanban & Brief Dispatch', badgeColor: '#f59e0b', modelInfo: 'DeepSeek V4.1 Flash (OpenCode Zen)' },
-  { id: 'meda', name: 'Meda', role: 'Marketing & Fashion Strategist', handle: '@marketingstrategist', tagline: 'Target Audiens Gen Z & 3 Opsi Konsep (A/B/C)', badgeColor: '#f43f5e', modelInfo: 'DeepSeek V4.1 Flash (OpenCode Zen)' },
-  { id: 'raka', name: 'Raka', role: 'Fashion & Content Researcher', handle: '@researcher', tagline: 'Cek 1.206 Katalog, Size Guide (cm) & Aset Foto', badgeColor: '#0ea5e9', modelInfo: 'DeepSeek V4.1 Flash (OpenCode Zen)' },
-  { id: 'bram', name: 'Bram', role: 'Creative Copywriter & Visual Prompter', handle: '@sketchwriter', tagline: 'Naskah 5 Slide AIDA, Caption IG & AI Visual Prompt', badgeColor: '#6366f1', modelInfo: 'DeepSeek V4.1 Flash (OpenCode Zen)' },
-  { id: 'vina', name: 'Vina', role: 'Visual Art Director & Carousel Specialist', handle: '@visualcarousel', tagline: 'Render 5 Slide Gambar Final (1080x1350 px PNG) & Live Preview', badgeColor: '#14b8a6', modelInfo: 'openai/gpt-image-2 (OpenCode Zen)' },
-  { id: 'human', name: 'Reviewer Manusia', role: 'Final Quality Gate & Human Approval', handle: '@humanreviewer', tagline: 'Quality Gate, Audit Anti-Halusinasi & Persetujuan Tayang', badgeColor: '#10b981', modelInfo: 'Human-in-the-Loop' },
+  { id: 'bimo', name: 'Bimo', role: 'Pengatur tugas', tagline: 'Menyiapkan permintaan dan membagi tugas', badgeColor: 'var(--c-amber)', modelInfo: 'DeepSeek V4.1 Flash' },
+  { id: 'meda', name: 'Meda', role: 'Penyusun strategi', tagline: 'Menentukan audiens dan tiga pilihan konsep', badgeColor: 'var(--c-rose)', modelInfo: 'DeepSeek V4.1 Flash' },
+  { id: 'raka', name: 'Raka', role: 'Peneliti katalog', tagline: 'Memeriksa produk, ukuran, dan foto', badgeColor: 'var(--c-sky)', modelInfo: 'DeepSeek V4.1 Flash' },
+  { id: 'bram', name: 'Bram', role: 'Penulis naskah', tagline: 'Menulis naskah lima slide dan caption', badgeColor: 'var(--c-indigo)', modelInfo: 'DeepSeek V4.1 Flash' },
+  { id: 'vina', name: 'Vina', role: 'Perancang gambar', tagline: 'Membuat lima gambar 1080 × 1350 px', badgeColor: 'var(--c-teal)', modelInfo: 'openai/gpt-image-2' },
+  { id: 'human', name: 'Anda', role: 'Pemeriksa akhir', tagline: 'Memeriksa hasil dan memberi persetujuan', badgeColor: 'var(--c-green)', modelInfo: 'Diperiksa manusia' },
 ]
 
 const CAROUSEL_SLIDES = [
-  { n: 1, title: 'Slide 1: Cover Hook', desc: 'Effortless Campus Rebel · Formula OOTD Ngampus Standout', img: '/output/carousel_latest/slide_1_cover_hero.png' },
-  { n: 2, title: 'Slide 2: Hero Top', desc: 'Contrast Stitch Chambray Shirt (Rp 140.900) · Dark Blue', img: '/output/carousel_latest/slide_2_hero_top.png' },
-  { n: 3, title: 'Slide 3: Bottom Pairing', desc: 'High Waist Barrel Denim Pants (Rp 329.900) · Black', img: '/output/carousel_latest/slide_3_bottom_pairing.png' },
-  { n: 4, title: 'Slide 4: Accessories & Flatlay', desc: 'Colorbox x Liunic Ecru Tote & Layering Advice', img: '/output/carousel_latest/slide_4_accessories_flatlay.png' },
-  { n: 5, title: 'Slide 5: Outro CTA', desc: 'Temukan Fit Favoritmu di colorbox.co.id #NeverJustOneThing', img: '/output/carousel_latest/slide_5_outro_cta.png' },
+  { n: 1, title: 'Slide 1: Pembuka', desc: 'Effortless Campus Rebel · Formula OOTD Ngampus Standout', img: '/output/carousel_latest/slide_1_cover_hero.png' },
+  { n: 2, title: 'Slide 2: Atasan', desc: 'Contrast Stitch Chambray Shirt (Rp 140.900) · Dark Blue', img: '/output/carousel_latest/slide_2_hero_top.png' },
+  { n: 3, title: 'Slide 3: Bawahan', desc: 'High Waist Barrel Denim Pants (Rp 329.900) · Black', img: '/output/carousel_latest/slide_3_bottom_pairing.png' },
+  { n: 4, title: 'Slide 4: Aksesori', desc: 'Colorbox x Liunic Ecru Tote & Layering Advice', img: '/output/carousel_latest/slide_4_accessories_flatlay.png' },
+  { n: 5, title: 'Slide 5: Ajakan', desc: 'Temukan Fit Favoritmu di colorbox.co.id #NeverJustOneThing', img: '/output/carousel_latest/slide_5_outro_cta.png' },
 ]
 
 interface Output {
@@ -134,6 +144,13 @@ const FIELDS: [keyof Form, string][] = [
   ['unknowns', 'Hal yang belum diketahui'],
 ]
 
+// Plain words for the form; FIELDS stays as the brief sent to the agent.
+const FIELD_LABELS: Partial<Record<keyof Form, string>> = {
+  tone: 'Gaya bahasa merek',
+  keyMessage: 'Pesan utama',
+  cta: 'Ajakan bertindak',
+}
+
 function validate(f: Form): Partial<Record<keyof Form, string>> {
   const e: Partial<Record<keyof Form, string>> = {}
   if (!f.objective.trim()) e.objective = 'Tujuan kampanye wajib diisi.'
@@ -171,19 +188,12 @@ export default function Marketing() {
   return (
     <section className="page ws" data-team="marketing">
       <PageHead
-        title="Marketing Workflow"
-        sub="Alur 5-Agent Colorbox: Bimo (PM) → Meda (Strategi) → Raka (Riset Katalog) → Bram (Naskah & AI Prompt) → Vina (Aset Gambar) → Review Manusia."
-        actions={
-          <div className="ws-agent" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="mkt-agent-badge" style={{ borderColor: '#10b981' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }} />
-              Alur 5-Agent Colorbox Aktif
-            </span>
-          </div>
-        }
+        title="Alur kerja marketing"
+        sub="Lima pegawai AI bekerja berurutan. Periksa hasilnya, lalu setujui sebelum tayang."
+        actions={<span className="pill ok">Alur 5 pegawai AI aktif</span>}
       />
       {!cur ? (
-        <Loading text="Memuat agen marketing Colorbox..." />
+        <Loading text="Memuat data marketing Colorbox..." />
       ) : (
         <Workspace key={cur.id} leadBot={cur} onDirty={(v) => (dirty.current = v)} />
       )}
@@ -320,13 +330,13 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
     setCascading(true)
     try {
       // Step 1: Bimo
-      setCascadeMsg('Tahap 1/5: Bimo (@projectmanager) memproses brief & kanban...')
+      setCascadeMsg('Langkah 1 dari 5: Bimo menyiapkan permintaan dan membagi tugas...')
       setStage(0)
       const bimoOut = await executeAgent(0, 'bimo', briefPrompt(form), 'Brief & Kanban')
       if (!bimoOut) throw new Error('Bimo gagal memproses brief.')
 
       // Step 2: Meda
-      setCascadeMsg('Tahap 2/5: Meda (@marketingstrategist) menyusun 3 opsi konsep...')
+      setCascadeMsg('Langkah 2 dari 5: Meda menyusun strategi dan tiga pilihan konsep...')
       setStage(1)
       const medaPrompt =
         'Meda (@marketingstrategist), berdasarkan brief dari Bimo, rumuskan strategi kampanye, target audiens Gen Z, 3 pilar gaya (Urban/Romantic/Chic), dan pilih produk katalog Colorbox resmi. Buat 3 opsi konsep konten (Opsi A/B/C) dengan rekomendasi utama pada Opsi A, lalu delegasikan ke Raka (@researcher).'
@@ -334,7 +344,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
       if (!medaOut) throw new Error('Meda gagal merumuskan konsep.')
 
       // Step 3: Raka
-      setCascadeMsg('Tahap 3/5: Raka (@researcher) memeriksa 1.216 katalog & ukuran cm...')
+      setCascadeMsg('Langkah 3 dari 5: Raka mencocokkan produk dengan katalog dan ukuran...')
       setStage(2)
       const rakaPrompt =
         'Raka (@researcher), validasi produk dari konsep Meda ke katalog resmi Colorbox (product-catalog.md), sertakan harga normal/diskon Rp, bedah panduan ukuran cm (lingkar dada, pinggang, panjang) dari product-size-reference.md, cek ketersediaan foto di images/, dan buat Creative Research Brief 5 slide. Lalu teruskan ke Bram (@sketchwriter).'
@@ -342,7 +352,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
       if (!rakaOut) throw new Error('Raka gagal memvalidasi katalog.')
 
       // Step 4: Bram
-      setCascadeMsg('Tahap 4/5: Bram (@sketchwriter) menulis naskah & visual prompter bespoke...')
+      setCascadeMsg('Langkah 4 dari 5: Bram menulis naskah dan arahan gambar...')
       setStage(3)
       const bramPrompt =
         'Bram (@sketchwriter), rancang naskah kreatif dan master AI prompt untuk postingan Instagram tanpa menggunakan template baku (JANGAN GUNAKAN TEMPLATE / ZERO RIGID FORMULAS). Buat konsep unik dari nol sesuai produk terpilih dari Raka, susun on-screen micro-copy minimalis (1-2 kata, tanpa harga), caption Instagram lengkap hashtag #NeverJustOneThing dan harga resmi katalog, serta AI Visual Generation Prompt yang sangat detail, fotorealistik, dan kaya arahan artistik (lighting, angle 4:5 Feed Portrait, lensa 35mm, latar arsitektur nyata, dan model styling) untuk model openai/gpt-image-2 via OpenCode. Lalu serahkan ke Vina (@visualcarousel).'
@@ -350,7 +360,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
       if (!bramOut) throw new Error('Bram gagal menulis naskah.')
 
       // Step 5: Vina
-      setCascadeMsg('Tahap 5/5: Vina (@visualcarousel) merender gambar visual final (openai/gpt-image-2)...')
+      setCascadeMsg('Langkah 5 dari 5: Vina membuat lima gambar carousel...')
       setStage(4)
       const vinaPrompt =
         'Vina (@visualcarousel), eksekusi arahan visual dan master prompt dari Bram secara bespoke tanpa template baku. Render 5 slide berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080x1350 px PNG) menggunakan model visual openai/gpt-image-2 (OpenCode Zen) dan foto produk resmi Colorbox tanpa distorsi aspek rasio (contain mode, tidak gepeng) dan bebas dari noise wireframe/dots. Tampilkan pratinjau gambar dan link live interactive preview, lalu serahkan ke Bimo dan Tim Reviewer Manusia.'
@@ -358,7 +368,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
       if (!vinaOut) throw new Error('Vina gagal merender gambar.')
 
       // Finished! Navigate to Stage 5 (Review Manusia)
-      setCascadeMsg('Alur selesai! Membuka gerbang Review Manusia...')
+      setCascadeMsg('Alur selesai. Membuka tahap persetujuan...')
       setStage(5)
     } catch (e) {
       console.error(e)
@@ -387,15 +397,15 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
         <div className="ws-bar">
           <OpenInChat botId={leadBot.id} sid={sid} />
           <span className="quiet small ws-sess">
-            Semua agen berbagi konteks percakapan multi-turn yang sama ({sid.slice(0, 8)}...).
+            Semua pegawai AI memakai percakapan yang sama ({sid.slice(0, 8)}...).
           </span>
         </div>
       )}
 
       {/* Stepper with 6 Stages */}
       <ol className="stepper" aria-label="Tahap kerja alur marketing">
-        {STAGES.map((s, i) => (
-          <li key={s} data-link={i > 0 && stageDone(i - 1) ? 'done' : undefined}>
+        {STAGES.map((_, i) => (
+          <li key={STAGE_LABELS[i]} data-link={i > 0 && stageDone(i - 1) ? 'done' : undefined}>
             <button
               type="button"
               aria-current={stage === i ? 'step' : undefined}
@@ -406,7 +416,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                 {stageDone(i) ? <Icon d={I.check} size={14} /> : i + 1}
               </span>
               <span>
-                {s}
+                {STAGE_LABELS[i]}
                 {stageDone(i) && <span className="sr">, selesai</span>}
               </span>
             </button>
@@ -416,12 +426,17 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
 
       {/* Auto-cascade Banner if running */}
       {cascading && (
-        <div className="mkt-cascade-banner">
+        <div
+          className="ok-line"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 20 }}>⚡</span>
+            <Icon d={I.log} size={18} />
             <div>
-              <b style={{ color: '#047857' }}>Alur Otomatis Sedang Berjalan</b>
-              <p style={{ margin: 0, fontSize: 13, color: '#065f46' }}>{cascadeMsg}</p>
+              <b>Alur otomatis sedang berjalan</b>
+              <p className="small" style={{ margin: 0 }}>
+                {cascadeMsg}
+              </p>
             </div>
           </div>
           <button type="button" className="btn soft" onClick={() => run.stop()} style={{ fontSize: 13 }}>
@@ -438,6 +453,8 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              rowGap: 8,
               marginBottom: 16,
               padding: '12px 16px',
               borderRadius: 8,
@@ -452,7 +469,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                   height: 38,
                   borderRadius: '50%',
                   background: currentAgent.badgeColor,
-                  color: 'white',
+                  color: 'var(--on-accent)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -465,16 +482,13 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <b style={{ fontSize: 15 }}>{currentAgent.name}</b>
-                  <code style={{ fontSize: 12, color: 'var(--muted)' }}>{currentAgent.handle}</code>
-                  <span className="pill" style={{ fontSize: 11 }}>
-                    {currentAgent.role}
-                  </span>
+                  <span className="pill">{currentAgent.role}</span>
                 </div>
                 <small style={{ color: 'var(--muted)' }}>{currentAgent.tagline}</small>
               </div>
             </div>
             <span className="quiet small" style={{ textAlign: 'right' }}>
-              Model: <b>{currentAgent.modelInfo}</b>
+              Model AI: <b>{currentAgent.modelInfo}</b>
             </span>
           </div>
 
@@ -482,22 +496,22 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
           {stage === 0 && (
             <form className="ws-form" onSubmit={submitBrief} noValidate>
               <div className="ws-form-head">
-                <h2>1. Brief & Task Dispatch (Bimo)</h2>
+                <h2>1. Permintaan dan pembagian tugas (Bimo)</h2>
                 <button type="button" className="btn soft" onClick={() => setForm(COLORBOX_SAMPLE)}>
-                  Isi contoh Colorbox (Campus Lookbook)
+                  Isi contoh Colorbox
                 </button>
               </div>
 
               <div className="fgrid">
-                <Field label="Tujuan Kampanye" err={tried ? errs.objective : ''}>
+                <Field label="Tujuan kampanye" err={tried ? errs.objective : ''}>
                   <input
                     value={form.objective}
                     onChange={(e) => setForm({ ...form, objective: e.target.value })}
                     aria-invalid={tried && !!errs.objective}
-                    placeholder="Contoh: Inspirasi OOTD kuliah santai tapi stylish di Instagram"
+                    placeholder="Contoh: Inspirasi pakaian kuliah yang santai tapi rapi di Instagram"
                   />
                 </Field>
-                <Field label="Produk Acuan (Katalog Resmi 1.216 Produk)" err={tried ? errs.product : ''}>
+                <Field label="Produk acuan (katalog resmi, 1.216 produk)" err={tried ? errs.product : ''}>
                   <input
                     value={form.product}
                     onChange={(e) => setForm({ ...form, product: e.target.value })}
@@ -505,34 +519,26 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                     placeholder="Contoh: Oversize Long Sleeve Checks Blazer (Rp 299.900)"
                   />
                   <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ fontSize: 11, color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span>✓</span>
-                      <span>Koleksi Terverifikasi (Klik untuk memilih produk acuan bebas halusinasi):</span>
+                    <div className="quiet small" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Icon d={I.check} size={14} />
+                      <span>Produk dari katalog resmi. Klik untuk memakai sebagai acuan.</span>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 156, overflowY: 'auto' }}>
                       {VERIFIED_CATALOG_SUGGESTIONS.map((item) => (
                         <button
                           key={item.name}
                           type="button"
-                          className="pill"
-                          style={{
-                            cursor: 'pointer',
-                            fontSize: 11,
-                            padding: '3px 8px',
-                            borderRadius: 12,
-                            border: form.product.includes(item.name) ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.12)',
-                            background: form.product.includes(item.name) ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.03)',
-                            color: form.product.includes(item.name) ? '#10b981' : 'inherit',
-                          }}
+                          className={form.product.includes(item.name) ? 'pill ok' : 'pill'}
+                          style={{ cursor: 'pointer', fontSize: 11, padding: '3px 8px', height: 'auto', whiteSpace: 'normal' }}
                           onClick={() => setForm({ ...form, product: `${item.name} (${item.price} - ${item.color})` })}
                         >
-                          {item.name} • {item.price}
+                          {item.name} · {item.price}
                         </button>
                       ))}
                     </div>
                   </div>
                 </Field>
-                <Field label="Kanal Media Sosial" err={tried ? errs.channel : ''}>
+                <Field label="Kanal media sosial" err={tried ? errs.channel : ''}>
                   <select
                     value={form.channel}
                     onChange={(e) => setForm({ ...form, channel: e.target.value })}
@@ -544,7 +550,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                     ))}
                   </select>
                 </Field>
-                <Field label="Tipe Format Konten" err={tried ? errs.contentType : ''}>
+                <Field label="Format konten" err={tried ? errs.contentType : ''}>
                   <select
                     value={form.contentType}
                     onChange={(e) => setForm({ ...form, contentType: e.target.value })}
@@ -552,11 +558,13 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                   >
                     <option value="">Pilih format</option>
                     {CONTENT_TYPES.map((c) => (
-                      <option key={c}>{c}</option>
+                      <option key={c} value={c}>
+                        {CONTENT_TYPE_LABELS[c] ?? c}
+                      </option>
                     ))}
                   </select>
                 </Field>
-                <Field label="Jumlah Slide Output" err={tried ? errs.count : ''}>
+                <Field label="Jumlah slide" err={tried ? errs.count : ''}>
                   <input
                     inputMode="numeric"
                     value={form.count}
@@ -568,10 +576,10 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
               </div>
 
               <details className="opts" open={FIELDS.some(([k]) => form[k].trim() !== '') || undefined}>
-                <summary>Parameter Lanjutan (Target Audiens, Nada Bahasa, CTA, dll)</summary>
+                <summary>Pengaturan tambahan (audiens, nada bahasa, ajakan, dll.)</summary>
                 <div className="fgrid opts-body">
                   {FIELDS.map(([k, l]) => (
-                    <Field key={k} label={l}>
+                    <Field key={k} label={FIELD_LABELS[k] ?? l}>
                       <input value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
                     </Field>
                   ))}
@@ -586,15 +594,10 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
 
               <div className="form-actions" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <button className="btn primary" type="submit" disabled={run.busy || cascading}>
-                  Kirim Brief ke Bimo (Project Manager)
+                  Kirim permintaan ke Bimo
                 </button>
-                <button
-                  type="button"
-                  className="btn mkt-auto-btn"
-                  disabled={run.busy || cascading}
-                  onClick={runAutoCascade}
-                >
-                  ⚡ Jalankan Alur Lengkap Otomatis (Auto-Cascade)
+                <button type="button" className="btn soft" disabled={run.busy || cascading} onClick={runAutoCascade}>
+                  Jalankan semua langkah
                 </button>
               </div>
             </form>
@@ -603,22 +606,17 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
           {/* Stage 1: Meda (Strategi & Konsep) */}
           {stage === 1 && (
             <div className="ws-act">
-              <h2>2. Strategi & Konsep (Meda)</h2>
+              <h2>2. Strategi dan konsep (Meda)</h2>
               <p className="quiet">
-                Meda menganalisis brief dari Bimo, memetakan pilar gaya (Urban / Romantic / Chic), dan merumuskan 3 Opsi
-                Konsep Konten (Opsi A/B/C) lengkap dengan kurasi produk resmi Colorbox.
+                Meda membaca permintaan dari Bimo, menentukan gaya kampanye, lalu menyiapkan tiga pilihan konsep dengan
+                produk dari katalog resmi Colorbox.
               </p>
               <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
                 <button className="btn primary" disabled={run.busy || cascading} onClick={callMeda}>
-                  Minta Konsep & Strategi ke Meda
+                  Minta strategi dan konsep
                 </button>
-                <button
-                  type="button"
-                  className="btn mkt-auto-btn"
-                  disabled={run.busy || cascading}
-                  onClick={runAutoCascade}
-                >
-                  ⚡ Jalankan Alur Otomatis
+                <button type="button" className="btn soft" disabled={run.busy || cascading} onClick={runAutoCascade}>
+                  Jalankan semua langkah
                 </button>
               </div>
             </div>
@@ -627,23 +625,17 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
           {/* Stage 2: Raka (Riset Katalog & Ukuran) */}
           {stage === 2 && (
             <div className="ws-act">
-              <h2>3. Riset Katalog & Ukuran (Raka)</h2>
+              <h2>3. Riset katalog dan ukuran (Raka)</h2>
               <p className="quiet">
-                Raka memvalidasi produk ke katalog resmi Colorbox (1.206 produk), membedah panduan ukuran cm (lingkar
-                dada, pinggang, panjang) dari reference guide, memeriksa aset foto di images/, dan menyusun Creative
-                Research Brief.
+                Raka mencocokkan produk dengan katalog resmi Colorbox (1.206 produk), membaca panduan ukuran dalam cm,
+                memeriksa foto produk, lalu menyusun bahan riset untuk naskah.
               </p>
               <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
                 <button className="btn primary" disabled={run.busy || cascading} onClick={callRaka}>
-                  Minta Riset Katalog & Ukuran ke Raka
+                  Minta riset katalog
                 </button>
-                <button
-                  type="button"
-                  className="btn mkt-auto-btn"
-                  disabled={run.busy || cascading}
-                  onClick={runAutoCascade}
-                >
-                  ⚡ Jalankan Alur Otomatis
+                <button type="button" className="btn soft" disabled={run.busy || cascading} onClick={runAutoCascade}>
+                  Jalankan semua langkah
                 </button>
               </div>
             </div>
@@ -652,22 +644,17 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
           {/* Stage 3: Bram (Naskah & Prompt AI) */}
           {stage === 3 && (
             <div className="ws-act">
-              <h2>4. Naskah & Prompt AI (Bram)</h2>
+              <h2>4. Naskah dan arahan gambar (Bram)</h2>
               <p className="quiet">
-                Bram menyusun naskah 5 slide carousel AIDA, caption Instagram lengkap hashtag #NeverJustOneThing, serta
-                prompt visual detail format 4:5 Feed Portrait untuk model openai/gpt-image-2 via OpenCode.
+                Bram menulis naskah lima slide, caption Instagram dengan tagar resmi #NeverJustOneThing, dan arahan visual
+                format 4:5 untuk pembuat gambar.
               </p>
               <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
                 <button className="btn primary" disabled={run.busy || cascading} onClick={callBram}>
-                  Minta Naskah & Prompt AI ke Bram
+                  Minta naskah dan arahan gambar
                 </button>
-                <button
-                  type="button"
-                  className="btn mkt-auto-btn"
-                  disabled={run.busy || cascading}
-                  onClick={runAutoCascade}
-                >
-                  ⚡ Jalankan Alur Otomatis
+                <button type="button" className="btn soft" disabled={run.busy || cascading} onClick={runAutoCascade}>
+                  Jalankan semua langkah
                 </button>
               </div>
             </div>
@@ -676,37 +663,22 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
           {/* Stage 4: Vina (Aset Gambar Carousel) */}
           {stage === 4 && (
             <div className="ws-act">
-              <h2>5. Aset Gambar Carousel (Vina)</h2>
+              <h2>5. Gambar carousel (Vina)</h2>
               <p className="quiet">
-                Vina bertugas sebagai Visual Art Director & Image Generation Specialist menggunakan model visual{' '}
-                <b>openai/gpt-image-2</b> (OpenCode Zen). Output wajib berupa berkas gambar visual Instagram Feed
-                Carousel format 4:5 Portrait (1080 × 1350 px PNG) menggunakan foto produk asli Colorbox.
+                Vina membuat gambar carousel Instagram ukuran 1080 × 1350 px (4:5) memakai foto produk asli Colorbox.
+                Hasilnya lima berkas gambar yang siap diunggah.
               </p>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '10px 14px',
-                  borderRadius: 6,
-                  background: 'rgba(20, 184, 166, 0.08)',
-                  border: '1px solid rgba(20, 184, 166, 0.3)',
-                  margin: '12px 0',
-                }}
-              >
-                <span style={{ fontSize: 18 }}>🎨</span>
-                <div style={{ fontSize: 13 }}>
-                  <b>Engine Model Visual:</b> <code>openai/gpt-image-2</code> · <b>Format:</b> 1080 × 1350 px (4:5 Feed Portrait)
+              <div className="suggest" style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '12px 0' }}>
+                <div className="small">
+                  <b>Model gambar:</b> <code>openai/gpt-image-2</code> · <b>Ukuran:</b> 1080 × 1350 px (4:5)
                   <br />
-                  <span className="quiet">
-                    Jika model gagal merender gambar, status eksekusi ditandai <b>GAGAL</b> sebagai konfirmasi kegagalan.
-                  </span>
+                  <span className="quiet">Kalau gambar gagal dibuat, statusnya ditandai gagal.</span>
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: 12, marginTop: 14, marginBottom: 20, flexWrap: 'wrap' }}>
                 <button className="btn primary" disabled={run.busy || cascading} onClick={callVina}>
-                  {run.busy && stage === 4 ? 'Sedang Render Gambar...' : 'Minta Render Gambar Carousel ke Vina'}
+                  {run.busy && stage === 4 ? 'Sedang membuat gambar...' : 'Minta gambar carousel'}
                 </button>
                 <a
                   href="/output/carousel_latest/carousel_preview.html"
@@ -715,14 +687,12 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                   className="btn soft"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
-                  <span>👁️ Buka Live Interactive Preview</span>
+                  Lihat pratinjau
                 </a>
               </div>
 
               {/* Display Carousel Cards */}
-              <h3 style={{ fontSize: 16, marginTop: 16, marginBottom: 8 }}>
-                🎨 5 Slide Gambar Final Feed Carousel (1080 × 1350 px):
-              </h3>
+              <h3 style={{ fontSize: 16, marginTop: 16, marginBottom: 8 }}>5 gambar carousel (1080 × 1350 px)</h3>
               <div className="carousel-grid">
                 {CAROUSEL_SLIDES.map((s) => (
                   <div key={s.n} className="carousel-card">
@@ -742,36 +712,31 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
             <div className="human-review-card">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: 18 }}>6. Review Manusia & Quality Gate</h2>
+                  <h2 style={{ margin: 0, fontSize: 18 }}>6. Pemeriksaan dan persetujuan Anda</h2>
                   <p className="quiet" style={{ margin: '4px 0 0' }}>
-                    Evaluasi akhir oleh manusia sebelum materi carousel dijadwalkan atau diterbitkan ke Instagram resmi
-                    Colorbox.
+                    Periksa hasil akhir sebelum carousel dijadwalkan atau diterbitkan di Instagram Colorbox.
                   </p>
                 </div>
                 <span
-                  className="pill"
-                  style={{
-                    background:
-                      decision === 'approved' ? '#10b981' : decision === 'revision' ? '#f59e0b' : 'var(--raised)',
-                    color: decision === 'approved' || decision === 'revision' ? 'white' : 'var(--text)',
-                    fontWeight: 600,
-                  }}
+                  className={`pill ${
+                    decision === 'approved' ? 'ok' : decision === 'revision' ? 'warn' : decision === 'rejected' ? 'bad' : ''
+                  }`}
                 >
                   Status:{' '}
                   {decision === 'approved'
                     ? 'Disetujui'
                     : decision === 'revision'
-                      ? 'Revisi Diperlukan'
+                      ? 'Perlu revisi'
                       : decision === 'rejected'
                         ? 'Ditolak'
-                        : 'Menunggu Evaluasi'}
+                        : 'Menunggu pemeriksaan'}
                 </span>
               </div>
 
               {/* Visual Presentation */}
               <div style={{ marginTop: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <b style={{ fontSize: 14 }}>Pratinjau Aset Visual (5 Slide 4:5 Portrait):</b>
+                  <b style={{ fontSize: 14 }}>Pratinjau 5 gambar (4:5):</b>
                   <a
                     href="/output/carousel_latest/carousel_preview.html"
                     target="_blank"
@@ -779,7 +744,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                     className="btn soft"
                     style={{ fontSize: 12, padding: '4px 10px' }}
                   >
-                    Buka Preview Layar Penuh ↗
+                    Buka pratinjau layar penuh
                   </a>
                 </div>
                 <div className="carousel-grid">
@@ -797,7 +762,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
 
               {/* Quality Checklist */}
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
-                <b style={{ fontSize: 14 }}>Daftar Periksa Kualitas (Quality Checklist):</b>
+                <b style={{ fontSize: 14 }}>Daftar periksa sebelum terbit:</b>
                 <div className="review-checklist">
                   <label>
                     <input
@@ -806,8 +771,8 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                       onChange={(e) => setChecklist({ ...checklist, catalogFact: e.target.checked })}
                     />
                     <span>
-                      <b>Fakta Produk & Harga Resmi:</b> Nama produk dan harga sesuai katalog resmi Colorbox (tanpa diskon
-                      gaib atau stok fiktif).
+                      <b>Fakta produk dan harga resmi:</b> Nama produk dan harga sesuai katalog resmi Colorbox (tanpa
+                      diskon karangan atau stok fiktif).
                     </span>
                   </label>
                   <label>
@@ -817,7 +782,8 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                       onChange={(e) => setChecklist({ ...checklist, noFabricHallucination: e.target.checked })}
                     />
                     <span>
-                      <b>Bebas Halusinasi Bahan:</b> Tidak mencantumkan persentase komposisi kain yang tidak ada di katalog.
+                      <b>Bahan sesuai katalog:</b> Tidak menyebut bahan atau komposisi kain yang tidak tercantum di
+                      katalog.
                     </span>
                   </label>
                   <label>
@@ -827,8 +793,8 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                       onChange={(e) => setChecklist({ ...checklist, ratio45: e.target.checked })}
                     />
                     <span>
-                      <b>Format & Proporsi Visual:</b> Kanvas 4:5 Feed Portrait (1080 × 1350 px), bebas tombol UI Reels
-                      yang menutupi kanvas.
+                      <b>Ukuran dan proporsi gambar:</b> Kanvas 4:5 (1080 × 1350 px), tanpa tombol antarmuka Reels yang
+                      menutupi gambar.
                     </span>
                   </label>
                   <label>
@@ -838,7 +804,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                       onChange={(e) => setChecklist({ ...checklist, brandTone: e.target.checked })}
                     />
                     <span>
-                      <b>Tone of Voice & Tagar:</b> Sapaan ramah Colorbox Babes dan tagar resmi #NeverJustOneThing.
+                      <b>Gaya bahasa dan tagar:</b> Sapaan ramah Colorbox Babes dan tagar resmi #NeverJustOneThing.
                     </span>
                   </label>
                   <label>
@@ -848,7 +814,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                       onChange={(e) => setChecklist({ ...checklist, officialCTA: e.target.checked })}
                     />
                     <span>
-                      <b>CTA Jelas & Terverifikasi:</b> Mengarahkan ke website resmi colorbox.co.id atau toko offline resmi.
+                      <b>Ajakan yang jelas:</b> Mengarahkan ke website resmi colorbox.co.id atau toko resmi.
                     </span>
                   </label>
                 </div>
@@ -856,18 +822,18 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
 
               {/* Review Notes */}
               <label className="field" style={{ marginTop: 8 }}>
-                <span>Catatan / Umpan Balik Reviewer</span>
+                <span>Catatan untuk tim</span>
                 <textarea
                   rows={3}
                   value={reviewNotes}
                   onChange={(e) => setReviewNotes(e.target.value)}
-                  placeholder="Tuliskan catatan persetujuan atau poin revisi untuk agen..."
+                  placeholder="Tulis catatan persetujuan atau poin revisi untuk pegawai AI..."
                 />
               </label>
 
               {/* Decision Buttons */}
               <div>
-                <b style={{ fontSize: 13, color: 'var(--muted)' }}>Keputusan Reviewer Manusia:</b>
+                <b style={{ fontSize: 13, color: 'var(--muted)' }}>Keputusan Anda:</b>
                 <div className="decision-group">
                   <button
                     type="button"
@@ -875,7 +841,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                     data-selected={decision === 'approved' ? 'approved' : undefined}
                     onClick={() => handleDecision('approved')}
                   >
-                    ✅ Setujui & Siap Terbit (Approved)
+                    Setujui
                   </button>
                   <button
                     type="button"
@@ -883,7 +849,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                     data-selected={decision === 'revision' ? 'revision' : undefined}
                     onClick={() => handleDecision('revision')}
                   >
-                    ⚠️ Perlu Revisi (Needs Revision)
+                    Minta revisi
                   </button>
                   <button
                     type="button"
@@ -891,7 +857,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                     data-selected={decision === 'rejected' ? 'rejected' : undefined}
                     onClick={() => handleDecision('rejected')}
                   >
-                    ❌ Tolak (Rejected)
+                    Tolak
                   </button>
                 </div>
               </div>
@@ -900,18 +866,14 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
               {decision === 'approved' && (
                 <div className="approval-banner">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 22 }}>🎉</span>
-                    <b style={{ fontSize: 15, color: '#047857' }}>
-                      STATUS: DISETUJUI & SIAP TAYANG (APPROVED FOR PUBLISH)
-                    </b>
+                    <Icon d={I.check} size={20} />
+                    <b style={{ fontSize: 15 }}>Disetujui dan siap tayang</b>
                   </div>
-                  <p style={{ margin: 0, fontSize: 13, color: '#065f46' }}>
-                    Materi kampanye Instagram Feed Carousel telah lolos seluruh parameter quality gate dan diverifikasi
-                    terhadap basis data katalog resmi Colorbox.
+                  <p style={{ margin: 0, fontSize: 13 }}>
+                    Carousel ini sudah lolos semua pemeriksaan dan cocok dengan katalog resmi Colorbox.
                   </p>
-                  <small style={{ color: '#047857' }}>
-                    Ditandatangani oleh Tim Reviewer Manusia pada{' '}
-                    {approvedAt ? hhmm(approvedAt) : hhmm(new Date())} WIB.
+                  <small>
+                    Disetujui pada {approvedAt ? hhmm(approvedAt) : hhmm(new Date())} WIB.
                   </small>
                 </div>
               )}
@@ -944,9 +906,9 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
             (shown ? (
               <OutputView o={shown} meta={meta(shown)} />
             ) : stage > 0 || !run.error ? (
-              <Empty title={`Belum ada hasil di tahap ${STAGES[stage]}`}>
+              <Empty title={`Belum ada hasil di tahap ${STAGE_LABELS[stage]}`}>
                 {stage === 0
-                  ? 'Isi formulir brief di atas lalu kirim ke Bimo untuk memulai alur sprint.'
+                  ? 'Isi formulir di atas, lalu kirim ke Bimo untuk memulai.'
                   : 'Klik tombol di atas untuk menjalankan tahap ini.'}
               </Empty>
             ) : null)}
@@ -954,8 +916,8 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
 
         {/* History Sidebar */}
         {outs.length > 0 && (
-          <aside className="ws-hist" aria-label="Riwayat hasil sprint alur marketing">
-            <h2>Riwayat Sprint</h2>
+          <aside className="ws-hist" aria-label="Riwayat hasil alur marketing">
+            <h2>Riwayat hasil</h2>
             <ul>
               {[...outs].reverse().map((o) => (
                 <li key={o.id}>
@@ -968,10 +930,10 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                     }}
                   >
                     <b>
-                      {STAGES[o.stage]} {revCount(o)}
+                      {STAGE_LABELS[o.stage]} {revCount(o)}
                     </b>
                     <span className="quiet small">
-                      {o.agentName} · {o.label} · {hhmm(o.at)}
+                      {o.agentName} · {hhmm(o.at)}
                     </span>
                   </button>
                 </li>
@@ -982,13 +944,13 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
       </div>
 
       <details className="opts">
-        <summary>Opsi Lanjutan</summary>
+        <summary>Pengaturan tambahan</summary>
         <div className="opts-body">
           <Switch
             checked={structured}
             onChange={setStructured}
-            label="Hasil terstruktur JSON (eksperimen)"
-            hint="Meminta agen menyertakan blok JSON terstruktur di akhir jawaban."
+            label="Hasil terstruktur untuk mesin (eksperimen)"
+            hint="Meminta pegawai AI menyertakan data terstruktur di akhir jawaban."
           />
         </div>
       </details>
@@ -1031,12 +993,8 @@ function OutputView({ o, meta }: { o: Output; meta: string }) {
   return (
     <article className="rcard plain-answer">
       <header>
-        <b>
-          {o.agentName} ({AGENTS[o.stage]?.handle ?? '@agent'})
-        </b>
-        <span className="pill" style={{ background: AGENTS[o.stage]?.badgeColor, color: 'white' }}>
-          {o.label}
-        </span>
+        <b>{o.agentName}</b>
+        <span className="pill">{STAGE_LABELS[o.stage]}</span>
       </header>
       <div className="rbody md" style={{ lineHeight: 1.6 }}>
         {o.text ? (
