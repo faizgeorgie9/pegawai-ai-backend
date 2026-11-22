@@ -5,6 +5,7 @@ import hashlib
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 from .errors import ApiError
 
