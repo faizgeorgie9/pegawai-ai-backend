@@ -48,3 +48,9 @@ def test_build_search_without_text_and_filler_only():
     assert "to_tsquery" not in sql and params == [50000, 5]
     sql, _ = catalog.build_search("halo kak")
     assert "where false" in sql
+
+
+def test_build_search_returns_image_url_via_join_on_url():
+    sql, params = catalog.build_search("graphic")
+    assert "i.image_url" in sql and "left join product_images i on i.url = p.url" in sql
+    assert sql.count("%s") == len(params)

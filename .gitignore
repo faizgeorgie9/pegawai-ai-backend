@@ -35,3 +35,4 @@ temp_usage_*.json
 Thumbs.db
 
 .dev-logs/
+.dev-postgres

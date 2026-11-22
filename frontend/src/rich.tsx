@@ -60,6 +60,8 @@ export interface ProductRef { name: string; price?: number; original?: number; d
 const isObj = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x)
 const num = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) ? x : typeof x === 'string' && /\d/.test(x) ? Number(x.replace(/\D/g, '')) : undefined)
 const web = (x: unknown) => (typeof x === 'string' && /^https?:\/\//i.test(x.trim()) ? x.trim() : '')
+// Bundled BFF photos come as /api/product-images/<file>; the browser reaches the BFF under /bff.
+const photo = (x: unknown) => (typeof x === 'string' && /^\/api\/product-images\/[\w.-]+$/.test(x.trim()) ? `/bff${x.trim()}` : web(x))
 
 // Accepts the handoff contract (price, original_price, discount_percent, color, url) and our /products/search rows (price_original, colors[]).
 export function toProducts(x: unknown): ProductRef[] {
@@ -72,7 +74,7 @@ export function toProducts(x: unknown): ProductRef[] {
     const discount = num(o.discount_percent) ?? (price && original && original > price ? Math.round((1 - price / original) * 100) : undefined)
     const color = typeof o.color === 'string' ? o.color : Array.isArray(o.colors) ? o.colors.filter((c) => typeof c === 'string').join(', ') : ''
     // Images only from a URL the data carries; nothing is fetched or guessed.
-    return [{ name, price, original: original && price && original > price ? original : undefined, discount: discount && discount > 0 ? discount : undefined, color, url: web(o.url), image: web(o.image_url ?? o.image) }]
+    return [{ name, price, original: original && price && original > price ? original : undefined, discount: discount && discount > 0 ? discount : undefined, color, url: web(o.url), image: photo(o.image_url ?? o.image) }]
   })
 }
 
@@ -94,7 +96,7 @@ export function ProductCards({ items }: { items: ProductRef[] }) {
     <ul className="pcards" aria-label="Produk yang disebut">
       {items.map((p, i) => (
         <li key={i} className="pcard">
-          {p.image && <img src={p.image} alt="" loading="lazy" referrerPolicy="no-referrer" />}
+          {p.image && <img src={p.image} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.hidden = true }} />}
           <div className="pcard-main">
             <b className="pcard-name">{p.name}</b>
             {p.color && <span className="quiet small">Warna: {p.color}</span>}

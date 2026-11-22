@@ -10,10 +10,10 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, FastAPI, File, Header, Request, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import actions, apps, auth, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, scheduler, sequences, settings, tasks, usage, whatsapp
+from . import actions, apps, auth, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, product_images, scheduler, sequences, settings, tasks, usage, whatsapp
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -431,6 +431,15 @@ async def products_search(q: str | None = None, category: str | None = None, max
         raise ApiError(400, "Parameter pencarian terlalu panjang")
     rows = await catalog.search_products(q, category, max_price, color, size, limit)
     return {"data": rows, "count": len(rows)}
+
+
+@public.get("/product-images/{name}")
+async def product_image(name: str):
+    """Bundled product photos. Only plain *.jpg names that exist in the assets folder are served (no path traversal)."""
+    p = product_images.safe_image_path(name)
+    if not p:
+        raise ApiError(404, "Foto produk tidak ditemukan")
+    return FileResponse(p, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
 
 
 @api.get("/runs")

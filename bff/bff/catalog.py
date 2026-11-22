@@ -85,7 +85,7 @@ def _tsquery(text: str) -> str | None:
 
 def build_search(query: str | None, category: str | None = None, max_price: int | None = None,
                  color: str | None = None, size: str | None = None, limit: int = 5) -> tuple[str, list]:
-    cols = "id, category, name, price, price_original, colors, sizes, url, source, accessed_date"
+    cols = "p.id, p.category, p.name, p.price, p.price_original, p.colors, p.sizes, p.url, p.source, p.accessed_date, i.image_url, i.image_description"
     where, params, rank = [], [], "0"
     tsq = _tsquery(query) if query else None
     if query and query.strip() and not tsq:
@@ -106,7 +106,7 @@ def build_search(query: str | None, category: str | None = None, max_price: int 
     if size:
         where.append("upper(%s) = any(sizes)")
         params.append(size.strip())
-    sql = f"select {cols}, {rank} as rank from products"
+    sql = f"select {cols}, {rank} as rank from products p left join product_images i on i.url = p.url"
     if tsq:
         params = [tsq] + params  # the rank placeholder comes first in the select list
     if where:
