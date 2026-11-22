@@ -25,6 +25,11 @@ import unicodedata
 import urllib.error
 import urllib.request
 import uuid
+import secrets
+try:
+    import jwt
+except ImportError:
+    jwt = None
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -43,6 +48,48 @@ except ImportError:
 PORT = int(os.environ.get("BFF_PORT", 8090))
 BFF_API_KEY = os.environ.get("BFF_API_KEY", "dev-pegawai-ai-2026")
 DB_PATH = ROOT_DIR / "bff.sqlite3"
+
+AUTH_SECRET = os.environ.get("BFF_API_KEY") or "pegawai_ai_default_secret_key_minimum_32_bytes_length!"
+AUTH_TOKEN_EXPIRY = 7 * 86400  # 7 days
+
+def hash_password(password: str, salt: Optional[str] = None) -> Tuple[str, str]:
+    if not salt:
+        salt = secrets.token_hex(16)
+    hashed = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000).hex()
+    return hashed, salt
+
+def verify_password(password: str, salt: str, password_hash: str) -> bool:
+    if not salt or not password_hash:
+        return False
+    computed_hash = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000).hex()
+    return hmac.compare_digest(computed_hash, password_hash)
+
+def create_auth_token(user_id: str, email: str, role: str = "member", name: str = "") -> str:
+    now_ts = int(time.time())
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "role": role,
+        "name": name,
+        "iat": now_ts,
+        "exp": now_ts + AUTH_TOKEN_EXPIRY
+    }
+    if jwt:
+        return jwt.encode(payload, AUTH_SECRET, algorithm="HS256")
+    import base64
+    return base64.b64encode(json.dumps(payload).encode("utf-8")).decode("utf-8")
+
+def decode_auth_token(token: str) -> Dict[str, Any]:
+    if jwt:
+        try:
+            return jwt.decode(token, AUTH_SECRET, algorithms=["HS256"])
+        except Exception:
+            raise ApiError(401, "Token autentikasi tidak valid atau kedaluwarsa")
+    import base64
+    try:
+        return json.loads(base64.b64decode(token.encode("utf-8")).decode("utf-8"))
+    except Exception:
+        raise ApiError(401, "Token autentikasi tidak valid")
 
 def _resolve_dir(candidates: List[Path]) -> Path:
     for c in candidates:
@@ -733,6 +780,41 @@ def init_db() -> None:
                     decided_at REAL DEFAULT NULL
                 )
             """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id TEXT PRIMARY KEY,
+                    name TEXT,
+                    email TEXT UNIQUE,
+                    salt TEXT,
+                    password_hash TEXT,
+                    role TEXT DEFAULT 'member',
+                    company TEXT DEFAULT 'Colorbox',
+                    plan_id TEXT DEFAULT 'pro',
+                    is_active INTEGER DEFAULT 1,
+                    created_at REAL
+                )
+            """)
+
+            # Seed demo users if empty
+            if cur.execute("SELECT count(*) FROM users").fetchone()[0] == 0:
+                demo_users = [
+                    ("default", "Super Admin", "admin@pegawai.ai", "a1b2c3d4e5f607182930415263748596", "4f9e13cb3321b5dd3c2496f4ed8979cc566876a9467672a0e80aa73de1a5e76e", "admin", "Colorbox", "pro"),
+                    ("user_owner", "Hendrawan (Owner)", "owner@colorbox.co.id", "a1b2c3d4e5f607182930415263748596", "4f9e13cb3321b5dd3c2496f4ed8979cc566876a9467672a0e80aa73de1a5e76e", "owner", "Colorbox", "bisnis"),
+                    ("user_cs", "Siti Rahma (CS Lead)", "cs@colorbox.co.id", "a1b2c3d4e5f607182930415263748596", "4f9e13cb3321b5dd3c2496f4ed8979cc566876a9467672a0e80aa73de1a5e76e", "cs", "Colorbox", "pro"),
+                    ("user_marketing", "Bimo Wicaksono (Marketing)", "marketing@colorbox.co.id", "a1b2c3d4e5f607182930415263748596", "4f9e13cb3321b5dd3c2496f4ed8979cc566876a9467672a0e80aa73de1a5e76e", "marketing", "Colorbox", "pro"),
+                    ("user_demo", "Demo Guest User", "demo@pegawai.ai", "a1b2c3d4e5f607182930415263748596", "4f9e13cb3321b5dd3c2496f4ed8979cc566876a9467672a0e80aa73de1a5e76e", "demo", "Colorbox Demo", "pro"),
+                ]
+                for u in demo_users:
+                    cur.execute("""
+                        INSERT INTO users (id, name, email, salt, password_hash, role, company, plan_id, is_active, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+                        ON CONFLICT(id) DO UPDATE SET
+                            email=excluded.email,
+                            password_hash=excluded.password_hash,
+                            salt=excluded.salt,
+                            role=excluded.role,
+                            company=excluded.company
+                    """, (*u, now))
 
             # Seed schedules if empty
             if cur.execute("SELECT count(*) FROM schedules").fetchone()[0] == 0:
@@ -4373,6 +4455,29 @@ class BFFHandler(BaseHTTPRequestHandler):
             })
             return
 
+        # Auth Me
+        if path == "/api/auth/me":
+            auth_header = self.headers.get("Authorization", "")
+            if not auth_header.startswith("Bearer "):
+                raise ApiError(401, "Kredensial login tidak valid atau belum login")
+            token = auth_header.split(" ", 1)[1].strip()
+            payload = decode_auth_token(token)
+            user_id = payload.get("sub")
+            with DB_LOCK:
+                row = _connect().execute("SELECT id, name, email, role, company, plan_id, is_active FROM users WHERE id = ?", (user_id,)).fetchone()
+            if not row:
+                raise ApiError(404, "Data pengguna tidak ditemukan")
+            user_dict = {
+                "id": row["id"],
+                "name": row["name"],
+                "email": row["email"],
+                "role": row["role"],
+                "company": row["company"] or "Colorbox",
+                "plan_id": row["plan_id"] or "pro"
+            }
+            self._send_json(200, {"ok": True, "user": user_dict})
+            return
+
         # Static files: /output/... and /images/...
         if path.startswith("/output/") or path.startswith("/bff/output/"):
             clean_rel = path.replace("/bff/output/", "").replace("/output/", "").lstrip("/")
@@ -5463,6 +5568,70 @@ class BFFHandler(BaseHTTPRequestHandler):
         path, _ = self._clean_path()
         parts = [unquote(x) for x in path.strip("/").split("/") if x]
         body = self._read_json_body()
+
+        # Auth Login
+        if path == "/api/auth/login":
+            email = str(body.get("email") or "").strip().lower()
+            password = str(body.get("password") or "")
+            if not email or not password:
+                raise ApiError(400, "Email dan kata sandi wajib diisi")
+            with DB_LOCK:
+                row = _connect().execute("SELECT id, name, email, salt, password_hash, role, company, plan_id, is_active FROM users WHERE LOWER(email) = ?", (email,)).fetchone()
+            if not row:
+                raise ApiError(401, "Email atau kata sandi tidak cocok")
+            if not bool(row["is_active"]):
+                raise ApiError(403, "Akun ini telah dinonaktifkan")
+            if not verify_password(password, row["salt"], row["password_hash"]):
+                raise ApiError(401, "Email atau kata sandi tidak cocok")
+            token = create_auth_token(row["id"], row["email"], row["role"], row["name"])
+            user_data = {
+                "id": row["id"],
+                "name": row["name"],
+                "email": row["email"],
+                "role": row["role"],
+                "company": row["company"] or "Colorbox",
+                "plan_id": row["plan_id"] or "pro"
+            }
+            self._send_json(200, {"token": token, "user": user_data})
+            return
+
+        # Auth Register
+        if path == "/api/auth/register":
+            name = str(body.get("name") or "").strip()
+            email = str(body.get("email") or "").strip().lower()
+            password = str(body.get("password") or "")
+            company = str(body.get("company") or "Colorbox").strip()
+            if not name or not email or not password:
+                raise ApiError(400, "Nama, email, dan kata sandi wajib diisi")
+            if len(password) < 6:
+                raise ApiError(400, "Kata sandi minimal 6 karakter")
+            with DB_LOCK:
+                conn = _connect()
+                existing = conn.execute("SELECT id FROM users WHERE LOWER(email) = ?", (email,)).fetchone()
+                if existing:
+                    raise ApiError(400, "Email sudah terdaftar. Silakan gunakan email lain atau login.")
+                user_id = f"user_{uuid.uuid4().hex[:10]}"
+                pw_hash, salt = hash_password(password)
+                conn.execute(
+                    "INSERT INTO users (id, name, email, salt, password_hash, role, company, plan_id, is_active, created_at) VALUES (?, ?, ?, ?, ?, 'member', ?, 'pro', 1, ?)",
+                    (user_id, name, email, salt, pw_hash, company, time.time())
+                )
+            token = create_auth_token(user_id, email, "member", name)
+            user_data = {
+                "id": user_id,
+                "name": name,
+                "email": email,
+                "role": "member",
+                "company": company,
+                "plan_id": "pro"
+            }
+            self._send_json(200, {"token": token, "user": user_data})
+            return
+
+        # Auth Logout
+        if path == "/api/auth/logout":
+            self._send_json(200, {"ok": True, "message": "Berhasil logout"})
+            return
 
         # POST /api/bots
         if path == "/api/bots":
