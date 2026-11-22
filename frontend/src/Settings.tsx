@@ -23,13 +23,19 @@ const ZONES: [string, string][] = [['Asia/Jakarta', 'WIB (Asia/Jakarta)'], ['Asi
 export default function Settings({ section }: { section?: string }) {
   const cur = SECTIONS.find((s) => s.id === section)?.id ?? 'umum'
   return (
-    <section className="page">
+    <section className="page set-page">
       <PageHead title="Pengaturan" sub="Atur ruang kerja Anda." />
       <div className="set-layout">
         <nav className="set-nav" aria-label="Bagian pengaturan">
           {SECTIONS.map((s) => (
-            <a key={s.id} href={`#/pengaturan/${s.id}`} aria-current={s.id === cur ? 'page' : undefined}>
-              {s.label}
+            <a key={s.id} href={`#/pengaturan/${s.id}`} aria-current={s.id === cur ? 'page' : undefined} aria-label={s.label}>
+              {s.id === 'paket' ? (
+                <>
+                  Paket<span className="hide-sm"> dan biaya</span>
+                </>
+              ) : (
+                s.label
+              )}
             </a>
           ))}
         </nav>
@@ -45,9 +51,9 @@ export default function Settings({ section }: { section?: string }) {
   )
 }
 
-function Row({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {
+function Row({ title, hint, children, stack }: { title: string; hint: string; children: React.ReactNode; stack?: boolean }) {
   return (
-    <div className="set-row">
+    <div className={'set-row' + (stack ? ' set-row-stack' : '')}>
       <div className="set-text">
         <b>{title}</b>
         <small className="quiet">{hint}</small>
@@ -93,8 +99,8 @@ function General() {
   const dirty = name.trim() !== settings.company_name
   return (
     <div className="set-sec">
-      <h2>Umum</h2>
-      <Row title="Nama bisnis" hint="Tampil di menu samping.">
+      <h2 className="set-h">Umum</h2>
+      <Row title="Nama bisnis" hint="Tampil di menu samping." stack>
         <form
           className="set-inline"
           onSubmit={(e) => {
@@ -158,7 +164,7 @@ function Notifications() {
   ]
   return (
     <div className="set-sec">
-      <h2>Notifikasi</h2>
+      <h2 className="set-h">Notifikasi</h2>
       <Row
         title="Notifikasi browser"
         hint={perm === 'granted' ? 'Diizinkan. Muncul saat tab ini tidak dibuka.' : perm === 'denied' ? 'Diblokir di peramban. Ubah izin situs di peramban Anda.' : perm === 'unsupported' ? 'Peramban ini tidak mendukung notifikasi.' : 'Belum diizinkan.'}
@@ -216,7 +222,7 @@ function Security() {
   const rows = same ? [{ key: 'all', name: 'Semua pegawai', bot: first }] : bots.map((b) => ({ key: b.bot_id, name: b.name, bot: b }))
   return (
     <div className="set-sec">
-      <h2>Keamanan dan izin</h2>
+      <h2 className="set-h">Keamanan dan izin</h2>
       <p className="quiet">Demi keamanan, kemampuan di bawah ini dimatikan untuk semua pegawai, dan tindakan berisiko seperti menghapus berkas atau mengirim email selalu menunggu izin Anda.</p>
       {s.state === 'loading' && <Loading text="Memuat pembatasan..." shape="table" />}
       {s.state === 'error' && <ErrorLine text={s.error} onRetry={s.retry} />}
@@ -253,10 +259,11 @@ const dayText = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('id-
 
 function Split({ title, rows, tokens }: { title: string; tokens: boolean; rows: { key: string; name: ReactNode; cost: Money; tokens: number; est: boolean }[] }) {
   const top = Math.max(...rows.map((r) => Number(r.cost.usd)), 0)
+  const [all, setAll] = useState(false)
   return (
     <div>
       <h3>{title}</h3>
-      <ul className="usage-list">
+      <ul className="usage-list" data-clamp={!all && rows.length > 5 ? true : undefined}>
         {rows.map((r) => (
           <li key={r.key}>
             <span className="row-top">
@@ -272,37 +279,52 @@ function Split({ title, rows, tokens }: { title: string; tokens: boolean; rows: 
           </li>
         ))}
       </ul>
+      {rows.length > 5 && (
+        <button type="button" className="btn link small usage-more" aria-expanded={all} onClick={() => setAll((v) => !v)}>
+          {all ? 'Tampilkan lebih sedikit' : `Lihat semua ${rows.length}`}
+        </button>
+      )}
     </div>
   )
 }
 
 function UsageDetail({ u, admin }: { u: MonthUsage; admin: boolean }) {
+  const [wide] = useState(() => window.matchMedia('(min-width: 641px)').matches)
   if (u.tokens.runs === 0) return <p className="quiet">Belum ada pemakaian bulan ini. Biaya muncul di sini setelah pegawai mengerjakan tugas.</p>
   const days = Math.max(...u.by_day.map((d) => Number(d.cost.usd)), 0)
+  const perDay = (
+    <details className="usage-days" open={wide}>
+      <summary>
+        <h3>Per hari</h3>
+      </summary>
+      <ul className="usage-list">
+        {u.by_day.map((d) => (
+          <li key={d.day}>
+            <span className="day num">{dayText(d.day)}</span>
+            <span className="bar-sm" aria-hidden="true">
+              <span style={{ width: `${days > 0 ? Math.max(2, (Number(d.cost.usd) / days) * 100) : 2}%` }} />
+            </span>
+            <b className="amt num">{d.cost.label}</b>
+          </li>
+        ))}
+      </ul>
+    </details>
+  )
   return (
     <>
       <div className="usage-split">
         <Split title="Per pegawai" tokens={admin} rows={u.by_agent.map((a) => ({ key: a.bot_id, name: a.name, cost: a.cost, tokens: a.tokens, est: a.estimated }))} />
-        {admin && <Split
-          title="Per model"
-          tokens
-          rows={u.by_model.map((m) => ({ key: `${m.provider}/${m.model}`, name: m.priced ? m.model : `${m.model} (belum ada harga)`, cost: m.cost, tokens: m.tokens, est: m.estimated }))}
-        />}
+        {admin ? (
+          <Split
+            title="Per model"
+            tokens
+            rows={u.by_model.map((m) => ({ key: `${m.provider}/${m.model}`, name: m.priced ? m.model : `${m.model} (belum ada harga)`, cost: m.cost, tokens: m.tokens, est: m.estimated }))}
+          />
+        ) : (
+          perDay
+        )}
       </div>
-      <div className="usage-days">
-        <h3>Per hari</h3>
-        <ul className="usage-list">
-          {u.by_day.map((d) => (
-            <li key={d.day}>
-              <span className="day num">{dayText(d.day)}</span>
-              <span className="bar-sm" aria-hidden="true">
-                <span style={{ width: `${days > 0 ? Math.max(2, (Number(d.cost.usd) / days) * 100) : 2}%` }} />
-              </span>
-              <b className="amt num">{d.cost.label}</b>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {admin && perDay}
       {admin && u.unpriced_tokens > 0 && <p className="note-box">{nf.format(u.unpriced_tokens)} token belum dihitung karena modelnya belum punya harga.</p>}
     </>
   )
@@ -319,8 +341,8 @@ function Plan() {
   const d = m.data
   return (
     <div className="set-sec">
-      <h2>Paket dan pemakaian</h2>
-      <dl className="kv kv-wide">
+      <h2 className="set-h">Paket dan pemakaian</h2>
+      <dl className="kv kv-wide plan-sum">
         <dt>Paket aktif</dt>
         <dd>{me.plan.name}</dd>
         <dt>Biaya bulan ini</dt>
@@ -390,7 +412,7 @@ function DataSection() {
   }
   return (
     <div className="set-sec">
-      <h2>Data</h2>
+      <h2 className="set-h">Data</h2>
       <Row title="Lama simpan log aktivitas" hint="Catatan aktivitas dihapus otomatis setelah masa ini.">
         <span className="num">{k.data ? `${k.data.retention_days} hari` : '90 hari'}</span>
       </Row>

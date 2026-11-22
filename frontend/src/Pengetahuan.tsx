@@ -14,12 +14,14 @@ const dayOf = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('i
 // The user's own sources (files and links added here or from the chat). The BFF keeps them per user and gives the best
 // matching excerpts to every agent, citing the source name.
 export function MySources() {
+  const admin = useAdminMode()
   const [n, setN] = useState(0)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const fn = useCallback(() => api.kbItems(), [n])
   const items = useLoad(fn)
   const file = useRef<HTMLInputElement>(null)
   const [url, setUrl] = useState('')
+  const [find, setFind] = useState('')
   const [busy, setBusy] = useState('')
   const [problem, setProblem] = useState('')
   const [asking, setAsking] = useState<string | null>(null)
@@ -76,11 +78,26 @@ export function MySources() {
     setAsking(null)
     setN((x) => x + 1)
   }
+  const all = items.data ?? []
+  const q = find.trim().toLowerCase()
+  const shown = q ? all.filter((i) => `${i.name} ${i.source ?? ''}`.toLowerCase().includes(q)) : all
   return (
-    <div className="kb-sec">
-      <h2>Sumber milik Anda</h2>
-      <p className="quiet">Semua pegawai AI Anda membaca berkas dan link ini, dan menyebut sumbernya. Ini bukan ingatan percakapan: yang di sini hanya yang Anda unggah atau simpan.</p>
-      <div className="kb-add">
+    <>
+      <PageHead
+        title="Pengetahuan"
+        sub="Ajari pegawai AI tentang bisnis Anda lewat berkas dan link."
+        actions={
+          <>
+            <button className="btn primary" disabled={!!busy} onClick={() => file.current?.click()}>
+              Unggah berkas
+            </button>
+            <button className="btn outline" disabled={!!busy} onClick={() => setPicker('gdrive')}>
+              Pilih dari Drive
+            </button>
+          </>
+        }
+      />
+      <div className="kb-sec kb-fit">
         <input
           ref={file}
           type="file"
@@ -94,98 +111,124 @@ export function MySources() {
             if (fs.length) void addMany(fs)
           }}
         />
-        <button className="btn outline" disabled={!!busy} onClick={() => file.current?.click()}>
-          Unggah berkas
-        </button>
-        <button className="btn outline" disabled={!!busy} onClick={() => setPicker('gdrive')}>
-          Pilih dari Drive
-        </button>
+        <p className="quiet small kb-intro">
+          Semua pegawai membaca ini dan menyebut sumbernya. Berkas: {KB_TYPES_TEXT}. Drive pribadi perlu disambungkan dulu di{' '}
+          <a className="kb-link" href="#/aplikasi">
+            Aplikasi
+          </a>
+          .
+        </p>
         <form
-          className="set-inline"
+          className="set-inline kb-link-form"
           onSubmit={(e) => {
             e.preventDefault()
             if (url.trim()) void add(url.trim(), () => api.kbAddLink(url.trim()))
           }}
         >
-          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://… (website atau Google Drive)" aria-label="Alamat web atau link Google Drive" inputMode="url" />
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Tempel link website atau Drive" aria-label="Alamat web atau link Google Drive" inputMode="url" />
           <button className="btn outline" type="submit" disabled={!!busy || !url.trim()}>
             Tambah link
           </button>
         </form>
-      </div>
-      <p className="meta">
-        Berkas: {KB_TYPES_TEXT}. Drive pribadi perlu disambungkan dulu di <a className="kb-link" href="#/aplikasi">Aplikasi</a>.
-      </p>
-      {problem && (
-        <p className="problem-bar small" role="alert">
-          {problem}
-          {needsDrive(problem) && <DriveLink />}
-        </p>
-      )}
-      {items.state === 'loading' && !items.data && <Loading text="Memuat sumber..." shape="lines" />}
-      {items.state === 'error' && !items.data && <ErrorLine text={items.error} onRetry={items.retry} />}
-      {busy && (
-        <div className="kb-row" data-s="processing" aria-live="polite">
-          <span className="pill cap-mock">Memproses</span>
-          <b className="kb-rname">{busy}</b>
-        </div>
-      )}
-      {items.data?.length === 0 && !busy && (
-        <div className="kb-empty">
-          <b>Belum ada pengetahuan.</b>
-          <p className="quiet">Unggah berkas atau tempel link di atas.</p>
-        </div>
-      )}
-      <ul className="kb-list">
-        {items.data?.map((i) => (
-          <li key={i.id} className="kb-row" data-s={i.status}>
-            {i.kind !== 'file' && <span className="pill">{KB_KIND[i.kind]}</span>}
-            <div className="kb-rtext">
-              {i.kind === 'file' && <span className="sr">{KB_KIND[i.kind]}</span>}
-              {i.status === 'ready' && i.id ? (
-                <button className="kb-rname kb-open" onClick={() => setViewing(i)}>
-                  {i.name}
-                </button>
-              ) : (
-                <b className="kb-rname">{i.name}</b>
-              )}
-              {i.source && <span className="meta kb-src">{i.source}</span>}
-              <span className="meta">
-                {[i.size_bytes != null && bytes(i.size_bytes), dayOf(i.created_at)].filter(Boolean).join(' · ')}
-              </span>
-              {i.status === 'failed' && <span className="meta bad kb-why">{i.error}</span>}
+        {problem && (
+          <p className="problem-bar small" role="alert">
+            {problem}
+            {needsDrive(problem) && <DriveLink />}
+          </p>
+        )}
+        <header className="kb-list-head">
+          <h2>
+            Tersimpan{items.data && <span className="quiet"> · {items.data.length}</span>}
+          </h2>
+          {items.data && items.data.length > 8 && (
+            <input type="search" className="kb-find" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Cari dokumen" aria-label="Cari dokumen" />
+          )}
+        </header>
+        <div className="kb-scroll">
+          {items.state === 'loading' && !items.data && <Loading text="Memuat sumber..." shape="lines" />}
+          {items.state === 'error' && !items.data && <ErrorLine text={items.error} onRetry={items.retry} />}
+          {busy && (
+            <div className="kb-row" data-s="processing" aria-live="polite">
+              <span className="pill cap-mock">Memproses</span>
+              <b className="kb-rname">{busy}</b>
             </div>
-            <span className={`pill ${i.status === 'ready' ? 'cap-ok' : i.status === 'failed' ? 'cap-blocked' : 'cap-mock'}`}>{STATUS_TEXT[i.status]}</span>
-            {i.status === 'ready' && i.id && (
-              <button className="btn quiet-btn sm" aria-label={`Lihat ${i.name}`} onClick={() => setViewing(i)}>
-                Lihat
+          )}
+          {items.data?.length === 0 && !busy && (
+            <div className="kb-empty">
+              <b>Belum ada pengetahuan.</b>
+              <p className="quiet">Unggah berkas atau tempel link di atas.</p>
+            </div>
+          )}
+          {all.length > 0 && shown.length === 0 && (
+            <p className="quiet kb-empty">
+              Tidak ada dokumen yang cocok.{' '}
+              <button type="button" className="btn link small" onClick={() => setFind('')}>
+                Hapus pencarian
               </button>
-            )}
-            {i.refreshable && asking !== i.id && (
-              <button className="btn quiet-btn sm" disabled={refreshing === i.id} aria-label={`Perbarui ${i.name} dari ${KB_KIND[i.kind]}`} onClick={() => void refresh(i.id as string)}>
-                {refreshing === i.id ? 'Memperbarui...' : 'Perbarui'}
-              </button>
-            )}
-            {asking === i.id ? (
-              <span className="confirm-actions" role="alert">
-                <button className="btn danger sm" onClick={() => void remove(i.id as string)}>
-                  Hapus
-                </button>
-                <button className="btn quiet-btn sm" onClick={() => setAsking(null)}>
-                  Batal
-                </button>
-              </span>
-            ) : (
-              <button className="btn quiet-btn danger-text sm" aria-label={`Hapus ${i.name}`} onClick={() => setAsking(i.id)}>
-                Hapus
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-      {viewing && <KbPreview item={viewing} onClose={() => setViewing(null)} />}
-      {picker && <SourcePicker provider={picker} onClose={() => setPicker(null)} onDone={() => setN((x) => x + 1)} />}
-    </div>
+            </p>
+          )}
+          <ul className="kb-list">
+            {shown.map((i) => (
+              <li key={i.id} className="kb-row" data-s={i.status}>
+                {i.kind !== 'file' && <span className="pill">{KB_KIND[i.kind]}</span>}
+                <div className="kb-rtext">
+                  {i.kind === 'file' && <span className="sr">{KB_KIND[i.kind]}</span>}
+                  {i.status === 'ready' && i.id ? (
+                    <button className="kb-rname kb-open" onClick={() => setViewing(i)}>
+                      {i.name}
+                    </button>
+                  ) : (
+                    <b className="kb-rname">{i.name}</b>
+                  )}
+                  {i.source && (
+                    <span className="meta kb-src" title={i.source}>
+                      {i.source}
+                    </span>
+                  )}
+                  <span className="meta">
+                    {[i.size_bytes != null && bytes(i.size_bytes), dayOf(i.created_at)].filter(Boolean).join(' · ')}
+                    {i.refreshable && (
+                      <button type="button" className="btn link small kb-refresh-inline" disabled={refreshing === i.id} onClick={() => void refresh(i.id as string)}>
+                        {refreshing === i.id ? 'Memperbarui...' : 'Perbarui'}
+                      </button>
+                    )}
+                  </span>
+                  {i.status === 'failed' && <span className="meta bad kb-why">{i.error}</span>}
+                </div>
+                {i.status !== 'ready' && <span className={`pill ${i.status === 'failed' ? 'cap-blocked' : 'cap-mock'}`}>{STATUS_TEXT[i.status]}</span>}
+                {i.status === 'ready' && i.id && (
+                  <button className="btn quiet-btn sm" aria-label={`Lihat ${i.name}`} onClick={() => setViewing(i)}>
+                    Lihat
+                  </button>
+                )}
+                {i.refreshable && asking !== i.id && (
+                  <button className="btn quiet-btn sm kb-refresh" disabled={refreshing === i.id} aria-label={`Perbarui ${i.name} dari ${KB_KIND[i.kind]}`} onClick={() => void refresh(i.id as string)}>
+                    {refreshing === i.id ? 'Memperbarui...' : 'Perbarui'}
+                  </button>
+                )}
+                {asking === i.id ? (
+                  <span className="confirm-actions" role="alert">
+                    <button className="btn danger sm" onClick={() => void remove(i.id as string)}>
+                      Hapus
+                    </button>
+                    <button className="btn quiet-btn sm" onClick={() => setAsking(null)}>
+                      Batal
+                    </button>
+                  </span>
+                ) : (
+                  <button className="btn quiet-btn danger-text sm" aria-label={`Hapus ${i.name}`} onClick={() => setAsking(i.id)}>
+                    Hapus
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+          {admin && <BuiltinDocs />}
+        </div>
+        {viewing && <KbPreview item={viewing} onClose={() => setViewing(null)} />}
+        {picker && <SourcePicker provider={picker} onClose={() => setPicker(null)} onDone={() => setN((x) => x + 1)} />}
+      </div>
+    </>
   )
 }
 
@@ -221,12 +264,9 @@ function BuiltinDocs() {
 }
 
 export default function Pengetahuan() {
-  const admin = useAdminMode()
   return (
-    <section className="page">
-      <PageHead title="Pengetahuan" sub="Ajari pegawai AI tentang bisnis Anda lewat berkas dan link." />
+    <section className="page kb-page">
       <MySources />
-      {admin && <BuiltinDocs />}
     </section>
   )
 }

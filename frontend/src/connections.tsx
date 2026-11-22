@@ -335,6 +335,7 @@ export function AppsPage() {
   const [how, setHow] = useState(false)
   const [q, setQ] = useState('')
   const [only, setOnly] = useState('')
+  const [limit, setLimit] = useState(12)
   const [tab, setTabState] = useState<'apps' | 'skills'>(() => {
     try {
       return localStorage.getItem('pegawai-ai.apps-tab') === 'skills' ? 'skills' : 'apps'
@@ -354,6 +355,7 @@ export function AppsPage() {
   useEffect(() => {
     if (result) go('/aplikasi', true) // drop the flag so a refresh does not show the banner again
   }, [result])
+  useEffect(() => setLimit(12), [q, only]) // a new search starts at the first page
 
   async function connect(p: ConnProvider) {
     setBusy(p)
@@ -411,7 +413,7 @@ export function AppsPage() {
     </button>
   )
 
-  function oauthCard(id: ConnProvider) {
+  function oauthCard(id: ConnProvider, mode: 'row' | 'mini') {
     const a = APPS[id]
     const c = by.get(id)
     if (!c) return null
@@ -420,14 +422,14 @@ export function AppsPage() {
     const soon = status === 'not_configured' && !admin // not set up by the admin: users only see "Segera hadir"
     const mustAsk = status === 'broken' && c.needs === 'admin'
     return (
-      <li key={id} className="app-card" data-app={id} data-s={status}>
+      <li key={id} className={`app-card ${mode === 'row' ? 'app-row' : 'app-mini'}`} data-app={id} data-s={status}>
         <div className="app-card-head">
           <div className="app-mark">
             <AppLogo id={id} name={name} size={32} fallback={<Mark id={id} />} />
           </div>
           <div className="app-top">
             <h3>{name}</h3>
-            {status === 'connected' && <CapChip cap="ok" label="Tersambung" />}
+            {status === 'connected' && mode !== 'row' && <CapChip cap="ok" label="Tersambung" />}
             {status === 'reconnect' && <CapChip cap="mock" label="Perlu disambungkan ulang" />}
             {status === 'broken' && <CapChip cap="mock" label="Perlu perbaikan" />}
             {status === 'needs_scope' && <CapChip cap="mock" label="Perlu izin tambahan" />}
@@ -435,9 +437,9 @@ export function AppsPage() {
           </div>
         </div>
         <p>{a.enables}</p>
-        {(status === 'connected' || status === 'needs_scope') && c.account && (
-          <p className="connect-acct">
-            Tersambung sebagai <b>{c.account}</b>
+        {(status === 'connected' || status === 'needs_scope') && c.account && mode === 'row' && (
+          <p className="connect-acct" title={c.account}>
+            Akun: <b>{c.account}</b>
           </p>
         )}
         {status === 'reconnect' && <p className="connect-warn">Izin akses sudah tidak berlaku. Hubungkan ulang agar bisa dipakai lagi.</p>}
@@ -510,27 +512,39 @@ export function AppsPage() {
     )
   }
 
-  function appCard(a: HermesApp) {
+  function appCard(a: HermesApp, mode: 'row' | 'mini') {
     const on = a.status === 'connected'
     const ownDrive = merged.get('gdrive') === a && ['connected', 'needs_scope'].includes(by.get('gdrive')?.status ?? '') // our Drive connection folded into this card
     return (
-      <li key={a.id} className="app-card" data-app={a.id} data-s={on ? 'connected' : 'disconnected'}>
+      <li key={a.id} className={`app-card ${mode === 'row' ? 'app-row' : 'app-mini'}`} data-app={a.id} data-s={on ? 'connected' : 'disconnected'}>
         <div className="app-card-head">
           <div className="app-mark">
             <AppLogo id={a.id} name={a.name} size={32} fallback={<Initial name={a.name} />} />
           </div>
           <div className="app-top">
             <h3>{a.name}</h3>
-            {on && <CapChip cap="ok" label="Tersambung" />}
+            {on && mode !== 'row' && <CapChip cap="ok" label="Tersambung" />}
           </div>
         </div>
         <p>{a.description}</p>
         {on && shownAccounts(a.accounts, admin).length > 0 && (
-          <p className="connect-acct">
-            Akun: <b>{shownAccounts(a.accounts, admin).join(', ')}</b>
+          <p className="connect-acct" title={shownAccounts(a.accounts, admin).join(', ')}>
+            {mode === 'row' ? (
+              <>
+                Akun: <b>{shownAccounts(a.accounts, admin).join(', ')}</b>
+              </>
+            ) : (
+              <>
+                Tersambung sebagai <b>{shownAccounts(a.accounts, admin).join(', ')}</b>
+              </>
+            )}
           </p>
         )}
-        {admin && <p className="quiet small">Kode: <code>{a.id}</code></p>}
+        {admin && (
+          <p className="quiet small app-code">
+            Kode: <code>{a.id}</code>
+          </p>
+        )}
         <div className="app-card-act">
           {asking === a.id ? (
             <span className="confirm-actions" role="alert">
@@ -561,7 +575,7 @@ export function AppsPage() {
     )
   }
 
-  // Everything in one list, grouped by category. Drive and Gmail (our own sign-in) sit next to the Hermes apps (one card per app, see OWN_AS_HERMES).
+  // Tersambung first (our Google sign-in plus Hermes apps already connected), then one flat catalog of everything else.
   const apps = (cat.data?.apps ?? []).filter((a) => admin || !a.technical)
   const cats = (cat.data?.categories ?? []).filter((c) => admin || c.id !== 'dev')
   const merged = new Map<ConnProvider, HermesApp>()
@@ -571,8 +585,10 @@ export function AppsPage() {
   }
   const oauthIds = (['gdrive', 'gmail'] as ConnProvider[]).filter((id) => by.has(id) && !merged.has(id))
   const linkedHermes = apps.filter((a) => a.status === 'connected')
-  // an own connection folded into a Hermes card that is not itself connected still counts as linked, once
-  const linkedOauth = (Object.keys(OWN_AS_HERMES) as ConnProvider[]).filter((id) => ['connected', 'needs_scope'].includes(by.get(id)?.status ?? '') && (!merged.has(id) || merged.get(id)?.status !== 'connected') && by.has(id))
+  // Every state in which the owner can already act on the connection counts as linked; problems come first.
+  const linkedOauth = (Object.keys(OWN_AS_HERMES) as ConnProvider[])
+    .filter((id) => ['connected', 'needs_scope', 'reconnect', 'broken'].includes(by.get(id)?.status ?? '') && (!merged.has(id) || merged.get(id)?.status !== 'connected') && by.has(id))
+    .sort((a, b) => Number(!['needs_scope', 'reconnect', 'broken'].includes(by.get(a)?.status ?? '')) - Number(!['needs_scope', 'reconnect', 'broken'].includes(by.get(b)?.status ?? '')))
   const groups = cats
     .map((c) => ({
       c,
@@ -580,10 +596,17 @@ export function AppsPage() {
       apps: apps.filter((a) => a.category === c.id && hit(a.name, a.description, c.id)),
     }))
     .filter((g) => g.oauth.length + g.apps.length > 0)
+  type CatItem = { k: 'o'; id: ConnProvider } | { k: 'a'; a: HermesApp }
+  const catalog = groups
+    .flatMap((g): CatItem[] => [...g.oauth.map((id) => ({ k: 'o' as const, id })), ...g.apps.map((a) => ({ k: 'a' as const, a }))])
+    .filter((x) => (x.k === 'o' ? !['connected', 'needs_scope', 'reconnect', 'broken'].includes(by.get(x.id)?.status ?? '') : x.a.status !== 'connected'))
+    .sort((x, y) => Number(x.k !== 'o') - Number(y.k !== 'o')) // the built-in Google apps lead the first page
+  const shown = catalog.slice(0, limit)
+  const linkedCount = linkedOauth.length + linkedHermes.length
   const ready = (conns.data || conns.state === 'error') && (cat.data || cat.state === 'error')
 
   return (
-    <section className="page apps">
+    <section className="page apps" data-tab={tab}>
       <PageHead title="Aplikasi" sub="Hubungkan aplikasi yang Anda pakai agar pegawai AI bisa membantu di sana." />
       {result && (
         <p className={result.ok ? 'note-box connect-ok' : 'problem-bar'} role={result.ok ? 'status' : 'alert'}>
@@ -612,66 +635,83 @@ export function AppsPage() {
           </button>
         ))}
       </div>
-      {tab === 'apps' && !ready && <Loading text="Memuat aplikasi..." shape="ledger" />}
-      {tab === 'apps' && conns.state === 'error' && !conns.data && <ErrorLine text={conns.error} onRetry={conns.retry} />}
-      {tab === 'apps' && cat.state === 'error' && !cat.data && <ErrorLine text={cat.error} onRetry={cat.retry} />}
       {tab === 'skills' && (
         <>
-          <div className="apps-tools">
+          <div className="apps-tools apps-tools-row apps-tools-solo">
             <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari keahlian" aria-label="Cari keahlian" />
           </div>
           <SkillsSection q={q} />
         </>
       )}
-      {tab === 'apps' && ready && (
+      {tab === 'apps' && (
         <>
-          <div className="apps-tools">
-            <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari aplikasi" aria-label="Cari aplikasi" />
-            <div className="apps-cats" role="group" aria-label="Kategori">
-              <button type="button" aria-pressed={only === ''} onClick={() => setOnly('')}>
-                Semua
-              </button>
-              {cats.map((c) => (
-                <button key={c.id} type="button" aria-pressed={only === c.id} onClick={() => setOnly(only === c.id ? '' : c.id)}>
-                  {c.name}
+          {ready && (
+            <div className="apps-tools apps-tools-row">
+              <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari aplikasi" aria-label="Cari aplikasi" />
+              <div className="apps-cats" role="group" aria-label="Kategori">
+                <button type="button" aria-pressed={only === ''} onClick={() => setOnly('')}>
+                  Semua
                 </button>
-              ))}
+                {cats.map((c) => (
+                  <button key={c.id} type="button" aria-pressed={only === c.id} onClick={() => setOnly(only === c.id ? '' : c.id)}>
+                    {c.name}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-          {linkedHermes.length + linkedOauth.length > 0 && (
-            <section className="apps-group" aria-labelledby="g-linked">
-              <header>
-                <h2 id="g-linked">Tersambung</h2>
-              </header>
-              <ul className="apps-linked">
-                {linkedOauth.map((id) => (
-                  <li key={id}>
-                    <AppLogo id={id} name={OAUTH_NAME[id]} size={24} fallback={<Mark id={id} />} />
-                    <span>{OAUTH_NAME[id]}</span>
-                    {by.get(id)?.status === 'needs_scope' && <span className="warn-dot" role="img" aria-label="Perlu izin tambahan" title="Perlu izin tambahan" />}
-                  </li>
-                ))}
-                {linkedHermes.map((a) => (
-                  <li key={a.id}>
-                    <AppLogo id={a.id} name={a.name} size={24} fallback={<Initial name={a.name} />} />
-                    <span>{a.name}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
           )}
-          {groups.map((g) => (
-            <section key={g.c.id} className="apps-group" aria-labelledby={`g-${g.c.id}`}>
-              <header>
-                <h2 id={`g-${g.c.id}`}>{g.c.name}</h2>
-              </header>
-              <ul className="app-grid">
-                {g.oauth.map(oauthCard)}
-                {g.apps.map(appCard)}
-              </ul>
-            </section>
-          ))}
-          {groups.length === 0 && <p className="quiet">Tidak ada aplikasi yang cocok dengan pencarian Anda.</p>}
+          <div className="apps-scroll">
+            {!ready && <Loading text="Memuat aplikasi..." shape="ledger" />}
+            {conns.state === 'error' && !conns.data && <ErrorLine text={conns.error} onRetry={conns.retry} />}
+            {cat.state === 'error' && !cat.data && <ErrorLine text={cat.error} onRetry={cat.retry} />}
+            {ready && (
+              <>
+                <section className="apps-group apps-linked-sec" aria-labelledby="g-linked">
+                  <header>
+                    <h2 id="g-linked">
+                      Tersambung{linkedCount > 0 && <span className="quiet"> · {linkedCount}</span>}
+                    </h2>
+                  </header>
+                  {linkedCount === 0 ? (
+                    <p className="quiet">Belum ada aplikasi tersambung. Pilih salah satu di bawah.</p>
+                  ) : (
+                    <ul className="app-rows">
+                      {linkedOauth.map((id) => oauthCard(id, 'row'))}
+                      {linkedHermes.map((a) => appCard(a, 'row'))}
+                    </ul>
+                  )}
+                </section>
+                <section className="apps-group" aria-labelledby="g-catalog">
+                  <header>
+                    <h2 id="g-catalog">
+                      Aplikasi lain<span className="quiet"> · {catalog.length}</span>
+                    </h2>
+                  </header>
+                  {shown.length > 0 && <ul className="app-grid app-mini-grid">{shown.map((x) => (x.k === 'o' ? oauthCard(x.id, 'mini') : appCard(x.a, 'mini')))}</ul>}
+                  {catalog.length > limit && (
+                    <button type="button" className="btn soft apps-more" onClick={() => setLimit((n) => n + 12)}>
+                      Tampilkan lebih banyak ({catalog.length - limit} lagi)
+                    </button>
+                  )}
+                  {catalog.length === 0 && (term || only) && (
+                    <p className="quiet">
+                      Tidak ada aplikasi yang cocok.{' '}
+                      <button
+                        type="button"
+                        className="btn link small"
+                        onClick={() => {
+                          setQ('')
+                          setOnly('')
+                        }}
+                      >
+                        Hapus pencarian
+                      </button>
+                    </p>
+                  )}
+                </section>
+              </>
+            )}
+          </div>
         </>
       )}
       {picker && createPortal(<SourcePicker provider={picker} onClose={() => setPicker(null)} onDone={(ok) => setSaved(`${ok.length} item disimpan ke Pengetahuan.`)} />, document.body)}

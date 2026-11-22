@@ -195,7 +195,9 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
             {t.result && (
               <section className="tp-sec">
                 <h3>Hasil terakhir</h3>
-                <Md text={t.result} />
+                <div className="tp-result">
+                  <Md text={t.result} />
+                </div>
               </section>
             )}
 

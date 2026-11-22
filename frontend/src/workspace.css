@@ -242,3 +242,75 @@ input.tgl:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px;
   .tq-add .btn { min-height: 40px; }
   .kb-list .btn { min-height: 40px; padding-inline: 12px; }
 }
+
+/* ---------- Sprint 5 "satu layar" 2: Pengaturan and Pengetahuan (loaded after pages.css) ---------- */
+
+/* Settings: the section fills the viewport and scrolls by itself; the head and the tabs stay put. */
+@media (min-width: 901px) {
+  .page.set-page { overflow: hidden; padding-bottom: var(--s-4); }
+  .set-layout { flex: 1; min-height: 0; }
+  .set-body { height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: var(--s-2); scrollbar-gutter: stable; }
+}
+@media (max-width: 640px) {
+  .set-nav { padding-right: 0; -webkit-mask-image: none; mask-image: none; }
+  .set-nav a { padding: 12px 8px; min-width: 48px; text-align: center; }
+  /* the active tab right above the section already names it */
+  .set-h { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .set-row { flex-direction: row; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) 0; min-height: 56px; }
+  .set-row.set-row-stack { flex-direction: column; align-items: stretch; gap: var(--s-2); }
+  .set-text small { font-size: 12px; }
+  .set-ctl select { max-width: 160px; }
+  .set-ctl .btn { min-height: 40px; }
+  .set-check { min-height: 44px; }
+  .set-sec { gap: var(--s-2); }
+}
+
+/* Paket: the numbers first, the breakdown side by side; five rows and a toggle on a phone. */
+.kv.kv-wide.plan-sum { grid-template-columns: 200px minmax(0, 1fr); gap: 6px var(--s-4); }
+.usage-split > .usage-days { min-width: 0; }
+.usage-more { display: none; }
+.usage-days summary { cursor: pointer; list-style: none; }
+.usage-days summary::-webkit-details-marker { display: none; }
+.usage-days summary h3 { display: inline; margin: 0; }
+@media (max-width: 640px) {
+  .usage-split { grid-template-columns: minmax(0, 1fr); }
+  .usage-list[data-clamp] li:nth-child(n+6) { display: none; }
+  .usage-more { display: inline-flex; margin-top: var(--s-2); min-height: 40px; }
+  .kv.kv-wide.plan-sum { grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: 4px var(--s-3); }
+  .kv.kv-wide.plan-sum dt, .kv.kv-wide.plan-sum dd { margin: 0; padding: 6px 0; border-bottom: 1px solid var(--rule); }
+  .kv.kv-wide.plan-sum dd { text-align: right; }
+  .kv.kv-wide.plan-sum .cost-head { justify-content: flex-end; }
+  .usage-days summary h3::after { content: " ▾"; color: var(--muted); }
+}
+@media (min-width: 641px) and (max-width: 760px) { .usage-split { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Pengetahuan: actions in the head, one intro line, the saved list scrolls on its own. */
+.page.kb-page { overflow: hidden; padding-bottom: var(--s-4); }
+.kb-fit { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--s-3); }
+.kb-intro { margin: 0; }
+.kb-link-form { flex: none; display: flex; gap: var(--s-2); }
+.kb-link-form input { flex: 1; min-width: 0; width: auto; height: 40px; }
+.kb-link-form .btn { height: 40px; }
+.kb-list-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.kb-list-head h2 { margin: 0; font-size: var(--t-lead); font-weight: 600; }
+.kb-find { width: 240px; max-width: 50%; height: 36px; }
+.kb-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.kb-row { min-height: 56px; padding: var(--s-2) 0; }
+.kb-refresh-inline { display: none; }
+@media (max-width: 640px) {
+  .page.kb-page { gap: var(--s-3); }
+  .page.kb-page .page-head { row-gap: var(--s-2); }
+  .page.kb-page .page-head .head-actions { display: flex; flex: 1 1 100%; gap: var(--s-2); }
+  .page.kb-page .page-head .head-actions .btn { flex: 1; height: 40px; }
+  .page.kb-page .page-head p { display: none; }
+  .page.kb-page .kb-fit { gap: var(--s-2); }
+  .page.kb-page .kb-list-head { flex-wrap: wrap; row-gap: var(--s-2); }
+  .kb-row { min-height: 64px; flex-wrap: nowrap; row-gap: 0; }
+  .kb-rtext { flex: 1 1 0; order: 0; }
+  .page.kb-page .kb-row > .btn, .page.kb-page .kb-row > .confirm-actions { margin-left: 0; }
+  .page.kb-page .kb-row > .btn, .page.kb-page .kb-row > .confirm-actions .btn { min-width: 44px; }
+  .kb-find { flex: 1 1 100%; width: 100%; max-width: none; }
+  /* one row of name + meta, then Lihat and Hapus: 'Perbarui' moves into the meta line */
+  .kb-refresh { display: none; }
+  .kb-refresh-inline { display: inline-flex; margin-left: var(--s-2); }
+}

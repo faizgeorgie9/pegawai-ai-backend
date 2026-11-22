@@ -79,28 +79,34 @@ export function SkillsSection({ q = '' }: { q?: string }) {
   return (
     <section className="apps-group" aria-labelledby="g-skills">
       <header>
-        <h2 id="g-skills">Keahlian pegawai</h2>
+        <h2 id="g-skills" className="sr">
+          Keahlian pegawai
+        </h2>
         <p className="quiet small">Kemampuan bawaan yang bisa dinyalakan atau dimatikan untuk tiap pegawai.</p>
       </header>
       {r.state === 'loading' && !r.data && <Loading text="Memuat keahlian..." shape="ledger" />}
       {r.state === 'error' && !r.data && <ErrorLine text="Daftar keahlian belum bisa dimuat. Coba lagi sebentar." onRetry={r.retry} />}
       {names.size > 0 && (
-        <ul className="app-grid">
+        <ul className="app-grid app-mini-grid">
           {[...names.values()].map((s) => {
             const [label, text] = skillText(s)
             const who = users(s.name)
             return (
-              <li key={s.name} className="app-card skill-card" data-skill={s.name}>
-                <div className="app-top">
-                  <h3>{label}</h3>
+              <li key={s.name} className="app-card skill-card app-mini" data-skill={s.name}>
+                <div className="app-card-head">
+                  <div className="app-top">
+                    <h3>{label}</h3>
+                  </div>
                 </div>
-                <p>{text}</p>
-                <p className="quiet small">{who.length ? `Dipakai: ${who.join(', ')}` : 'Belum dipakai pegawai mana pun.'}</p>
                 <div className="app-card-act">
-                  <button type="button" className="btn soft" onClick={() => setOpen(s.name)}>
+                  <button type="button" className="btn soft sm" onClick={() => setOpen(s.name)} aria-label={`Atur ${label}`}>
                     Atur
                   </button>
                 </div>
+                <p>{text}</p>
+                <p className="quiet small" title={who.join(', ')}>
+                  {who.length ? `Dipakai: ${who.slice(0, 2).join(', ')}${who.length > 2 ? ` +${who.length - 2}` : ''}` : 'Belum dipakai pegawai mana pun.'}
+                </p>
               </li>
             )
           })}

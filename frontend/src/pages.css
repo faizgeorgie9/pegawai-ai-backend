@@ -215,7 +215,8 @@ td.st-col { min-width: 170px; }
 .cost-meter[data-state="exceeded"] .set-meter span { background: var(--bad-ink); }
 .pill.est { font-weight: 500; }
 .usage-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-4); }
-.usage-split h3, .usage-days h3 { font-size: 14px; margin: 0 0 var(--s-2); }
+.usage-split h3, .usage-days h3 { font-size: 14px; }
+.usage-split h3 { margin: 0 0 var(--s-2); }
 .usage-list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
 .usage-list li { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .usage-list .row-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
@@ -226,7 +227,6 @@ td.st-col { min-width: 170px; }
 .usage-days .usage-list .day { flex: none; width: 56px; font-size: 13px; color: var(--muted); }
 .usage-days .usage-list .bar-sm { flex: 1; }
 .usage-days .usage-list .amt { flex: none; width: 72px; text-align: right; font-size: 13px; }
-@media (max-width: 760px) { .usage-split { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 760px) {
   .set-layout { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
   .set-nav { position: static; flex-direction: row; overflow-x: auto; border-bottom: 1px solid var(--border); gap: 0; padding-right: 24px; -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent); mask-image: linear-gradient(to right, black calc(100% - 24px), transparent); }
@@ -261,7 +261,6 @@ td.st-col { min-width: 170px; }
 .kb-col > header h2 b { font-weight: 500; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--surface); color: var(--muted); }
 .kb-col[data-col="running"] > header h2 { color: var(--st-run-ink); }
 .kb-col[data-col="blocked"] > header h2 { color: var(--st-wait-ink); }
-.kb-col ul { list-style: none; margin: 0; padding: 0 2px 2px 0; display: flex; flex-direction: column; gap: var(--s-2); max-height: 68vh; overflow-y: auto; overscroll-behavior: contain; }
 .kb-none { padding: var(--s-2) 0; }
 .kcard { position: relative; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--kc, var(--control)); border-radius: var(--radius-control); min-width: 0; transition: border-color var(--m-in) var(--ease), transform var(--m-in) var(--ease); }
 .kcard:hover { border-color: var(--control); border-left-color: var(--kc, var(--control)); transform: translateY(var(--lift)); }
@@ -291,24 +290,14 @@ td.st-col { min-width: 170px; }
 /* Knowledge Base list (Pengaturan) */
 .kb-sec { display: flex; flex-direction: column; gap: var(--s-3); }
 .kb-sec h3, .set-sec > h3 { margin: 0; font-size: 16px; font-weight: 600; }
-.kb-add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); }
-.kb-add .set-inline { flex: 1 1 280px; min-width: 0; }
-.kb-add .set-inline input { flex: 1 1 0; width: auto; }
 .kb-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
-.kb-row { display: flex; align-items: center; gap: var(--s-3); min-width: 0; padding: var(--s-3) 0; border-bottom: 1px solid var(--rule); }
+.kb-row { display: flex; align-items: center; gap: var(--s-3); min-width: 0; border-bottom: 1px solid var(--rule); }
 .kb-rtext { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 0; }
 .kb-rname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .kb-src { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kb-row .pill { flex: none; }
 .kb-why { white-space: normal; }
 .kb-empty { padding: var(--s-4); border: 1px dashed var(--control); border-radius: var(--radius-card); display: flex; flex-direction: column; gap: 4px; }
-@media (max-width: 640px) {
-  .kb-row { flex-wrap: wrap; row-gap: 6px; }
-  .kb-rtext { flex: 1 1 100%; order: 1; }
-  .kb-row > .pill:first-child { order: 0; }
-  .kb-row > .pill:nth-child(3) { order: 0; }
-  .kb-row > button, .kb-row > .confirm-actions { order: 0; margin-left: auto; }
-}
 
 /* Knowledge Base item preview (kb-ui.tsx KbPreview) */
 .kb-open { background: none; border: 0; padding: 0; text-align: left; color: inherit; cursor: pointer; font: inherit; font-weight: 600; text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px; }
@@ -326,19 +315,10 @@ td.st-col { min-width: 170px; }
 .apps-group { display: flex; flex-direction: column; gap: var(--s-3); }
 .apps-group > header h2 { font-size: 16px; font-weight: 600; }
 .apps-group > header p { margin-top: 2px; }
-.apps-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
-.app-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) minmax(168px, auto); gap: var(--s-4); align-items: start; padding: var(--pad-panel); border-radius: var(--radius-card); background: var(--surface); }
 .app-mark { width: 44px; height: 44px; display: grid; place-items: center; border-radius: var(--radius-control); background: var(--raised); }
-.app-body { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; }
 .app-top { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-2); }
 .app-top h3 { font-size: 16px; font-weight: 600; }
-.app-act { display: flex; flex-direction: column; align-items: stretch; gap: var(--s-2); }
-.app-act .btn.link { align-self: flex-start; }
-.app-act .btn:disabled { cursor: not-allowed; }
-.app-act .confirm-actions { flex-wrap: wrap; align-items: center; }
 .app-ask { flex-basis: 100%; font-weight: 500; }
-.app-row.soon { background: transparent; box-shadow: inset 0 0 0 1px var(--rule); }
-.app-row.soon .app-mark { filter: grayscale(1); opacity: .7; }
 .app-admin { margin-top: var(--s-1); border-radius: var(--radius-control); background: var(--raised); }
 .app-admin summary { padding: var(--s-2) var(--s-3); font-weight: 500; cursor: pointer; }
 .app-admin-in { display: flex; flex-direction: column; gap: var(--s-2); padding: 0 var(--s-3) var(--s-3); }
@@ -351,12 +331,6 @@ td.st-col { min-width: 170px; }
 .connect-acct { overflow-wrap: anywhere; color: var(--ok-ink); }
 .connect-warn { color: var(--warn-ink); }
 .connect-ok { color: var(--ok-ink); background: var(--ok-bg); }
-@media (max-width: 640px) {
-  .app-row { grid-template-columns: 40px minmax(0, 1fr); padding: var(--s-4); gap: var(--s-3); }
-  .app-mark { width: 40px; height: 40px; }
-  .app-act { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: center; }
-  .app-act .btn:not(.link) { flex: 1 1 140px; }
-}
 /* Source picker (Drive) */
 .src-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 46vh; overflow-y: auto; border: 1px solid var(--rule); border-radius: var(--radius-card); }
 .src-row { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2) var(--s-3); cursor: pointer; min-width: 0; border-bottom: 1px solid var(--rule); }
@@ -437,10 +411,6 @@ td.st-col { min-width: 170px; }
 .app-initial { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-weight: 700; font-size: 14px; background: hsl(var(--hue) 55% 88%); color: hsl(var(--hue) 55% 25%); }
 :root[data-theme="dark"] .app-initial { background: hsl(var(--hue) 35% 28%); color: hsl(var(--hue) 70% 85%); }
 .app-logo { flex: none; display: inline-grid; place-items: center; border-radius: 8px; background: #fff; border: 1px solid rgba(0, 0, 0, 0.12); box-sizing: border-box; }
-.apps-linked { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s-2); }
-.apps-linked li { display: inline-flex; align-items: center; gap: var(--s-2); padding: 6px 12px 6px 8px; border-radius: 999px; background: var(--surface); font-weight: 500; font-size: 14px; }
-.apps-linked li > svg, .apps-linked .app-initial { width: 22px; height: 22px; font-size: 12px; }
-.apps-linked .warn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn-ink); flex: none; }
 .connect-steps { padding-left: var(--s-5); display: flex; flex-direction: column; gap: var(--s-2); margin: 0 0 var(--s-3); }
 .dlg-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s-2); margin-top: var(--s-4); }
 .skill-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; }
@@ -453,7 +423,7 @@ td.st-col { min-width: 170px; }
 .skill-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); padding: var(--s-3) 0; cursor: pointer; }
 .skill-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .skill-txt code { font: inherit; color: var(--faint); }
-@media (max-width: 640px) { .apps-cats { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; margin-inline: calc(var(--s-4) * -1); padding-inline: var(--s-4); } .apps-cats button { flex: none; } }
+@media (max-width: 640px) { .apps-cats button { flex: none; } }
 
 /* Papan Tugas: quick add, drag target, task panel (Kanban.tsx, TaskPanel.tsx) */
 .kb-grid[data-one] { grid-template-columns: minmax(0, 560px); }
@@ -467,7 +437,6 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
 .kc-menu .popmenu button[data-danger]:hover { background: var(--bad-bg); }
 .tq-add { display: flex; flex-direction: column; gap: var(--s-2); }
 .tq-add input, .tq-add select { width: 100%; min-width: 0; }
-.tq-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-2); }
 .tp { gap: var(--s-3); }
 .tp h3 { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
 .tp-who { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0; }
@@ -484,15 +453,6 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
 .tp-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .tp-reply { display: flex; flex-direction: column; gap: var(--s-2); width: 100%; align-items: flex-end; }
 .tp-acts { flex-wrap: wrap; }
-@media (max-width: 640px) { .tq-row { grid-template-columns: minmax(0, 1fr); } }
-.kb-col ul { max-height: none; overflow: visible; } /* the card menu must not be clipped by a scroll area */
-
-/* Tugas berulang list on the board */
-.kb-rec { margin: 0 0 var(--s-4); border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); padding: var(--s-2) var(--s-3); }
-.kb-rec summary { cursor: pointer; font-weight: 600; }
-.kb-rec ul { list-style: none; margin: var(--s-2) 0 0; padding: 0; display: grid; gap: var(--s-2); }
-.kb-rec li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
-.kb-rec-main { display: grid; min-width: 0; overflow-wrap: anywhere; }
 
 /* Beranda: the employee card (TimAnda.tsx). A two-column list of employees: avatar, identity, two actions. */
 .team-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); padding-bottom: var(--s-2); }
@@ -580,4 +540,143 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
   .kv.kv-wide { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .kv.kv-wide dd { margin-bottom: 8px; }
   .kpis.k2 { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---------- Sprint 5 "satu layar": Jadwal & tugas ---------- */
+/* The page keeps one screen: the header, quick add and tabs stay put, the card lists scroll themselves. */
+.page.kanban { gap: var(--s-4); overflow: hidden; padding-bottom: var(--s-4); }
+.kb-grid { flex: 1 1 0%; min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); gap: var(--s-4); align-items: stretch; }
+.kb-grid[data-one] { grid-template-columns: minmax(0, 560px); }
+.kb-col { min-height: 0; overflow: hidden; }
+.kb-col > header { flex: none; }
+.kb-cards { list-style: none; margin: 0; padding: 2px 4px 2px 0; display: flex; flex-direction: column; gap: var(--s-2); flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.kb-col > .kb-note { flex: none; }
+.kb-load { flex: 1 1 0%; min-height: 160px; }
+.kc-note { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.kc-cost { font-size: 12px; flex: none; white-space: nowrap; }
+/* The hover lift would make the fixed card menu position itself against the card (and get clipped by the list). */
+.kcard:has(.kc-menu [aria-expanded="true"]):hover { transform: none; }
+.kb-tabs { flex: none; }
+.kb-tabs .num { font-weight: 500; font-size: 12px; padding: 1px 7px; border-radius: 999px; background: var(--surface); color: var(--muted); }
+.kb-tabs .num.pill.warn { background: var(--warn-bg); color: var(--warn-ink); }
+
+/* Quick add: one row on wide screens, two rows on a phone (title + Tambah, then "Untuk … · Ubah"). */
+.tq-bar { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.tq-bar .tq-title { flex: 1 1 280px; min-width: 0; height: 40px; }
+.tq-bar .tq-go { order: 4; height: 40px; }
+.tq-bar .tq-toggle { display: none; }
+.tq-opts { display: contents; }
+.tq-opts > * { order: 2; }
+.tq-opts select { width: 200px; height: 40px; }
+.tq-opts .btn { height: 40px; }
+.tq-opts input[type="datetime-local"] { height: 40px; width: 190px; }
+.tq-bar > [role="alert"], .tq-bar > .problem-bar { flex-basis: 100%; order: 5; }
+
+/* Tugas berulang: managed in a dialog, so the board never gains a row above it. */
+.kb-rec-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
+.kb-rec-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.kb-rec-main { display: grid; min-width: 0; overflow-wrap: anywhere; }
+
+@media (max-width: 1100px) {
+  .kb-grid { grid-template-columns: minmax(0, 1fr); }
+  .kb-grid:not([data-one]) > .kb-col { padding: var(--s-2) 0 0; background: transparent; }
+  .kb-grid:not([data-one]) > .kb-col > header { display: none; }
+  .kb-tabs button { flex: 1 1 0; justify-content: center; padding: 0 var(--s-1); font-size: var(--t-small); white-space: nowrap; }
+}
+@media (max-width: 640px) {
+  .page.kanban .page-head { flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+  .page.kanban .page-head > div:first-child { min-width: 0; }
+  .page.kanban .page-head p { display: none; }
+  .page.kanban .page-head > .filters:not(.kb-more) { flex-wrap: nowrap; gap: var(--s-2); }
+  .page.kanban .page-head .btn { padding: 0 12px; }
+  .tq-bar .tq-title { order: 1; flex: 1 1 0; }
+  .tq-bar .tq-go { order: 2; }
+  .tq-bar .tq-toggle { display: inline-flex; order: 3; flex-basis: 100%; justify-content: flex-start; height: 32px; padding: 0; }
+  .tq-opts { display: none; order: 4; flex-basis: 100%; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-2); }
+  .tq-opts[data-open] { display: grid; }
+  .tq-opts select, .tq-opts input[type="datetime-local"] { width: 100%; }
+}
+
+/* ---------- Sprint 5 "satu layar": Aplikasi ---------- */
+.page.apps { gap: var(--s-4); }
+.apps-scroll { display: flex; flex-direction: column; gap: var(--s-4); }
+.apps-scroll > .skel { min-height: 160px; }
+@media (min-width: 901px) {
+  .page.apps[data-tab="apps"] { overflow: hidden; padding-bottom: var(--s-4); }
+  .page.apps[data-tab="apps"] .apps-scroll { flex: 1 1 0%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: var(--s-1); scrollbar-gutter: stable; }
+}
+.apps-tools-row { flex-direction: row; align-items: center; gap: var(--s-3); min-width: 0; }
+.apps-tools-row input[type="search"] { flex: none; width: 240px; max-width: 40%; height: 40px; }
+.apps-tools-row .apps-cats { flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 0; -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent); mask-image: linear-gradient(to right, black calc(100% - 24px), transparent); }
+.apps-tools-row .apps-cats::-webkit-scrollbar { display: none; }
+.apps-tools-row .apps-cats button { flex: none; }
+.apps-tools-solo input[type="search"] { width: 420px; max-width: 100%; }
+.app-rows { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2); }
+.app-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-3); row-gap: 2px; min-height: 56px; padding: var(--s-2) var(--s-3); }
+.app-row > .app-card-head { grid-column: 1; grid-row: 1; }
+.app-row .app-card-head .app-mark { width: 32px; height: 32px; }
+.app-row > .app-card-act { grid-column: 2; grid-row: 1 / span 3; margin: 0; padding: 0; justify-content: flex-end; }
+.app-row > p { grid-column: 1; margin: 0; }
+.app-row > p:not(.connect-acct):not(.connect-warn):not(.quiet):not(.note-box) { display: none; } /* the description lives in the catalog */
+.app-row > .connect-acct { font-size: var(--t-small); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-row > .connect-acct b { font-weight: 500; color: inherit; }
+.app-row > .note-box, .app-row > .connect-warn { grid-column: 1 / -1; }
+.app-row .app-card-act .confirm-actions { flex-wrap: wrap; justify-content: flex-end; }
+.app-mini-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: var(--s-2); }
+.app-mini { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-3); row-gap: var(--s-1); padding: var(--s-3); }
+.app-mini > .app-card-head { grid-column: 1; grid-row: 1; }
+.app-mini .app-card-head .app-mark { width: 32px; height: 32px; }
+.app-mini > .app-card-act { grid-column: 2; grid-row: 1; margin: 0; padding: 0; }
+.app-mini > .app-card-act .btn { height: 32px; padding: 0 var(--s-3); }
+.app-mini > p { grid-column: 1 / -1; grid-row: 2; margin: 0; font-size: var(--t-small); color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.app-mini > .connect-warn, .app-mini > .note-box, .app-mini > .quiet { grid-column: 1 / -1; -webkit-line-clamp: unset; display: block; }
+.app-mini > .app-code, .app-mini > .connect-acct { grid-row: auto; }
+.apps-more { align-self: flex-start; margin-top: var(--s-2); }
+.skill-card > p.quiet { grid-row: 3; -webkit-line-clamp: 1; }
+@media (max-width: 900px) { .app-rows { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) {
+  .apps-tools-row { flex-direction: column; align-items: stretch; gap: var(--s-2); }
+  .apps-tools-row input[type="search"] { width: 100%; max-width: none; }
+  .apps-tools-row .apps-cats { margin-inline: 0; padding-inline: 0; }
+  .page.apps .page-head p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .app-row { row-gap: 2px; }
+  .app-row:has(.connect-acct) > .app-card-act { grid-column: 1 / -1; grid-row: auto; justify-content: flex-start; }
+  .app-row:not(:has(.connect-acct)) > .app-card-act { grid-column: 2; grid-row: 1 / span 3; justify-content: flex-end; }
+  .app-row .app-card-act .btn, .app-mini > .app-card-act .btn { min-height: 40px; }
+}
+
+/* Task panel: "Hasil terakhir" reads at body size, like the instructions above it. */
+.tp-result { width: 100%; min-width: 0; }
+.tp-result .md, .tp-result .md p { font-size: var(--t-body); }
+
+@media (max-width: 640px) {
+  /* Four tabs share the phone width; tighter padding and no gap keep every label (and count) on screen. */
+  .kb-tabs { gap: 0; }
+  .kb-tabs button { padding: 0 2px; gap: 4px; }
+  .page.kanban .tq-bar .tq-toggle { min-height: 32px; }
+}
+
+@media (max-width: 640px) {
+  /* Card actions and the recurring dialog stay reachable on a phone. */
+  .kb-cards .kc-act .btn, .kb-rec-list .btn { min-height: 40px; }
+}
+
+/* Admin-only details span the whole row/card, never squeezed into the title column. */
+.app-row > .app-admin, .app-mini > .app-admin { grid-column: 1 / -1; }
+
+@media (max-width: 640px) {
+  /* Keep the one-row header when a filter count is added ("Filter (1)"); the phone buttons take 13 px. */
+  .page.kanban .page-head .btn { padding: 0 10px; font-size: var(--t-small); }
+  .kb-none .btn.link { min-height: 40px; }
+}
+
+@media (max-width: 640px) {
+  /* Small count pills leave breathing room between four tabs on a 375 px screen. */
+  .kb-tabs .num { font-size: 11px; padding: 1px 5px; }
+  .kb-tabs button { gap: 2px; }
+}
+
+@media (max-width: 640px) {
+  /* With a start time open, the worker picker gets the full width and the time shares the next row. */
+  .tq-opts:has(input[type="datetime-local"]) > select { grid-column: 1 / -1; }
 }
