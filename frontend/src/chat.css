@@ -33,6 +33,12 @@ fieldset { border: 0; min-width: 0; padding: 0; margin: 0; }
 .nav-link[aria-current][data-team="marketing"] svg { color: var(--team-mkt); }
 .nav-link[aria-current][data-team="customer_support"] svg { color: var(--team-cs); }
 .side-foot { flex: none; display: flex; flex-direction: column; gap: 4px; padding: 12px 8px 16px; }
+.side-user { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; margin-bottom: 4px; background: var(--raised); border: 1px solid var(--border); border-radius: 8px; }
+.side-user-who { display: flex; flex-direction: column; min-width: 0; }
+.side-user-who b, .side-user-who small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.side-user-who b { font-size: 13px; font-weight: 600; color: var(--text); }
+.side-user-who small { font-size: 12px; color: var(--muted); }
+.side-user-out { flex: none; color: var(--bad-ink); }
 
 .sec-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); padding: 0 var(--s-1) 6px var(--s-2); }
 .sec-head h2, .sec-head h3 { font-size: 13px; font-weight: 500; color: var(--muted); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -64,13 +70,36 @@ fieldset { border: 0; min-width: 0; padding: 0; margin: 0; }
 .popmenu { position: absolute; right: 0; top: 100%; z-index: 30; min-width: 150px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-control); box-shadow: 0 6px 24px rgba(0, 0, 0, .14); } /* taste-skill-ignore: floats: menu, popover, composer list, toast, dialog */
 .popmenu button { display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--bad-ink); text-align: left; cursor: pointer; }
 .popmenu button:hover { background: var(--bad-bg); }
+/* the phone header's ⋯ menu holds ordinary actions, not destructive ones */
+.convo-more .popmenu { right: 0; min-width: 220px; }
+.convo-more .popmenu button { color: var(--text); }
+.convo-more .popmenu button:hover { background: var(--raised); }
+.convo-more .popmenu .btn { width: 100%; height: 36px; padding: 0 10px; justify-content: flex-start; background: transparent; font-size: var(--t-body); }
+.convo-more .popmenu .btn:hover { background: var(--raised); }
+.convo-more .popmenu .convo-menu-row { display: contents; }
 
 /* ---------- chat and group: a list column and the conversation ---------- */
 .with-rail { display: grid; grid-template-columns: 272px minmax(0, 1fr); flex: 1; min-width: 0; min-height: 0; }
 .rail { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border); }
 .rail-head { display: flex; align-items: center; gap: var(--s-2); padding: 20px 12px 8px 16px; flex: none; }
 .rail-head h2 { flex: 1; font-size: 16px; font-weight: 600; }
-.rail-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 16px; }
+.rail-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 0 8px 8px; }
+.rail-who { flex: none; padding-bottom: var(--s-2); border-bottom: 1px solid var(--rule); }
+.who-btn { display: flex; align-items: center; gap: var(--s-3); width: 100%; min-height: 56px; padding: var(--s-2); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background-color var(--m-in) var(--ease); }
+.who-btn:hover { background: var(--raised); }
+.who-btn[aria-expanded="true"] { border-color: var(--control); }
+.who-btn svg { flex: none; color: var(--muted); transition: transform var(--m-in) var(--ease); }
+.who-btn[aria-expanded="true"] svg { transform: rotate(180deg); }
+.who-change { flex: none; font-size: var(--t-small); font-weight: 500; color: var(--link); }
+.who-btn .bot-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.who-btn .bot-text b, .who-btn .bot-text .st { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.who-list { flex: 0 0 auto; min-height: 0; max-height: min(50vh, 420px); overflow-y: auto; margin-top: var(--s-2); }
+.who-list[hidden] { display: none; }
+.rail-body > .history { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; margin-top: var(--s-3); }
+.rail-body > .history > ul { flex: 1; min-height: 0; overflow-y: auto; }
+/* group chat: the list of teams scrolls by itself, like the history above */
+.rail-body > ul { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+@media (prefers-reduced-motion: reduce) { .who-btn, .who-btn svg { transition: none; } }
 .rail-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .rail-main > * { flex: 1; min-height: 0; }
 .intro { justify-content: center; }
@@ -147,6 +176,9 @@ textarea ~ .counter { align-self: flex-end; }
 /* ---------- conversation ---------- */
 .convo { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
 .convo-head { display: flex; align-items: center; gap: var(--s-3); min-height: 64px; padding: 0 var(--gutter); flex: none; }
+/* spans that only exist to hide two groups of controls on a phone */
+.convo-extras { display: contents; }
+.convo-more { display: none; position: relative; }
 .convo-title { flex: 1; min-width: 0; }
 .convo-title h1 { font-size: 16px; font-weight: 600; line-height: 1.2; letter-spacing: 0; }
 .convo-title p { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -168,9 +200,10 @@ textarea ~ .counter { align-self: flex-end; }
 .empty h1, .empty h2 { font-size: 20px; font-weight: 600; color: var(--text); margin-top: 4px; }
 .msg.user { align-self: flex-end; max-width: 85%; padding: 10px 14px; background: var(--raised); border-radius: var(--radius-card); }
 .msg.user p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 16px; line-height: 1.55; }
-.msg.user .user-tools { justify-content: flex-end; margin: 2px calc(var(--s-2) * -1) -6px 0; opacity: 0; transition: opacity var(--m-in) var(--ease); }
-.msg.user:hover .user-tools, .msg.user:focus-within .user-tools, .msg.user .user-tools:has(:disabled) { opacity: 1; }
-@media (hover: none) { .msg.user .user-tools { opacity: 1; } }
+/* "Jadikan tugas" stays collapsed until hover or keyboard focus: no empty strip under a plain bubble. */
+.msg.user .user-tools { display: flex; justify-content: flex-end; margin: 2px calc(var(--s-2) * -1) -6px 0; max-height: 0; overflow: hidden; opacity: 0; transition: max-height var(--m-in) var(--ease), opacity var(--m-in) var(--ease); }
+.msg.user:hover .user-tools, .msg.user:focus-within .user-tools, .msg.user .user-tools:has(:disabled) { max-height: 40px; overflow: visible; opacity: 1; }
+@media (hover: none) { .msg.user .user-tools { max-height: none; overflow: visible; opacity: 1; } }
 .task-chip { display: inline-block; align-self: flex-start; margin-top: var(--s-2); padding: 2px var(--s-3); border-radius: 999px; background: var(--raised); color: var(--muted); font-size: 12px; font-weight: 500; text-decoration: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .task-chip:hover { color: var(--text); }
 .delegates { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin: var(--s-2) 0 0; font-size: 12px; color: var(--muted); }
@@ -235,9 +268,6 @@ textarea ~ .counter { align-self: flex-end; }
 .gmsg-who { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; font-size: 12px; color: var(--muted); }
 .gmsg-who b { font-size: 14px; font-weight: 600; color: color-mix(in srgb, var(--bot) 55%, var(--text)); }
 .gmsg-who time { margin-left: auto; color: var(--faint); }
-.team-tag { padding: 0 8px; border-radius: 999px; background: var(--plain-bg); color: var(--plain-ink); font-weight: 500; }
-.team-tag[data-team="marketing"] { background: var(--team-mkt-bg); color: var(--team-mkt-ink); }
-.team-tag[data-team="customer_support"] { background: var(--team-cs-bg); color: var(--team-cs-ink); }
 .bot-group[data-team="marketing"] > h3 { color: var(--team-mkt-ink); border-left: 3px solid var(--team-mkt); }
 .bot-group[data-team="customer_support"] > h3 { color: var(--team-cs-ink); border-left: 3px solid var(--team-cs); }
 .gmsg .bubble { border-left: 3px solid var(--bot); border-top-left-radius: 2px; }
@@ -268,6 +298,9 @@ textarea ~ .counter { align-self: flex-end; }
 .btn.stop:hover:not(:disabled) { background: var(--active); }
 .square { width: 10px; height: 10px; border-radius: 2px; background: var(--text); }
 .composer-note { margin-top: 6px; font-size: 12px; color: var(--faint); text-align: center; }
+/* a pending content plan whose card scrolled out of view: one soft warning strip above the composer */
+.plan-pin { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-2); padding: var(--s-2) var(--s-3); border-radius: var(--radius-control); background: var(--warn-bg); color: var(--warn-ink); font-size: var(--t-small); font-weight: 500; }
+.plan-pin .btn { flex: none; min-height: 36px; }
 .mention { position: absolute; z-index: 20; left: 8px; right: 8px; bottom: calc(100% + 6px); max-height: 220px; overflow-y: auto; padding: 4px; background: var(--surface); border-radius: var(--radius-control); box-shadow: 0 6px 24px rgba(0, 0, 0, .18); } /* taste-skill-ignore: floats: menu, popover, composer list, toast, dialog */
 .mention-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border: 0; border-radius: 6px; background: transparent; text-align: left; cursor: pointer; }
 .mention-row small { color: var(--muted); }
@@ -356,12 +389,16 @@ textarea ~ .counter { align-self: flex-end; }
   .icon-btn.close-rail { display: inline-grid; }
   .with-rail:not([data-picked]) { display: flex; flex-direction: column; overflow-y: auto; }
   .with-rail:not([data-picked]) .rail { position: static; order: 2; width: auto; transform: none; visibility: visible; background: transparent; flex: none; border-top: 1px solid var(--border); }
-  .with-rail:not([data-picked]) .rail-body { overflow: visible; }
+  .with-rail:not([data-picked]) .rail-body { display: block; overflow: visible; }
+  .with-rail:not([data-picked]) .who-list { max-height: none; overflow: visible; }
   .with-rail:not([data-picked]) .icon-btn.close-rail { display: none; }
   .with-rail:not([data-picked]) .rail-main { order: 1; flex: none; }
   .with-rail:not([data-picked]) .rail-main > * { flex: none; }
   .with-rail:not([data-picked]) .intro { padding-bottom: var(--s-4); }
   .with-rail:not([data-picked]) .intro .empty { margin: 0; align-items: flex-start; text-align: left; max-width: none; }
+  .with-rail:not([data-picked]) .intro .empty p { font-size: var(--t-small); }
+  .with-rail:not([data-picked]) .intro h1 { font-size: 20px; }
+  .hide-narrow { display: none !important; }
 }
 @media (max-width: 640px) {
   :root { --gutter: 16px; }
@@ -388,6 +425,25 @@ textarea ~ .counter { align-self: flex-end; }
   .act td.sum::before { display: block; margin-bottom: 2px; }
   .act .r { text-align: right; }
   .sum-btn { text-align: left; max-width: none; }
+  /* phone: header actions and the two session icons need a 40 px target, with room between edit and delete */
+  .convo-head .btn { min-height: 40px; }
+  .convo-head .icon-btn, .sess-actions .icon-btn, .row-menu .icon-btn, .rail-head .icon-btn { width: 40px; height: 40px; }
+  .rail-head .btn, .sec-head .btn, .sess.confirm .btn { min-height: 40px; }
+  .sess-actions { gap: 8px; }
+  .sess.confirm { scroll-margin-block: 8px; }
+  /* the chat and team header is one 56 px row: Riwayat/Daftar tim | name | extras | ⋯ */
+  .convo-head-chat { flex-wrap: nowrap; gap: var(--s-2); min-height: 56px; padding-block: var(--s-2); }
+  .convo-head-chat .bot-avatar { display: none; }
+  .convo-head-chat .convo-title { flex: 1 1 0; min-width: 0; }
+  .convo-head-chat .convo-title h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .convo-head-chat .convo-extras { display: none; }
+  .convo-head-chat .convo-more { display: block; }
+  .convo-more .popmenu button { height: auto; min-height: 40px; }
+  /* team: the name and the member line ellipsis instead of wrapping to a second row */
+  .convo-head-group .convo-title p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .convo-head-group .convo-title h1 { min-width: 0; }
+  .convo-head-group .title-btn { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-width: 0; }
+  .convo-head-group .title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 
 /* live steps (one per tool event) and the folded line after the run */
@@ -484,7 +540,9 @@ textarea ~ .counter { align-self: flex-end; }
 .kb-drive-link { color: inherit; text-underline-offset: 3px; font-weight: 500; }
 
 /* Chat list: the team's main contact and roles that wrap instead of being cut */
-.bot-text small.lead { align-self: flex-start; padding: 0 var(--s-2); margin: 1px 0; border-radius: 999px; background: var(--accent-wash); color: var(--accent-ink); font-size: 12px; font-weight: 600; }
+.bot-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.bot-name b { min-width: 0; }
+.bot-text small.lead { flex: none; padding: 0 var(--s-2); border-radius: 999px; background: var(--accent-wash); color: var(--accent-ink); font-size: 12px; font-weight: 600; }
 .bot-text small.st { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; line-height: 1.3; }
 
 .composer-actions kbd { margin-left: 6px; padding: 1px 6px; border-radius: 4px; background: var(--raised); color: var(--muted); font-size: 11px; font-weight: 500; line-height: 1.5; font-family: inherit; }

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, errText } from './bff'
 import type { Bot, BotDetail } from './bff'
+import { useAdminMode } from './adminMode'
 import { useData } from './data'
 import { agenPath, botPath, go } from './router'
-import { BotAvatar, COLORS, ErrorLine, botColor, nf, stamp, teamLabel } from './ui'
+import { BotAvatar, COLORS, ErrorLine, Icon, I, LOCK, botColor, cleanTaskText, colorLabel, nf, roleLabel, stamp, teamLabel } from './ui'
 import { AgentSkills } from './skills-ui'
+import { TIERS, tierOf } from './modelTiers'
 import { Empty, EffortSelect, Loading, ModelSelect, PageHead, Opt, defaultEffortLabel, defaultModelLabel, effortWord, modelKey, splitModel, statusText, useLoad } from './ui-extra'
 
 // ---------- Daftar ----------
@@ -14,7 +16,7 @@ export function AgentList() {
   const [q, setQ] = useState('')
   const teams = [...new Set(bots.map((b) => b.team))]
   const shown = bots.filter(
-    (b) => (!team || b.team === team) && `${b.name} ${b.role}`.toLowerCase().includes(q.trim().toLowerCase()),
+    (b) => (!team || b.team === team) && `${b.name} ${b.role} ${roleLabel(b.role)}`.toLowerCase().includes(q.trim().toLowerCase()),
   )
   return (
     <section className="page">
@@ -23,7 +25,7 @@ export function AgentList() {
         sub="Semua agen, dengan konteks Colorbox."
         actions={
           <a className="btn primary" href="#/agen/baru">
-            Agen baru
+            Pegawai baru
           </a>
         }
       />
@@ -43,7 +45,7 @@ export function AgentList() {
       </div>
       {loadState === 'loading' && <Loading text="Memuat agen..." shape="table" />}
       {loadState === 'error' && bots.length === 0 && <ErrorLine text={error} onRetry={reload} />}
-      {loadState === 'ok' && bots.length === 0 && <Empty title="Belum ada agen">Buat agen pertama lewat tombol Agen baru.</Empty>}
+      {loadState === 'ok' && bots.length === 0 && <Empty title="Belum ada pegawai AI">Klik Pegawai baru untuk membuat yang pertama.</Empty>}
       {loadState === 'ok' && bots.length > 0 && shown.length === 0 && <Empty title="Tidak ada yang cocok">Ubah kata cari atau pilihan tim.</Empty>}
       {shown.length > 0 && (
         <div className="table-wrap">
@@ -91,10 +93,44 @@ export function AgentList() {
 }
 
 // ---------- Detail ----------
-const RUN_STATUS: Record<string, string> = { completed: 'Selesai', failed: 'Gagal', stopped: 'Dihentikan', running: 'Berjalan', queued: 'Antre' }
-const RUN_PILL: Record<string, string> = { completed: 'ok', failed: 'bad', running: 'run', queued: 'wait' }
+// Run statuses are English server values; show them as plain Indonesian (code issue #4).
+const RUN_STATUS: Record<string, string> = {
+  completed: 'Selesai',
+  done: 'Selesai',
+  finished: 'Selesai',
+  failed: 'Gagal',
+  error: 'Gagal',
+  stopped: 'Dihentikan',
+  interrupted: 'Dihentikan',
+  cancelled: 'Dibatalkan',
+  canceled: 'Dibatalkan',
+  running: 'Berjalan',
+  queued: 'Antre',
+}
+const RUN_PILL: Record<string, string> = {
+  completed: 'ok',
+  done: 'ok',
+  finished: 'ok',
+  failed: 'bad',
+  error: 'bad',
+  stopped: 'idle',
+  interrupted: 'idle',
+  cancelled: 'idle',
+  canceled: 'idle',
+  running: 'run',
+  queued: 'wait',
+}
+const TABS = [
+  ['ringkasan', 'Ringkasan'],
+  ['pekerjaan', 'Pekerjaan'],
+  ['keahlian', 'Keahlian'],
+] as const
+type TabId = (typeof TABS)[number][0]
 export function AgentDetail({ id }: { id: string }) {
   const { setDialog } = useData()
+  const admin = useAdminMode()
+  const backHref = admin ? '#/agen' : '#/'
+  const backLabel = admin ? 'Semua agen' : 'Beranda'
   const botFn = useCallback(() => api.bot(id), [id])
   const bot = useLoad(botFn)
   const extraFn = useCallback(
@@ -109,26 +145,45 @@ export function AgentDetail({ id }: { id: string }) {
     [id],
   )
   const extra = useLoad(extraFn)
+  const [tab, setTab] = useState<TabId>(() => {
+    const t = new URLSearchParams(location.hash.split('?')[1] ?? '').get('tab')
+    return TABS.some(([id]) => id === t) ? (t as TabId) : 'ringkasan'
+  })
+  const [allText, setAllText] = useState(false)
+  const [wide] = useState(() => window.matchMedia('(min-width: 901px)').matches)
 
-  if (bot.state === 'loading') return <section className="page"><Loading text="Memuat agen..." shape="page" /></section>
+  function onTabKey(e: React.KeyboardEvent) {
+    const i = TABS.findIndex(([id]) => id === tab)
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
+    const next = d ? TABS[(i + d + TABS.length) % TABS.length][0] : e.key === 'Home' ? TABS[0][0] : e.key === 'End' ? TABS[TABS.length - 1][0] : undefined
+    if (!next) return
+    e.preventDefault()
+    setTab(next)
+    document.getElementById('tab-' + next)?.focus()
+  }
+
+  if (bot.state === 'loading') return <section className="page"><Loading text="Memuat pegawai..." shape="page" /></section>
   if (bot.state === 'error')
     return (
       <section className="page">
-        <a className="back" href="#/agen">
-          Semua agen
+        <a className="back" href={backHref}>
+          {backLabel}
         </a>
-        {/Tidak ditemukan|tidak ditemukan/.test(bot.error) ? <Empty title="Agen tidak ditemukan">Mungkin sudah dihapus.</Empty> : <ErrorLine text={bot.error} onRetry={bot.retry} />}
+        {/Tidak ditemukan|tidak ditemukan/.test(bot.error) ? <Empty title="Pegawai tidak ditemukan">Mungkin sudah dihapus.</Empty> : <ErrorLine text={bot.error} onRetry={bot.retry} />}
       </section>
     )
   const b = bot.data as BotDetail
   const [sessions, runs, um, ua, cat] = extra.data ?? [[], [], [], [], null]
   const month = um.find((x) => x.bot_id === id)
   const all = ua.find((x) => x.bot_id === id)
+  const tier = b.model ? TIERS.find((t) => t.id === tierOf(b.model))?.label : undefined
+  const persona = b.persona || (b.builtin ? 'Dikelola sistem.' : 'Belum ada petunjuk tugas. Klik Atur untuk menulisnya.')
+  const long = (b.persona ?? '').length > 200
 
   return (
     <section className="page">
-      <a className="back" href="#/agen">
-        Semua agen
+      <a className="back" href={backHref}>
+        {backLabel}
       </a>
       <header className="page-head" style={{ ['--bot' as string]: botColor(b) }}>
         <div className="row" style={{ width: 'auto', padding: 0 }}>
@@ -136,17 +191,17 @@ export function AgentDetail({ id }: { id: string }) {
           <div>
             <h1>{b.name}</h1>
             <p className="quiet">
-              {b.role} · {teamLabel(b.team)} · {statusText(b)}
+              {roleLabel(b.role)} · {teamLabel(b.team)} · {statusText(b)}
             </p>
           </div>
         </div>
         <div className="head-actions">
           <a className="btn primary" href={'#' + botPath(b.id)}>
-            Chat
+            Ajak bicara
           </a>
-          <a className="btn outline" href={'#' + agenPath(b.id, 'ubah')}>
-            Ubah
-          </a>
+          <button className="btn outline" onClick={() => setDialog({ kind: 'edit', bot: b })}>
+            Atur
+          </button>
           {!b.builtin && (
             <button className="btn danger" onClick={() => setDialog({ kind: 'delete', bot: b })}>
               Hapus
@@ -155,95 +210,206 @@ export function AgentDetail({ id }: { id: string }) {
         </div>
       </header>
 
-      <div className="cbox">
-        <h2>Identitas</h2>
-        <dl className="kv">
-          <dt>Peran</dt>
-          <dd>{b.role}</dd>
-          <dt>Tim</dt>
-          <dd><span className="pill" data-team={b.team}>{teamLabel(b.team)}</span></dd>
-          <dt>Warna</dt>
-          <dd>
-            <span className="swatch-chip" style={{ background: botColor(b) }} />
-            {b.color || 'plain'}
-          </dd>
-          <dt>Model</dt>
-          <dd>{b.model || defaultModelLabel(cat)}</dd>
-          <dt>Tingkat berpikir</dt>
-          <dd>{effortWord(b.effort) || defaultEffortLabel(cat)}</dd>
-          <dt>Jenis</dt>
-          <dd>{b.builtin ? 'Disediakan sistem (tidak bisa dihapus)' : 'Buatan pengguna'}</dd>
-          <dt>Dibuat</dt>
-          <dd>{b.createdAt ? stamp(b.createdAt) : '–'}</dd>
-        </dl>
+      <div className="tabs" role="tablist" aria-label="Bagian detail pegawai" onKeyDown={onTabKey}>
+        {TABS.map(([id, label]) => (
+          <button
+            key={id}
+            id={'tab-' + id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            aria-controls={'panel-' + id}
+            tabIndex={tab === id ? 0 : -1}
+            onClick={() => setTab(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div id={'panel-' + tab} role="tabpanel" aria-labelledby={'tab-' + tab} className="tab-body">
+        {tab === 'ringkasan' && (
+          <>
+            {extra.state === 'loading' && <Loading text="Memuat pemakaian..." shape="ledger" rows={1} />}
+            {extra.state === 'error' && <ErrorLine text={extra.error} onRetry={extra.retry} />}
+            {extra.state === 'ok' && (
+              <dl className={admin ? 'kpis k4' : 'kpis k2'}>
+                {(admin
+                  ? [
+                      { label: 'Percakapan', value: sessions.length },
+                      { label: 'Pemakaian bulan ini (token)', value: month?.total ?? 0 },
+                      { label: 'Pemakaian total (token)', value: all?.total ?? 0 },
+                      { label: 'Tugas total', value: all?.runs ?? 0 },
+                    ]
+                  : [
+                      { label: 'Percakapan', value: sessions.length },
+                      { label: 'Tugas dikerjakan', value: all?.runs ?? 0 },
+                    ]
+                ).map((k) => (
+                  <div key={k.label}>
+                    <dt>{k.label}</dt>
+                    <dd className="num">{nf.format(k.value)}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+
+      <div className="two perm-block">
+        <section className="cbox perm-edit" aria-labelledby="perm-edit-h">
+          <header className="perm-head">
+            <h2 id="perm-edit-h">Bisa Anda ubah</h2>
+            <button className="btn soft sm" onClick={() => setDialog({ kind: 'edit', bot: b })}>
+              Atur
+            </button>
+          </header>
+          <ul className="perm-list">
+            {!b.builtin && (
+              <>
+                <li>
+                  <b>Jenis</b>
+                  <small className="quiet small">Dibuat oleh Anda</small>
+                </li>
+                <li>
+                  <b>Nama</b>
+                  <small className="quiet small">{b.name}</small>
+                </li>
+                <li>
+                  <b>Tugas dan gaya bicara</b>
+                  <small className="quiet small">Petunjuk yang mengatur cara {b.name} bekerja</small>
+                </li>
+              </>
+            )}
+            <li>
+              <b>Warna</b>
+              <small className="quiet small">
+                <span className="swatch-chip" style={{ background: botColor(b) }} />
+                {colorLabel(b.color || 'plain')}
+              </small>
+            </li>
+            <li>
+              <b>Tingkat ketelitian</b>
+              <small className="quiet small">{tier ?? 'Ikuti bawaan'}</small>
+            </li>
+          </ul>
+          <p className="quiet small">Perubahan berlaku mulai tugas berikutnya.</p>
+        </section>
+        <details className="cbox perm-locked" open={wide}>
+          <summary>
+            <h2 id="perm-locked-h">
+              <Icon d={LOCK} size={16} /> Diatur sistem
+            </h2>
+            <Icon d={I.down} size={16} />
+          </summary>
+          <ul className="perm-list">
+            {b.builtin && (
+              <li>
+                <b>Nama dan tugas</b>
+                <small className="quiet small">Pegawai bawaan: dikelola tim AITopTrends.</small>
+              </li>
+            )}
+            <li>
+              <b>Aturan inti</b>
+              <small className="quiet small">Cara dasar {b.name} bekerja dan menjaga data bisnis Anda.</small>
+            </li>
+            <li>
+              <b>Izin keamanan</b>
+              <small className="quiet small">Tindakan berisiko, misalnya menghapus berkas atau mengirim email, selalu menunggu izin Anda.</small>
+            </li>
+          </ul>
+          <a className="btn link" href="#/pengaturan/keamanan">
+            Lihat batasan keamanan
+          </a>
+        </details>
       </div>
 
       <div className="cbox">
-        <h2>Persona</h2>
-        <p className="persona">{b.persona || 'Belum ada persona.'}</p>
+        <h2>Tugas dan gaya bicara</h2>
+        <p className={'persona' + (long && !allText ? ' persona-clamp' : '')}>{persona}</p>
+        {long && (
+          <button type="button" className="btn link small" aria-expanded={allText} onClick={() => setAllText((v) => !v)}>
+            {allText ? 'Tampilkan lebih sedikit' : 'Baca selengkapnya'}
+          </button>
+        )}
       </div>
 
-      {extra.state === 'loading' && <Loading text="Memuat pemakaian..." shape="ledger" rows={2} />}
-      {extra.state === 'error' && <ErrorLine text={extra.error} onRetry={extra.retry} />}
-      {extra.state === 'ok' && (
-        <>
-          <dl className="kpis k4">
-            <div>
-              <dt>Percakapan</dt>
-              <dd className="num">{nf.format(sessions.length)}</dd>
-            </div>
-            <div>
-              <dt>Pemakaian bulan ini (token)</dt>
-              <dd className="num">{nf.format(month?.total ?? 0)}</dd>
-            </div>
-            <div>
-              <dt>Pemakaian total (token)</dt>
-              <dd className="num">{nf.format(all?.total ?? 0)}</dd>
-            </div>
-            <div>
-              <dt>Tugas total</dt>
-              <dd className="num">{nf.format(all?.runs ?? 0)}</dd>
-            </div>
+      {b.createdAt > 0 && <p className="quiet small">Dibuat {stamp(b.createdAt)}</p>}
+
+      {admin && (
+        <div className="cbox">
+          <h2>Identitas</h2>
+          <dl className="kv kv-wide">
+            <dt>Warna</dt>
+            <dd>
+              <span className="swatch-chip" style={{ background: botColor(b) }} />
+              {colorLabel(b.color || 'plain')}
+            </dd>
+            <dt>Model</dt>
+            <dd>{b.model || defaultModelLabel(cat)}</dd>
+            <dt>Tingkat berpikir</dt>
+            <dd>{effortWord(b.effort) || defaultEffortLabel(cat)}</dd>
           </dl>
+          <p className="quiet small">
+            <a className="btn link" href={'#' + agenPath(b.id, 'ubah')}>
+              Pengaturan lanjutan
+            </a>
+          </p>
+        </div>
+      )}
+          </>
+        )}
 
+        {tab === 'pekerjaan' &&
+          (extra.state === 'loading' ? (
+            <Loading text="Memuat pekerjaan..." shape="table" />
+          ) : extra.state === 'error' ? (
+            <ErrorLine text={extra.error} onRetry={extra.retry} />
+          ) : (
+            <div className="block">
+              <header>
+                <h2>Tugas terakhir</h2>
+              </header>
+              {runs.length === 0 ? (
+                <Empty title="Belum ada tugas">
+                  <a className="btn primary" href={'#' + botPath(b.id)}>
+                    Ajak {b.name} bicara
+                  </a>
+                </Empty>
+              ) : (
+                <div className="table-wrap">
+                  <table className="plain">
+                    <thead>
+                      <tr>
+                        <th>Waktu</th>
+                        <th>Tugas</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {runs.map((r) => (
+                        <tr key={r.id}>
+                          <td className="num" data-label="Waktu">{stamp(r.started_at)}</td>
+                          <td data-label="Tugas">
+                            <span className="clamp2">{cleanTaskText(r.input || '').split(/\s*\(id tugas:/)[0].trim() || '–'}</span>
+                          </td>
+                          <td data-label="Status">
+                            <span className={`pill ${RUN_PILL[r.status] ?? 'idle'} run-status`}>{RUN_STATUS[r.status] ?? r.status}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ))}
+
+        {tab === 'keahlian' && (
           <div className="cbox">
-            <h2>Keahlian agen</h2>
+            <h2>Keahlian pegawai</h2>
             <AgentSkills slug={id} />
           </div>
-
-          <div className="block">
-            <header>
-              <h2>Tugas terakhir</h2>
-            </header>
-            {runs.length === 0 ? (
-              <Empty title="Belum ada tugas">Kirim pesan lewat Chat untuk memulai.</Empty>
-            ) : (
-              <div className="table-wrap">
-                <table className="plain">
-                  <thead>
-                    <tr>
-                      <th>Waktu</th>
-                      <th>Tugas</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {runs.map((r) => (
-                      <tr key={r.id}>
-                        <td className="num" data-label="Waktu">{stamp(r.started_at)}</td>
-                        <td data-label="Tugas">{r.input || '–'}</td>
-                        <td data-label="Status">
-                          <span className={`pill ${RUN_PILL[r.status] ?? 'idle'}`}>{RUN_STATUS[r.status] ?? r.status}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </>
-      )}
+        )}
+      </div>
     </section>
   )
 }
@@ -264,7 +430,8 @@ function check(f: { name: string; role: string; team: string; persona: string })
 }
 
 export function AgentEdit({ id }: { id: string }) {
-  const { bots, refreshBots, flash } = useData()
+  const { bots, refreshBots, flash, setDialog } = useData()
+  const admin = useAdminMode()
   const botFn = useCallback(() => api.bot(id), [id])
   const bot = useLoad(botFn)
   const [f, setF] = useState({ name: '', role: '', team: '', color: 'plain', persona: '', model: '', effort: '' })
@@ -278,6 +445,14 @@ export function AgentEdit({ id }: { id: string }) {
     if (d) setF({ name: d.name, role: d.role, team: d.team, color: d.color || 'plain', persona: d.persona, model: modelKey(d.provider, d.model), effort: d.effort })
   }, [d])
 
+  // The technical edit page is admin-only: everyone else gets the simple dialog over the detail page.
+  useEffect(() => {
+    if (admin || !d) return
+    go(agenPath(id), true)
+    setDialog({ kind: 'edit', bot: d })
+  }, [admin, d, id, setDialog])
+
+  if (!admin) return null
   if (bot.state === 'loading') return <section className="page"><Loading text="Memuat agen..." /></section>
   if (bot.state === 'error' || !d)
     return (

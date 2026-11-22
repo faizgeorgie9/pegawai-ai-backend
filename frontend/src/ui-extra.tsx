@@ -63,10 +63,10 @@ export const effortWord = (v: string | null | undefined) => (v ? EFFORT_WORD[v] 
 // shortcut: fixed list of known toolsets, add a line here when Hermes ships a new one.
 const TOOLSET_TEXT: Record<string, [string, string]> = {
   web: ['Cari di internet', 'Mencari informasi dan membaca halaman web.'],
-  browser: ['Peramban otomatis', 'Membuka halaman web, mengklik, dan mengetik.'],
-  terminal: ['Perintah komputer', 'Menjalankan perintah di komputer server.'],
-  file: ['Berkas', 'Membaca dan menulis berkas.'],
-  code_execution: ['Menjalankan kode', 'Menjalankan program kecil, misalnya untuk menghitung.'],
+  browser: ['Mengendalikan browser sendiri', 'Membuka halaman web, mengklik, dan mengetik.'],
+  terminal: ['Menjalankan perintah di komputer', 'Menjalankan perintah di komputer server.'],
+  file: ['Mengubah berkas di komputer', 'Membaca dan menulis berkas di komputer ini, terpisah dari Google Drive.'],
+  code_execution: ['Menjalankan program', 'Menjalankan program kecil, misalnya untuk menghitung.'],
   vision: ['Baca gambar', 'Memahami isi gambar atau foto.'],
   video: ['Baca video', 'Memahami isi video.'],
   image_gen: ['Buat gambar', 'Membuat gambar dari deskripsi.'],
@@ -74,20 +74,20 @@ const TOOLSET_TEXT: Record<string, [string, string]> = {
   x_search: ['Pencarian X (Twitter)', 'Mencari kiriman di X.'],
   tts: ['Ubah teks jadi suara', 'Membacakan teks dengan suara.'],
   stt: ['Ubah suara jadi teks', 'Menulis ulang pesan suara.'],
-  skills: ['Keahlian tambahan', 'Panduan kerja khusus yang bisa dipakai agen.'],
+  skills: ['Keahlian tambahan', 'Panduan kerja khusus yang bisa dipakai pegawai.'],
   todo: ['Rencana tugas', 'Menyusun langkah kerja sebelum mengerjakan.'],
   kanban: ['Papan tugas', 'Mengelola tugas di papan Kanban.'],
-  memory: ['Ingatan', 'Mengingat hal penting antar percakapan.'],
+  memory: ['Ingatan', 'Mengizinkan pegawai mengingat hal penting antar percakapan. Saklar ini hanya menyalakan atau mematikan kemampuan itu; yang sudah diingat tidak dihapus.'],
   context_engine: ['Pengelola konteks', 'Menjaga isi percakapan panjang tetap muat.'],
   session_search: ['Cari percakapan lama', 'Mencari isi percakapan sebelumnya.'],
   connections: ['Pakai aplikasi tersambung', 'Memakai aplikasi yang sudah Anda hubungkan.'],
   clarify: ['Pertanyaan balik', 'Bertanya kepada Anda saat informasi kurang.'],
-  delegation: ['Membagi tugas', 'Menyerahkan sub-tugas ke agen lain.'],
+  delegation: ['Membagi tugas ke pegawai lain', 'Menyerahkan sub-tugas ke pegawai lain.'],
   cronjob: ['Tugas terjadwal', 'Membuat dan mengatur tugas berulang.'],
   discord: ['Discord', 'Membaca dan ikut percakapan di Discord.'],
   discord_admin: ['Admin Discord', 'Mengatur kanal dan peran di server Discord.'],
   computer_use: ['Kontrol komputer', 'Mengendalikan komputer secara otomatis.'],
-  a2a: ['Agen ke agen', 'Berkomunikasi dengan agen dari sistem lain.'],
+  a2a: ['Pegawai ke pegawai', 'Berkomunikasi dengan pegawai dari sistem lain.'],
 }
 export const toolsetText = (name: string, label: string, description: string): [string, string] => TOOLSET_TEXT[name] ?? [label || name, description]
 // What "Default" resolves to, shown next to the word everywhere: the profile's own value, else "ikut bawaan penyedia" (value unknown).
@@ -133,7 +133,7 @@ export function EffortSelect({ value, onChange, disabled }: { value: string; onC
 // missing prices is an estimate and is always labeled "perkiraan"; the reasons are the hover text.
 const REASON: Record<EstimateReason['code'], (m: string) => string> = {
   unverified_price: (m) => `Harga ${m} belum diverifikasi dari halaman resmi penyedia.`,
-  model_not_recorded: () => 'Sebagian tugas tidak mencatat modelnya, jadi dihitung dengan model bawaan agen.',
+  model_not_recorded: () => 'Sebagian tugas tidak mencatat modelnya, jadi dihitung dengan model bawaan pegawai.',
   no_price: (m) => `Belum ada harga untuk ${m}, jadi belum dihitung.`,
 }
 export const reasonText = (r: EstimateReason[] = []) => r.map((x) => REASON[x.code](x.models.join(', '))).join(' ')
@@ -187,11 +187,11 @@ export function CapChip({ cap, label }: { cap: Cap; label?: string }) {
 }
 
 // Every fixture carries this badge.
-export const SampleBadge = () => <span className="pill sample" title="Isi buatan frontend untuk menunjukkan bentuk hasil. Bukan hasil agen.">Contoh data</span>
+export const SampleBadge = () => <span className="pill sample" title="Isi buatan frontend untuk menunjukkan bentuk hasil. Bukan hasil pegawai.">Contoh data</span>
 
-export function PageHead({ title, sub, actions }: { title: string; sub?: string; actions?: ReactNode }) {
+export function PageHead({ title, sub, actions, inline }: { title: string; sub?: string; actions?: ReactNode; inline?: boolean }) {
   return (
-    <header className="page-head">
+    <header className={'page-head' + (inline ? ' head-inline' : '')}>
       <div>
         <h1>{title}</h1>
         {sub && <p className="quiet">{sub}</p>}
@@ -361,8 +361,8 @@ export function ClarifyCard({ c, onAnswer }: { c: Clarify; onAnswer: (text: stri
     }
   }
   return (
-    <form className="approval clarify" role="group" aria-label="Agen bertanya" onSubmit={(e) => { e.preventDefault(); void send(text) }}>
-      <p className="approval-title">Agen bertanya</p>
+    <form className="approval clarify" role="group" aria-label="Pegawai bertanya" onSubmit={(e) => { e.preventDefault(); void send(text) }}>
+      <p className="approval-title">Pegawai bertanya</p>
       <p>{c.question}</p>
       {c.choices.length > 0 && (
         <div className="approval-actions">

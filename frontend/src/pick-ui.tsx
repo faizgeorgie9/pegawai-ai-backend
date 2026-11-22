@@ -146,7 +146,7 @@ export function SourcePicker({ provider, onClose, onDone }: { provider: Extract<
           </button>
           {status === 'connected' && (
             <button className="btn primary" type="button" disabled={!pick.length || busy} onClick={() => void doImport()}>
-              {busy ? 'Menyimpan...' : pick.length ? `Simpan ${pick.length} ke Knowledge Base` : 'Simpan ke Knowledge Base'}
+              {busy ? 'Menyimpan...' : pick.length ? `Simpan ${pick.length} ke Pengetahuan` : 'Simpan ke Pengetahuan'}
             </button>
           )}
         </div>

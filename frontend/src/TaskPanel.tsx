@@ -21,9 +21,9 @@ const EVENT_TEXT: Record<string, string> = {
   archive: 'Diarsipkan',
   restore: 'Dipulihkan',
   edit: 'Diubah',
-  claim: 'Agen mulai bekerja',
+  claim: 'Pegawai mulai bekerja',
   due: 'Waktunya tiba, masuk giliran',
-  run_done: 'Agen selesai, hasil siap ditinjau',
+  run_done: 'Pegawai selesai, hasil siap ditinjau',
   run_failed: 'Percobaan gagal',
   auto_retry: 'Mencoba lagi otomatis',
   failed: 'Gagal setelah dua percobaan',
@@ -96,7 +96,7 @@ function Edit({ t, onSaved, onCancel }: { t: TaskDetail; onSaved: (d: TaskDetail
       {queued && (
         <label className="field">
           <span>Jadwal (kosongkan bila tidak perlu)</span>
-          <input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} />
+          <input type="datetime-local" lang="id" value={at} onChange={(e) => setAt(e.target.value)} />
         </label>
       )}
       {problem && <ErrorLine text={problem} />}
@@ -158,7 +158,7 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
     else void run(() => api.taskVerb(t.id, a.id))
   }
 
-  const who = (c: TaskDetail['comments'][number]) => (c.author === 'user' ? 'Anda' : c.author === 'bot' ? (bots.find((b) => b.id === c.bot_id)?.name ?? 'Agen') : 'Sistem')
+  const who = (c: TaskDetail['comments'][number]) => (c.author === 'user' ? 'Anda' : c.author === 'bot' ? (bots.find((b) => b.id === c.bot_id)?.name ?? 'Pegawai') : 'Sistem')
   const actions = t ? [t.primary, ...t.more].filter((a): a is TaskAction => !!a && !['open', 'edit', 'chat'].includes(a.id)) : []
   const send = t?.status === 'blocked' ? { label: 'Kirim jawaban', go: () => api.taskVerb(t.id, 'reply', { text }) } : t?.status === 'review' ? { label: 'Minta revisi', go: () => api.taskVerb(t.id, 'request_changes', { note: text }) } : { label: 'Kirim catatan', go: () => api.commentTask(t!.id, text) }
 
@@ -176,7 +176,7 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
               {admin && <span className="pill plain cls">{t.status}</span>}
               {admin && <span className="quiet small num">{t.id.slice(0, 8)}</span>}
             </p>
-            <p className={`tp-line ${t.column === 'needs_you' ? 'wait' : ''}`}>{t.line}</p>
+            <p className={`tp-line ${t.column === 'needs_you' ? 'wait' : ''}`}>{t.line.replace(/\bAgen\b/g, 'Pegawai')}</p>
 
             {editing && t.editable ? (
               <Edit t={t} onCancel={() => setEditing(false)} onSaved={(d) => { setT(d); setEditing(false); onChanged() }} />
@@ -195,7 +195,9 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
             {t.result && (
               <section className="tp-sec">
                 <h3>Hasil terakhir</h3>
-                <Md text={t.result} />
+                <div className="tp-result">
+                  <Md text={t.result} />
+                </div>
               </section>
             )}
 
@@ -206,7 +208,7 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
                   {t.children.map((k) => (
                     <li key={k.id}>
                       <b>{k.title}</b>
-                      <span className="quiet small">{k.line}</span>
+                      <span className="quiet small">{k.line.replace(/\bAgen\b/g, 'Pegawai')}</span>
                     </li>
                   ))}
                 </ul>
@@ -234,7 +236,7 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
                     if (text.trim()) void run(send.go, true)
                   }}
                 >
-                  <textarea rows={2} maxLength={4000} value={text} onChange={(e) => setText(e.target.value)} placeholder="Balas ke agen…" aria-label="Balas ke agen" />
+                  <textarea rows={2} maxLength={4000} value={text} onChange={(e) => setText(e.target.value)} placeholder="Balas ke pegawai…" aria-label="Balas ke pegawai" />
                   <button type="submit" className="btn soft" disabled={busy || !text.trim()}>
                     {send.label}
                   </button>
@@ -254,7 +256,7 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
                 ))}
                 {t.runs.map((r) => (
                   <li key={r.id}>
-                    <span>Pengerjaan agen{r.cost ? ` · ${r.cost.label}` : ''}</span>
+                    <span>Pengerjaan pegawai{r.cost ? ` · ${r.cost.label}` : ''}</span>
                     {admin && <span className="quiet small"> ({r.status} {r.id.slice(0, 8)})</span>}
                     <span className="quiet small num"> · {stamp(r.at)}</span>
                   </li>

@@ -5,6 +5,7 @@ import hashlib
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 from .errors import ApiError
 
@@ -29,7 +30,10 @@ SIM_CLASS = "Dummy / Simulated Data"
 TEAM_WORKFLOW = {"marketing": "marketing", "customer_support": "cs"}
 PRODUCT_NOTE = ("Data katalog publik (Colorbox Collection, SRC-02 Hub) yang diamati 9 November 2026. Harga dan pilihan "
                 "bisa berubah dan stok TIDAK diketahui. Jangan menjanjikan ketersediaan. Jika bertentangan dengan "
-                "catatan pengetahuan, sebutkan konflik itu dan rekomendasikan tinjauan manusia.")
+                "catatan pengetahuan, sebutkan konflik itu dan rekomendasikan tinjauan manusia. Bagian 'foto' (bila ada) adalah URL foto "
+                "resmi untuk image_url di products_referenced; bagian 'bentuk' berasal dari foto resmi itu: jangan mengarang "
+                "bentuk, bahan, atau detail di luar yang tertulis.")
+DESC_MAX = 300
 
 
 def _sha(data: bytes) -> str:
@@ -163,10 +167,13 @@ def _product_lines(products: list[dict]) -> str:
         cat = p.get("category", "Colorbox")
         name = p.get("name", "Produk Colorbox")
 
-        out.append(
-            f"- {name} | {cat} | {price} | warna: {colors_str} | "
-            f"ukuran: {sizes_str} | {url} | diamati {acc_date}"
-        )
+        line = (f"- {name} | {cat} | {price} | warna: {colors_str} | "
+                f"ukuran: {sizes_str} | {url} | diamati {acc_date}")
+        if p.get("image_url"):
+            line += f" | foto: {p['image_url']}"
+        if p.get("image_description"):
+            line += f" | bentuk (dari foto resmi): {p['image_description'][:DESC_MAX]}"
+        out.append(line)
     return "\n".join(out)
 
 

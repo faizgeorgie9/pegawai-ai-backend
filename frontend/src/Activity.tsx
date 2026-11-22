@@ -3,7 +3,7 @@ import { api, errText } from './bff'
 import type { ActivityRow, Scope } from './bff'
 import { useData } from './data'
 import { toolLabel } from './steps'
-import { ErrorLine, stamp } from './ui'
+import { ErrorLine, cleanTaskText, stamp } from './ui'
 import { Loading } from './ui-extra'
 
 const PAGE = 100
@@ -68,13 +68,13 @@ export default function Activity({ scope, version }: { scope?: Scope; version?: 
       <header className="page-head">
         <div>
           <h1 id="act-h">Catatan aktivitas</h1>
-          <p className="quiet">Apa yang dikerjakan agen, dari yang terbaru.</p>
+          <p className="quiet">Apa yang dikerjakan pegawai AI, dari yang terbaru.</p>
         </div>
         <div className="filters">
           <label className="field inline">
-            <span>Agen</span>
+            <span>Pegawai</span>
             <select value={bot} onChange={(e) => setBot(e.target.value)}>
-              <option value="">Semua agen</option>
+              <option value="">Semua pegawai</option>
               {bots.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
@@ -99,7 +99,7 @@ export default function Activity({ scope, version }: { scope?: Scope; version?: 
       {state === 'ok' && rows.length === 0 && (
         <div className="state empty-box">
           <h2>Belum ada aktivitas</h2>
-          <p className="quiet">{bot || status ? 'Tidak ada aktivitas yang cocok dengan filter ini.' : 'Saat agen memakai alat, catatannya muncul di sini.'}</p>
+          <p className="quiet">{bot || status ? 'Tidak ada aktivitas yang cocok dengan filter ini.' : 'Saat pegawai bekerja, catatannya muncul di sini.'}</p>
         </div>
       )}
       {rows.length > 0 && (
@@ -109,7 +109,7 @@ export default function Activity({ scope, version }: { scope?: Scope; version?: 
               <thead>
                 <tr>
                   <th>Waktu</th>
-                  <th>Agen</th>
+                  <th>Pegawai</th>
                   <th>Kegiatan</th>
                   <th>Status</th>
                   <th className="r">Durasi</th>
@@ -121,7 +121,7 @@ export default function Activity({ scope, version }: { scope?: Scope; version?: 
                 {rows.map((r) => (
                   <tr key={r.id}>
                     <td data-label="Waktu" className="num">{stamp(r.time)}</td>
-                    <td data-label="Agen">{r.bot_name}</td>
+                    <td data-label="Pegawai">{r.bot_name}</td>
                     <td data-label="Kegiatan">{r.tool ? toolLabel(r.tool) : '–'}</td>
                     <td data-label="Status">
                       <span className={`pill ${r.status === 'ok' ? 'ok' : 'bad'}`}>{r.status === 'ok' ? 'Berhasil' : 'Gagal'}</span>
@@ -130,7 +130,7 @@ export default function Activity({ scope, version }: { scope?: Scope; version?: 
                     <td data-label="Ringkasan" className="sum">
                       {r.preview ? (
                         <button className="sum-btn" aria-expanded={open === r.id} onClick={() => setOpen(open === r.id ? null : r.id)}>
-                          <span data-open={open === r.id || undefined}>{r.preview}</span>
+                          <span data-open={open === r.id || undefined}>{cleanTaskText(r.preview)}</span>
                         </button>
                       ) : (
                         '–'

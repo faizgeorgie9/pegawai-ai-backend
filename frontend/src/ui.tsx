@@ -31,6 +31,32 @@ export const botColor = (b?: Pick<Bot, 'color'>) => (b ? (COLORS[b.color.toLower
 const TEAM_LABELS: Record<string, string> = { marketing: 'Marketing', customer_support: 'Layanan pelanggan' }
 export const teamLabel = (t: string) => TEAM_LABELS[t] ?? (t ? t.charAt(0).toUpperCase() + t.slice(1).replace(/_/g, ' ') : 'Tanpa tim')
 
+// Server roles are English job titles; show plain Indonesian to non-technical users. Unknown roles pass through unchanged.
+const ROLE_LABELS: Record<string, string> = {
+  'Project Manager': 'Pengatur tugas tim',
+  'Copywriting Specialist': 'Penulis naskah dan caption',
+  'Creative Director & QC Auditor': 'Penilai mutu konten',
+  'Visual Designer & Art Director': 'Perancang visual',
+  'Visual Designer': 'Perancang visual',
+  Strategist: 'Penyusun strategi',
+  Researcher: 'Peneliti produk dan pasar',
+  Writer: 'Penulis',
+  'Frontline Support Specialist': 'Penjawab pelanggan',
+  'CS Team Lead & Quality Auditor': 'Ketua layanan pelanggan',
+}
+export const roleLabel = (role: string) => ROLE_LABELS[role.trim()] ?? role
+
+const COLOR_LABELS: Record<string, string> = {
+  amber: 'Jingga', teal: 'Hijau toska', indigo: 'Nila', sky: 'Biru langit', rose: 'Merah muda', green: 'Hijau', red: 'Merah', slate: 'Abu-abu', plain: 'Netral',
+}
+export const colorLabel = (c: string) => COLOR_LABELS[c.toLowerCase()] ?? 'Warna khusus'
+
+// Task runs reach the agent as "Tugas: <title>\n\n…\n\n(id tugas: <uuid>. Akhiri selalu dengan alat …)" (bff/tasks.py build_prompt).
+// The trailing instruction is for the agent, not the owner. shortcut: strips it client-side; drop once the BFF stores the clean text separately.
+const TASK_SUFFIX = /\s*\(id tugas:[^)]*\)\s*$/
+export const isTaskPrompt = (text: string) => TASK_SUFFIX.test(text)
+export const cleanTaskText = (text: string) => text.replace(TASK_SUFFIX, '')
+
 export function BotAvatar({ bot, size = 32 }: { bot?: Pick<Bot, 'name' | 'color'>; size?: number }) {
   return (
     <span
@@ -71,6 +97,7 @@ export const TRASH = 'M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13'
 export const PLUS = 'M12 5v14M5 12h14'
 export const MENU = 'M4 7h16M4 12h16M4 17h16'
 export const CLOSE = 'M6 6l12 12M18 6L6 18'
+export const LOCK = 'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4'
 export const DOTS = 'M12 6h.01M12 12h.01M12 18h.01'
 export const CHEVRON = 'M9 6l6 6-6 6'
 

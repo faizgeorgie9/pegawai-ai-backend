@@ -3,7 +3,7 @@ import Activity from './Activity'
 import { useActions } from './ActionCard'
 import { AgentDetail, AgentEdit, AgentList, AgentNew } from './Agents'
 import { useAdminMode } from './adminMode'
-import { api, errText } from './bff'
+import { ApiError, api, errText, isKeyError, onSessionEnd } from './bff'
 import type { AuthUser } from './bff'
 import { ChatLayout, GroupLayout } from './ChatLayout'
 import Dashboard from './Dashboard'
@@ -22,10 +22,128 @@ import { botPath, go, groupPath, useRoute } from './router'
 import type { Route } from './router'
 import { BotAvatar, CLOSE, I, Icon, MENU, elapsed } from './ui'
 
+const TOKEN_KEY = 'pegawai_ai_token'
+const SESSION_ENDED = 'Sesi Anda berakhir, silakan masuk lagi.'
+
+const storedToken = () => {
+  try {
+    return localStorage.getItem(TOKEN_KEY)
+  } catch {
+    return null
+  }
+}
+
+// Everything this browser kept about the signed-in account goes on logout, so the next account starts clean.
+function clearSession() {
+  try {
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem('pegawai_ai_user') // cached profile from older builds; only the token is trusted now
+    localStorage.removeItem('pa.lastBot')
+    localStorage.removeItem('pa.lastGroup')
+  } catch {
+    /* private mode: nothing persisted */
+  }
+}
+
+// The app is only mounted after the stored session is validated, so no data or event stream is fetched before login.
 export default function App() {
+  return <AuthGate />
+}
+
+function AuthGate() {
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [booting, setBooting] = useState(() => !!storedToken())
+  const [notice, setNotice] = useState('')
+
+  useEffect(
+    () =>
+      onSessionEnd(() => {
+        clearSession()
+        setUser(null)
+        setBooting(false)
+        setNotice(SESSION_ENDED)
+        go('/', true)
+      }),
+    [],
+  )
+
+  useEffect(() => {
+    if (!storedToken()) return
+    let cancelled = false
+    api.auth.me().then(
+      (res) => {
+        if (cancelled) return
+        setUser(res.user)
+        setBooting(false)
+      },
+      (e) => {
+        if (cancelled) return
+        setBooting(false)
+        // A key, network or server problem says nothing about the session: keep the token and show what happened.
+        if (!(e instanceof ApiError) || e.status === 0 || e.status >= 500 || isKeyError(e)) {
+          setNotice(errText(e))
+          return
+        }
+        clearSession()
+        setNotice(SESSION_ENDED)
+      },
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  function signIn(next: AuthUser, token: string) {
+    try {
+      localStorage.setItem(TOKEN_KEY, token)
+      localStorage.removeItem('pa.lastBot')
+      localStorage.removeItem('pa.lastGroup')
+    } catch {
+      /* private mode: the session lasts until reload */
+    }
+    setNotice('')
+    go('/', true)
+    setUser(next)
+  }
+
+  async function signOut() {
+    try {
+      await api.auth.logout()
+    } catch {
+      /* the server ack is best-effort: the local session is cleared anyway */
+    }
+    clearSession()
+    setNotice('')
+    go('/', true)
+    setUser(null)
+  }
+
+  if (booting) {
+    return (
+      <main
+        role="status"
+        aria-live="polite"
+        style={{
+          minHeight: '100svh',
+          display: 'grid',
+          placeItems: 'center',
+          padding: 24,
+          background: 'var(--ground)',
+          color: 'var(--muted)',
+          textAlign: 'center',
+        }}
+      >
+        <div>
+          <Mark />
+          <p style={{ marginTop: 12, fontSize: 14 }}>Menyiapkan ruang kerja Anda…</p>
+        </div>
+      </main>
+    )
+  }
+  if (!user) return <LoginModal notice={notice} onSuccess={signIn} />
   return (
-    <DataProvider>
-      <Shell />
+    <DataProvider key={user.id}>
+      <Shell authUser={user} onLogout={signOut} />
     </DataProvider>
   )
 }
@@ -41,31 +159,12 @@ function Mark() {
   )
 }
 
-function Shell() {
+function Shell({ authUser, onLogout }: { authUser: AuthUser; onLogout: () => void | Promise<void> }) {
   const route = useRoute()
   const { conn, toasts, dismissToast, notifyAsk, answerNotify } = useData()
   const [drawer, setDrawer] = useState(false)
-  const [authUser, setAuthUser] = useState<AuthUser | null>(() => {
-    try {
-      const saved = localStorage.getItem('pegawai_ai_user')
-      const token = localStorage.getItem('pegawai_ai_token')
-      return saved && token ? JSON.parse(saved) : null
-    } catch {
-      return null
-    }
-  })
-
-  const handleLogout = () => {
-    localStorage.removeItem('pegawai_ai_token')
-    localStorage.removeItem('pegawai_ai_user')
-    setAuthUser(null)
-  }
 
   useEffect(() => setDrawer(false), [route])
-
-  if (!authUser) {
-    return <LoginModal onSuccess={(user) => setAuthUser(user)} />
-  }
 
   return (
     <div className="app" data-drawer={drawer || undefined}>
@@ -79,7 +178,7 @@ function Shell() {
         </span>
         <RunsPill />
       </header>
-      <Sidebar route={route} authUser={authUser} onLogout={handleLogout} onClose={() => setDrawer(false)} />
+      <Sidebar route={route} authUser={authUser} onLogout={onLogout} onClose={() => setDrawer(false)} />
       {drawer && <button className="scrim" aria-label="Tutup menu" onClick={() => setDrawer(false)} />}
 
       <main className="stage">
@@ -110,7 +209,7 @@ function Shell() {
       <div className="toasts" aria-live="polite">
         {notifyAsk && (
           <div className="toast ask">
-            <p>Mau diberi tahu saat agen selesai, walau tab ini tidak dibuka?</p>
+            <p>Mau diberi tahu saat pegawai selesai bekerja, walau tab ini tidak dibuka?</p>
             <div className="toast-actions">
               <button className="btn primary" onClick={() => answerNotify(true)}>
                 Aktifkan
@@ -215,16 +314,12 @@ function Sidebar({ route, authUser, onLogout, onClose }: { route: Route; authUse
 
       <footer className="side-foot">
         {authUser && (
-          <div style={{ padding: '8px 10px', background: '#f1f5f9', borderRadius: '8px', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', border: '1px solid #e2e8f0' }}>
-            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
-              <div style={{ fontWeight: 600, color: '#0f172a' }}>{authUser.name}</div>
-              <div style={{ fontSize: '10px', color: '#64748b' }}>{authUser.role.toUpperCase()} • {authUser.company}</div>
+          <div className="side-user">
+            <div className="side-user-who">
+              <b>{authUser.name}</b>
+              <small>{/^(owner|admin|super_?admin)$/i.test(authUser.role) ? 'Pemilik' : 'Staf'}{authUser.company ? ` · ${authUser.company}` : ''}</small>
             </div>
-            <button
-              onClick={onLogout}
-              style={{ background: 'transparent', border: '1px solid #fecaca', borderRadius: '4px', padding: '3px 6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', color: '#b91c1c' }}
-              title="Keluar dari akun"
-            >
+            <button type="button" className="btn quiet-btn sm side-user-out" onClick={onLogout} title="Keluar dari akun">
               Keluar
             </button>
           </div>

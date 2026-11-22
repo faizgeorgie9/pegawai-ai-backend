@@ -55,7 +55,7 @@ export function Tools() {
       {t.state === 'ok' && list.length === 0 && failed.length === 0 && <Empty title="Belum ada alat">Belum ada agen yang bisa ditanya.</Empty>}
       {t.state === 'ok' && list.length === 0 && failed.length > 0 && (
         <p>
-          <CapChip cap="unknown" /> Tidak ada data toolset yang bisa ditampilkan.
+          <CapChip cap="unknown" /> Tidak ada data kemampuan yang bisa ditampilkan.
         </p>
       )}
       <div className="table-wrap">
@@ -165,93 +165,6 @@ export function ComputerUse() {
   )
 }
 
-// ---------- Scheduler ----------
-export function Scheduler() {
-  return (
-    <div className="tab-body">
-      <div className="cbox" style={{ borderLeft: '4px solid #10b981' }}>
-        <h2 style={{ color: '#10b981' }}>🟢 Autonomous Content Scheduler Aktif</h2>
-        <p>
-          Scheduler multi-agent untuk <b>Colorbox Indonesia</b> telah aktif. Sistem menjalankan alur kerja 5 AI Agent
-          (Bimo, Meda, Raka, Bram, Vina) secara terjadwal untuk menghasilkan materi Feed Carousel harian siap tayang
-          tanpa memerlukan prompt manual setiap hari.
-        </p>
-      </div>
-
-      <div className="block">
-        <header>
-          <h2>Daftar Job Terjadwal</h2>
-        </header>
-        <div className="table-wrap">
-          <table className="plain">
-            <thead>
-              <tr>
-                <th>Nama Job</th>
-                <th>Jadwal / Frekuensi</th>
-                <th>Agen Pelaksana</th>
-                <th>Format Output</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td data-label="Nama Job">
-                  <b>Colorbox Daily Carousel Generation</b>
-                  <br />
-                  <small style={{ color: '#64748b' }}>Hari 1: Campus Rebel, Hari 2: Weekend Chill, Hari 3: Monochrome</small>
-                </td>
-                <td data-label="Jadwal">Setiap Hari, 08.00 WIB</td>
-                <td data-label="Agen Pelaksana">Bimo, Meda, Raka, Bram, Vina</td>
-                <td data-label="Format Output">5 Slide (1080x1350 PNG) + HTML Preview</td>
-                <td data-label="Status">
-                  <span style={{ color: '#10b981', fontWeight: 600 }}>Aktif (Berjalan)</span>
-                </td>
-              </tr>
-              <tr>
-                <td data-label="Nama Job">
-                  <b>Catalog Grounding & Size Sync</b>
-                  <br />
-                  <small style={{ color: '#64748b' }}>Validasi 1.206 produk & spesifikasi cm</small>
-                </td>
-                <td data-label="Jadwal">Setiap Senin, 06.00 WIB</td>
-                <td data-label="Agen Pelaksana">Raka (@researcher)</td>
-                <td data-label="Format Output">Dossier Riset & Image Audit</td>
-                <td data-label="Status">
-                  <span style={{ color: '#10b981', fontWeight: 600 }}>Aktif</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="cbox">
-        <h2>Pratinjau Hasil Carousel Terjadwal</h2>
-        <p>Hasil generasi otomatis multi-hari telah dirender dan dapat diakses:</p>
-        <ul className="plain" style={{ marginTop: '8px' }}>
-          <li>
-            📅 <b>Hari ke-1:</b>{' '}
-            <a href="/output/carousel_day_1/carousel_preview.html" target="_blank" rel="noreferrer">
-              Buka Live HTML Preview Hari 1
-            </a>
-          </li>
-          <li>
-            📅 <b>Hari ke-2:</b>{' '}
-            <a href="/output/carousel_day_2/carousel_preview.html" target="_blank" rel="noreferrer">
-              Buka Live HTML Preview Hari 2
-            </a>
-          </li>
-          <li>
-            📅 <b>Hari ke-3:</b>{' '}
-            <a href="/output/carousel_day_3/carousel_preview.html" target="_blank" rel="noreferrer">
-              Buka Live HTML Preview Hari 3
-            </a>
-          </li>
-        </ul>
-      </div>
-    </div>
-  )
-}
 // ---------- Kemampuan: one page, three tabs ----------
 const TABS = [
   { name: 'tools', label: 'Alat', path: '/tools' },

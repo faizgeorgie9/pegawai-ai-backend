@@ -3,7 +3,7 @@ import { ApiError, api, errText } from './bff'
 import type { Bot, BotDetail, ModelCatalog, Plan, Template } from './bff'
 import { useData } from './data'
 import { botPath, groupPath, go, parse } from './router'
-import { BotAvatar, COLORS, Dialog, ErrorLine, botColor, teamLabel } from './ui'
+import { BotAvatar, COLORS, Dialog, ErrorLine, botColor, colorLabel, roleLabel, teamLabel } from './ui'
 import { Opt, modelKey, splitModel } from './ui-extra'
 import { TIERS, tierOf, tiersFrom } from './modelTiers'
 import type { TierId } from './modelTiers'
@@ -89,7 +89,7 @@ function BotDialog({ onClose }: { onClose: () => void }) {
       await refreshBots().catch(() => [])
       refreshMe()
       onClose()
-      flash(`Agen ${b.name} dibuat`)
+      flash(`Pegawai ${b.name} dibuat`)
       go(botPath(b.id))
     } catch (err) {
       setProblem(problemOf(err))
@@ -102,13 +102,13 @@ function BotDialog({ onClose }: { onClose: () => void }) {
   if (!name.trim()) errs.name = 'Nama wajib diisi.'
   if (!role.trim()) errs.role = 'Peran wajib diisi.'
   if (!team.trim()) errs.team = newTeam ? 'Nama tim wajib diisi.' : 'Pilih tim.'
-  if (tab === 'custom' && !persona.trim()) errs.persona = 'Persona wajib diisi, supaya agen tahu cara bekerja.'
+  if (tab === 'custom' && !persona.trim()) errs.persona = 'Tulis tugas pegawai ini, supaya ia tahu cara bekerja.'
   const err = (k: string) => tried && errs[k] && <small className="err" role="alert">{errs[k]}</small>
   const form = (
     <div className="fields">
       <label className="field">
         <span>Nama</span>
-        <input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} placeholder="Nama agen baru" aria-invalid={tried && !!errs.name} />
+        <input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} placeholder="Nama pegawai baru" aria-invalid={tried && !!errs.name} />
         {err('name')}
       </label>
       <label className="field">
@@ -136,9 +136,9 @@ function BotDialog({ onClose }: { onClose: () => void }) {
   )
 
   return (
-    <Dialog title="Agen baru" onClose={onClose} wide>
+    <Dialog title="Pegawai baru" onClose={onClose} wide>
       <form onSubmit={(e) => void submit(e)} className="dlg-body" noValidate>
-        <div className="seg" role="tablist" aria-label="Cara membuat agen">
+        <div className="seg" role="tablist" aria-label="Cara membuat pegawai">
           {(['template', 'custom'] as const).map((t) => (
             <button key={t} type="button" role="tab" aria-selected={tab === t} disabled={busy} onClick={() => { setTab(t); setProblem(null) }}>
               {t === 'template' ? 'Dari template' : 'Buat sendiri'}
@@ -157,7 +157,7 @@ function BotDialog({ onClose }: { onClose: () => void }) {
                   <button type="button" className="tpl" aria-pressed={t.id === tpl} disabled={busy} onClick={() => pickTemplate(t)} style={{ ['--bot' as string]: botColor(t) }}>
                     <BotAvatar bot={t} size={36} />
                     <b>{t.name}</b>
-                    <span>{t.role}</span>
+                    <span>{roleLabel(t.role)}</span>
                     <small>{t.description}</small>
                   </button>
                 </li>
@@ -172,13 +172,13 @@ function BotDialog({ onClose }: { onClose: () => void }) {
               <span id="color-l">Warna <Opt /></span>
               <div className="swatches" role="radiogroup" aria-labelledby="color-l">
                 {Object.entries(COLORS).map(([c, hex]) => (
-                  <button key={c} type="button" role="radio" aria-checked={c === color} aria-label={`Warna ${c}`} className="swatch" style={{ background: hex }} onClick={() => setColor(c)} />
+                  <button key={c} type="button" role="radio" aria-checked={c === color} aria-label={`Warna ${colorLabel(c)}`} className="swatch" style={{ background: hex }} onClick={() => setColor(c)} />
                 ))}
               </div>
             </div>
             <label className="field">
-              <span>Persona</span>
-              <textarea value={persona} maxLength={2000} rows={6} onChange={(e) => setPersona(e.target.value)} placeholder="Jelaskan cara agen bekerja, gaya bahasanya, dan batasannya." aria-invalid={tried && !!errs.persona} />
+              <span>Tugas dan gaya bicara</span>
+              <textarea value={persona} maxLength={2000} rows={6} onChange={(e) => setPersona(e.target.value)} placeholder="Contoh: Kamu admin toko online saya. Jawab pelanggan dengan sopan dan singkat." aria-invalid={tried && !!errs.persona} />
               {err('persona')}
               <small className="counter num">{persona.length} / 2.000</small>
             </label>
@@ -189,7 +189,7 @@ function BotDialog({ onClose }: { onClose: () => void }) {
         {busy && (
           <div className="progress" role="status">
             <span className="bar-ind" aria-hidden="true" />
-            Membuat agen… bisa sampai 40 detik
+            Membuat pegawai… bisa sampai 40 detik
           </div>
         )}
         <footer className="dlg-foot">
@@ -197,7 +197,7 @@ function BotDialog({ onClose }: { onClose: () => void }) {
             Batal
           </button>
           <button type="submit" className="btn primary" disabled={busy || (tab === 'template' && !selected)}>
-            Buat agen
+            Buat pegawai
           </button>
         </footer>
       </form>
@@ -254,7 +254,7 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
                 {picked.length} / 6 dipilih, minimal 2
               </small>
             </span>
-            {bots.length === 0 && <p className="quiet state">Belum ada agen. Buat agen dulu.</p>}
+            {bots.length === 0 && <p className="quiet state">Belum ada pegawai. Buat pegawai dulu.</p>}
             <div className="picker">
               {Object.entries(byTeam).map(([team, list]) => (
                 <div key={team} className="picker-team">
@@ -267,7 +267,7 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
                         <BotAvatar bot={b} size={28} />
                         <span className="bot-text">
                           <b>{b.name}</b>
-                          <small>{b.role}</small>
+                          <small>{roleLabel(b.role)}</small>
                         </span>
                       </label>
                     )
@@ -346,7 +346,7 @@ function PlanDialog({ onClose }: { onClose: () => void }) {
                 {p.price && <p className="plan-price">{p.price}</p>}
                 <ul className="plan-limits num">
                   <li>{p.monthly_usd === null ? 'Biaya tanpa batas' : `Batas biaya ${p.monthly_usd.label} per bulan`}</li>
-                  <li>{p.max_bots} agen</li>
+                  <li>{p.max_bots} pegawai</li>
                   <li>{p.max_groups} tim</li>
                   <li>{p.max_concurrent_runs} tugas berjalan bersamaan</li>
                 </ul>
@@ -371,6 +371,7 @@ function PlanDialog({ onClose }: { onClose: () => void }) {
 // ---------- Hapus bot ----------
 function DeleteBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
   const { refreshBots, refreshGroups, refreshMe, flash } = useData()
+  const admin = useAdminMode()
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<Problem>(null)
   async function remove() {
@@ -382,8 +383,8 @@ function DeleteBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
       refreshMe()
       onClose()
       const r = parse(location.hash)
-      flash(`Agen ${bot.name} dihapus`)
-      if ((r.name === 'bot' || r.name === 'agen-detail' || r.name === 'agen-ubah') && r.id === bot.id) go('/agen')
+      flash(`Pegawai ${bot.name} dihapus`)
+      if ((r.name === 'bot' || r.name === 'agen-detail' || r.name === 'agen-ubah') && r.id === bot.id) go(admin ? '/agen' : '/')
     } catch (e) {
       setProblem(problemOf(e))
       setBusy(false)
@@ -393,7 +394,7 @@ function DeleteBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
     <Dialog title={`Hapus ${bot.name}?`} onClose={onClose}>
       <div className="dlg-body">
         <p>
-          {bot.name} dihapus dari daftar agen dan dari semua tim. Riwayat chat dengan {bot.name} tidak bisa dibuka lagi. Agen yang sedang bekerja tidak bisa dihapus.
+          {bot.name} dihapus dari daftar pegawai dan dari semua tim. Semua percakapan dengan {bot.name} ikut hilang. Dokumen di Pengetahuan tidak terhapus. Pegawai yang sedang bekerja tidak bisa dihapus; tunggu sampai selesai.
         </p>
         <ProblemLine p={problem} onPlan={() => {}} />
         <footer className="dlg-foot">
@@ -401,7 +402,7 @@ function DeleteBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
             Batal
           </button>
           <button className="btn danger" onClick={() => void remove()} disabled={busy}>
-            {busy ? 'Menghapus...' : 'Hapus agen'}
+            {busy ? 'Menghapus...' : 'Hapus pegawai'}
           </button>
         </footer>
       </div>
@@ -418,6 +419,7 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
   const [loadErr, setLoadErr] = useState('')
   const [name, setName] = useState(bot.name)
   const [persona, setPersona] = useState('')
+  const [color, setColor] = useState(bot.color || 'plain')
   const [model, setModel] = useState(modelKey(bot.provider, bot.model)) // '' = Ikuti bawaan
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState('')
@@ -429,6 +431,7 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
       (x) => {
         setD(x)
         setPersona(x.persona)
+        setColor(x.color || 'plain')
       },
       (e) => setLoadErr(errText(e)),
     )
@@ -441,7 +444,7 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
   // Picking a tier keeps the current model when it already belongs to it, else takes the middle model of the tier.
   const pick = (t: TierId) => setModel(cur === t && modelKey(bot.provider, bot.model) ? modelKey(bot.provider, bot.model) : tiers[t][Math.floor(tiers[t].length / 2)] ?? '')
   const selTier = model ? tierOf(splitModel(model).model ?? '') : ''
-  const nameErr = tried && !name.trim() ? 'Isi nama agen.' : ''
+  const nameErr = tried && !name.trim() ? 'Isi nama pegawai.' : ''
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
@@ -451,6 +454,7 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
     // built-in agents: the BFF only accepts run settings (model), so name and task are not sent
     if (!bot.builtin && name.trim() !== d.name.trim()) patch.name = name.trim()
     if (!bot.builtin && persona.trim() !== d.persona.trim()) patch.persona = persona.trim()
+    if (color !== (d.color || 'plain')) patch.color = color
     if (model !== modelKey(d.provider, d.model)) Object.assign(patch, splitModel(model))
     if (!Object.keys(patch).length) return onClose()
     setBusy(true)
@@ -458,7 +462,7 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
     try {
       await api.updateBot(bot.id, patch)
       await refreshBots().catch(() => [])
-      flash(`Agen ${name.trim()} disimpan`)
+      flash(`${name.trim()} disimpan`)
       onClose()
     } catch (err) {
       setProblem(errText(err))
@@ -473,7 +477,7 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
         {!d && !loadErr && <p className="quiet">Memuat...</p>}
         {d && (
           <fieldset disabled={busy} className="form-page">
-            {bot.builtin && <p className="quiet">Agen bawaan: nama dan tugasnya diatur sistem. Anda bisa memilih model AI-nya.</p>}
+            {bot.builtin && <p className="quiet">Pegawai bawaan: nama dan tugasnya diatur sistem. Anda bisa mengubah warna dan tingkat ketelitiannya.</p>}
             {!bot.builtin && <>
             <label className="field">
               <span>Nama</span>
@@ -481,7 +485,7 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
               {nameErr && <small className="err" role="alert">{nameErr}</small>}
             </label>
             <label className="field">
-              <span>Tugas agen ini</span>
+              <span>Tugas dan gaya bicara</span>
               <textarea
                 value={persona}
                 rows={6}
@@ -492,8 +496,16 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
               <small className="counter num">{persona.length} / 2.000</small>
             </label>
             </>}
-            <div className="field" role="radiogroup" aria-label="Model AI">
-              <span>Model AI</span>
+            <div className="field">
+              <span id="ec-l">Warna: {colorLabel(color)}</span>
+              <div className="swatches" role="radiogroup" aria-labelledby="ec-l">
+                {Object.entries(COLORS).map(([c, hex]) => (
+                  <button key={c} type="button" role="radio" aria-checked={c === color} aria-label={`Warna ${colorLabel(c)}`} className="swatch" style={{ background: hex }} onClick={() => setColor(c)} />
+                ))}
+              </div>
+            </div>
+            <div className="field" role="radiogroup" aria-label="Tingkat ketelitian">
+              <span>Tingkat ketelitian</span>
               <label className="radio-row">
                 <input type="radio" name="tier" checked={model === ''} onChange={() => setModel('')} />
                 <span>
@@ -514,7 +526,7 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
                 )
               })}
             </div>
-            <small className="quiet">Perubahan berlaku di tugas berikutnya.</small>
+            <small className="quiet">Perubahan berlaku mulai tugas berikutnya. Percakapan lama tidak berubah.</small>
           </fieldset>
         )}
         {problem && <p className="problem-bar" role="alert">{problem}</p>}

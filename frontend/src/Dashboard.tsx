@@ -3,9 +3,10 @@ import { ActionCard, useVisibleActions } from './ActionCard'
 import { useAdminMode } from './adminMode'
 import { api } from './bff'
 import { useData } from './data'
-import { Onboarding, hasName } from './Onboarding'
+import { Onboarding, DEFAULT_NAME, hasName, onboardingClosed } from './Onboarding'
 import type { Step } from './Onboarding'
 import { groupPath } from './router'
+import { TimAnda } from './TimAnda'
 import { toolLabel } from './steps'
 import { ErrorLine, nf, stamp } from './ui'
 import { CapChip, CostMeter, Empty, Loading, PageHead, useLoad } from './ui-extra'
@@ -57,16 +58,25 @@ export default function Dashboard() {
   if (loadState === 'loading') return <section className="page"><Loading text="Memuat beranda..." shape="page" /></section>
   if (loadState === 'error') return <section className="page"><ErrorLine text={error} onRetry={reload} /></section>
 
-  const team = groups[0] // "Minta tim Anda" opens the first team (Marketing) with the message box ready
+  const team = groups[0] // "Beri tugas ke tim" opens the first team (Marketing) with the message box ready
   const ask = team ? `#${groupPath(team.id)}?tulis=1` : '#/grup'
   const w = work.data
   const upcoming = w?.upcoming ?? []
+  const waitingCount = approvals.length + (w?.waiting.length ?? 0)
+  const defaultName = settings.company_name.trim() === DEFAULT_NAME
 
   const steps: Step[] = [
-    { id: 'name', title: 'Isi nama bisnis', hint: 'Nama bisnis Anda tampil di menu samping.', done: hasName(settings.company_name), href: '#/pengaturan/umum', action: 'Isi nama' },
-    { id: 'kb', title: 'Tambahkan pengetahuan bisnis', hint: 'Unggah berkas atau link agar agen mengenal bisnis Anda.', done: (kb.data?.length ?? 0) > 0, href: '#/pengetahuan', action: 'Tambah' },
+    {
+      id: 'name',
+      title: 'Isi nama bisnis',
+      hint: defaultName ? `Sekarang menampilkan "${settings.company_name.trim()}". Ganti dengan nama bisnis Anda.` : 'Nama bisnis Anda tampil di menu samping.',
+      done: hasName(settings.company_name),
+      href: '#/pengaturan/umum',
+      action: defaultName ? 'Ganti nama' : 'Isi nama',
+    },
+    { id: 'kb', title: 'Tambahkan pengetahuan bisnis', hint: 'Unggah berkas atau link agar pegawai AI mengenal bisnis Anda.', done: (kb.data?.length ?? 0) > 0, href: '#/pengetahuan', action: 'Tambah' },
     { id: 'drive', title: 'Sambungkan Google Drive', hint: 'Ambil berkas langsung dari Drive.', done: !!conn.data?.some((c) => c.provider === 'gdrive' && (c.status === 'connected' || c.status === 'needs_scope')), href: '#/aplikasi', action: 'Sambungkan', optional: true },
-    { id: 'plan', title: 'Minta rencana konten pertama', hint: 'Minta Tim Marketing menyusun rencana.', done: !!w?.anyPlan, href: ask, action: 'Minta tim' },
+    { id: 'plan', title: 'Minta rencana konten pertama', hint: 'Beri tugas ke tim Marketing: minta rencana konten.', done: !!w?.anyPlan, href: ask, action: 'Beri tugas' },
     { id: 'approve', title: 'Setujui rencana konten', hint: 'Tim mulai bekerja setelah Anda setuju.', done: !!w?.approved, href: w?.waiting.some((c) => c.kind === 'plan') ? '#/kanban' : ask, action: 'Tinjau' },
   ]
   // Wait for the data the steps are read from, so the card does not flash steps that are already done.
@@ -88,27 +98,34 @@ export default function Dashboard() {
     { href: '#/marketing', name: 'Marketing', detail: 'Memakai pengetahuan dan katalog Colorbox', cap: 'ok' },
     { href: '#/cs', name: 'Layanan pelanggan', detail: 'Jawaban perlu ditinjau manusia', cap: 'ok' },
     { href: '#/kanban', name: 'Jadwal & tugas', detail: 'Tugas berulang dan rencana konten', cap: 'ok' },
-    { href: '#/scheduler', name: 'Scheduler', detail: 'Aktif · Colorbox 5-Agent Automation', cap: 'ok' },
+    { href: '#/scheduler', name: 'Scheduler', detail: 'Tugas berulang ada di Jadwal & tugas', cap: 'ok' },
     { href: '#/computer-use', name: 'Computer Use', detail: 'Belum dibuka', cap: 'blocked' },
   ]
 
   return (
     <section className="page">
       <PageHead
+        inline
         title="Beranda"
         sub="Yang perlu Anda lakukan hari ini."
         actions={
-          <a className="btn primary" href={ask}>
-            Minta tim Anda
+          <a className="btn primary" href={ask} aria-label="Beri tugas ke tim">
+            <span>
+              Beri tugas<span className="hide-sm"> ke tim</span>
+            </span>
           </a>
         }
       />
 
+      {!stepsReady && !onboardingClosed() && <div className="panel-card onboard-row onb-skel" aria-hidden="true" />}
       {stepsReady && <Onboarding steps={steps} />}
 
       <div className="two">
-        <section className="panel-card" aria-labelledby="need-h">
-          <h2 id="need-h">Perlu persetujuan Anda</h2>
+        <section className="panel-card" data-empty={w && w.waiting.length === 0 && approvals.length === 0 ? '' : undefined} aria-labelledby="need-h">
+          <h2 id="need-h">
+            Perlu persetujuan Anda
+            {waitingCount > 0 && <span className="pill warn count-pill">{waitingCount}</span>}
+          </h2>
           {work.state === 'loading' && <Loading text="Memuat..." shape="ledger" rows={2} />}
           {work.state === 'error' && <ErrorLine text={work.error} onRetry={work.retry} />}
           {approvals.length > 0 && (
@@ -143,7 +160,7 @@ export default function Dashboard() {
           )}
         </section>
 
-        <section className="panel-card" aria-labelledby="next-h">
+        <section className="panel-card" data-empty={w && upcoming.length === 0 ? '' : undefined} aria-labelledby="next-h">
           <h2 id="next-h">Berikutnya</h2>
           {work.state === 'loading' && <Loading text="Memuat..." shape="ledger" rows={2} />}
           {w && upcoming.length === 0 && <p className="quiet state-note">Belum ada jadwal terdekat.</p>}
@@ -168,15 +185,20 @@ export default function Dashboard() {
         </section>
       </div>
 
-      <section className="panel-card cost-card" aria-labelledby="cost-h">
+      <section className="panel-card cost-card cost-compact" aria-labelledby="cost-h">
         <h2 id="cost-h">Biaya bulan ini</h2>
         {me ? <CostMeter u={me.usage} /> : <p className="quiet state-note">Belum terbaca.</p>}
+        <a className="btn link small cost-more" href="#/pengaturan/paket">
+          Lihat rincian
+        </a>
         {admin && me && (
-          <p className="quiet small">
+          <p className="quiet small cost-admin">
             Pemakaian: <span className="num">{nf.format(me.usage.tokens_month)}</span> token
           </p>
         )}
       </section>
+
+      <TimAnda />
 
       {admin && (
         <>

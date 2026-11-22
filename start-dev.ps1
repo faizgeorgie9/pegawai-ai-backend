@@ -53,6 +53,32 @@ if (-not (Test-Path (Join-Path $frontendDir 'node_modules'))) {
 
 $started = @()
 
+# Optional local Postgres. If .dev-postgres exists (git-ignored; line 1 = Postgres bin folder, line 2 = data folder) and nothing
+# listens on the port of DATABASE_URL in bff\.env, start that cluster with pg_ctl. Left running by stop-dev.ps1.
+$pgFile = Join-Path $PSScriptRoot '.dev-postgres'
+if (Test-Path $pgFile) {
+    $envText = Get-Content (Join-Path $bffDir '.env') -Raw
+    if ($envText -match '(?m)^DATABASE_URL=postgres(?:ql)?://[^@\r\n]*@([^:/\r\n]+):(\d+)/') {
+        $dbHost, $dbPort = $Matches[1], [int]$Matches[2]
+        $up = Get-NetTCPConnection -LocalPort $dbPort -State Listen -ErrorAction SilentlyContinue
+        if ($up) {
+            Write-Host "Postgres sudah berjalan ($dbPort)." -ForegroundColor Green
+        } elseif ($dbHost -in '127.0.0.1', 'localhost') {
+            $pgBin, $pgData = (Get-Content $pgFile | Where-Object { $_.Trim() } | Select-Object -First 2) | ForEach-Object { $_.Trim() }
+            if ($pgBin -and $pgData -and (Test-Path (Join-Path $pgBin 'pg_ctl.exe')) -and (Test-Path $pgData)) {
+                Write-Host "Menyalakan Postgres ($dbPort)..." -ForegroundColor Cyan
+                # Start-Process without -Wait, then poll the port: waiting on pg_ctl (or piping it) also waits for the postgres child, forever.
+                [void](Start-Process (Join-Path $pgBin 'pg_ctl.exe') -WindowStyle Hidden `
+                    -ArgumentList '-D', "`"$pgData`"", '-o', "`"-p $dbPort`"", '-l', "`"$(Join-Path $logDir 'postgres.log')`"", 'start')
+                for ($i = 0; $i -lt 60 -and -not (Get-NetTCPConnection -LocalPort $dbPort -State Listen -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Seconds 1 }
+                if (-not (Get-NetTCPConnection -LocalPort $dbPort -State Listen -ErrorAction SilentlyContinue)) { Write-Warning "Postgres belum menyala. Lihat $logDir\postgres.log." }
+            } else {
+                Write-Warning '.dev-postgres tidak valid: baris 1 = folder bin Postgres, baris 2 = folder data.'
+            }
+        }
+    }
+}
+
 # Hermes gateway. Reused when something already answers on 8642.
 if (Test-Url $hermesUrl) {
     Write-Host 'Hermes gateway sudah berjalan (8642).' -ForegroundColor Green

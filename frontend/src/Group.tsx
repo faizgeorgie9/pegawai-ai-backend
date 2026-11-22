@@ -12,11 +12,24 @@ import { PlanCard, withoutPlanBlock } from './PlanCard'
 import { PanelButtons, SidePanel, Split } from './Panel'
 import { MakeTaskButton } from './TaskPanel'
 import { GmailDraftButton } from './gmail-ui'
-import { RUNNING_HINT, STEER_KEY, STEER_TIP, isSteerKey } from './composerKeys'
+import { RUNNING_HINT, RUNNING_PLACEHOLDER, STEER_KEY, STEER_TIP, isSteerKey } from './composerKeys'
 import { KbAttach, KbLines, KbTrayView, asksToSave, useKbTray } from './kb-ui'
 import { groupPath } from './router'
 import { CopyButton } from './ui-extra'
-import { BotAvatar, CLOSE, ErrorLine, PENCIL, Icon, ThinkingBlock, botColor, clock, teamLabel } from './ui'
+import { BotAvatar, CLOSE, DOTS, ErrorLine, PENCIL, Icon, ThinkingBlock, botColor, cleanTaskText, clock, isTaskPrompt, roleLabel } from './ui'
+
+// Phone-only copy switches: the initial value is read synchronously, then kept in step with the media query.
+function useMedia(q: string) {
+  const [on, setOn] = useState(() => window.matchMedia(q).matches)
+  useEffect(() => {
+    const m = window.matchMedia(q)
+    const f = () => setOn(m.matches)
+    m.addEventListener('change', f)
+    setOn(m.matches)
+    return () => m.removeEventListener('change', f)
+  }, [q])
+  return on
+}
 
 const sameId = (a: string, b: string) => a === b
 type Problem = { text: string; upgrade?: boolean } | null
@@ -52,12 +65,43 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
   const [mention, setMention] = useState<{ start: number; query: string } | null>(null)
   const [pick, setPick] = useState(0)
   const [renaming, setRenaming] = useState<string | null>(null)
+  const [more, setMore] = useState(false)
+  const moreBtn = useRef<HTMLButtonElement>(null)
+  const [planOut, setPlanOut] = useState(false)
+  const phone = useMedia('(max-width: 640px)')
   const scroller = useRef<HTMLDivElement>(null)
   const stick = useRef(true)
   const anchor = useRef<number | null>(null)
   const box = useRef<HTMLTextAreaElement>(null)
   const epoch = useRef(0)
   const running = !!group?.running
+  const memberNames = members.map((m) => m.name).join(', ')
+  const planPending = [...msgs].reverse().find((m) => m.plan?.state === 'pending')
+
+  useEffect(() => {
+    if (!more) return
+    const off = () => setMore(false)
+    document.addEventListener('click', off)
+    return () => document.removeEventListener('click', off)
+  }, [more])
+
+  // The strip above the composer only shows while the pending plan's approve buttons are out of view.
+  function syncPlanOut() {
+    const card = planPending && document.getElementById(`plan-${planPending.id}`)
+    const view = scroller.current
+    const target = card?.querySelector('.approval-actions') ?? card
+    if (!target || !view) return setPlanOut(false)
+    const a = target.getBoundingClientRect()
+    const b = view.getBoundingClientRect()
+    setPlanOut(a.bottom < b.top + 40 || a.top > b.bottom - 40)
+  }
+  useEffect(syncPlanOut, [msgs])
+
+  function goToPlan() {
+    const card = planPending && document.getElementById(`plan-${planPending.id}`)
+    const target = card?.querySelector('.approval-actions') ?? card
+    target?.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+  }
 
   useEffect(() => {
     if (!location.hash.includes('tulis=1')) return
@@ -284,7 +328,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
   return (
     <Split panel={<SidePanel scope={{ group_id: id }} version={pv} group={group} members={members} />}>
     <section className="convo" aria-label={`Tim ${group.name}`}>
-      <header className="convo-head">
+      <header className="convo-head convo-head-chat convo-head-group">
         <button className="btn soft sm rail-open" onClick={onRail}>
           Daftar tim
         </button>
@@ -306,13 +350,13 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
           ) : (
             <h1>
               <button className="title-btn" onClick={() => setRenaming(group.name)} aria-label={`Ubah nama tim ${group.name}`}>
-                {group.name}
+                <span className="title-text">{group.name}</span>
                 <Icon d={PENCIL} size={14} />
               </button>
             </h1>
           )}
-          <p>
-            {members.map((m) => m.name).join(', ') || 'Belum ada anggota'}
+          <p title={memberNames}>
+            {memberNames || 'Belum ada anggota'}
             {running ? ' · diskusi berjalan' : ''}
           </p>
         </div>
@@ -321,10 +365,52 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
             <BotAvatar key={b.id} bot={b} size={28} />
           ))}
         </span>
-        <button className="btn soft sm" onClick={() => setDialog({ kind: 'group', id })}>
-          Atur anggota
-        </button>
-        <PanelButtons />
+        <span className="convo-extras">
+          <button className="btn soft sm" onClick={() => setDialog({ kind: 'group', id })}>
+            Atur anggota
+          </button>
+          <PanelButtons />
+        </span>
+        <span
+          className="convo-more"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setMore(false)
+              moreBtn.current?.focus()
+            }
+          }}
+        >
+          <button
+            ref={moreBtn}
+            className="icon-btn"
+            aria-label={`Menu tim ${group.name}`}
+            aria-haspopup="menu"
+            aria-expanded={more}
+            onClick={(e) => {
+              e.stopPropagation()
+              setMore((v) => !v)
+            }}
+          >
+            <Icon d={DOTS} />
+          </button>
+          {more && (
+            <div className="popmenu" role="menu" onClick={(e) => e.stopPropagation()}>
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setMore(false)
+                  setDialog({ kind: 'group', id })
+                }}
+              >
+                <Icon d={PENCIL} />
+                Atur anggota
+              </button>
+              <div role="none" className="convo-menu-row" onClick={() => setMore(false)}>
+                <PanelButtons />
+              </div>
+            </div>
+          )}
+        </span>
       </header>
 
       <div
@@ -334,6 +420,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
           const el = e.currentTarget
           stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
           if (el.scrollTop < 60) void loadOlder()
+          syncPlanOut()
         }}
       >
         <MentionsCtx.Provider value={members}>
@@ -368,6 +455,14 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
       </div>
 
       <div className="composer-wrap">
+        {planPending && planOut && (
+          <div className="plan-pin" role="status">
+            <span>Rencana menunggu persetujuan Anda.</span>
+            <button type="button" className="btn primary sm" onClick={goToPlan}>
+              Lihat dan setujui
+            </button>
+          </div>
+        )}
         {pending.length > 0 && (
           <ul className="queue-rows" aria-label="Pesan menunggu giliran">
             {pending.map((mid) => (
@@ -408,7 +503,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
                   <button type="button" className="mention-row" data-on={i === pick || undefined} onMouseDown={(e) => e.preventDefault()} onClick={() => choose(b)}>
                     <BotAvatar bot={b} size={24} />
                     <b>{b.name}</b>
-                    <small>{b.role}</small>
+                    <small>{roleLabel(b.role)}</small>
                   </button>
                 </li>
               ))}
@@ -424,7 +519,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
             ref={box}
             rows={1}
             value={draft}
-            placeholder={running ? 'Agen sedang bekerja. Pesan Anda akan dikirim setelah selesai.' : 'Tulis pesan. Ketik @ untuk menyebut anggota.'}
+            placeholder={running ? RUNNING_PLACEHOLDER : phone ? 'Tulis tugas untuk tim, atau @nama' : 'Tulis pesan. Ketik @ untuk menyebut anggota.'}
             onChange={(e) => {
               setDraft(e.target.value)
               track(e.target)
@@ -482,11 +577,16 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
 function GroupBubble({ m, members, bot, queued, thought, onPlanState }: { m: GroupMsg; members: Bot[]; bot?: Bot; queued: boolean; thought?: { text: string; seconds?: number }; onPlanState: (s: Pick<ContentPlan, 'task_id' | 'state'>) => void }) {
   if (m.role === 'system') return <p className="sys-msg">{m.text}</p>
   if (m.role === 'user') {
+    const clean = cleanTaskText(m.text)
     return (
       <div className="msg user">
-        <p>{m.text}</p>
-        {queued && <span className="pending-tag">Menunggu giliran, dikirim setelah ronde selesai</span>}
-        <div className="msg-tools user-tools"><MakeTaskButton text={m.text} group={m.group_id} /></div>
+        <p>{clean}</p>
+        {queued && <span className="pending-tag">Menunggu giliran, dikirim setelah semua anggota selesai menjawab</span>}
+        {clean.trim() && !isTaskPrompt(m.text) && (
+          <div className="msg-tools user-tools">
+            <MakeTaskButton text={clean} group={m.group_id} />
+          </div>
+        )}
       </div>
     )
   }
@@ -495,13 +595,12 @@ function GroupBubble({ m, members, bot, queued, thought, onPlanState }: { m: Gro
   const tokens = new Set([...m.text.matchAll(/@(\w+)/g)].map((x) => x[1].toLowerCase()))
   const delegates = members.filter((b) => b.id !== m.bot_id && (tokens.has(b.id.toLowerCase()) || tokens.has(b.name.split(' ')[0].toLowerCase())))
   return (
-    <div className="msg bot gmsg" style={{ ['--bot' as string]: botColor(bot) }}>
+    <div className="msg bot gmsg" id={m.plan ? `plan-${m.id}` : undefined} style={{ ['--bot' as string]: botColor(bot) }}>
       <BotAvatar bot={bot ?? { name: '?', color: '' }} size={32} />
       <div className="msg-body">
         <p className="gmsg-who">
-          <b>{bot?.name ?? 'Agen'}</b>
-          {bot?.role && <span>{bot.role}</span>}
-          {bot?.team && <span className="team-tag" data-team={bot.team}>{teamLabel(bot.team)}</span>}
+          <b>{bot?.name ?? 'Pegawai'}</b>
+          {bot?.role && <span>{roleLabel(bot.role)}</span>}
           <time>{clock(m.created_at)}</time>
         </p>
         {thought?.text && <ThinkingBlock text={thought.text} running={false} seconds={thought.seconds} />}
@@ -540,9 +639,8 @@ function LiveBubble({ t, bot }: { t: Turn; bot?: Bot }) {
       <BotAvatar bot={bot ?? { name: '?', color: '' }} size={32} />
       <div className="msg-body">
         <p className="gmsg-who">
-          <b>{bot?.name ?? 'Agen'}</b>
-          {bot?.role && <span>{bot.role}</span>}
-          {bot?.team && <span className="team-tag">{teamLabel(bot.team)}</span>}
+          <b>{bot?.name ?? 'Pegawai'}</b>
+          {bot?.role && <span>{roleLabel(bot.role)}</span>}
         </p>
         <LiveSteps tools={t.tools} running writing={!waiting} />
         <ThinkingBlock text={t.reasoning} running={waiting} />
