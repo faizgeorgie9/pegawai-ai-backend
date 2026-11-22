@@ -15,6 +15,11 @@ const COLUMN_EMPTY: Record<string, string> = {
   done: 'Belum ada pekerjaan yang selesai.',
   archived: 'Arsip masih kosong.',
 }
+// The BFF's hint text still says "Agen"; the board speaks about pegawai.
+const COLUMN_HINT: Record<string, string> = {
+  running: 'Pegawai sedang mengerjakan',
+  needs_you: 'Pegawai menunggu persetujuan atau jawaban Anda',
+}
 const WEEK = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
 const ZONE: Record<string, string> = { 'Asia/Jakarta': 'WIB', 'Asia/Makassar': 'WITA', 'Asia/Jayapura': 'WIT' }
 // only these two moves can be dragged (Perlu Anda -> Antre, Selesai -> Antre); Dikerjakan is never a drop target
@@ -64,7 +69,7 @@ function Card({ c, ask, act, open }: { c: TaskCard; ask: Ask; act: (f: () => Pro
             </span>
           )}
         </span>
-        <span className={`kc-note ${c.column === 'needs_you' ? 'wait' : ''}`}>{c.line}</span>
+        <span className={`kc-note ${c.column === 'needs_you' ? 'wait' : ''}`}>{c.line.replace(/\bAgen\b/g, 'Pegawai')}</span>
         {(c.priority > 0 || c.outcome === 'failed' || c.outcome === 'cancelled' || c.cost || admin) && (
           <span className="kc-foot">
             {c.priority > 0 && <span className="pill warn cls">Penting</span>}
@@ -117,12 +122,22 @@ function Card({ c, ask, act, open }: { c: TaskCard; ask: Ask; act: (f: () => Pro
   )
 }
 
+// The next full hour, as the value of <input type="datetime-local">: opening "Jadwalkan" starts from a real time,
+// never from the browser's English mm/dd/yyyy placeholder.
+const nextHour = () => {
+  const d = new Date(Date.now() + 3_600_000)
+  d.setMinutes(0, 0, 0)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
 // Quick add at the top of Antre: a title, who does it, an optional time. Enter saves.
 function QuickAdd({ agent, onAdded }: { agent: string; onAdded: () => void }) {
   const { bots, groups } = useData()
   const [title, setTitle] = useState('')
   const [who, setWho] = useState('')
   const [at, setAt] = useState('')
+  const [sched, setSched] = useState(false)
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState('')
   const target = who || (agent ? `bot:${agent}` : bots[0] ? `bot:${bots[0].id}` : '')
@@ -136,6 +151,7 @@ function QuickAdd({ agent, onAdded }: { agent: string; onAdded: () => void }) {
       await api.createTask({ title: title.trim(), ...(kind === 'bot' ? { assignee_bot: id } : { assignee_group: id }), ...(at ? { scheduled_at: new Date(at).toISOString() } : {}) })
       setTitle('')
       setAt('')
+      setSched(false)
       onAdded()
     } catch (err) {
       setProblem(errText(err))
@@ -146,19 +162,54 @@ function QuickAdd({ agent, onAdded }: { agent: string; onAdded: () => void }) {
     <form className="tq-add" onSubmit={(e) => void submit(e)}>
       <input value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} placeholder="Tambah tugas, lalu tekan Enter" aria-label="Judul tugas baru" />
       <div className="tq-row">
-        <select value={target} onChange={(e) => setWho(e.target.value)} aria-label="Siapa yang mengerjakan?">
-          {bots.map((b) => (
-            <option key={b.id} value={`bot:${b.id}`}>
-              {b.name}
-            </option>
-          ))}
-          {groups.map((g) => (
-            <option key={g.id} value={`group:${g.id}`}>
-              Tim {g.name}
-            </option>
-          ))}
-        </select>
-        <input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} aria-label="Jadwal (opsional)" title="Jadwal (opsional)" />
+        <label className="tq-field">
+          <span>Dikerjakan oleh</span>
+          <select value={target} onChange={(e) => setWho(e.target.value)}>
+            <optgroup label="Pegawai">
+              {bots.map((b) => (
+                <option key={b.id} value={`bot:${b.id}`}>
+                  {b.name}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Tim">
+              {groups.map((g) => (
+                <option key={g.id} value={`group:${g.id}`}>
+                  {g.name}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+        </label>
+        <div className="tq-field">
+          <span id="tq-when">Mulai (opsional)</span>
+          {sched ? (
+            <>
+              <input type="datetime-local" lang="id" value={at} aria-labelledby="tq-when" onChange={(e) => setAt(e.target.value)} />
+              <button
+                type="button"
+                className="btn link sm"
+                onClick={() => {
+                  setSched(false)
+                  setAt('')
+                }}
+              >
+                Hapus jadwal
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn outline sm"
+              onClick={() => {
+                setSched(true)
+                setAt(nextHour())
+              }}
+            >
+              Jadwalkan
+            </button>
+          )}
+        </div>
       </div>
       {problem && <ErrorLine text={problem} />}
     </form>
@@ -233,8 +284,8 @@ function NewSchedule({ onClose }: { onClose: (created: boolean) => void }) {
         <label className="field">
           <span>Siapa yang mengerjakan?</span>
           <select value={target} onChange={(e) => setTarget(e.target.value)}>
-            <option value="">Pilih agen atau tim</option>
-            <optgroup label="Agen">
+            <option value="">Pilih pegawai atau tim</option>
+            <optgroup label="Pegawai">
               {bots.map((b) => (
                 <option key={b.id} value={`bot:${b.id}`}>
                   {b.name}
@@ -404,7 +455,7 @@ export default function Kanban() {
       <header className="page-head">
         <div>
           <h1 id="kb-h">Jadwal &amp; tugas</h1>
-          <p className="quiet">Beri tugas ke agen Anda dan pantau sampai selesai.</p>
+          <p className="quiet">Beri tugas ke pegawai AI Anda dan pantau sampai selesai.</p>
         </div>
         <div className="filters">
           <button type="button" className="btn outline" onClick={() => setCreating(true)}>
@@ -416,9 +467,9 @@ export default function Kanban() {
         </div>
         <div className="filters kb-more" id="kb-filters" hidden={!filterOpen}>
           <label className="field inline">
-            <span>Agen</span>
+            <span>Pegawai</span>
             <select value={agent} onChange={(e) => setAgent(e.target.value)}>
-              <option value="">Semua agen</option>
+              <option value="">Semua pegawai</option>
               {bots.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
@@ -505,7 +556,7 @@ export default function Kanban() {
                 <h2 id={`kb-${c.id}`}>
                   {c.label} <b className="num">{c.total}</b>
                 </h2>
-                <p className="quiet small">{c.hint}</p>
+                <p className="quiet small">{COLUMN_HINT[c.id] ?? c.hint}</p>
               </header>
               {c.id === 'queue' && <QuickAdd agent={agent} onAdded={() => load(true)} />}
               {c.cards.length === 0 ? (

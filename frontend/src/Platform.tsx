@@ -55,7 +55,7 @@ export function Tools() {
       {t.state === 'ok' && list.length === 0 && failed.length === 0 && <Empty title="Belum ada alat">Belum ada agen yang bisa ditanya.</Empty>}
       {t.state === 'ok' && list.length === 0 && failed.length > 0 && (
         <p>
-          <CapChip cap="unknown" /> Tidak ada data toolset yang bisa ditampilkan.
+          <CapChip cap="unknown" /> Tidak ada data kemampuan yang bisa ditampilkan.
         </p>
       )}
       <div className="table-wrap">

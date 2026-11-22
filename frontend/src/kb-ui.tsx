@@ -6,7 +6,7 @@ import { SourcePicker } from './pick-ui'
 import { Md } from './rich'
 import { CLOSE, Dialog, ErrorLine, Icon } from './ui'
 
-// Knowledge Base in the composer (shared by Chat and Group): an attachment icon for files, a chip under a pasted link,
+// Pengetahuan in the composer (shared by Chat and Group): an attachment icon for files, a chip under a pasted link,
 // and an inline status line per item. The BFF does the work (bff/kb.py); this file only shows it.
 
 export const KB_ACCEPT = '.txt,.md,.csv,.pdf,.docx'
@@ -99,13 +99,13 @@ export function KbAttach({ kb }: { kb: KbTray }) {
         multiple
         hidden
         accept={KB_ACCEPT}
-        aria-label="Pilih berkas untuk Knowledge Base"
+        aria-label="Pilih berkas untuk Pengetahuan"
         onChange={(e) => {
           if (e.target.files?.length) kb.addFiles(e.target.files)
           e.target.value = ''
         }}
       />
-      <button type="button" className="icon-btn" aria-label="Lampirkan ke Knowledge Base" aria-haspopup="menu" aria-expanded={menu} title={`Lampirkan: ${KB_TYPES_TEXT}`} onClick={() => setMenu((m) => !m)}>
+      <button type="button" className="icon-btn" aria-label="Lampirkan ke Pengetahuan" aria-haspopup="menu" aria-expanded={menu} title={`Lampirkan: ${KB_TYPES_TEXT}`} onClick={() => setMenu((m) => !m)}>
         <Icon d={PAPERCLIP} size={18} />
       </button>
       {menu && (
@@ -138,7 +138,7 @@ const STATE_TEXT = { processing: 'memproses…', ready: 'tersimpan', failed: 'ga
 export function KbTrayView({ kb }: { kb: KbTray }) {
   if (!kb.tray.length && !kb.links.length) return null
   return (
-    <ul className="kb-tray" aria-label="Knowledge Base">
+    <ul className="kb-tray" aria-label="Pengetahuan">
       {kb.tray.map((t) => (
         <li key={t.key} className="kb-chip" data-s={t.state} role={t.state === 'failed' ? 'alert' : undefined}>
           <span className="kb-dot" aria-hidden="true" />
@@ -157,7 +157,7 @@ export function KbTrayView({ kb }: { kb: KbTray }) {
         <li key={u} className="kb-chip" data-s="link">
           <span className="kb-name">{u.replace(/^https?:\/\//, '')}</span>
           <button type="button" className="btn link sm" onClick={() => kb.saveLink(u)}>
-            Simpan ke Knowledge Base
+            Simpan ke Pengetahuan
           </button>
           <button type="button" className="icon-btn tiny" aria-label="Sembunyikan" onClick={() => kb.skip(u)}>
             <Icon d={CLOSE} size={12} />
@@ -173,10 +173,17 @@ export function KbLines({ items, busy }: { items?: KbItem[]; busy?: boolean }) {
   if (!items?.length && !busy) return null
   return (
     <div className="kb-lines">
-      {busy && <p className="kb-line" data-s="processing">Knowledge Base: memproses link…</p>}
+      {busy && <p className="kb-line" data-s="processing">Pengetahuan: memproses link…</p>}
       {items?.map((i, n) => (
         <p key={n} className="kb-line" data-s={i.status} role={i.status === 'failed' ? 'alert' : undefined}>
-          Knowledge Base: {i.status === 'ready' ? `tersimpan, ${i.name}` : `gagal menyimpan ${i.source ?? i.name}. ${i.error ?? ''}`}
+          {i.status === 'ready' ? (
+            <>
+              Disimpan ke Pengetahuan: {i.name}. Ini dokumen yang bisa dibaca semua pegawai, bukan ingatan percakapan.{' '}
+              <a className="btn link" href="#/pengetahuan">Lihat</a>
+            </>
+          ) : (
+            `Pengetahuan: gagal menyimpan ${i.source ?? i.name}. ${i.error ?? ''}`
+          )}
           {i.status === 'failed' && needsDrive(i.error) && <DriveLink />}
         </p>
       ))}

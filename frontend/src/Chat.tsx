@@ -18,7 +18,7 @@ import { RUNNING_HINT, RUNNING_PLACEHOLDER, STEER_KEY, STEER_TIP, isSteerKey } f
 import { ClarifyCard, CopyButton, RunProgress, statusText } from './ui-extra'
 import { PanelButtons, SidePanel, Split } from './Panel'
 import { MakeTaskButton } from './TaskPanel'
-import { BotAvatar, CLOSE, Icon, ThinkingBlock, botColor, nf } from './ui'
+import { BotAvatar, CLOSE, Icon, ThinkingBlock, botColor, cleanTaskText, isTaskPrompt, nf, roleLabel } from './ui'
 
 const THINK_KEY = 'pegawai.showThinking'
 function readThink(): boolean {
@@ -31,7 +31,7 @@ function readThink(): boolean {
 
 type Problem = { text: string; upgrade?: boolean } | null
 
-export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: Bot; sid?: string; sessions: Session[]; onSessions: () => void; onRail: () => void }) {
+export default function Chat({ bot, sid, sessions, onSessions, onRail, onHistory }: { bot: Bot; sid?: string; sessions: Session[]; onSessions: () => void; onRail: () => void; onHistory: () => void }) {
   const [pv, setPv] = useState(0) // bumped whenever the side panel's data may have changed
   const bump = () => setPv((n) => n + 1)
   const admin = useAdminMode()
@@ -140,7 +140,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
             approval: undefined,
             tools: settle(m.tools),
             stopped: /stop|cancel|interrupt/.test(status) || undefined,
-            error: /fail|error/.test(status) ? asStr(d.error) || 'Agen belum berhasil menyelesaikan tugas ini.' : undefined,
+            error: /fail|error/.test(status) ? asStr(d.error) || 'Pegawai belum berhasil menyelesaikan tugas ini.' : undefined,
           }))
           finish()
         },
@@ -356,12 +356,12 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
         <div className="convo-title">
           <h1>{bot.name}</h1>
           <p>
-            {bot.role} · {statusText(bot)}
+            {roleLabel(bot.role)} · {statusText(bot)}
             {admin && active?.model && active.messageCount !== -1 ? ` · ${active.model}` : ''}
           </p>
         </div>
         <button className="btn soft sm" onClick={() => setDialog({ kind: 'edit', bot })}>
-          Atur agen
+          Atur pegawai
         </button>
         <button className="btn soft sm convo-new" title="Mulai percakapan baru, riwayat lama tetap ada" onClick={() => go(botPath(bot.id))}>
           Topik baru
@@ -388,8 +388,16 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
               <BotAvatar bot={bot} size={56} />
               <h2>{sid && !problem ? 'Percakapan kosong' : `Mulai topik baru dengan ${bot.name}`}</h2>
               <p>
-                {bot.role}. Tulis pesan di bawah; {bot.name} melanjutkan topik yang sama sampai Anda memilih Topik baru.
+                {roleLabel(bot.role)}. Tulis pesan di bawah; {bot.name} melanjutkan topik yang sama sampai Anda memilih Topik baru.
               </p>
+              {sessions.length > 0 && (
+                <p className="quiet small">
+                  Ada {sessions.length} topik lain dengan {bot.name}.{' '}
+                  <button type="button" className="btn link" onClick={onHistory}>
+                    Buka riwayat
+                  </button>
+                </p>
+              )}
               {admin && bot.team === 'marketing' && (
                 <a className="empty-link" href="#/marketing">
                   Butuh alur brief → konten? Buka Marketing
@@ -527,12 +535,18 @@ function Message(p: {
   const cs = useMemo(() => (m.role === 'assistant' ? csFromText(m.content) : null), [m.role, m.content])
   const draft = useMemo(() => (live && m.role === 'assistant' ? partialReplyDraft(m.content) : null), [live, m.role, m.content]) // CS reply while its JSON is still open
   const sm = useSmoothText(m.content, live && m.role === 'assistant')
+  // A task's prompt reaches the BFF with the agent's instruction appended; the owner sees only what they asked.
+  const clean = m.role === 'user' ? cleanTaskText(m.content) : m.content
   if (m.role === 'user') {
     return (
       <div className="msg user">
-        <p>{m.content}</p>
+        <p>{clean}</p>
         <KbLines items={m.kb} busy={m.kbBusy} />
-        {m.content.trim() && <div className="msg-tools user-tools"><MakeTaskButton text={m.content} bot={bot.id} /></div>}
+        {clean.trim() && !isTaskPrompt(m.content) && (
+          <div className="msg-tools user-tools">
+            <MakeTaskButton text={clean} bot={bot.id} />
+          </div>
+        )}
       </div>
     )
   }
@@ -568,8 +582,8 @@ function Message(p: {
         )}
         {m.approval && (
           <div className="approval" role="group" aria-label="Butuh izin">
-            <p className="approval-title">Agen meminta izin</p>
-            <p>{m.approval.description || 'Agen ingin menjalankan satu tindakan.'}</p>
+            <p className="approval-title">Pegawai meminta izin</p>
+            <p>{m.approval.description || 'Pegawai ingin menjalankan satu tindakan.'}</p>
             <div className="approval-actions">
               <button className="btn primary" onClick={() => p.onApprove(false)}>
                 Izinkan sekali

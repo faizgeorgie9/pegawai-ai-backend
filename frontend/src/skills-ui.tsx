@@ -44,6 +44,7 @@ export function SkillSwitches({ slug, skills, onChange }: { slug: string; skills
                 </span>
                 <input type="checkbox" role="switch" className="tgl" checked={s.enabled} disabled={busy === s.name} onChange={(e) => void flip(s, e.target.checked)} aria-label={label} />
               </label>
+              {s.name === 'memory' && !s.enabled && <p className="quiet small skill-note">Ingatan dimatikan. Hal yang sudah diingat tetap tersimpan.</p>}
             </li>
           )
         })}
@@ -62,7 +63,7 @@ export function AgentSkills({ slug }: { slug: string }) {
   return <SkillSwitches slug={slug} skills={local ?? r.data} onChange={setLocal} />
 }
 
-// Aplikasi page: "Keahlian agen". One card per skill, who uses it, and "Atur" for the per-agent switches.
+// Aplikasi page: "Keahlian pegawai". One card per skill, who uses it, and "Atur" for the per-agent switches.
 export function SkillsSection({ q = '' }: { q?: string }) {
   const admin = useAdminMode()
   const fn = useCallback(() => api.skillsAll(), [])
@@ -78,8 +79,8 @@ export function SkillsSection({ q = '' }: { q?: string }) {
   return (
     <section className="apps-group" aria-labelledby="g-skills">
       <header>
-        <h2 id="g-skills">Keahlian agen</h2>
-        <p className="quiet small">Kemampuan bawaan yang bisa dinyalakan atau dimatikan untuk tiap agen.</p>
+        <h2 id="g-skills">Keahlian pegawai</h2>
+        <p className="quiet small">Kemampuan bawaan yang bisa dinyalakan atau dimatikan untuk tiap pegawai.</p>
       </header>
       {r.state === 'loading' && !r.data && <Loading text="Memuat keahlian..." shape="ledger" />}
       {r.state === 'error' && !r.data && <ErrorLine text="Daftar keahlian belum bisa dimuat. Coba lagi sebentar." onRetry={r.retry} />}
@@ -94,7 +95,7 @@ export function SkillsSection({ q = '' }: { q?: string }) {
                   <h3>{label}</h3>
                 </div>
                 <p>{text}</p>
-                <p className="quiet small">{who.length ? `Dipakai: ${who.join(', ')}` : 'Belum dipakai agen mana pun.'}</p>
+                <p className="quiet small">{who.length ? `Dipakai: ${who.join(', ')}` : 'Belum dipakai pegawai mana pun.'}</p>
                 <div className="app-card-act">
                   <button type="button" className="btn soft" onClick={() => setOpen(s.name)}>
                     Atur
@@ -109,7 +110,10 @@ export function SkillsSection({ q = '' }: { q?: string }) {
       {current && (
         <Dialog title={skillText(current)[0]} onClose={() => setOpen(null)}>
          <div className="dlg-body">
-          <p className="quiet">{skillText(current)[1]} Pilih agen yang boleh memakainya.</p>
+          <p className="quiet">{skillText(current)[1]} Pilih pegawai yang boleh memakainya.</p>
+          {current.name === 'memory' && data.every((a) => a.skills.find((s) => s.name === 'memory')?.enabled === false) && (
+            <p className="quiet small skill-note">Ingatan dimatikan. Hal yang sudah diingat tetap tersimpan.</p>
+          )}
           <ul className="skill-list">
             {data.map((a) => (
               <AgentRow key={a.id} agent={a} name={current.name} label={skillText(current)[0]} onChange={(skills) => setAgents(data.map((x) => (x.id === a.id ? { ...x, skills } : x)))} />
@@ -141,7 +145,7 @@ function AgentRow({ agent, name, label, onChange }: { agent: AgentSkillsData; na
       <label className="skill-row">
         <span className="skill-txt">
           <b>{agent.name}</b>
-          {!agent.ok && <span className="quiet small">Agen belum bisa dihubungi.</span>}
+          {!agent.ok && <span className="quiet small">Pegawai belum bisa dihubungi.</span>}
           {problem && <span className="connect-warn small">{problem}</span>}
         </span>
         <input type="checkbox" role="switch" className="tgl" checked={on} disabled={busy || !agent.ok} onChange={(e) => void flip(e.target.checked)} aria-label={`${label} untuk ${agent.name}`} />

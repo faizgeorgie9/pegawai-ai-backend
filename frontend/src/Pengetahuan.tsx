@@ -79,7 +79,7 @@ export function MySources() {
   return (
     <div className="kb-sec">
       <h2>Sumber milik Anda</h2>
-      <p className="quiet">Semua agen Anda memakai berkas dan link ini, dan menyebut sumbernya.</p>
+      <p className="quiet">Semua pegawai AI Anda membaca berkas dan link ini, dan menyebut sumbernya. Ini bukan ingatan percakapan: yang di sini hanya yang Anda unggah atau simpan.</p>
       <div className="kb-add">
         <input
           ref={file}
@@ -114,7 +114,7 @@ export function MySources() {
         </form>
       </div>
       <p className="meta">
-        Berkas: {KB_TYPES_TEXT}. Drive pribadi perlu disambungkan dulu di <a href="#/aplikasi">Aplikasi</a>.
+        Berkas: {KB_TYPES_TEXT}. Drive pribadi perlu disambungkan dulu di <a className="kb-link" href="#/aplikasi">Aplikasi</a>.
       </p>
       {problem && (
         <p className="problem-bar small" role="alert">
@@ -139,8 +139,9 @@ export function MySources() {
       <ul className="kb-list">
         {items.data?.map((i) => (
           <li key={i.id} className="kb-row" data-s={i.status}>
-            <span className="pill">{KB_KIND[i.kind]}</span>
+            {i.kind !== 'file' && <span className="pill">{KB_KIND[i.kind]}</span>}
             <div className="kb-rtext">
+              {i.kind === 'file' && <span className="sr">{KB_KIND[i.kind]}</span>}
               {i.status === 'ready' && i.id ? (
                 <button className="kb-rname kb-open" onClick={() => setViewing(i)}>
                   {i.name}
@@ -223,7 +224,7 @@ export default function Pengetahuan() {
   const admin = useAdminMode()
   return (
     <section className="page">
-      <PageHead title="Pengetahuan" sub="Ajari agen tentang bisnis Anda lewat berkas dan link." />
+      <PageHead title="Pengetahuan" sub="Ajari pegawai AI tentang bisnis Anda lewat berkas dan link." />
       <MySources />
       {admin && <BuiltinDocs />}
     </section>

@@ -4,7 +4,7 @@ import { CLOSE, Icon, I } from './ui'
 // Checklist card on Beranda until every step is done or the user closes it ("ditutup" is remembered in this browser).
 const CLOSED = 'pa.onboarding.closed'
 const NAMED = 'pa.onboarding.named'
-const DEFAULT_NAME = 'Colorbox'
+export const DEFAULT_NAME = 'Colorbox'
 
 const read = (k: string) => {
   try {

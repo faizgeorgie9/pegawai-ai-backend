@@ -12,11 +12,11 @@ import { PlanCard, withoutPlanBlock } from './PlanCard'
 import { PanelButtons, SidePanel, Split } from './Panel'
 import { MakeTaskButton } from './TaskPanel'
 import { GmailDraftButton } from './gmail-ui'
-import { RUNNING_HINT, STEER_KEY, STEER_TIP, isSteerKey } from './composerKeys'
+import { RUNNING_HINT, RUNNING_PLACEHOLDER, STEER_KEY, STEER_TIP, isSteerKey } from './composerKeys'
 import { KbAttach, KbLines, KbTrayView, asksToSave, useKbTray } from './kb-ui'
 import { groupPath } from './router'
 import { CopyButton } from './ui-extra'
-import { BotAvatar, CLOSE, ErrorLine, PENCIL, Icon, ThinkingBlock, botColor, clock, teamLabel } from './ui'
+import { BotAvatar, CLOSE, ErrorLine, PENCIL, Icon, ThinkingBlock, botColor, cleanTaskText, clock, isTaskPrompt, roleLabel } from './ui'
 
 const sameId = (a: string, b: string) => a === b
 type Problem = { text: string; upgrade?: boolean } | null
@@ -408,7 +408,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
                   <button type="button" className="mention-row" data-on={i === pick || undefined} onMouseDown={(e) => e.preventDefault()} onClick={() => choose(b)}>
                     <BotAvatar bot={b} size={24} />
                     <b>{b.name}</b>
-                    <small>{b.role}</small>
+                    <small>{roleLabel(b.role)}</small>
                   </button>
                 </li>
               ))}
@@ -424,7 +424,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
             ref={box}
             rows={1}
             value={draft}
-            placeholder={running ? 'Agen sedang bekerja. Pesan Anda akan dikirim setelah selesai.' : 'Tulis pesan. Ketik @ untuk menyebut anggota.'}
+            placeholder={running ? RUNNING_PLACEHOLDER : 'Tulis pesan. Ketik @ untuk menyebut anggota.'}
             onChange={(e) => {
               setDraft(e.target.value)
               track(e.target)
@@ -482,11 +482,16 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
 function GroupBubble({ m, members, bot, queued, thought, onPlanState }: { m: GroupMsg; members: Bot[]; bot?: Bot; queued: boolean; thought?: { text: string; seconds?: number }; onPlanState: (s: Pick<ContentPlan, 'task_id' | 'state'>) => void }) {
   if (m.role === 'system') return <p className="sys-msg">{m.text}</p>
   if (m.role === 'user') {
+    const clean = cleanTaskText(m.text)
     return (
       <div className="msg user">
-        <p>{m.text}</p>
-        {queued && <span className="pending-tag">Menunggu giliran, dikirim setelah ronde selesai</span>}
-        <div className="msg-tools user-tools"><MakeTaskButton text={m.text} group={m.group_id} /></div>
+        <p>{clean}</p>
+        {queued && <span className="pending-tag">Menunggu giliran, dikirim setelah semua anggota selesai menjawab</span>}
+        {clean.trim() && !isTaskPrompt(m.text) && (
+          <div className="msg-tools user-tools">
+            <MakeTaskButton text={clean} group={m.group_id} />
+          </div>
+        )}
       </div>
     )
   }
@@ -499,9 +504,8 @@ function GroupBubble({ m, members, bot, queued, thought, onPlanState }: { m: Gro
       <BotAvatar bot={bot ?? { name: '?', color: '' }} size={32} />
       <div className="msg-body">
         <p className="gmsg-who">
-          <b>{bot?.name ?? 'Agen'}</b>
-          {bot?.role && <span>{bot.role}</span>}
-          {bot?.team && <span className="team-tag" data-team={bot.team}>{teamLabel(bot.team)}</span>}
+          <b>{bot?.name ?? 'Pegawai'}</b>
+          {bot?.role && <span>{roleLabel(bot.role)}</span>}
           <time>{clock(m.created_at)}</time>
         </p>
         {thought?.text && <ThinkingBlock text={thought.text} running={false} seconds={thought.seconds} />}
@@ -540,9 +544,8 @@ function LiveBubble({ t, bot }: { t: Turn; bot?: Bot }) {
       <BotAvatar bot={bot ?? { name: '?', color: '' }} size={32} />
       <div className="msg-body">
         <p className="gmsg-who">
-          <b>{bot?.name ?? 'Agen'}</b>
-          {bot?.role && <span>{bot.role}</span>}
-          {bot?.team && <span className="team-tag">{teamLabel(bot.team)}</span>}
+          <b>{bot?.name ?? 'Pegawai'}</b>
+          {bot?.role && <span>{roleLabel(bot.role)}</span>}
         </p>
         <LiveSteps tools={t.tools} running writing={!waiting} />
         <ThinkingBlock text={t.reasoning} running={waiting} />

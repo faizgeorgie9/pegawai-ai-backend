@@ -15,13 +15,13 @@ type AppDef = { name: string; enables: string; where: string }
 const APPS: Record<ConnProvider, AppDef> = {
   gdrive: {
     name: 'Google Drive',
-    enables: 'Agen bisa mencari, membaca, membuat, mengubah, mengganti nama, dan memindahkan berkas Drive Anda; menghapus berkas selalu menunggu persetujuan Anda.',
+    enables: 'Pegawai AI bisa mencari, membaca, membuat, mengubah, mengganti nama, dan memindahkan berkas Drive Anda; menghapus berkas selalu menunggu persetujuan Anda.',
     where: 'Halaman Pengetahuan dan lampiran chat.',
   },
   gmail: {
     name: 'Gmail',
-    enables: 'Agen bisa membaca email, membuat draf, memberi label, mengarsipkan, dan memindahkan email ke Sampah; mengirim email selalu menunggu persetujuan Anda.',
-    where: 'Tombol "Simpan sebagai draf Gmail" di bawah jawaban agen.',
+    enables: 'Pegawai AI bisa membaca email, membuat draf, memberi label, mengarsipkan, dan memindahkan email ke Sampah; mengirim email selalu menunggu persetujuan Anda.',
+    where: 'Tombol "Simpan sebagai draf Gmail" di bawah jawaban pegawai.',
   },
 }
 const WHY: Record<string, string> = {
@@ -179,7 +179,7 @@ function ConnectDialog({ app, onClose, onDone }: { app: HermesApp; onClose: () =
   const live = useRef(true)
   const tab = useRef<Window | null>(null)
   const link = useRef<Link | null>(null)
-  const success = `${app.name} tersambung. Agen sekarang bisa memakainya.`
+  const success = `${app.name} tersambung. Pegawai AI sekarang bisa memakainya.`
   const closeTab = () => {
     try {
       tab.current?.close()
@@ -456,7 +456,7 @@ export function AppsPage() {
         )}
         {id === 'gmail' && how && (
           <p className="note-box" id="how-gmail">
-            Di bawah setiap jawaban agen ada tombol &ldquo;Simpan sebagai draf Gmail&rdquo;. Anda bisa mengubah penerima, subjek, dan isinya dulu. Hasilnya hanya draf di Gmail Anda. Anda sendiri yang membuka dan mengirimnya.
+            Di bawah setiap jawaban pegawai ada tombol &ldquo;Simpan sebagai draf Gmail&rdquo;. Anda bisa mengubah penerima, subjek, dan isinya dulu. Hasilnya hanya draf di Gmail Anda. Anda sendiri yang membuka dan mengirimnya.
           </p>
         )}
         {status === 'not_configured' && admin && <AdminHint c={c} />}
@@ -584,7 +584,7 @@ export function AppsPage() {
 
   return (
     <section className="page apps">
-      <PageHead title="Aplikasi" sub="Hubungkan aplikasi yang Anda pakai agar agen bisa membantu di sana." />
+      <PageHead title="Aplikasi" sub="Hubungkan aplikasi yang Anda pakai agar pegawai AI bisa membantu di sana." />
       {result && (
         <p className={result.ok ? 'note-box connect-ok' : 'problem-bar'} role={result.ok ? 'status' : 'alert'}>
           {result.text}
@@ -605,8 +605,8 @@ export function AppsPage() {
           {problem}
         </p>
       )}
-      <div className="tabs" role="tablist" aria-label="Aplikasi dan keahlian agen">
-        {([['apps', 'Aplikasi'], ['skills', 'Keahlian agen']] as const).map(([id, label]) => (
+      <div className="tabs" role="tablist" aria-label="Aplikasi dan keahlian pegawai">
+        {([['apps', 'Aplikasi'], ['skills', 'Keahlian pegawai']] as const).map(([id, label]) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>
             {label}
           </button>

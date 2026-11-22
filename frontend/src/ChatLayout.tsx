@@ -6,7 +6,7 @@ import { useData } from './data'
 import GroupChat from './Group'
 import { botPath, go, groupPath } from './router'
 import type { Route } from './router'
-import { BotAvatar, CLOSE, DOTS, ErrorLine, Icon, PENCIL, PLUS, TRASH, ago, botColor, teamLabel } from './ui'
+import { BotAvatar, CLOSE, DOTS, ErrorLine, Icon, PENCIL, PLUS, TRASH, ago, botColor, roleLabel, teamLabel } from './ui'
 import { PageState, statusText } from './ui-extra'
 
 // Chat and Grup: a left column with the list (agents by team, or groups) and the conversation on the right.
@@ -120,34 +120,42 @@ export function ChatLayout({ route }: { route: Extract<Route, { name: 'bot' } | 
     return () => document.removeEventListener('click', off)
   }, [menu])
 
+  // The rail also holds ten agents above the history: bring the history into view (opening the sheet on a phone).
+  function showHistory() {
+    setOpen(true)
+    window.setTimeout(() => document.getElementById('chat-history')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 50)
+  }
+
   return (
     <div className="with-rail" data-picked={botId ? '' : undefined}>
       <Rail
-        label="Agen dan riwayat chat"
-        title="Agen"
+        label="Pegawai dan riwayat chat"
+        title="Pegawai AI"
         action={
           <a className="btn soft sm" href="#/agen/baru">
-            Agen baru
+            Pegawai baru
           </a>
         }
         open={open}
         onClose={() => setOpen(false)}
       >
-        {loadState === 'loading' && <p className="quiet pad">Memuat agen...</p>}
+        {loadState === 'loading' && <p className="quiet pad">Memuat pegawai...</p>}
         {loadState === 'error' && bots.length === 0 && <ErrorLine text={error} onRetry={reload} />}
-        {loadState === 'ok' && bots.length === 0 && <p className="quiet pad">Belum ada agen.</p>}
+        {loadState === 'ok' && bots.length === 0 && <p className="quiet pad">Belum ada pegawai AI. Klik Pegawai baru untuk membuat yang pertama.</p>}
         {Object.entries(teams).map(([team, list]) => (
           <div key={team} className="bot-group" data-team={team}>
             <h3>{teamLabel(team)}</h3>
             <ul>
               {list.map((b) => (
                 <li key={b.id} className="bot-li">
-                  <a className="row" href={'#' + botPath(b.id)} aria-current={botId === b.id ? 'page' : undefined} title={b.role} style={{ ['--bot' as string]: botColor(b) }}>
+                  <a className="row" href={'#' + botPath(b.id)} aria-current={botId === b.id ? 'page' : undefined} title={roleLabel(b.role)} style={{ ['--bot' as string]: botColor(b) }}>
                     <BotAvatar bot={b} size={28} />
                     <span className="bot-text">
-                      <b>{b.name}</b>
-                      {isLead(b) && <small className="lead">Kontak utama</small>}
-                      <small className="st">{b.status === 'idle' && !b.deleteError ? b.role : statusText(b)}</small>
+                      <span className="bot-name">
+                        <b>{b.name}</b>
+                        {isLead(b) && <small className="lead">Kontak utama</small>}
+                      </span>
+                      <small className="st">{b.status === 'idle' && !b.deleteError ? roleLabel(b.role) : statusText(b)}</small>
                     </span>
                     <span className="status-dot" data-s={b.status} role="img" aria-label={b.status === 'idle' ? 'Siap' : b.status === 'working' ? 'Bekerja' : 'Berdiskusi'} />
                   </a>
@@ -174,12 +182,12 @@ export function ChatLayout({ route }: { route: Extract<Route, { name: 'bot' } | 
                             }}
                           >
                             <Icon d={PENCIL} />
-                            Atur agen
+                            Atur pegawai
                           </button>
                           {!b.builtin && (
                             <button role="menuitem" onClick={() => setDialog({ kind: 'delete', bot: b })}>
                               <Icon d={TRASH} />
-                              Hapus agen
+                              Hapus pegawai
                             </button>
                           )}
                         </div>
@@ -197,17 +205,17 @@ export function ChatLayout({ route }: { route: Extract<Route, { name: 'bot' } | 
       <div className="rail-main">
         {route.name === 'bot' ? (
           bot ? (
-            <Chat key={bot.id} bot={bot} sid={sid} sessions={hist.sessions} onSessions={() => hist.refresh(true)} onRail={() => setOpen(true)} />
+            <Chat key={bot.id} bot={bot} sid={sid} sessions={hist.sessions} onSessions={() => hist.refresh(true)} onRail={() => setOpen(true)} onHistory={showHistory} />
           ) : (
-            <PageState what="Agen" loadState={loadState} error={error} reload={reload} />
+            <PageState what="Pegawai AI" loadState={loadState} error={error} reload={reload} />
           )
         ) : (
-          <Intro title="Chat" text="Tanya satu agen secara langsung. Untuk pekerjaan besar, mulai dari Tim.">
+          <Intro title="Chat" text="Ajak satu pegawai bicara langsung. Untuk pekerjaan yang butuh beberapa pegawai sekaligus, buka Tim.">
             <p className="quiet small">
               <a className="empty-link" href="#/grup">
-                Mulai dari Tim
-              </a>
-              , lalu pilih agen dari daftar bila perlu.
+                Buka Tim
+              </a>{' '}
+              atau pilih pegawai dari daftar.
             </p>
           </Intro>
         )}
@@ -244,7 +252,7 @@ export function GroupLayout({ route }: { route: Extract<Route, { name: 'grup' } 
       >
         {loadState === 'loading' && <p className="quiet pad">Memuat tim...</p>}
         {loadState === 'error' && groups.length === 0 && <ErrorLine text={error} onRetry={reload} />}
-        {loadState === 'ok' && groups.length === 0 && <p className="quiet pad">Belum ada tim. Gabungkan 2 sampai 6 agen lewat Tim baru.</p>}
+        {loadState === 'ok' && groups.length === 0 && <p className="quiet pad">Belum ada tim. Tim berisi 2 sampai 6 pegawai yang mengerjakan satu tugas bersama. Klik Tim baru.</p>}
         <ul>
           {groups.map((g) => {
             const ms = g.members.map((m) => bots.find((b) => b.id === m)).filter((b): b is Bot => !!b)
@@ -272,8 +280,8 @@ export function GroupLayout({ route }: { route: Extract<Route, { name: 'grup' } 
         {gid ? (
           <GroupChat key={gid} id={gid} onRail={() => setOpen(true)} />
         ) : (
-          <Intro title="Tim" text="Beberapa agen bekerja sama dalam satu percakapan. Pilih tim dari daftar.">
-            <button className="btn primary" onClick={() => setDialog({ kind: 'group' })}>
+          <Intro title="Tim" text="Beberapa pegawai AI bekerja sama dalam satu percakapan. Pilih tim dari daftar, atau buat tim baru.">
+            <button className="btn primary hide-narrow" onClick={() => setDialog({ kind: 'group' })}>
               Tim baru
             </button>
           </Intro>
@@ -310,9 +318,12 @@ function History({ bot, hist, sid }: { bot: Bot; hist: Hist; sid?: string }) {
   }
 
   return (
-    <section className="history" aria-label={`Riwayat chat ${bot.name}`}>
+    <section className="history" id="chat-history" aria-label={`Riwayat chat ${bot.name}`}>
       <div className="sec-head">
-        <h3>Riwayat {bot.name}</h3>
+        <h3>
+          Riwayat {bot.name}
+          {sessions.length > 0 && <span className="quiet"> · {sessions.length}</span>}
+        </h3>
         <button className="btn soft sm" title="Mulai percakapan baru, riwayat lama tetap ada" onClick={() => go(botPath(bot.id))}>
           <Icon d={PLUS} />
           Topik baru
@@ -346,7 +357,12 @@ function History({ bot, hist, sid }: { bot: Bot; hist: Hist; sid?: string }) {
 function SessionRow(p: { botId: string; s: Session; current: boolean; onRename: (t: string) => void; onDelete: () => void }) {
   const [mode, setMode] = useState<'view' | 'edit' | 'confirm'>('view')
   const [name, setName] = useState('')
+  const rowRef = useRef<HTMLLIElement>(null)
   const title = titleOf(p.s)
+  // The rail scrolls: without this, a delete click on a row near the fold looks like nothing happened.
+  useEffect(() => {
+    if (mode === 'confirm') rowRef.current?.scrollIntoView({ block: 'nearest' })
+  }, [mode])
   if (mode === 'edit') {
     return (
       <li className="sess editing">
@@ -373,8 +389,10 @@ function SessionRow(p: { botId: string; s: Session; current: boolean; onRename: 
   }
   if (mode === 'confirm') {
     return (
-      <li className="sess confirm" role="alert">
-        <span>Hapus &ldquo;{title}&rdquo;?</span>
+      <li className="sess confirm" role="alert" ref={rowRef}>
+        <span>
+          Hapus percakapan &ldquo;{title}&rdquo;? Hanya percakapan ini yang dihapus. Dokumen di Pengetahuan dan pengaturan pegawai tidak berubah.
+        </span>
         <span className="confirm-actions">
           <button
             className="btn danger"
@@ -383,7 +401,7 @@ function SessionRow(p: { botId: string; s: Session; current: boolean; onRename: 
               p.onDelete()
             }}
           >
-            Hapus
+            Hapus percakapan
           </button>
           <button className="btn quiet-btn" onClick={() => setMode('view')}>
             Batal
@@ -409,7 +427,7 @@ function SessionRow(p: { botId: string; s: Session; current: boolean; onRename: 
         >
           <Icon d={PENCIL} />
         </button>
-        <button className="icon-btn" aria-label={`Hapus ${title}`} onClick={() => setMode('confirm')}>
+        <button className="icon-btn" aria-label={`Hapus percakapan ${title}`} onClick={() => setMode('confirm')}>
           <Icon d={TRASH} />
         </button>
       </span>

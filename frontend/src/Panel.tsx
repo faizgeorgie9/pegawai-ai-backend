@@ -7,7 +7,7 @@ import { useAdminMode } from './adminMode'
 import { useData } from './data'
 import { CostMeter, Perkiraan } from './ui-extra'
 import { go } from './router'
-import { BotAvatar, CLOSE, ErrorLine, Icon, botColor, clock, nf, teamLabel } from './ui'
+import { BotAvatar, CLOSE, ErrorLine, Icon, botColor, clock, nf, roleLabel, teamLabel } from './ui'
 import './panel.css'
 
 // Side panel of a conversation (spec-panel-samping): Berpikir, Token, Aktivitas, Info. The open tab and the width
@@ -255,7 +255,7 @@ function Tokens({ scope, version, bot, members, group }: Scoped) {
                 Batas per kiriman grup: <b>{me?.limits.group_send_token_budget == null ? 'Tanpa batas' : `${dash(me.limits.group_send_token_budget)} token`}</b>
               </p>
             )}
-            <h4>Per agen</h4>
+            <h4>Per pegawai</h4>
             <ul className="bars">
               {u.data.by_bot.map((b) => {
                 return (
@@ -349,7 +349,7 @@ function BotInfo({ bot }: { bot: Bot }) {
         <BotAvatar bot={bot} size={48} />
         <div>
           <h3>{bot.name}</h3>
-          <p className="quiet">{bot.role}</p>
+          <p className="quiet">{roleLabel(bot.role)}</p>
         </div>
       </div>
       <dl className="kv">
@@ -429,7 +429,7 @@ function GroupInfo({ group, members }: { group: Group; members: Bot[] }) {
             <BotAvatar bot={b} size={32} />
             <span className="bot-text">
               <b>{b.name}</b>
-              <small>{b.role}</small>
+              <small>{roleLabel(b.role)}</small>
             </span>
             <span className="status-dot" data-s={b.status} role="img" aria-label={STATUS[b.status]} />
             <small className="quiet">{STATUS[b.status]}</small>

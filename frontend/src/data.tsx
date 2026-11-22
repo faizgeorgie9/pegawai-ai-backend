@@ -70,7 +70,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [groups, setGroups] = useState<Group[]>([])
   const [runs, setRuns] = useState<RunInfo[]>([])
   const [conn, setConn] = useState<SseState>('open')
-  const [dialog, setDialog] = useState<DialogState>(null)
+  const [dialog, setDialogState] = useState<DialogState>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [notifyAsk, setNotifyAsk] = useState(false)
   const listeners = useRef(new Map<string, Set<Listener>>())
@@ -80,9 +80,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const seen = useRef(false) // true after a connection error, so the next open triggers a refresh
   const watching = useRef('') // route path the user is looking at: no toast for it while the tab is visible
   const settingsRef = useRef(settings)
+  const dialogRoute = useRef('') // hash the open dialog belongs to
   botsRef.current = bots
   settingsRef.current = settings
   groupsRef.current = groups
+
+  // A dialog belongs to the screen that opened it. Remember that screen, and close the dialog on any hash change
+  // that lands elsewhere, so a modal from the previous screen never stays on top of the next one. Routes that open
+  // a dialog after `go(..., true)` already sit on their own hash; a late hashchange for that same hash keeps it.
+  const setDialog = useCallback((d: DialogState) => {
+    dialogRoute.current = d ? location.hash : ''
+    setDialogState(d)
+  }, [])
+  useEffect(() => {
+    const closeOnNavigate = () => {
+      if (!dialogRoute.current || location.hash === dialogRoute.current) return
+      dialogRoute.current = ''
+      setDialogState(null)
+    }
+    window.addEventListener('hashchange', closeOnNavigate)
+    return () => window.removeEventListener('hashchange', closeOnNavigate)
+  }, [])
 
   const refreshMe = useCallback(() => void api.me().then(setMe, () => {}), [])
   const refreshBots = useCallback(async () => {
@@ -167,7 +185,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (asStr(d.kind) === 'group' || notified.current.has(id)) return
       if (!['completed', 'done', 'finished', 'failed'].includes(status)) return
       notified.current.add(id)
-      const botName = botsRef.current.find((b) => b.id === asStr(d.bot_id))?.name ?? 'Agen'
+      const botName = botsRef.current.find((b) => b.id === asStr(d.bot_id))?.name ?? 'Pegawai'
       void api.run(id).then(
         (r) => toast(status === 'failed' ? `${botName} gagal` : `${botName} selesai: ${clip(csPreview(r.meta) ?? (r.output || r.input))}`, botPath(r.bot_id || asStr(d.bot_id), r.session_id), status === 'failed' ? 'failed' : 'done'),
         () => toast(`${botName} selesai`, botPath(asStr(d.bot_id)), status === 'failed' ? 'failed' : 'done'),
@@ -179,7 +197,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         run: runChanged,
         run_input: (d) => {
           if (asStr(d.kind) === 'group') return
-          const botName = botsRef.current.find((b) => b.id === asStr(d.bot_id))?.name ?? 'Agen'
+          const botName = botsRef.current.find((b) => b.id === asStr(d.bot_id))?.name ?? 'Pegawai'
           toast(`${botName} ${asStr(d.what) === 'clarify' ? 'butuh jawaban Anda' : 'butuh izin Anda'}`, botPath(asStr(d.bot_id)), 'input')
         },
         bot_status: (d) =>
@@ -254,7 +272,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       viewing,
       flash,
     }),
-    [loadState, error, me, settings, bots, groups, runs, conn, reload, refreshMe, refreshBots, refreshGroups, on, dialog, toasts, notifyAsk, viewing, flash],
+    [loadState, error, me, settings, bots, groups, runs, conn, reload, refreshMe, refreshBots, refreshGroups, on, dialog, setDialog, toasts, notifyAsk, viewing, flash],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

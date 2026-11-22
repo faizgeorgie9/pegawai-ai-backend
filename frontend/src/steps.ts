@@ -29,6 +29,25 @@ export const settle = (tools: ToolChip[]): ToolChip[] => (tools.some((t) => t.st
 // The one place that turns an engine tool name (session_search, read_file...) into words for the user.
 // shortcut: pattern list, add a line when the engine ships a new tool; unknown names fall back to a readable form of the name.
 const LABELS: [RegExp, string][] = [
+  // Names the engine/MCP server ships as one flat word: list them before the generic families below.
+  [/^kb_add_note/, 'Menyimpan catatan ke Pengetahuan'],
+  [/^kb_/, 'Membaca Pengetahuan'],
+  [/^knowledge/, 'Membaca Pengetahuan'],
+  [/^task_complete/, 'Menyelesaikan tugas'],
+  [/^task_cancel/, 'Membatalkan tugas'],
+  [/^task_list/, 'Melihat daftar tugas'],
+  [/^task_ask_user/, 'Bertanya kepada Anda'],
+  [/^gmail_search/, 'Mencari email'],
+  [/^gmail_create_draft/, 'Membuat draf email'],
+  [/^gmail_send/, 'Mengirim email'],
+  [/^drive_search/, 'Mencari di Drive'],
+  [/^drive_read/, 'Membaca berkas Drive'],
+  [/^drive_create/, 'Membuat berkas Drive'],
+  [/^ping/, 'Memeriksa sambungan'],
+  [/^tool_describe/, 'Membaca petunjuk alat'],
+  [/^tool_search/, 'Mencari alat'],
+  [/^tool_call/, 'Memakai alat'],
+  [/^manage_connections/, 'Mengatur aplikasi tersambung'],
   [/^skills?_/, 'Membaca panduan'],
   [/^session_search/, 'Mencari percakapan lama'],
   [/^web/, 'Mencari di web'],
@@ -37,7 +56,7 @@ const LABELS: [RegExp, string][] = [
   [/^(write_file|patch|edit_file|file_write)/, 'Menulis berkas'],
   [/^(terminal|shell|bash|execute|process)/, 'Menjalankan perintah'],
   [/^(code_exec|python)/, 'Menjalankan kode'],
-  [/^memory/, 'Membuka ingatan'],
+  [/^memory/, 'Memakai ingatan'],
   [/^vision/, 'Melihat gambar'],
   [/^image_gen/, 'Membuat gambar'],
   [/^todo/, 'Menyusun langkah'],
@@ -45,12 +64,12 @@ const LABELS: [RegExp, string][] = [
   [/^(delegate|delegation)/, 'Membagi tugas'],
   [/^(cron|schedule)/, 'Mengatur jadwal'],
   [/^kanban/, 'Mengelola tugas'],
-  [/^(kb_|knowledge)/, 'Membaca pengetahuan'],
   [/^(drive|gdrive|gmail|notion|connection)/, 'Memakai aplikasi tersambung'],
 ]
 export const toolLabel = (tool: string): string => {
-  const hit = LABELS.find(([re]) => re.test(tool))?.[1]
+  const t = tool.replace(/^mcp__[a-z0-9]+__/i, '') // mcp__pegawai__kb_add_note → kb_add_note
+  const hit = LABELS.find(([re]) => re.test(t))?.[1]
   if (hit) return hit
-  const words = tool.replace(/[_.-]+/g, ' ').trim()
+  const words = t.replace(/[_.-]+/g, ' ').trim()
   return words ? words.charAt(0).toUpperCase() + words.slice(1) : 'Langkah kerja'
 }

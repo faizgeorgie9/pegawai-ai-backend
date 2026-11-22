@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, errText } from './bff'
 import type { Bot, BotDetail } from './bff'
+import { useAdminMode } from './adminMode'
 import { useData } from './data'
 import { agenPath, botPath, go } from './router'
-import { BotAvatar, COLORS, ErrorLine, botColor, nf, stamp, teamLabel } from './ui'
+import { BotAvatar, COLORS, ErrorLine, Icon, LOCK, botColor, cleanTaskText, colorLabel, nf, roleLabel, stamp, teamLabel } from './ui'
 import { AgentSkills } from './skills-ui'
+import { TIERS, tierOf } from './modelTiers'
 import { Empty, EffortSelect, Loading, ModelSelect, PageHead, Opt, defaultEffortLabel, defaultModelLabel, effortWord, modelKey, splitModel, statusText, useLoad } from './ui-extra'
 
 // ---------- Daftar ----------
@@ -14,7 +16,7 @@ export function AgentList() {
   const [q, setQ] = useState('')
   const teams = [...new Set(bots.map((b) => b.team))]
   const shown = bots.filter(
-    (b) => (!team || b.team === team) && `${b.name} ${b.role}`.toLowerCase().includes(q.trim().toLowerCase()),
+    (b) => (!team || b.team === team) && `${b.name} ${b.role} ${roleLabel(b.role)}`.toLowerCase().includes(q.trim().toLowerCase()),
   )
   return (
     <section className="page">
@@ -23,7 +25,7 @@ export function AgentList() {
         sub="Semua agen, dengan konteks Colorbox."
         actions={
           <a className="btn primary" href="#/agen/baru">
-            Agen baru
+            Pegawai baru
           </a>
         }
       />
@@ -43,7 +45,7 @@ export function AgentList() {
       </div>
       {loadState === 'loading' && <Loading text="Memuat agen..." shape="table" />}
       {loadState === 'error' && bots.length === 0 && <ErrorLine text={error} onRetry={reload} />}
-      {loadState === 'ok' && bots.length === 0 && <Empty title="Belum ada agen">Buat agen pertama lewat tombol Agen baru.</Empty>}
+      {loadState === 'ok' && bots.length === 0 && <Empty title="Belum ada pegawai AI">Klik Pegawai baru untuk membuat yang pertama.</Empty>}
       {loadState === 'ok' && bots.length > 0 && shown.length === 0 && <Empty title="Tidak ada yang cocok">Ubah kata cari atau pilihan tim.</Empty>}
       {shown.length > 0 && (
         <div className="table-wrap">
@@ -91,10 +93,38 @@ export function AgentList() {
 }
 
 // ---------- Detail ----------
-const RUN_STATUS: Record<string, string> = { completed: 'Selesai', failed: 'Gagal', stopped: 'Dihentikan', running: 'Berjalan', queued: 'Antre' }
-const RUN_PILL: Record<string, string> = { completed: 'ok', failed: 'bad', running: 'run', queued: 'wait' }
+// Run statuses are English server values; show them as plain Indonesian (code issue #4).
+const RUN_STATUS: Record<string, string> = {
+  completed: 'Selesai',
+  done: 'Selesai',
+  finished: 'Selesai',
+  failed: 'Gagal',
+  error: 'Gagal',
+  stopped: 'Dihentikan',
+  interrupted: 'Dihentikan',
+  cancelled: 'Dibatalkan',
+  canceled: 'Dibatalkan',
+  running: 'Berjalan',
+  queued: 'Antre',
+}
+const RUN_PILL: Record<string, string> = {
+  completed: 'ok',
+  done: 'ok',
+  finished: 'ok',
+  failed: 'bad',
+  error: 'bad',
+  stopped: 'idle',
+  interrupted: 'idle',
+  cancelled: 'idle',
+  canceled: 'idle',
+  running: 'run',
+  queued: 'wait',
+}
 export function AgentDetail({ id }: { id: string }) {
   const { setDialog } = useData()
+  const admin = useAdminMode()
+  const backHref = admin ? '#/agen' : '#/'
+  const backLabel = admin ? 'Semua agen' : 'Beranda'
   const botFn = useCallback(() => api.bot(id), [id])
   const bot = useLoad(botFn)
   const extraFn = useCallback(
@@ -110,25 +140,26 @@ export function AgentDetail({ id }: { id: string }) {
   )
   const extra = useLoad(extraFn)
 
-  if (bot.state === 'loading') return <section className="page"><Loading text="Memuat agen..." shape="page" /></section>
+  if (bot.state === 'loading') return <section className="page"><Loading text="Memuat pegawai..." shape="page" /></section>
   if (bot.state === 'error')
     return (
       <section className="page">
-        <a className="back" href="#/agen">
-          Semua agen
+        <a className="back" href={backHref}>
+          {backLabel}
         </a>
-        {/Tidak ditemukan|tidak ditemukan/.test(bot.error) ? <Empty title="Agen tidak ditemukan">Mungkin sudah dihapus.</Empty> : <ErrorLine text={bot.error} onRetry={bot.retry} />}
+        {/Tidak ditemukan|tidak ditemukan/.test(bot.error) ? <Empty title="Pegawai tidak ditemukan">Mungkin sudah dihapus.</Empty> : <ErrorLine text={bot.error} onRetry={bot.retry} />}
       </section>
     )
   const b = bot.data as BotDetail
   const [sessions, runs, um, ua, cat] = extra.data ?? [[], [], [], [], null]
   const month = um.find((x) => x.bot_id === id)
   const all = ua.find((x) => x.bot_id === id)
+  const tier = b.model ? TIERS.find((t) => t.id === tierOf(b.model))?.label : undefined
 
   return (
     <section className="page">
-      <a className="back" href="#/agen">
-        Semua agen
+      <a className="back" href={backHref}>
+        {backLabel}
       </a>
       <header className="page-head" style={{ ['--bot' as string]: botColor(b) }}>
         <div className="row" style={{ width: 'auto', padding: 0 }}>
@@ -136,17 +167,17 @@ export function AgentDetail({ id }: { id: string }) {
           <div>
             <h1>{b.name}</h1>
             <p className="quiet">
-              {b.role} · {teamLabel(b.team)} · {statusText(b)}
+              {roleLabel(b.role)} · {teamLabel(b.team)} · {statusText(b)}
             </p>
           </div>
         </div>
         <div className="head-actions">
           <a className="btn primary" href={'#' + botPath(b.id)}>
-            Chat
+            Ajak bicara
           </a>
-          <a className="btn outline" href={'#' + agenPath(b.id, 'ubah')}>
-            Ubah
-          </a>
+          <button className="btn outline" onClick={() => setDialog({ kind: 'edit', bot: b })}>
+            Atur
+          </button>
           {!b.builtin && (
             <button className="btn danger" onClick={() => setDialog({ kind: 'delete', bot: b })}>
               Hapus
@@ -157,57 +188,131 @@ export function AgentDetail({ id }: { id: string }) {
 
       <div className="cbox">
         <h2>Identitas</h2>
-        <dl className="kv">
+        <dl className="kv kv-wide">
           <dt>Peran</dt>
-          <dd>{b.role}</dd>
+          <dd>{roleLabel(b.role)}</dd>
           <dt>Tim</dt>
           <dd><span className="pill" data-team={b.team}>{teamLabel(b.team)}</span></dd>
-          <dt>Warna</dt>
-          <dd>
-            <span className="swatch-chip" style={{ background: botColor(b) }} />
-            {b.color || 'plain'}
-          </dd>
-          <dt>Model</dt>
-          <dd>{b.model || defaultModelLabel(cat)}</dd>
-          <dt>Tingkat berpikir</dt>
-          <dd>{effortWord(b.effort) || defaultEffortLabel(cat)}</dd>
-          <dt>Jenis</dt>
-          <dd>{b.builtin ? 'Disediakan sistem (tidak bisa dihapus)' : 'Buatan pengguna'}</dd>
+          <dt>Status</dt>
+          <dd>{statusText(b)}</dd>
+          {admin && (
+            <>
+              <dt>Warna</dt>
+              <dd>
+                <span className="swatch-chip" style={{ background: botColor(b) }} />
+                {colorLabel(b.color || 'plain')}
+              </dd>
+              <dt>Model</dt>
+              <dd>{b.model || defaultModelLabel(cat)}</dd>
+              <dt>Tingkat berpikir</dt>
+              <dd>{effortWord(b.effort) || defaultEffortLabel(cat)}</dd>
+            </>
+          )}
           <dt>Dibuat</dt>
           <dd>{b.createdAt ? stamp(b.createdAt) : '–'}</dd>
+          <dt>Jenis</dt>
+          <dd>{b.builtin ? 'Pegawai bawaan, tidak bisa dihapus' : 'Dibuat oleh Anda'}</dd>
         </dl>
       </div>
 
+      <div className="two perm-block">
+        <section className="cbox perm-edit" aria-labelledby="perm-edit-h">
+          <h2 id="perm-edit-h">Bisa Anda ubah</h2>
+          <ul className="perm-list">
+            {!b.builtin && (
+              <>
+                <li>
+                  <b>Nama</b>
+                  <small className="quiet small">{b.name}</small>
+                </li>
+                <li>
+                  <b>Tugas dan gaya bicara</b>
+                  <small className="quiet small">Petunjuk yang mengatur cara {b.name} bekerja</small>
+                </li>
+              </>
+            )}
+            <li>
+              <b>Warna</b>
+              <small className="quiet small">
+                <span className="swatch-chip" style={{ background: botColor(b) }} />
+                {colorLabel(b.color || 'plain')}
+              </small>
+            </li>
+            <li>
+              <b>Tingkat ketelitian</b>
+              <small className="quiet small">{tier ?? 'Ikuti bawaan'}</small>
+            </li>
+          </ul>
+          <p className="quiet small">Perubahan berlaku mulai tugas berikutnya.</p>
+          <button className="btn soft" onClick={() => setDialog({ kind: 'edit', bot: b })}>
+            Atur
+          </button>
+        </section>
+        <section className="cbox perm-locked" aria-labelledby="perm-locked-h">
+          <h2 id="perm-locked-h">
+            <Icon d={LOCK} size={16} /> Diatur sistem
+          </h2>
+          <ul className="perm-list">
+            {b.builtin && (
+              <li>
+                <b>Nama dan tugas</b>
+                <small className="quiet small">Pegawai bawaan: dikelola tim AITopTrends.</small>
+              </li>
+            )}
+            <li>
+              <b>Aturan inti</b>
+              <small className="quiet small">Cara dasar {b.name} bekerja dan menjaga data bisnis Anda.</small>
+            </li>
+            <li>
+              <b>Izin keamanan</b>
+              <small className="quiet small">Tindakan berisiko, misalnya menghapus berkas atau mengirim email, selalu menunggu izin Anda.</small>
+            </li>
+          </ul>
+          <a className="btn link" href="#/pengaturan/keamanan">
+            Lihat batasan keamanan
+          </a>
+        </section>
+      </div>
+
+      {admin && (
+        <p className="quiet small">
+          <a className="btn link" href={'#' + agenPath(b.id, 'ubah')}>
+            Pengaturan lanjutan
+          </a>
+        </p>
+      )}
+
       <div className="cbox">
-        <h2>Persona</h2>
-        <p className="persona">{b.persona || 'Belum ada persona.'}</p>
+        <h2>Tugas dan gaya bicara</h2>
+        <p className="persona">{b.persona || (b.builtin ? 'Dikelola sistem.' : 'Belum ada petunjuk tugas. Klik Atur untuk menulisnya.')}</p>
       </div>
 
       {extra.state === 'loading' && <Loading text="Memuat pemakaian..." shape="ledger" rows={2} />}
       {extra.state === 'error' && <ErrorLine text={extra.error} onRetry={extra.retry} />}
       {extra.state === 'ok' && (
         <>
-          <dl className="kpis k4">
-            <div>
-              <dt>Percakapan</dt>
-              <dd className="num">{nf.format(sessions.length)}</dd>
-            </div>
-            <div>
-              <dt>Pemakaian bulan ini (token)</dt>
-              <dd className="num">{nf.format(month?.total ?? 0)}</dd>
-            </div>
-            <div>
-              <dt>Pemakaian total (token)</dt>
-              <dd className="num">{nf.format(all?.total ?? 0)}</dd>
-            </div>
-            <div>
-              <dt>Tugas total</dt>
-              <dd className="num">{nf.format(all?.runs ?? 0)}</dd>
-            </div>
+          <dl className={admin ? 'kpis k4' : 'kpis k2'}>
+            {(admin
+              ? [
+                  { label: 'Percakapan', value: sessions.length },
+                  { label: 'Pemakaian bulan ini (token)', value: month?.total ?? 0 },
+                  { label: 'Pemakaian total (token)', value: all?.total ?? 0 },
+                  { label: 'Tugas total', value: all?.runs ?? 0 },
+                ]
+              : [
+                  { label: 'Percakapan', value: sessions.length },
+                  { label: 'Tugas dikerjakan', value: all?.runs ?? 0 },
+                ]
+            ).map((k) => (
+              <div key={k.label}>
+                <dt>{k.label}</dt>
+                <dd className="num">{nf.format(k.value)}</dd>
+              </div>
+            ))}
           </dl>
 
           <div className="cbox">
-            <h2>Keahlian agen</h2>
+            <h2>Keahlian pegawai</h2>
             <AgentSkills slug={id} />
           </div>
 
@@ -231,9 +336,11 @@ export function AgentDetail({ id }: { id: string }) {
                     {runs.map((r) => (
                       <tr key={r.id}>
                         <td className="num" data-label="Waktu">{stamp(r.started_at)}</td>
-                        <td data-label="Tugas">{r.input || '–'}</td>
+                        <td data-label="Tugas">
+                          <span className="clamp2">{cleanTaskText(r.input || '').split(/\s*\(id tugas:/)[0].trim() || '–'}</span>
+                        </td>
                         <td data-label="Status">
-                          <span className={`pill ${RUN_PILL[r.status] ?? 'idle'}`}>{RUN_STATUS[r.status] ?? r.status}</span>
+                          <span className={`pill ${RUN_PILL[r.status] ?? 'idle'} run-status`}>{RUN_STATUS[r.status] ?? r.status}</span>
                         </td>
                       </tr>
                     ))}
@@ -264,7 +371,8 @@ function check(f: { name: string; role: string; team: string; persona: string })
 }
 
 export function AgentEdit({ id }: { id: string }) {
-  const { bots, refreshBots, flash } = useData()
+  const { bots, refreshBots, flash, setDialog } = useData()
+  const admin = useAdminMode()
   const botFn = useCallback(() => api.bot(id), [id])
   const bot = useLoad(botFn)
   const [f, setF] = useState({ name: '', role: '', team: '', color: 'plain', persona: '', model: '', effort: '' })
@@ -278,6 +386,14 @@ export function AgentEdit({ id }: { id: string }) {
     if (d) setF({ name: d.name, role: d.role, team: d.team, color: d.color || 'plain', persona: d.persona, model: modelKey(d.provider, d.model), effort: d.effort })
   }, [d])
 
+  // The technical edit page is admin-only: everyone else gets the simple dialog over the detail page.
+  useEffect(() => {
+    if (admin || !d) return
+    go(agenPath(id), true)
+    setDialog({ kind: 'edit', bot: d })
+  }, [admin, d, id, setDialog])
+
+  if (!admin) return null
   if (bot.state === 'loading') return <section className="page"><Loading text="Memuat agen..." /></section>
   if (bot.state === 'error' || !d)
     return (

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import type { ReactNode } from 'react'
 import { api, errText } from './bff'
-import type { Money, MonthUsage } from './bff'
+import type { Money, MonthUsage, Security as SecurityData } from './bff'
 import { setAdminMode, useAdminMode } from './adminMode'
 import { useData } from './data'
 import { markNamed } from './Onboarding'
@@ -14,7 +14,6 @@ const SECTIONS = [
   { id: 'umum', label: 'Umum' },
   { id: 'notifikasi', label: 'Notifikasi' },
   { id: 'keamanan', label: 'Keamanan' },
-  { id: 'knowledge', label: 'Pengetahuan' },
   { id: 'paket', label: 'Paket dan biaya' },
   { id: 'data', label: 'Data' },
 ] as const
@@ -38,7 +37,6 @@ export default function Settings({ section }: { section?: string }) {
           {cur === 'umum' && <General />}
           {cur === 'notifikasi' && <Notifications />}
           {cur === 'keamanan' && <Security />}
-          {cur === 'knowledge' && <KnowledgeLink />}
           {cur === 'paket' && <Plan />}
           {cur === 'data' && <DataSection />}
         </div>
@@ -154,8 +152,8 @@ function Notifications() {
   const { save, problem } = useSave()
   const [perm, setPerm] = useState(() => ('Notification' in window ? Notification.permission : 'unsupported'))
   const items: [keyof typeof settings.notify, string, string][] = [
-    ['done', 'Tugas selesai', 'Kabar saat agen selesai bekerja.'],
-    ['input', 'Butuh izin atau jawaban', 'Kabar saat agen menunggu Anda.'],
+    ['done', 'Tugas selesai', 'Kabar saat pegawai selesai bekerja.'],
+    ['input', 'Butuh izin atau jawaban', 'Kabar saat pegawai menunggu Anda.'],
     ['failed', 'Tugas gagal', 'Kabar saat tugas berhenti.'],
   ]
   return (
@@ -186,13 +184,40 @@ function Notifications() {
 }
 
 // ---------- Keamanan dan izin (hanya baca) ----------
+type SecBot = SecurityData['bots'][number]
+
+function BlockedChips({ bot }: { bot: SecBot }) {
+  if (!bot.ok) return <span className="quiet">Belum terbaca</span>
+  if (bot.blocked.length === 0) return <span className="pill warn">Tidak ada</span>
+  return (
+    <div className="chip-row">
+      {bot.blocked.map((t) => (
+        <span key={t} className="pill">
+          {toolsetText(t, t, '')[0]}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 function Security() {
   const fn = useCallback(() => api.security(), [])
   const s = useLoad(fn)
+  const bots = s.data?.bots ?? []
+  // One shared policy reads as one row; per-employee rows only when a rule actually differs.
+  const first = bots[0]
+  const same =
+    bots.length > 0 &&
+    bots.every(
+      (b) =>
+        (b.ok ? b.blocked.slice().sort().join('|') : '!') === (first.ok ? first.blocked.slice().sort().join('|') : '!') &&
+        b.approvals === first.approvals,
+    )
+  const rows = same ? [{ key: 'all', name: 'Semua pegawai', bot: first }] : bots.map((b) => ({ key: b.bot_id, name: b.name, bot: b }))
   return (
     <div className="set-sec">
       <h2>Keamanan dan izin</h2>
-      <p className="quiet">Pembatasan ini dipasang tim AITopTrends di tiap agen.</p>
+      <p className="quiet">Demi keamanan, kemampuan di bawah ini dimatikan untuk semua pegawai, dan tindakan berisiko seperti menghapus berkas atau mengirim email selalu menunggu izin Anda.</p>
       {s.state === 'loading' && <Loading text="Memuat pembatasan..." shape="table" />}
       {s.state === 'error' && <ErrorLine text={s.error} onRetry={s.retry} />}
       {s.state === 'ok' && s.data && (
@@ -200,52 +225,25 @@ function Security() {
           <table className="plain">
             <thead>
               <tr>
-                <th>Agen</th>
-                <th>Kemampuan yang dimatikan</th>
+                <th>Pegawai</th>
+                <th>Dimatikan</th>
                 <th>Persetujuan</th>
               </tr>
             </thead>
             <tbody>
-              {s.data.bots.map((b) => (
-                <tr key={b.bot_id}>
-                  <td data-label="Agen">{b.name}</td>
-                  <td data-label="Kemampuan yang dimatikan">
-                    {!b.ok ? (
-                      <span className="quiet">Belum terbaca</span>
-                    ) : b.blocked.length === 0 ? (
-                      <span className="pill warn">Tidak ada</span>
-                    ) : (
-                      <div className="chip-row">
-                        {b.blocked.map((t) => (
-                          <span key={t} className="pill">
-                            {toolsetText(t, t, '')[0]}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+              {rows.map((r) => (
+                <tr key={r.key}>
+                  <td data-label="Pegawai">{r.name}</td>
+                  <td data-label="Dimatikan">
+                    <BlockedChips bot={r.bot} />
                   </td>
-                  <td data-label="Persetujuan">{b.approvals === 'manual' ? 'Manual: perlu izin Anda' : b.approvals ?? 'Tidak diketahui'}</td>
+                  <td data-label="Persetujuan">{r.bot.approvals === 'manual' ? 'Selalu menunggu izin Anda' : r.bot.approvals ?? 'Tidak diketahui'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
-    </div>
-  )
-}
-
-// ---------- Pengetahuan: moved to its own page ----------
-function KnowledgeLink() {
-  return (
-    <div className="set-sec">
-      <h2>Pengetahuan</h2>
-      <p className="quiet">Berkas dan link untuk agen kini ada di halaman sendiri.</p>
-      <p>
-        <a className="btn primary" href="#/pengetahuan">
-          Buka Pengetahuan
-        </a>
-      </p>
     </div>
   )
 }
@@ -279,12 +277,12 @@ function Split({ title, rows, tokens }: { title: string; tokens: boolean; rows: 
 }
 
 function UsageDetail({ u, admin }: { u: MonthUsage; admin: boolean }) {
-  if (u.tokens.runs === 0) return <p className="quiet">Belum ada pemakaian bulan ini. Biaya muncul di sini setelah agen mengerjakan tugas.</p>
+  if (u.tokens.runs === 0) return <p className="quiet">Belum ada pemakaian bulan ini. Biaya muncul di sini setelah pegawai mengerjakan tugas.</p>
   const days = Math.max(...u.by_day.map((d) => Number(d.cost.usd)), 0)
   return (
     <>
       <div className="usage-split">
-        <Split title="Per agen" tokens={admin} rows={u.by_agent.map((a) => ({ key: a.bot_id, name: a.name, cost: a.cost, tokens: a.tokens, est: a.estimated }))} />
+        <Split title="Per pegawai" tokens={admin} rows={u.by_agent.map((a) => ({ key: a.bot_id, name: a.name, cost: a.cost, tokens: a.tokens, est: a.estimated }))} />
         {admin && <Split
           title="Per model"
           tokens
@@ -322,7 +320,7 @@ function Plan() {
   return (
     <div className="set-sec">
       <h2>Paket dan pemakaian</h2>
-      <dl className="kv">
+      <dl className="kv kv-wide">
         <dt>Paket aktif</dt>
         <dd>{me.plan.name}</dd>
         <dt>Biaya bulan ini</dt>
@@ -337,7 +335,7 @@ function Plan() {
             </dd>
           </>
         )}
-        <dt>Agen</dt>
+        <dt>Pegawai</dt>
         <dd>
           <span className="num">{u.bots}</span> dari <span className="num">{me.limits.max_bots}</span>
         </dd>
@@ -345,13 +343,13 @@ function Plan() {
         <dd>
           <span className="num">{u.groups}</span> dari <span className="num">{me.limits.max_groups}</span>
         </dd>
-        <dt>Tugas sekaligus</dt>
+        <dt>Tugas berjalan bersamaan</dt>
         <dd>
           <span className="num">{u.active_runs}</span> dari <span className="num">{me.limits.max_concurrent_runs}</span>
         </dd>
       </dl>
       <h2>Rincian biaya</h2>
-      {d && !admin && <p className="quiet small">Dihitung dari pemakaian agen bulan ini.</p>}
+      {d && !admin && <p className="quiet small">Dihitung dari pekerjaan pegawai AI bulan ini.</p>}
       {d && admin && (
         <p className="quiet small">
           {new Date(d.period.start).toLocaleDateString('id-ID', { month: 'long', year: 'numeric', timeZone: d.period.timezone })} ({d.period.timezone}), diperbarui{' '}
