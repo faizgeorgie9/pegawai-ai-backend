@@ -8,7 +8,7 @@ import { instructionsFor, parseMarketing, stripBlock } from './results'
 import { LiveDraft } from './LiveSteps'
 import type { ContextRef, MarketingKind, MarketingResult, Parsed } from './results'
 import { useRun } from './useRun'
-import { I, Icon } from './ui'
+import { ErrorLine, I, Icon } from './ui'
 import { Empty, Loading, Opt, PageHead } from './ui-extra'
 import { ConfirmSwitch, OpenInChat, RunBar, Switch, hhmm, teamBots } from './ws-common'
 
@@ -178,7 +178,7 @@ function briefPrompt(f: Form): string {
 }
 
 export default function Marketing() {
-  const { bots } = useData()
+  const { bots, loadState, error, reload } = useData()
   const team = teamBots(bots, 'marketing')
   const [agent, setAgent] = useState('bimo')
   const [pending, setPending] = useState('')
@@ -190,10 +190,16 @@ export default function Marketing() {
       <PageHead
         title="Alur kerja marketing"
         sub="Lima pegawai AI bekerja berurutan. Periksa hasilnya, lalu setujui sebelum tayang."
-        actions={<span className="pill ok">Alur 5 pegawai AI aktif</span>}
+        actions={cur ? <span className="pill ok">Alur 5 pegawai AI aktif</span> : undefined}
       />
       {!cur ? (
-        <Loading text="Memuat data marketing Colorbox..." />
+        loadState === 'error' ? (
+          <ErrorLine text={error} onRetry={reload} />
+        ) : loadState === 'ok' ? (
+          <Empty title="Belum ada agen marketing">Alur ini butuh agen di tim marketing. Buat agennya di halaman Agen.</Empty>
+        ) : (
+          <Loading text="Memuat data marketing Colorbox..." />
+        )
       ) : (
         <Workspace key={cur.id} leadBot={cur} onDirty={(v) => (dirty.current = v)} />
       )}
@@ -426,20 +432,17 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
 
       {/* Auto-cascade Banner if running */}
       {cascading && (
-        <div
-          className="ok-line"
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="ok-line ws-banner">
+          <div className="ws-row">
             <Icon d={I.log} size={18} />
             <div>
               <b>Alur otomatis sedang berjalan</b>
-              <p className="small" style={{ margin: 0 }}>
+              <p className="small tight">
                 {cascadeMsg}
               </p>
             </div>
           </div>
-          <button type="button" className="btn soft" onClick={() => run.stop()} style={{ fontSize: 13 }}>
+          <button type="button" className="btn soft" onClick={() => run.stop()}>
             Hentikan
           </button>
         </div>
@@ -448,46 +451,20 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
       <div className="ws-grid" data-solo={outs.length === 0 || undefined}>
         <div className="ws-main">
           {/* Agent Badge Header for current Stage */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              rowGap: 8,
-              marginBottom: 16,
-              padding: '12px 16px',
-              borderRadius: 8,
-              background: 'var(--raised)',
-              border: '1px solid var(--border)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span
-                style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: '50%',
-                  background: currentAgent.badgeColor,
-                  color: 'var(--on-accent)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 700,
-                  fontSize: 14,
-                }}
-              >
+          <div className="ws-agent-head">
+            <div className="ws-row">
+              <span className="ws-agent-av" style={{ '--agent-c': currentAgent.badgeColor } as React.CSSProperties} aria-hidden="true">
                 {currentAgent.name.slice(0, 2).toUpperCase()}
               </span>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <b style={{ fontSize: 15 }}>{currentAgent.name}</b>
+                <div className="ws-row ws-row-tight">
+                  <b>{currentAgent.name}</b>
                   <span className="pill">{currentAgent.role}</span>
                 </div>
-                <small style={{ color: 'var(--muted)' }}>{currentAgent.tagline}</small>
+                <small className="quiet">{currentAgent.tagline}</small>
               </div>
             </div>
-            <span className="quiet small" style={{ textAlign: 'right' }}>
+            <span className="quiet small ws-agent-model">
               Model AI: <b>{currentAgent.modelInfo}</b>
             </span>
           </div>
@@ -518,18 +495,17 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                     aria-invalid={tried && !!errs.product}
                     placeholder="Contoh: Oversize Long Sleeve Checks Blazer (Rp 299.900)"
                   />
-                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div className="quiet small" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div className="cat-pick">
+                    <div className="quiet small ws-row ws-row-tight">
                       <Icon d={I.check} size={14} />
                       <span>Produk dari katalog resmi. Klik untuk memakai sebagai acuan.</span>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 156, overflowY: 'auto' }}>
+                    <div className="cat-chips">
                       {VERIFIED_CATALOG_SUGGESTIONS.map((item) => (
                         <button
                           key={item.name}
                           type="button"
-                          className={form.product.includes(item.name) ? 'pill ok' : 'pill'}
-                          style={{ cursor: 'pointer', fontSize: 11, padding: '3px 8px', height: 'auto', whiteSpace: 'normal' }}
+                          className={form.product.includes(item.name) ? 'pill ok cat-chip' : 'pill cat-chip'}
                           onClick={() => setForm({ ...form, product: `${item.name} (${item.price} - ${item.color})` })}
                         >
                           {item.name} · {item.price}
@@ -592,7 +568,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                 </p>
               )}
 
-              <div className="form-actions" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <div className="form-actions ws-actions">
                 <button className="btn primary" type="submit" disabled={run.busy || cascading}>
                   Kirim permintaan ke Bimo
                 </button>
@@ -611,7 +587,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                 Meda membaca permintaan dari Bimo, menentukan gaya kampanye, lalu menyiapkan tiga pilihan konsep dengan
                 produk dari katalog resmi Colorbox.
               </p>
-              <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+              <div className="ws-actions">
                 <button className="btn primary" disabled={run.busy || cascading} onClick={callMeda}>
                   Minta strategi dan konsep
                 </button>
@@ -630,7 +606,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                 Raka mencocokkan produk dengan katalog resmi Colorbox (1.206 produk), membaca panduan ukuran dalam cm,
                 memeriksa foto produk, lalu menyusun bahan riset untuk naskah.
               </p>
-              <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+              <div className="ws-actions">
                 <button className="btn primary" disabled={run.busy || cascading} onClick={callRaka}>
                   Minta riset katalog
                 </button>
@@ -649,7 +625,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                 Bram menulis naskah lima slide, caption Instagram dengan tagar resmi #NeverJustOneThing, dan arahan visual
                 format 4:5 untuk pembuat gambar.
               </p>
-              <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+              <div className="ws-actions">
                 <button className="btn primary" disabled={run.busy || cascading} onClick={callBram}>
                   Minta naskah dan arahan gambar
                 </button>
@@ -668,7 +644,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                 Vina membuat gambar carousel Instagram ukuran 1080 × 1350 px (4:5) memakai foto produk asli Colorbox.
                 Hasilnya lima berkas gambar yang siap diunggah.
               </p>
-              <div className="suggest" style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '12px 0' }}>
+              <div className="suggest ws-suggest">
                 <div className="small">
                   <b>Model gambar:</b> <code>openai/gpt-image-2</code> · <b>Ukuran:</b> 1080 × 1350 px (4:5)
                   <br />
@@ -676,7 +652,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 12, marginTop: 14, marginBottom: 20, flexWrap: 'wrap' }}>
+              <div className="ws-actions ws-actions-after">
                 <button className="btn primary" disabled={run.busy || cascading} onClick={callVina}>
                   {run.busy && stage === 4 ? 'Sedang membuat gambar...' : 'Minta gambar carousel'}
                 </button>
@@ -685,7 +661,6 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn soft"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
                   Lihat pratinjau
                 </a>
@@ -710,10 +685,10 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
           {/* Stage 5: Review Manusia (Human-in-the-Loop Quality Gate) */}
           {stage === 5 && (
             <div className="human-review-card">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div className="ws-row ws-row-split">
                 <div>
-                  <h2 style={{ margin: 0, fontSize: 18 }}>6. Pemeriksaan dan persetujuan Anda</h2>
-                  <p className="quiet" style={{ margin: '4px 0 0' }}>
+                  <h2 className="tight">6. Pemeriksaan dan persetujuan Anda</h2>
+                  <p className="quiet tight">
                     Periksa hasil akhir sebelum carousel dijadwalkan atau diterbitkan di Instagram Colorbox.
                   </p>
                 </div>
@@ -734,15 +709,14 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
               </div>
 
               {/* Visual Presentation */}
-              <div style={{ marginTop: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <b style={{ fontSize: 14 }}>Pratinjau 5 gambar (4:5):</b>
+              <div className="ws-block">
+                <div className="ws-row ws-row-split">
+                  <b className="small">Pratinjau 5 gambar (4:5):</b>
                   <a
                     href="/output/carousel_latest/carousel_preview.html"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn soft"
-                    style={{ fontSize: 12, padding: '4px 10px' }}
                   >
                     Buka pratinjau layar penuh
                   </a>
@@ -761,8 +735,8 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
               </div>
 
               {/* Quality Checklist */}
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
-                <b style={{ fontSize: 14 }}>Daftar periksa sebelum terbit:</b>
+              <div className="ws-rule">
+                <b className="small">Daftar periksa sebelum terbit:</b>
                 <div className="review-checklist">
                   <label>
                     <input
@@ -833,7 +807,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
 
               {/* Decision Buttons */}
               <div>
-                <b style={{ fontSize: 13, color: 'var(--muted)' }}>Keputusan Anda:</b>
+                <b className="small quiet">Keputusan Anda:</b>
                 <div className="decision-group">
                   <button
                     type="button"
@@ -865,11 +839,11 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
               {/* Approval Banner */}
               {decision === 'approved' && (
                 <div className="approval-banner">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className="ws-row ws-row-tight">
                     <Icon d={I.check} size={20} />
-                    <b style={{ fontSize: 15 }}>Disetujui dan siap tayang</b>
+                    <b>Disetujui dan siap tayang</b>
                   </div>
-                  <p style={{ margin: 0, fontSize: 13 }}>
+                  <p className="small tight">
                     Carousel ini sudah lolos semua pemeriksaan dan cocok dengan katalog resmi Colorbox.
                   </p>
                   <small>
@@ -968,13 +942,7 @@ const mdComponents = {
     <img
       src={src}
       alt={alt || ''}
-      style={{
-        maxWidth: '100%',
-        borderRadius: 8,
-        margin: '12px 0',
-        display: 'block',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-      }}
+      className="md-img"
     />
   ),
 }
@@ -996,7 +964,7 @@ function OutputView({ o, meta }: { o: Output; meta: string }) {
         <b>{o.agentName}</b>
         <span className="pill">{STAGE_LABELS[o.stage]}</span>
       </header>
-      <div className="rbody md" style={{ lineHeight: 1.6 }}>
+      <div className="rbody md">
         {o.text ? (
           <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>
             {o.text}

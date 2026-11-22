@@ -319,6 +319,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
     return (
       <section className="convo">
         <div className="page-state">
+          <h1 className="sr">Tim</h1>
           {loadState === 'loading' ? <p className="quiet">Memuat tim...</p> : loadState === 'error' ? <ErrorLine text="Tim belum bisa dimuat." onRetry={reload} /> : <p className="quiet">Tim tidak ditemukan. Mungkin sudah dihapus.</p>}
         </div>
       </section>

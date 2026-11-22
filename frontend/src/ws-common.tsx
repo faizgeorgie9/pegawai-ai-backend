@@ -1,3 +1,4 @@
+import './admin.css'
 import { useData } from './data'
 import type { Bot } from './bff'
 import { botPath } from './router'

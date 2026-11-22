@@ -324,6 +324,7 @@ export function BlockedBanner({ title, reason }: { title: string; reason: string
 export function PageState({ what, loadState, error, reload }: { what: string; loadState: string; error: string; reload: () => void }) {
   return (
     <section className="page center-page">
+      <h1 className="sr">{what}</h1>
       {loadState === 'loading' ? <p className="quiet">Memuat...</p> : loadState === 'error' ? <ErrorLine text={error} onRetry={reload} /> : <p className="quiet">{what} tidak ditemukan. Mungkin sudah dihapus.</p>}
     </section>
   )

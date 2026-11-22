@@ -591,7 +591,7 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
   .page.kanban .page-head .btn { padding: 0 12px; }
   .tq-bar .tq-title { order: 1; flex: 1 1 0; }
   .tq-bar .tq-go { order: 2; }
-  .tq-bar .tq-toggle { display: inline-flex; order: 3; flex-basis: 100%; justify-content: flex-start; height: 32px; padding: 0; }
+  .tq-bar .tq-toggle { display: inline-flex; order: 3; flex-basis: 100%; justify-content: flex-start; height: 40px; padding: 0; }
   .tq-opts { display: none; order: 4; flex-basis: 100%; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-2); }
   .tq-opts[data-open] { display: grid; }
   .tq-opts select, .tq-opts input[type="datetime-local"] { width: 100%; }
@@ -653,7 +653,7 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
   /* Four tabs share the phone width; tighter padding and no gap keep every label (and count) on screen. */
   .kb-tabs { gap: 0; }
   .kb-tabs button { padding: 0 2px; gap: 4px; }
-  .page.kanban .tq-bar .tq-toggle { min-height: 32px; }
+  .page.kanban .tq-bar .tq-toggle { min-height: 40px; }
 }
 
 @media (max-width: 640px) {
@@ -679,4 +679,15 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
 @media (max-width: 640px) {
   /* With a start time open, the worker picker gets the full width and the time shares the next row. */
   .tq-opts:has(input[type="datetime-local"]) > select { grid-column: 1 / -1; }
+}
+
+@media (max-width: 640px) {
+  /* Sprint 5 Day 5 QA: every tap target is at least 40 px tall on a phone (measured on the 375 px pages). */
+  .btn, .copy-btn, .seg > button, .icon-btn:not(.tiny), .runs-pill, .swatch, .thinking-head, .back { min-height: 40px; }
+  .icon-btn:not(.tiny), .swatch { min-width: 40px; }
+  input:not([type="checkbox"]):not([type="radio"]), select { min-height: 40px; }
+  .thinking-head, .back { align-items: center; }
+  .back { display: inline-flex; }
+  /* ellipsis rows keep display:block, so the height comes from padding */
+  .title-btn, .kb-rname, .team-name { padding-block: 12px; }
 }

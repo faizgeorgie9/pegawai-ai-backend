@@ -166,10 +166,34 @@ function Shell({ authUser, onLogout }: { authUser: AuthUser; onLogout: () => voi
 
   useEffect(() => setDrawer(false), [route])
 
+  // Phone drawer: focus moves into it when it opens; Escape closes it and gives focus back to the menu button.
+  const menuBtn = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!drawer) return
+    document.querySelector<HTMLElement>('.side a[href], .side button')?.focus()
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      setDrawer(false)
+      menuBtn.current?.focus()
+    }
+    document.addEventListener('keydown', esc)
+    return () => document.removeEventListener('keydown', esc)
+  }, [drawer])
+
   return (
     <div className="app" data-drawer={drawer || undefined}>
+      <a
+        className="skip-link"
+        href="#isi"
+        onClick={(e) => {
+          e.preventDefault() // the hash is the router: a real #isi jump would leave the page
+          document.getElementById('isi')?.focus()
+        }}
+      >
+        Lewati ke isi halaman
+      </a>
       <header className="mbar">
-        <button className="icon-btn" aria-label="Buka menu" onClick={() => setDrawer(true)}>
+        <button ref={menuBtn} className="icon-btn" aria-label="Buka menu" onClick={() => setDrawer(true)}>
           <Icon d={MENU} size={20} />
         </button>
         <span className="brand">
@@ -181,7 +205,7 @@ function Shell({ authUser, onLogout }: { authUser: AuthUser; onLogout: () => voi
       <Sidebar route={route} authUser={authUser} onLogout={onLogout} onClose={() => setDrawer(false)} />
       {drawer && <button className="scrim" aria-label="Tutup menu" onClick={() => setDrawer(false)} />}
 
-      <main className="stage">
+      <main className="stage" id="isi" tabIndex={-1}>
         {conn === 'retry' && (
           <p className="conn-bar" role="status">
             <span className="dots" aria-hidden="true" />

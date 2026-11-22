@@ -1,3 +1,4 @@
+import './admin.css'
 import { useEffect, useRef, useState } from 'react'
 import { api, errText } from './bff'
 import type { ActivityRow, Scope } from './bff'
@@ -63,7 +64,7 @@ export default function Activity({ scope, version }: { scope?: Scope; version?: 
   }
 
   return (
-    <section className={scope ? 'act-scope' : 'page'} aria-labelledby={scope ? undefined : 'act-h'}>
+    <section className={scope ? 'act-scope' : 'page act-page'} aria-labelledby={scope ? undefined : 'act-h'}>
       {!scope && (
       <header className="page-head">
         <div>

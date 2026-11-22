@@ -1,3 +1,4 @@
+import './admin.css'
 import { useCallback, useEffect, useState } from 'react'
 import { useAdminMode } from './adminMode'
 import { api } from './bff'
