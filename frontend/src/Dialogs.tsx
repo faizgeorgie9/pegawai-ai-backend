@@ -499,7 +499,7 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
             <div className="field">
               <span id="ec-l">Warna: {colorLabel(color)}</span>
               <div className="swatches" role="radiogroup" aria-labelledby="ec-l">
-                {Object.entries(COLORS).map(([c, hex]) => (
+                {[['plain', 'var(--raised)'] as const, ...Object.entries(COLORS)].map(([c, hex]) => (
                   <button key={c} type="button" role="radio" aria-checked={c === color} aria-label={`Warna ${colorLabel(c)}`} className="swatch" style={{ background: hex }} onClick={() => setColor(c)} />
                 ))}
               </div>

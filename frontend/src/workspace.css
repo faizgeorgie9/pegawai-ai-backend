@@ -317,3 +317,57 @@ input.tgl:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px;
   .ws[data-team="marketing"] .stepper li + li::before { display: none; }
   .ws[data-team="marketing"] .stepper button { padding: var(--s-2) var(--s-1); }
 }
+
+/* ---------- Sprint 5 loading: skeletons shaped like the Aplikasi and Keamanan pages ---------- */
+/* The plain note is inline and only fades in after 3 s: a fast load never flashes it, and revealing it
+   changes no width the layout depends on. */
+.slow-note { display: inline; margin: 0; font-size: var(--t-small); font-weight: 400; color: var(--muted); opacity: 0; animation: slow-note 200ms ease 3s forwards; }
+@keyframes slow-note { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .slow-note { opacity: 1; animation: none; } }
+
+/* Aplikasi: the search row, the linked rows and the catalog cards keep their real sizes. */
+.skel-apps .skel-body, .skel-skills .skel-body { gap: var(--s-4); }
+.skel-app-tools { display: flex; align-items: center; gap: var(--s-3); min-width: 0; }
+.skel-search, .skel-pill, .skel-mark, .skel-btn, .skel-chip { display: block; flex: none; background: var(--accent-track); }
+.skel-search { width: 240px; max-width: 40%; height: 40px; border-radius: var(--radius-control); }
+.skel-pills { display: flex; flex: 1; min-width: 0; gap: 6px; overflow: hidden; }
+.skel-pill { height: 32px; border-radius: 999px; }
+.skel-app-row { display: flex; flex-direction: row; align-items: center; gap: var(--s-3); min-height: 60px; padding: var(--s-2) var(--s-3); }
+.skel-app-row > .skel-head { flex: 1; }
+.skel-app-row > .skel-btn { margin-left: auto; }
+.skel-mark { width: 32px; height: 32px; border-radius: 8px; }
+.skel-lines { display: flex; flex-direction: column; flex: 1; gap: 6px; min-width: 0; }
+.skel-btn { width: 88px; height: 32px; border-radius: var(--radius-control); }
+.skel-btn.sm { width: 72px; }
+.skel-app-mini, .skel-skill-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-3); row-gap: 4px; padding: var(--s-3); }
+.skel-app-mini { grid-template-rows: 32px auto; min-height: 78px; }
+.skel-head { display: flex; align-items: center; gap: 10px; min-width: 0; grid-column: 1; grid-row: 1; }
+.skel-app-mini .skel-btn, .skel-skill-card .skel-btn { grid-column: 2; grid-row: 1; }
+.skel-desc { display: flex; flex-direction: column; gap: 4px; grid-column: 1 / -1; grid-row: 2; }
+.skel-skill-card { grid-template-rows: 24px auto auto; align-content: start; min-height: 112px; }
+.skel-skill-card .skel-head { grid-row: 1; }
+.skel-skill-card .skel-desc { grid-row: 2; }
+.skel-who { grid-column: 1 / -1; grid-row: 3; padding-top: 2px; }
+@media (max-width: 640px) {
+  .skel-app-tools { flex-direction: column; align-items: stretch; gap: var(--s-2); }
+  .skel-search { width: 100%; max-width: none; }
+  .skel-btn { height: 40px; }
+  .skel-app-row { flex-wrap: wrap; align-items: center; }
+  .skel-app-row > .skel-head { flex: 1 1 100%; }
+  .skel-app-row > .skel-btn { margin-left: 0; }
+}
+
+/* Keamanan: the real table head plus the chip cloud of the shared-policy row. */
+.skel-sec { display: flex; flex-direction: column; gap: var(--s-3); }
+.skel-sec .skel-body { gap: 6px; }
+.skel-sec-note { display: block; margin-bottom: 6px; }
+.skel-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.skel-chip { height: 26px; border-radius: 999px; }
+@media (max-width: 640px) {
+  .skel-sec td .skel-body { flex: 1 1 auto; min-width: 0; align-items: flex-end; }
+  .skel-sec-note { text-align: right; }
+}
+
+/* AI costs are USD only (the BFF sends no IDR amount or rate). Name the currency next to every amount
+   the shared meter and the task cards show, so "$0.50" is not mistaken for another dollar currency. */
+.cost-spent::after, .kc-cost::after { content: " USD"; font-size: 12px; font-weight: 500; color: var(--muted); }
