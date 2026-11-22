@@ -54,6 +54,7 @@ a.ledger-row:hover .ledger-main b { text-decoration: underline; text-underline-o
 .kv dt { color: var(--muted); }
 .kv dd { overflow-wrap: anywhere; }
 .persona { white-space: pre-wrap; overflow-wrap: anywhere; }
+.persona-clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .swatch-chip { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px; margin-right: 6px; }
 .back { color: var(--link); font-weight: 500; text-decoration: none; width: fit-content; }
 .form-page { display: flex; flex-direction: column; gap: 16px; max-width: 640px; }
@@ -367,8 +368,23 @@ td.st-col { min-width: 170px; }
 
 /* Beranda: onboarding checklist and the "today" panels */
 .onboard { gap: var(--s-3); padding-bottom: var(--s-4); }
-.onb-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); }
-.onb-head h2 { padding-bottom: 0; }
+.onboard-row { padding: var(--s-3) var(--s-4); gap: 0; }
+.onb-bar { display: flex; align-items: center; gap: var(--s-3); min-height: 48px; }
+.onb-ring { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border: 2px solid var(--accent); border-radius: 50%; background: var(--accent-wash); color: var(--accent-ink); font-size: var(--t-small); font-weight: 600; }
+.onb-bar .onb-text { flex: 1; min-width: 0; }
+.onb-bar .onb-kicker { padding: 0; font-size: var(--t-small); font-weight: 500; line-height: 1.4; color: var(--muted); }
+.onb-bar .onb-text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-lead); font-weight: 600; }
+.onb-ctrl { display: flex; align-items: center; gap: var(--s-3); flex: none; }
+.onboard-row .onb-list { margin-top: var(--s-2); border-top: 1px solid var(--rule); }
+.onb-skel { min-height: 74px; }
+@media (max-width: 640px) {
+  .onb-bar { flex-wrap: wrap; row-gap: var(--s-2); }
+  .onb-bar .onb-text b { white-space: normal; }
+  .onb-ctrl { flex: 1 1 100%; justify-content: space-between; }
+  .onb-ctrl .btn.primary { height: 40px; }
+  .onb-ctrl .btn.link { min-height: 40px; }
+  .onb-ctrl .icon-btn { width: 40px; height: 40px; }
+}
 .onb-list { display: flex; flex-direction: column; }
 .onb-step { display: flex; align-items: center; gap: var(--s-3); min-height: 52px; padding: var(--s-2) 0; }
 .onb-step + .onb-step { border-top: 1px solid var(--rule); }
@@ -381,6 +397,21 @@ td.st-col { min-width: 170px; }
 .cost-card { gap: var(--s-2); padding-bottom: var(--s-4); }
 .cost-card .cost-spent { font-size: 28px; font-weight: 500; line-height: 1.15; }
 .state-note { padding: var(--s-3) 0 var(--s-4); }
+.panel-card[data-empty] { padding-bottom: var(--s-3); }
+.panel-card[data-empty] .state-note { padding: var(--s-1) 0 var(--s-2); }
+.count-pill { margin-left: var(--s-2); vertical-align: middle; }
+.cost-compact { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); padding: var(--s-3) var(--s-4); }
+.cost-compact h2 { padding: 0; flex: none; min-width: 112px; font-size: var(--t-body); font-weight: 500; color: var(--muted); }
+.cost-compact .cost-meter { flex: 1; min-width: 0; }
+.cost-compact .cost-spent { font-size: 20px; font-weight: 600; line-height: 1.2; }
+.cost-compact .state-note { padding: 0; flex: 1; }
+.cost-compact .cost-admin { flex: 1 1 100%; }
+@media (max-width: 640px) {
+  .cost-compact h2 { flex: 1; min-width: 0; }
+  .cost-compact .cost-meter { order: 3; flex: 1 1 100%; }
+  .cost-compact .cost-more { order: 2; min-height: 40px; }
+  .tab-body .btn.link.small { min-height: 40px; }
+}
 
 /* Jadwal & tugas: Agen, Tim and Hasil sit behind the Filter button */
 .kb-more { flex-basis: 100%; justify-content: flex-end; }
@@ -415,6 +446,10 @@ td.st-col { min-width: 170px; }
 .skill-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; }
 .skill-list li { border-bottom: 1px solid var(--rule); }
 .skill-list li:last-child { border-bottom: 0; }
+@media (min-width: 901px) {
+  .skill-sw .skill-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s-6); }
+  .skill-sw .skill-list li:nth-last-child(-n+2):nth-child(odd), .skill-sw .skill-list li:last-child { border-bottom: 0; }
+}
 .skill-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); padding: var(--s-3) 0; cursor: pointer; }
 .skill-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .skill-txt code { font: inherit; color: var(--faint); }
@@ -459,10 +494,14 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
 .kb-rec li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
 .kb-rec-main { display: grid; min-width: 0; overflow-wrap: anywhere; }
 
-/* Beranda: the employee card (TimAnda.tsx). One row per employee: avatar, identity, two actions. */
-.team-card h2 { padding-bottom: 0; }
-.team-sub { margin-bottom: var(--s-2); font-size: var(--t-small); color: var(--muted); }
-.team-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; column-gap: 12px; align-items: center; min-width: 0; min-height: 64px; padding: 8px 0; }
+/* Beranda: the employee card (TimAnda.tsx). A two-column list of employees: avatar, identity, two actions. */
+.team-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); padding-bottom: var(--s-2); }
+.team-head h2 { padding-bottom: 0; }
+.team-head .quiet { white-space: nowrap; }
+.team-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s-5); }
+.team-grid > li { border-top: 1px solid var(--rule); }
+.team-grid > li:nth-child(-n+2) { border-top: 0; }
+.team-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; column-gap: 12px; align-items: center; min-width: 0; min-height: 56px; padding: var(--s-2) 0; }
 .team-row .ledger-main { line-height: 1.15; }
 .team-row .ledger-main small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .team-name { display: block; min-width: 0; color: inherit; text-decoration: none; }
@@ -473,19 +512,43 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
 .team-actions { display: flex; gap: 8px; }
 .team-more { align-self: flex-start; min-height: 48px; }
 .team-empty { margin-bottom: var(--s-2); }
+@media (max-width: 900px) {
+  .team-grid { grid-template-columns: minmax(0, 1fr); }
+  .team-grid > li:nth-child(2) { border-top: 1px solid var(--rule); }
+}
+@media (max-width: 640px) {
+  .team-card[data-collapsed] .team-grid > li:nth-child(n+4) { display: none; }
+}
+@media (min-width: 641px) { .team-more[data-few] { display: none; } }
 
 /* Pegawai detail: "Bisa Anda ubah" / "Diatur sistem" (Agents.tsx) */
 .perm-block { align-items: stretch; }
+.perm-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.perm-head h2 { padding-bottom: 0; }
+.perm-head .btn.soft { flex: none; margin-top: 0; }
 .perm-locked { background: var(--raised); }
 .perm-locked h2 { display: flex; align-items: center; gap: 8px; }
 .perm-locked h2 svg { flex: none; color: var(--muted); }
+.perm-locked > summary { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); cursor: pointer; list-style: none; }
+.perm-locked > summary::-webkit-details-marker { display: none; }
+.perm-locked > summary h2 { padding-bottom: 0; }
+.perm-locked > summary > svg { flex: none; color: var(--muted); transition: transform var(--m-in) var(--ease); }
+.perm-locked[open] > summary > svg { transform: rotate(180deg); }
 .perm-list { display: flex; flex-direction: column; min-width: 0; }
 .perm-list li { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 8px 0; border-top: 1px solid var(--rule); }
 .perm-list li:first-child { border-top: 0; }
 .perm-list b { font-weight: 500; }
 .perm-list small { overflow-wrap: anywhere; }
-.perm-edit .btn.soft { align-self: flex-start; margin-top: 8px; }
 .perm-locked .btn.link { align-self: flex-start; margin-top: 8px; }
+@media (min-width: 901px) {
+  .perm-list li { flex-direction: row; align-items: baseline; justify-content: space-between; gap: var(--s-4); }
+  .perm-list small { text-align: right; max-width: 62%; }
+}
+@media (max-width: 640px) {
+  .perm-head .btn.sm { height: 40px; }
+  .perm-locked:not([open]) { padding-block: var(--s-3); }
+}
+@media (prefers-reduced-motion: reduce) { .perm-locked > summary > svg { transition: none; } }
 
 /* Atur dialog colour picker (Dialogs.tsx): a 36 px target with an 8 px gap; the label names the current colour. */
 .swatches { gap: 8px; }
@@ -499,6 +562,9 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
 
 @media (max-width: 640px) {
   .page-head .btn { min-height: 40px; }
+  .page-head.head-inline { flex-wrap: nowrap; align-items: flex-start; gap: var(--s-3); }
+  .head-inline .head-actions { flex: none; }
+  .head-inline p { font-size: var(--t-small); }
   .team-row {
     grid-template-columns: 36px minmax(0, 1fr);
     grid-template-areas: "av main" "act act";
@@ -510,7 +576,6 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
   .team-row > .ledger-main { grid-area: main; }
   .team-actions { grid-area: act; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .team-row .btn.sm { height: 40px; }
-  .perm-edit .btn.soft { width: 100%; height: 44px; }
   .perm-locked .btn.link { min-height: 40px; }
   .kv.kv-wide { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .kv.kv-wide dd { margin-bottom: 8px; }

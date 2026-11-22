@@ -6,7 +6,7 @@ import { useData } from './data'
 import GroupChat from './Group'
 import { botPath, go, groupPath } from './router'
 import type { Route } from './router'
-import { BotAvatar, CLOSE, DOTS, ErrorLine, Icon, PENCIL, PLUS, TRASH, ago, botColor, roleLabel, teamLabel } from './ui'
+import { BotAvatar, CLOSE, DOTS, ErrorLine, I, Icon, PENCIL, PLUS, TRASH, ago, botColor, roleLabel, teamLabel } from './ui'
 import { PageState, statusText } from './ui-extra'
 
 // Chat and Grup: a left column with the list (agents by team, or groups) and the conversation on the right.
@@ -100,11 +100,15 @@ export function ChatLayout({ route }: { route: Extract<Route, { name: 'bot' } | 
   const hist = useSessions(botId)
   const bot = bots.find((b) => b.id === botId)
   const [open, setOpen] = useState(false)
+  const [whoOpen, setWhoOpen] = useState(false)
   const [menu, setMenu] = useState<string | null>(null)
   const teams = bots.reduce<Record<string, Bot[]>>((acc, b) => ((acc[b.team] ??= []).push(b), acc), {})
   for (const list of Object.values(teams)) list.sort((a, b) => Number(isLead(b)) - Number(isLead(a))) // stable: the rest keep their order
 
-  useEffect(() => setOpen(false), [route])
+  useEffect(() => {
+    setOpen(false)
+    setWhoOpen(false)
+  }, [route])
   // On a wide screen "Chat" opens the agent you used last (or the first one); on a phone the list is the page.
   useEffect(() => {
     const last = remember('pa.lastBot', botId)
@@ -114,16 +118,25 @@ export function ChatLayout({ route }: { route: Extract<Route, { name: 'bot' } | 
     }
   }, [route.name, botId, bots, loadState])
   useEffect(() => {
+    if (!whoOpen) return
+    const off = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setWhoOpen(false)
+    }
+    document.addEventListener('keydown', off)
+    return () => document.removeEventListener('keydown', off)
+  }, [whoOpen])
+  useEffect(() => {
     if (!menu) return
     const off = () => setMenu(null)
     document.addEventListener('click', off)
     return () => document.removeEventListener('click', off)
   }, [menu])
 
-  // The rail also holds ten agents above the history: bring the history into view (opening the sheet on a phone).
+  // The history sits below the employee switcher: open the sheet on a phone and put the keyboard on the first conversation.
   function showHistory() {
+    setWhoOpen(false)
     setOpen(true)
-    window.setTimeout(() => document.getElementById('chat-history')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 50)
+    window.setTimeout(() => document.querySelector<HTMLElement>('#chat-history .sess-main')?.focus(), 50)
   }
 
   return (
@@ -139,66 +152,90 @@ export function ChatLayout({ route }: { route: Extract<Route, { name: 'bot' } | 
         open={open}
         onClose={() => setOpen(false)}
       >
-        {loadState === 'loading' && <p className="quiet pad">Memuat pegawai...</p>}
-        {loadState === 'error' && bots.length === 0 && <ErrorLine text={error} onRetry={reload} />}
-        {loadState === 'ok' && bots.length === 0 && <p className="quiet pad">Belum ada pegawai AI. Klik Pegawai baru untuk membuat yang pertama.</p>}
-        {Object.entries(teams).map(([team, list]) => (
-          <div key={team} className="bot-group" data-team={team}>
-            <h3>{teamLabel(team)}</h3>
-            <ul>
-              {list.map((b) => (
-                <li key={b.id} className="bot-li">
-                  <a className="row" href={'#' + botPath(b.id)} aria-current={botId === b.id ? 'page' : undefined} title={roleLabel(b.role)} style={{ ['--bot' as string]: botColor(b) }}>
-                    <BotAvatar bot={b} size={28} />
-                    <span className="bot-text">
-                      <span className="bot-name">
-                        <b>{b.name}</b>
-                        {isLead(b) && <small className="lead">Kontak utama</small>}
+        {bot && (
+          <section className="rail-who" aria-label="Pegawai yang sedang dibuka">
+            <button
+              type="button"
+              className="who-btn"
+              aria-expanded={whoOpen}
+              aria-controls="who-list"
+              style={{ ['--bot' as string]: botColor(bot) }}
+              onClick={() => setWhoOpen((v) => !v)}
+            >
+              <BotAvatar bot={bot} size={32} />
+              <span className="bot-text">
+                <span className="bot-name">
+                  <b>{bot.name}</b>
+                </span>
+                <small className="st">{roleLabel(bot.role)}</small>
+              </span>
+              <span className="who-change">{whoOpen ? 'Tutup' : 'Ganti'}</span>
+              <Icon d={I.down} size={16} />
+            </button>
+          </section>
+        )}
+        <div id="who-list" className="who-list" hidden={!!bot && !whoOpen}>
+          {loadState === 'loading' && <p className="quiet pad">Memuat pegawai...</p>}
+          {loadState === 'error' && bots.length === 0 && <ErrorLine text={error} onRetry={reload} />}
+          {loadState === 'ok' && bots.length === 0 && <p className="quiet pad">Belum ada pegawai AI. Klik Pegawai baru untuk membuat yang pertama.</p>}
+          {Object.entries(teams).map(([team, list]) => (
+            <div key={team} className="bot-group" data-team={team}>
+              <h3>{teamLabel(team)}</h3>
+              <ul>
+                {list.map((b) => (
+                  <li key={b.id} className="bot-li">
+                    <a className="row" href={'#' + botPath(b.id)} aria-current={botId === b.id ? 'page' : undefined} title={roleLabel(b.role)} style={{ ['--bot' as string]: botColor(b) }}>
+                      <BotAvatar bot={b} size={28} />
+                      <span className="bot-text">
+                        <span className="bot-name">
+                          <b>{b.name}</b>
+                          {isLead(b) && <small className="lead">Kontak utama</small>}
+                        </span>
+                        <small className="st">{b.status === 'idle' && !b.deleteError ? roleLabel(b.role) : statusText(b)}</small>
                       </span>
-                      <small className="st">{b.status === 'idle' && !b.deleteError ? roleLabel(b.role) : statusText(b)}</small>
-                    </span>
-                    <span className="status-dot" data-s={b.status} role="img" aria-label={b.status === 'idle' ? 'Siap' : b.status === 'working' ? 'Bekerja' : 'Berdiskusi'} />
-                  </a>
-                  {(
-                    <span className="row-menu">
-                      <button
-                        className="icon-btn"
-                        aria-label={`Menu ${b.name}`}
-                        aria-expanded={menu === b.id}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setMenu(menu === b.id ? null : b.id)
-                        }}
-                      >
-                        <Icon d={DOTS} />
-                      </button>
-                      {menu === b.id && (
-                        <div className="popmenu" role="menu">
-                          <button
-                            role="menuitem"
-                            onClick={() => {
-                              setMenu(null)
-                              setDialog({ kind: 'edit', bot: b })
-                            }}
-                          >
-                            <Icon d={PENCIL} />
-                            Atur pegawai
-                          </button>
-                          {!b.builtin && (
-                            <button role="menuitem" onClick={() => setDialog({ kind: 'delete', bot: b })}>
-                              <Icon d={TRASH} />
-                              Hapus pegawai
+                      <span className="status-dot" data-s={b.status} role="img" aria-label={b.status === 'idle' ? 'Siap' : b.status === 'working' ? 'Bekerja' : 'Berdiskusi'} />
+                    </a>
+                    {(
+                      <span className="row-menu">
+                        <button
+                          className="icon-btn"
+                          aria-label={`Menu ${b.name}`}
+                          aria-expanded={menu === b.id}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setMenu(menu === b.id ? null : b.id)
+                          }}
+                        >
+                          <Icon d={DOTS} />
+                        </button>
+                        {menu === b.id && (
+                          <div className="popmenu" role="menu">
+                            <button
+                              role="menuitem"
+                              onClick={() => {
+                                setMenu(null)
+                                setDialog({ kind: 'edit', bot: b })
+                              }}
+                            >
+                              <Icon d={PENCIL} />
+                              Atur pegawai
                             </button>
-                          )}
-                        </div>
-                      )}
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+                            {!b.builtin && (
+                              <button role="menuitem" onClick={() => setDialog({ kind: 'delete', bot: b })}>
+                                <Icon d={TRASH} />
+                                Hapus pegawai
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
         {bot && <History bot={bot} hist={hist} sid={sid} />}
       </Rail>
 
@@ -359,7 +396,7 @@ function SessionRow(p: { botId: string; s: Session; current: boolean; onRename: 
   const [name, setName] = useState('')
   const rowRef = useRef<HTMLLIElement>(null)
   const title = titleOf(p.s)
-  // The rail scrolls: without this, a delete click on a row near the fold looks like nothing happened.
+  // The history list scrolls: without this, a delete click on a row near the fold looks like nothing happened.
   useEffect(() => {
     if (mode === 'confirm') rowRef.current?.scrollIntoView({ block: 'nearest' })
   }, [mode])

@@ -189,9 +189,9 @@ export function CapChip({ cap, label }: { cap: Cap; label?: string }) {
 // Every fixture carries this badge.
 export const SampleBadge = () => <span className="pill sample" title="Isi buatan frontend untuk menunjukkan bentuk hasil. Bukan hasil pegawai.">Contoh data</span>
 
-export function PageHead({ title, sub, actions }: { title: string; sub?: string; actions?: ReactNode }) {
+export function PageHead({ title, sub, actions, inline }: { title: string; sub?: string; actions?: ReactNode; inline?: boolean }) {
   return (
-    <header className="page-head">
+    <header className={'page-head' + (inline ? ' head-inline' : '')}>
       <div>
         <h1>{title}</h1>
         {sub && <p className="quiet">{sub}</p>}

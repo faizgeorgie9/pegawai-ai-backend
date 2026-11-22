@@ -3,7 +3,7 @@ import { ActionCard, useVisibleActions } from './ActionCard'
 import { useAdminMode } from './adminMode'
 import { api } from './bff'
 import { useData } from './data'
-import { Onboarding, DEFAULT_NAME, hasName } from './Onboarding'
+import { Onboarding, DEFAULT_NAME, hasName, onboardingClosed } from './Onboarding'
 import type { Step } from './Onboarding'
 import { groupPath } from './router'
 import { TimAnda } from './TimAnda'
@@ -62,6 +62,7 @@ export default function Dashboard() {
   const ask = team ? `#${groupPath(team.id)}?tulis=1` : '#/grup'
   const w = work.data
   const upcoming = w?.upcoming ?? []
+  const waitingCount = approvals.length + (w?.waiting.length ?? 0)
   const defaultName = settings.company_name.trim() === DEFAULT_NAME
 
   const steps: Step[] = [
@@ -104,20 +105,27 @@ export default function Dashboard() {
   return (
     <section className="page">
       <PageHead
+        inline
         title="Beranda"
         sub="Yang perlu Anda lakukan hari ini."
         actions={
-          <a className="btn primary" href={ask}>
-            Beri tugas ke tim
+          <a className="btn primary" href={ask} aria-label="Beri tugas ke tim">
+            <span>
+              Beri tugas<span className="hide-sm"> ke tim</span>
+            </span>
           </a>
         }
       />
 
+      {!stepsReady && !onboardingClosed() && <div className="panel-card onboard-row onb-skel" aria-hidden="true" />}
       {stepsReady && <Onboarding steps={steps} />}
 
       <div className="two">
-        <section className="panel-card" aria-labelledby="need-h">
-          <h2 id="need-h">Perlu persetujuan Anda</h2>
+        <section className="panel-card" data-empty={w && w.waiting.length === 0 && approvals.length === 0 ? '' : undefined} aria-labelledby="need-h">
+          <h2 id="need-h">
+            Perlu persetujuan Anda
+            {waitingCount > 0 && <span className="pill warn count-pill">{waitingCount}</span>}
+          </h2>
           {work.state === 'loading' && <Loading text="Memuat..." shape="ledger" rows={2} />}
           {work.state === 'error' && <ErrorLine text={work.error} onRetry={work.retry} />}
           {approvals.length > 0 && (
@@ -152,7 +160,7 @@ export default function Dashboard() {
           )}
         </section>
 
-        <section className="panel-card" aria-labelledby="next-h">
+        <section className="panel-card" data-empty={w && upcoming.length === 0 ? '' : undefined} aria-labelledby="next-h">
           <h2 id="next-h">Berikutnya</h2>
           {work.state === 'loading' && <Loading text="Memuat..." shape="ledger" rows={2} />}
           {w && upcoming.length === 0 && <p className="quiet state-note">Belum ada jadwal terdekat.</p>}
@@ -177,17 +185,20 @@ export default function Dashboard() {
         </section>
       </div>
 
-      <TimAnda />
-
-      <section className="panel-card cost-card" aria-labelledby="cost-h">
+      <section className="panel-card cost-card cost-compact" aria-labelledby="cost-h">
         <h2 id="cost-h">Biaya bulan ini</h2>
         {me ? <CostMeter u={me.usage} /> : <p className="quiet state-note">Belum terbaca.</p>}
+        <a className="btn link small cost-more" href="#/pengaturan/paket">
+          Lihat rincian
+        </a>
         {admin && me && (
-          <p className="quiet small">
+          <p className="quiet small cost-admin">
             Pemakaian: <span className="num">{nf.format(me.usage.tokens_month)}</span> token
           </p>
         )}
       </section>
+
+      <TimAnda />
 
       {admin && (
         <>

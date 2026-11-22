@@ -4,7 +4,7 @@ import type { Bot, BotDetail } from './bff'
 import { useAdminMode } from './adminMode'
 import { useData } from './data'
 import { agenPath, botPath, go } from './router'
-import { BotAvatar, COLORS, ErrorLine, Icon, LOCK, botColor, cleanTaskText, colorLabel, nf, roleLabel, stamp, teamLabel } from './ui'
+import { BotAvatar, COLORS, ErrorLine, Icon, I, LOCK, botColor, cleanTaskText, colorLabel, nf, roleLabel, stamp, teamLabel } from './ui'
 import { AgentSkills } from './skills-ui'
 import { TIERS, tierOf } from './modelTiers'
 import { Empty, EffortSelect, Loading, ModelSelect, PageHead, Opt, defaultEffortLabel, defaultModelLabel, effortWord, modelKey, splitModel, statusText, useLoad } from './ui-extra'
@@ -120,6 +120,12 @@ const RUN_PILL: Record<string, string> = {
   running: 'run',
   queued: 'wait',
 }
+const TABS = [
+  ['ringkasan', 'Ringkasan'],
+  ['pekerjaan', 'Pekerjaan'],
+  ['keahlian', 'Keahlian'],
+] as const
+type TabId = (typeof TABS)[number][0]
 export function AgentDetail({ id }: { id: string }) {
   const { setDialog } = useData()
   const admin = useAdminMode()
@@ -139,6 +145,22 @@ export function AgentDetail({ id }: { id: string }) {
     [id],
   )
   const extra = useLoad(extraFn)
+  const [tab, setTab] = useState<TabId>(() => {
+    const t = new URLSearchParams(location.hash.split('?')[1] ?? '').get('tab')
+    return TABS.some(([id]) => id === t) ? (t as TabId) : 'ringkasan'
+  })
+  const [allText, setAllText] = useState(false)
+  const [wide] = useState(() => window.matchMedia('(min-width: 901px)').matches)
+
+  function onTabKey(e: React.KeyboardEvent) {
+    const i = TABS.findIndex(([id]) => id === tab)
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
+    const next = d ? TABS[(i + d + TABS.length) % TABS.length][0] : e.key === 'Home' ? TABS[0][0] : e.key === 'End' ? TABS[TABS.length - 1][0] : undefined
+    if (!next) return
+    e.preventDefault()
+    setTab(next)
+    document.getElementById('tab-' + next)?.focus()
+  }
 
   if (bot.state === 'loading') return <section className="page"><Loading text="Memuat pegawai..." shape="page" /></section>
   if (bot.state === 'error')
@@ -155,6 +177,8 @@ export function AgentDetail({ id }: { id: string }) {
   const month = um.find((x) => x.bot_id === id)
   const all = ua.find((x) => x.bot_id === id)
   const tier = b.model ? TIERS.find((t) => t.id === tierOf(b.model))?.label : undefined
+  const persona = b.persona || (b.builtin ? 'Dikelola sistem.' : 'Belum ada petunjuk tugas. Klik Atur untuk menulisnya.')
+  const long = (b.persona ?? '').length > 200
 
   return (
     <section className="page">
@@ -186,41 +210,65 @@ export function AgentDetail({ id }: { id: string }) {
         </div>
       </header>
 
-      <div className="cbox">
-        <h2>Identitas</h2>
-        <dl className="kv kv-wide">
-          <dt>Peran</dt>
-          <dd>{roleLabel(b.role)}</dd>
-          <dt>Tim</dt>
-          <dd><span className="pill" data-team={b.team}>{teamLabel(b.team)}</span></dd>
-          <dt>Status</dt>
-          <dd>{statusText(b)}</dd>
-          {admin && (
-            <>
-              <dt>Warna</dt>
-              <dd>
-                <span className="swatch-chip" style={{ background: botColor(b) }} />
-                {colorLabel(b.color || 'plain')}
-              </dd>
-              <dt>Model</dt>
-              <dd>{b.model || defaultModelLabel(cat)}</dd>
-              <dt>Tingkat berpikir</dt>
-              <dd>{effortWord(b.effort) || defaultEffortLabel(cat)}</dd>
-            </>
-          )}
-          <dt>Dibuat</dt>
-          <dd>{b.createdAt ? stamp(b.createdAt) : '–'}</dd>
-          <dt>Jenis</dt>
-          <dd>{b.builtin ? 'Pegawai bawaan, tidak bisa dihapus' : 'Dibuat oleh Anda'}</dd>
-        </dl>
+      <div className="tabs" role="tablist" aria-label="Bagian detail pegawai" onKeyDown={onTabKey}>
+        {TABS.map(([id, label]) => (
+          <button
+            key={id}
+            id={'tab-' + id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            aria-controls={'panel-' + id}
+            tabIndex={tab === id ? 0 : -1}
+            onClick={() => setTab(id)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
+
+      <div id={'panel-' + tab} role="tabpanel" aria-labelledby={'tab-' + tab} className="tab-body">
+        {tab === 'ringkasan' && (
+          <>
+            {extra.state === 'loading' && <Loading text="Memuat pemakaian..." shape="ledger" rows={1} />}
+            {extra.state === 'error' && <ErrorLine text={extra.error} onRetry={extra.retry} />}
+            {extra.state === 'ok' && (
+              <dl className={admin ? 'kpis k4' : 'kpis k2'}>
+                {(admin
+                  ? [
+                      { label: 'Percakapan', value: sessions.length },
+                      { label: 'Pemakaian bulan ini (token)', value: month?.total ?? 0 },
+                      { label: 'Pemakaian total (token)', value: all?.total ?? 0 },
+                      { label: 'Tugas total', value: all?.runs ?? 0 },
+                    ]
+                  : [
+                      { label: 'Percakapan', value: sessions.length },
+                      { label: 'Tugas dikerjakan', value: all?.runs ?? 0 },
+                    ]
+                ).map((k) => (
+                  <div key={k.label}>
+                    <dt>{k.label}</dt>
+                    <dd className="num">{nf.format(k.value)}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
 
       <div className="two perm-block">
         <section className="cbox perm-edit" aria-labelledby="perm-edit-h">
-          <h2 id="perm-edit-h">Bisa Anda ubah</h2>
+          <header className="perm-head">
+            <h2 id="perm-edit-h">Bisa Anda ubah</h2>
+            <button className="btn soft sm" onClick={() => setDialog({ kind: 'edit', bot: b })}>
+              Atur
+            </button>
+          </header>
           <ul className="perm-list">
             {!b.builtin && (
               <>
+                <li>
+                  <b>Jenis</b>
+                  <small className="quiet small">Dibuat oleh Anda</small>
+                </li>
                 <li>
                   <b>Nama</b>
                   <small className="quiet small">{b.name}</small>
@@ -244,14 +292,14 @@ export function AgentDetail({ id }: { id: string }) {
             </li>
           </ul>
           <p className="quiet small">Perubahan berlaku mulai tugas berikutnya.</p>
-          <button className="btn soft" onClick={() => setDialog({ kind: 'edit', bot: b })}>
-            Atur
-          </button>
         </section>
-        <section className="cbox perm-locked" aria-labelledby="perm-locked-h">
-          <h2 id="perm-locked-h">
-            <Icon d={LOCK} size={16} /> Diatur sistem
-          </h2>
+        <details className="cbox perm-locked" open={wide}>
+          <summary>
+            <h2 id="perm-locked-h">
+              <Icon d={LOCK} size={16} /> Diatur sistem
+            </h2>
+            <Icon d={I.down} size={16} />
+          </summary>
           <ul className="perm-list">
             {b.builtin && (
               <li>
@@ -271,86 +319,97 @@ export function AgentDetail({ id }: { id: string }) {
           <a className="btn link" href="#/pengaturan/keamanan">
             Lihat batasan keamanan
           </a>
-        </section>
+        </details>
       </div>
-
-      {admin && (
-        <p className="quiet small">
-          <a className="btn link" href={'#' + agenPath(b.id, 'ubah')}>
-            Pengaturan lanjutan
-          </a>
-        </p>
-      )}
 
       <div className="cbox">
         <h2>Tugas dan gaya bicara</h2>
-        <p className="persona">{b.persona || (b.builtin ? 'Dikelola sistem.' : 'Belum ada petunjuk tugas. Klik Atur untuk menulisnya.')}</p>
+        <p className={'persona' + (long && !allText ? ' persona-clamp' : '')}>{persona}</p>
+        {long && (
+          <button type="button" className="btn link small" aria-expanded={allText} onClick={() => setAllText((v) => !v)}>
+            {allText ? 'Tampilkan lebih sedikit' : 'Baca selengkapnya'}
+          </button>
+        )}
       </div>
 
-      {extra.state === 'loading' && <Loading text="Memuat pemakaian..." shape="ledger" rows={2} />}
-      {extra.state === 'error' && <ErrorLine text={extra.error} onRetry={extra.retry} />}
-      {extra.state === 'ok' && (
-        <>
-          <dl className={admin ? 'kpis k4' : 'kpis k2'}>
-            {(admin
-              ? [
-                  { label: 'Percakapan', value: sessions.length },
-                  { label: 'Pemakaian bulan ini (token)', value: month?.total ?? 0 },
-                  { label: 'Pemakaian total (token)', value: all?.total ?? 0 },
-                  { label: 'Tugas total', value: all?.runs ?? 0 },
-                ]
-              : [
-                  { label: 'Percakapan', value: sessions.length },
-                  { label: 'Tugas dikerjakan', value: all?.runs ?? 0 },
-                ]
-            ).map((k) => (
-              <div key={k.label}>
-                <dt>{k.label}</dt>
-                <dd className="num">{nf.format(k.value)}</dd>
-              </div>
-            ))}
-          </dl>
+      {b.createdAt > 0 && <p className="quiet small">Dibuat {stamp(b.createdAt)}</p>}
 
+      {admin && (
+        <div className="cbox">
+          <h2>Identitas</h2>
+          <dl className="kv kv-wide">
+            <dt>Warna</dt>
+            <dd>
+              <span className="swatch-chip" style={{ background: botColor(b) }} />
+              {colorLabel(b.color || 'plain')}
+            </dd>
+            <dt>Model</dt>
+            <dd>{b.model || defaultModelLabel(cat)}</dd>
+            <dt>Tingkat berpikir</dt>
+            <dd>{effortWord(b.effort) || defaultEffortLabel(cat)}</dd>
+          </dl>
+          <p className="quiet small">
+            <a className="btn link" href={'#' + agenPath(b.id, 'ubah')}>
+              Pengaturan lanjutan
+            </a>
+          </p>
+        </div>
+      )}
+          </>
+        )}
+
+        {tab === 'pekerjaan' &&
+          (extra.state === 'loading' ? (
+            <Loading text="Memuat pekerjaan..." shape="table" />
+          ) : extra.state === 'error' ? (
+            <ErrorLine text={extra.error} onRetry={extra.retry} />
+          ) : (
+            <div className="block">
+              <header>
+                <h2>Tugas terakhir</h2>
+              </header>
+              {runs.length === 0 ? (
+                <Empty title="Belum ada tugas">
+                  <a className="btn primary" href={'#' + botPath(b.id)}>
+                    Ajak {b.name} bicara
+                  </a>
+                </Empty>
+              ) : (
+                <div className="table-wrap">
+                  <table className="plain">
+                    <thead>
+                      <tr>
+                        <th>Waktu</th>
+                        <th>Tugas</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {runs.map((r) => (
+                        <tr key={r.id}>
+                          <td className="num" data-label="Waktu">{stamp(r.started_at)}</td>
+                          <td data-label="Tugas">
+                            <span className="clamp2">{cleanTaskText(r.input || '').split(/\s*\(id tugas:/)[0].trim() || '–'}</span>
+                          </td>
+                          <td data-label="Status">
+                            <span className={`pill ${RUN_PILL[r.status] ?? 'idle'} run-status`}>{RUN_STATUS[r.status] ?? r.status}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ))}
+
+        {tab === 'keahlian' && (
           <div className="cbox">
             <h2>Keahlian pegawai</h2>
             <AgentSkills slug={id} />
           </div>
-
-          <div className="block">
-            <header>
-              <h2>Tugas terakhir</h2>
-            </header>
-            {runs.length === 0 ? (
-              <Empty title="Belum ada tugas">Kirim pesan lewat Chat untuk memulai.</Empty>
-            ) : (
-              <div className="table-wrap">
-                <table className="plain">
-                  <thead>
-                    <tr>
-                      <th>Waktu</th>
-                      <th>Tugas</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {runs.map((r) => (
-                      <tr key={r.id}>
-                        <td className="num" data-label="Waktu">{stamp(r.started_at)}</td>
-                        <td data-label="Tugas">
-                          <span className="clamp2">{cleanTaskText(r.input || '').split(/\s*\(id tugas:/)[0].trim() || '–'}</span>
-                        </td>
-                        <td data-label="Status">
-                          <span className={`pill ${RUN_PILL[r.status] ?? 'idle'} run-status`}>{RUN_STATUS[r.status] ?? r.status}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </>
-      )}
+        )}
+      </div>
     </section>
   )
 }
