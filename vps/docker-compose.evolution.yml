@@ -38,7 +38,7 @@ services:
       - CACHE_REDIS_ENABLED=false
       - CACHE_LOCAL_ENABLED=true
       - LOG_LEVEL=INFO
-      - WEBHOOK_GLOBAL_ENABLED=true
+      - WEBHOOK_GLOBAL_ENABLED=false
       - WEBHOOK_GLOBAL_URL=https://139.190.107.151.sslip.io/bff/api/whatsapp/webhook
       - WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS=false
       - WEBHOOK_EVENTS_MESSAGES_UPSERT=true

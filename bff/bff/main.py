@@ -823,7 +823,6 @@ async def whatsapp_webhook_verify(request: Request):
 
 
 @public.post("/whatsapp/webhook")
-@api.post("/whatsapp/webhook")
 async def whatsapp_webhook_post(request: Request):
     """Receive incoming WhatsApp messages (Meta Cloud API format or direct simulation)."""
     try:
@@ -837,6 +836,10 @@ async def whatsapp_webhook_post(request: Request):
 
     results = []
     for m in messages:
+        msg_id = m.get("message_id")
+        if msg_id and whatsapp.is_duplicate_message(msg_id):
+            log.info("Skipping duplicate WhatsApp message_id: %s from %s", msg_id, m.get("sender"))
+            continue
         res = await whatsapp.route_and_process_message(
             user_id="default",
             sender=m["sender"],
