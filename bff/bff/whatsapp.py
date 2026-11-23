@@ -20,6 +20,11 @@ WHATSAPP_VERIFY_TOKEN = os.environ.get("WHATSAPP_VERIFY_TOKEN", "pegawai_ai_wa_v
 WHATSAPP_API_TOKEN = os.environ.get("WHATSAPP_API_TOKEN", "")
 WHATSAPP_PHONE_NUMBER_ID = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
 
+# Evolution API (Baileys without browser - Ultra Lightweight)
+EVOLUTION_API_URL = os.environ.get("EVOLUTION_API_URL", "http://127.0.0.1:8080").rstrip("/")
+EVOLUTION_API_KEY = os.environ.get("EVOLUTION_API_KEY", "pegawai_ai_evolution_secret_key_2026")
+EVOLUTION_INSTANCE = os.environ.get("EVOLUTION_INSTANCE", "colorbox")
+
 # Escalation triggers that route directly to Hendra (CS Team Lead)
 ESCALATION_KEYWORDS = {
     "cacat", "rusak", "robek", "reject", "kecewa", "tuntut", "kasus", "somasi",
@@ -75,6 +80,38 @@ def parse_webhook_payload(payload: dict) -> list[dict]:
                             "timestamp": msg.get("timestamp"),
                             "raw": msg
                         })
+        return messages
+
+    # Check Evolution API format (Baileys WebSocket without browser)
+    event_name = payload.get("event")
+    data_obj = payload.get("data")
+    if (event_name == "messages.upsert" or (event_name and "message" in event_name)) and isinstance(data_obj, dict):
+        key = data_obj.get("key", {})
+        from_me = key.get("fromMe", False)
+        # Process inbound messages from customer only (ignore bot's own outbound messages)
+        if not from_me:
+            remote_jid = key.get("remoteJid", "")
+            # e.g. 62812345678@s.whatsapp.net
+            sender = remote_jid.split("@")[0] if "@" in remote_jid else remote_jid
+            customer_name = data_obj.get("pushName") or "Pelanggan"
+            msg_obj = data_obj.get("message") or {}
+            
+            body = (
+                msg_obj.get("conversation") or
+                msg_obj.get("extendedTextMessage", {}).get("text") or
+                msg_obj.get("imageMessage", {}).get("caption") or
+                msg_obj.get("videoMessage", {}).get("caption") or
+                ""
+            )
+            if sender and body:
+                messages.append({
+                    "sender": sender,
+                    "customer_name": customer_name,
+                    "message": str(body).strip(),
+                    "message_id": key.get("id") or f"evo_{uuid.uuid4().hex[:12]}",
+                    "timestamp": str(data_obj.get("messageTimestamp") or int(datetime.now(timezone.utc).timestamp())),
+                    "raw": payload
+                })
         return messages
 
     # Check Direct Simulation / Simple JSON format
@@ -184,6 +221,83 @@ def generate_cs_reply(bot_id: str, customer_name: str, message: str, intent: str
                 "Siti siap membantu dengan senang hati!"
             )
 
+async def send_evolution_whatsapp_message(to: str, text: str, instance: Optional[str] = None) -> bool:
+    """Send an outbound WhatsApp message back to the customer via Evolution API (Baileys)."""
+    target_instance = instance or EVOLUTION_INSTANCE
+    clean_to = "".join(filter(str.isdigit, to))
+    url = f"{EVOLUTION_API_URL}/message/sendText/{target_instance}"
+    headers = {
+        "apikey": EVOLUTION_API_KEY,
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "number": clean_to,
+        "text": text,
+        "options": {
+            "delay": 1000,
+            "presence": "composing"
+        }
+    }
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(url, headers=headers, json=payload)
+            if resp.status_code in (200, 201):
+                log.info("Successfully sent WhatsApp reply via Evolution API to %s", clean_to)
+                return True
+            else:
+                log.warning("Evolution API failed to send to %s: %s - %s", clean_to, resp.status_code, resp.text)
+                return False
+    except Exception as e:
+        log.warning("Exception sending WhatsApp message via Evolution API: %s", e)
+        return False
+
+async def get_evolution_connection_state(instance: Optional[str] = None) -> dict:
+    """Get current WhatsApp connection state from Evolution API."""
+    target_instance = instance or EVOLUTION_INSTANCE
+    url = f"{EVOLUTION_API_URL}/instance/connectionState/{target_instance}"
+    headers = {"apikey": EVOLUTION_API_KEY}
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 200:
+                return resp.json()
+            return {"instance": target_instance, "state": "unknown", "status_code": resp.status_code}
+    except Exception as e:
+        return {"instance": target_instance, "state": "disconnected", "error": str(e)}
+
+async def get_evolution_qr(instance: Optional[str] = None) -> dict:
+    """Retrieve live QR code for scanning and connecting WhatsApp."""
+    target_instance = instance or EVOLUTION_INSTANCE
+    url = f"{EVOLUTION_API_URL}/instance/connect/{target_instance}"
+    headers = {"apikey": EVOLUTION_API_KEY}
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 200:
+                return resp.json()
+            # If instance does not exist, try to create it
+            if resp.status_code == 404:
+                create_url = f"{EVOLUTION_API_URL}/instance/create"
+                create_payload = {
+                    "instanceName": target_instance,
+                    "token": f"token_{target_instance}",
+                    "qrcode": True,
+                    "integration": "WHATSAPP-BAILEYS"
+                }
+                c_resp = await client.post(create_url, headers=headers, json=create_payload)
+                if c_resp.status_code in (200, 201):
+                    # retry connect
+                    r2 = await client.get(url, headers=headers)
+                    if r2.status_code == 200:
+                        return r2.json()
+                    return c_resp.json()
+            return {"error": f"Evolution API returned status {resp.status_code}", "body": resp.text}
+    except Exception as e:
+        return {"error": f"Failed to connect to Evolution API: {e}"}
+
 async def send_meta_whatsapp_message(to: str, text: str) -> bool:
     """Send an outbound WhatsApp message back to the customer via Meta Cloud API."""
     token = os.environ.get("WHATSAPP_API_TOKEN") or WHATSAPP_API_TOKEN
@@ -249,12 +363,18 @@ async def route_and_process_message(user_id: str, sender: str, customer_name: st
     except Exception as e:
         log.warning("Failed to store whatsapp_message into db (will continue): %s", e)
 
-    # If Meta Cloud API credentials are configured, send outbound reply to customer's WhatsApp
-    token = os.environ.get("WHATSAPP_API_TOKEN") or WHATSAPP_API_TOKEN
-    phone_id = os.environ.get("WHATSAPP_PHONE_NUMBER_ID") or WHATSAPP_PHONE_NUMBER_ID
-    if token and phone_id:
+    # Outbound messaging to real WhatsApp:
+    # 1. Prefer Evolution API (Baileys) if configured and reachable
+    if EVOLUTION_API_URL and EVOLUTION_API_KEY:
         import asyncio
-        asyncio.create_task(send_meta_whatsapp_message(sender, reply_text))
+        asyncio.create_task(send_evolution_whatsapp_message(sender, reply_text))
+    # 2. Or Meta Cloud API if configured
+    else:
+        token = os.environ.get("WHATSAPP_API_TOKEN") or WHATSAPP_API_TOKEN
+        phone_id = os.environ.get("WHATSAPP_PHONE_NUMBER_ID") or WHATSAPP_PHONE_NUMBER_ID
+        if token and phone_id:
+            import asyncio
+            asyncio.create_task(send_meta_whatsapp_message(sender, reply_text))
 
     return {
         "id": str(msg_id),
