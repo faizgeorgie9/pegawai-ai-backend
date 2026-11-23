@@ -536,6 +536,17 @@ export interface Session {
   lastActive: number // epoch seconds
   model: string
 }
+// Ingatan: one remembered entry. `id` is stable for the exact text, so a changed entry rejects the delete.
+export interface MemoryItem {
+  id: string
+  text: string
+}
+export interface MemoryInfo {
+  items: MemoryItem[]
+  aboutYou: MemoryItem[]
+  limit: { used: number; max: number }
+  aboutLimit: { used: number; max: number }
+}
 export interface ToolChip {
   id: string
   tool: string
@@ -843,6 +854,17 @@ const toSession = (s: Raw): Session => ({
   lastActive: epoch(s.last_active ?? s.started_at ?? s.updated_at),
   model: asStr(s.model),
 })
+const toMemoryItem = (x: Raw): MemoryItem => ({ id: asStr(x.id), text: asStr(x.text) })
+const toMemory = (r: Raw): MemoryInfo => {
+  const limit = (r.limit && typeof r.limit === 'object' ? r.limit : {}) as Raw
+  const aboutLimit = (r.about_limit && typeof r.about_limit === 'object' ? r.about_limit : {}) as Raw
+  return {
+    items: list(r.items).map(toMemoryItem),
+    aboutYou: list(r.about_you).map(toMemoryItem),
+    limit: { used: asNum(limit.used), max: asNum(limit.max, 2200) },
+    aboutLimit: { used: asNum(aboutLimit.used), max: asNum(aboutLimit.max, 1375) },
+  }
+}
 const toActivity = (r: Raw): ActivityRow => {
   const group_id = asStr(r.group_id)
   const bot_id = asStr(r.bot_id)
@@ -1045,6 +1067,9 @@ export const api = {
     foldMessages(list(await call('GET', `/bots/${enc(botId)}/sessions/${enc(sid)}/messages`, undefined, signal))),
   renameSession: (botId: string, sid: string, title: string) => call<void>('PATCH', `/bots/${enc(botId)}/sessions/${enc(sid)}`, { title }),
   deleteSession: (botId: string, sid: string) => call<void>('DELETE', `/bots/${enc(botId)}/sessions/${enc(sid)}`),
+  memory: async (botId: string, signal?: AbortSignal) => toMemory(await call<Raw>('GET', `/bots/${enc(botId)}/memory`, undefined, signal)),
+  deleteMemoryItem: (botId: string, itemId: string) => call<void>('DELETE', `/bots/${enc(botId)}/memory/${enc(itemId)}`),
+  clearMemory: (botId: string) => call<void>('DELETE', `/bots/${enc(botId)}/memory?confirm=true`),
   startRun: async (botId: string, input: string, session_id?: string, instructions?: string, ctx?: RunCtx, kb_items?: string[]) => {
     const r = await call<Raw>('POST', `/bots/${enc(botId)}/runs`, { input, ...(kb_items?.length ? { kb_items } : {}), ...(session_id ? { session_id } : {}), ...(instructions ? { instructions } : {}), ...(ctx?.workflow ? { workflow: ctx.workflow, ...(ctx.stage ? { stage: ctx.stage } : {}), ...(ctx.test_mode ? { test_mode: true } : {}) } : {}) })
     return { run: toRun(r.run ?? r), session_id: asStr(r.session_id ?? r.run?.session_id), kb: (Array.isArray(r.kb) ? r.kb : []) as KbItem[] }

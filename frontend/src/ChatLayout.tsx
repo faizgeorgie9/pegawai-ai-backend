@@ -384,14 +384,14 @@ function History({ bot, hist, sid }: { bot: Bot; hist: Hist; sid?: string }) {
       {state === 'ok' && sessions.length === 0 && <p className="quiet pad">Belum ada percakapan dengan {bot.name}.</p>}
       <ul>
         {sessions.map((s) => (
-          <SessionRow key={s.id} botId={bot.id} s={s} current={s.id === sid} onRename={(t) => void rename(s, t)} onDelete={() => void remove(s)} />
+          <SessionRow key={s.id} botId={bot.id} botName={bot.name} s={s} current={s.id === sid} onRename={(t) => void rename(s, t)} onDelete={() => void remove(s)} />
         ))}
       </ul>
     </section>
   )
 }
 
-function SessionRow(p: { botId: string; s: Session; current: boolean; onRename: (t: string) => void; onDelete: () => void }) {
+function SessionRow(p: { botId: string; botName: string; s: Session; current: boolean; onRename: (t: string) => void; onDelete: () => void }) {
   const [mode, setMode] = useState<'view' | 'edit' | 'confirm'>('view')
   const [name, setName] = useState('')
   const rowRef = useRef<HTMLLIElement>(null)
@@ -428,7 +428,7 @@ function SessionRow(p: { botId: string; s: Session; current: boolean; onRename: 
     return (
       <li className="sess confirm" role="alert" ref={rowRef}>
         <span>
-          Hapus percakapan &ldquo;{title}&rdquo;? Hanya percakapan ini yang dihapus. Dokumen di Pengetahuan dan pengaturan pegawai tidak berubah.
+          Hapus topik &ldquo;{title}&rdquo;? Hanya topik ini yang dihapus. Ingatan {p.botName} dan dokumen di Pengetahuan tidak berubah.
         </span>
         <span className="confirm-actions">
           <button
@@ -438,7 +438,7 @@ function SessionRow(p: { botId: string; s: Session; current: boolean; onRename: 
               p.onDelete()
             }}
           >
-            Hapus percakapan
+            Hapus topik
           </button>
           <button className="btn quiet-btn" onClick={() => setMode('view')}>
             Batal
@@ -464,7 +464,7 @@ function SessionRow(p: { botId: string; s: Session; current: boolean; onRename: 
         >
           <Icon d={PENCIL} />
         </button>
-        <button className="icon-btn" aria-label={`Hapus percakapan ${title}`} onClick={() => setMode('confirm')}>
+        <button className="icon-btn" aria-label={`Hapus topik ${title}`} onClick={() => setMode('confirm')}>
           <Icon d={TRASH} />
         </button>
       </span>

@@ -26,7 +26,7 @@
 | 10 | Register terbuka, role dipaksa `member`, tanpa verifikasi email/rate limit | `bff/bff/auth.py:104-137`; `bff/bff/main.py:119` | Spam akun di produksi; akun uji nyata tertinggal di prod | **Hari 1** |
 | 11 | Logout hanya balasan `ok`; tidak ada invalidasi token | `bff/bff/main.py:146-148` | Klaim "invalidasi sesi" tidak benar; token 7 hari tetap berlaku | **Hari 1** + Hari 5 |
 | 12 | `TEMPLATES` 10 peran, `bots/souls/` hanya 5 berkas | `bff/bff/bots.py:16-27,139,167` | Menambah builtin untuk 5 peran lain akan gagal saat membuat SOUL/`--clone-from` | **Hari 3** (config) |
-| 13 | Tidak ada kontrak memori; `session_search` dapat membaca semua sesi satu profil | `bff/bff/main.py` (tidak ada route memori); `tools/session_search_tool.py:601-628`; `bff/bff/harden.py:27` | UI memori tidak bisa dibangun; risiko bocor antar anggota bila profil dibagi | **Hari 4** (blueprint) |
+| 13 | **Kontrak memori sudah ada (Hari 5)**, tetapi masih **profil-scoped**: `GET`/`DELETE /api/bots/{id}/memory...`; `session_search` tetap bisa membaca semua sesi satu profil | `bff/bff/memory.py`; `bff/bff/main.py` (route Ingatan); `tools/session_search_tool.py:601-628` | UI Ingatan bisa dipakai; isolasi per pengguna **belum**; risiko bocor antar anggota bila profil dibagi | Hari 4 (blueprint) → Sprint 6 (isolasi) |
 | 14 | Batas KB hardcoded, tanpa binding per agen/setelan | `bff/bff/kb.py:19-24`; `bff/migrations/011_knowledge_base.sql` | "KB settings" ditunda FE karena tidak ada tempat menyimpan | **Hari 2** + Hari 3 |
 | 15 | `HOUSE_SOUL` menyebut "Colorbox", dokumen menyebut "AI Top Trends" | `bff/bff/bots.py:28-35` vs `docs-kaf/bff-spec.md:149` | Dokumen arsitektur menyesatkan; sulit menjelaskan identitas ke klien | **Hari 5** (dokumen) |
 | 16 | `role` di JWT tidak dipakai route mana pun | `bff/bff/auth.py:38-49` (hanya membuat klaim); `main.py:98-100` hanya mengembalikan id | "Owner/admin only" tidak bisa ditegakkan server-side | **Hari 1** + Hari 3 |
@@ -116,10 +116,37 @@ Tanpa keputusan ini, acceptance "data tidak tertukar" tidak bisa dibuktikan.
 | Kontrak | Dipakai untuk | Hari BE |
 |---|---|---|
 | `GET /api/bots/{id}/config` (SOUL efektif teredaksi + toolset + model) | Menampilkan identitas yang benar-benar dipakai | Hari 3 |
-| `GET /api/agents/{slug}/memory?store=memory\|user` | Kapasitas/isi memori | Hari 4 |
-| `DELETE /api/agents/{slug}/memory?store=…` (owner/admin, audit) | "Lupakan" dengan konfirmasi | Hari 4 |
+| **`GET /api/bots/{id}/memory`** (sudah ada) | Kapasitas/isi memori; lihat §2.11 | Hari 4 (selesai Hari 5) |
+| **`DELETE /api/bots/{id}/memory/{item_id}`** dan **`DELETE /api/bots/{id}/memory?confirm=true`** (sudah ada) | "Lupakan" dengan konfirmasi; lihat §2.11 | Hari 4 (selesai Hari 5) |
 | Setelan KB per agen (chunk/retensi/kuota) | Halaman setelan KB | Hari 2/3 |
 | Error terkurasi "kesalahan terbaru" | Alternatif log mentah | Hari 3 (keputusan) |
+
+### 2.11 Kontrak "Ingatan" yang sudah diimplementasikan (Hari 5) — mohon direview
+
+Implementasi kecil dan terisolasi; FE hanya memakai route ini.
+
+| Method + path | Body/query | Respons | Catatan |
+|---|---|---|---|
+| `GET /api/bots/{bot_id}/memory` | — | `{items:[{id,text}], about_you:[{id,text}], limit:{used,max}, about_limit:{used,max}}` | `items` = `MEMORY.md`, `about_you` = `USER.md`; `limit` = karakter, bukan entri |
+| `DELETE /api/bots/{bot_id}/memory/{item_id}` | — | `204` | `item_id` = `m-<16 hex>` / `u-<16 hex>` (hash teks + store). Id lama → `409`; id rusak → `404` |
+| `DELETE /api/bots/{bot_id}/memory` | `?confirm=true` atau body `{"confirm": true}` | `204` | Mengosongkan **kedua** store; tanpa konfirmasi → `400` |
+| `DELETE /api/bots/{bot_id}/sessions/{sid}` | — | `204` | Sudah ada; memakai `DELETE /api/sessions/{sid}` milik Hermes lalu menghapus baris `chat_sessions` |
+
+**Otorisasi:** setiap route memanggil `bots.get_bot(current_user(), bot_id)`; agen milik akun lain → `404`. Catatan: middleware auth global masih jatuh ke `default` untuk token hilang (temuan #1), jadi route ini mewarisi celah itu sampai JWT ditegakkan.
+
+**Mekanisme Hermes yang dipakai (bukan format baru):**
+
+- Berkas: `%LOCALAPPDATA%/hermes/profiles/<bot>/memories/MEMORY.md` dan `USER.md`.
+- Delimiter: `"\n§\n"`; setiap entri di-strip, entri kosong dibuang (`tools/memory_tool_store.py:26`).
+- Tulis: temp file + `os.replace`, tanpa newline di akhir; baca `utf-8-sig` (BOM aman).
+- Lock: berkas `<berkas>.lock`, byte 0, `fcntl.flock`/`msvcrt.locking` — protokol yang sama dengan `MemoryStore._file_lock` (`tools/memory_tool_store.py:259-299`). Semua mutasi membaca ulang di dalam lock; lock sibuk → `409`, bukan tulis buta.
+- Batas karakter: 2.200 (`MEMORY.md`) / 1.375 (`USER.md`), dibaca dari `config.yaml` profil lalu instalasi, fallback default Hermes.
+
+**Caveat tenant (penting):** memori tetap **milik profil/pegawai**, bukan pengguna akhir. Semua orang yang memakai pegawai yang sama melihat dan bisa menghapus ingatan yang sama; UI menyatakan ini. Jangan memasarkan sebagai "ingatan pribadi per pengguna" sampai opsi A/B/C di `telegram-dan-memori-ux.md` §7 diputuskan.
+
+**Tes:** `bff/tests/test_memory.py` (21 tes: format, id, 404/409, konfirmasi, lock dua thread, replace saat pembaca aktif). Total suite **312 lulus**. Bukti live: hapus satu `204`, kosongkan `204` (`used=0`), id lama `409`, tanpa konfirmasi `400`; `MEMORY.md` dipulihkan byte-identik.
+
+**Yang perlu keputusan Faiz:** (a) apakah "kosongkan" sebaiknya per-store, (b) apakah perlu audit trail (siapa menghapus apa), (c) apakah route memakai `/bots/{id}` atau diseragamkan ke `/agents/{slug}`.
 
 ---
 

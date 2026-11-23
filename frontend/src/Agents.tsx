@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, errText } from './bff'
-import type { Bot, BotDetail } from './bff'
+import type { Bot, BotDetail, MemoryItem } from './bff'
 import { useAdminMode } from './adminMode'
 import { useData } from './data'
 import { agenPath, botPath, go } from './router'
@@ -124,6 +124,7 @@ const TABS = [
   ['ringkasan', 'Ringkasan'],
   ['pekerjaan', 'Pekerjaan'],
   ['keahlian', 'Keahlian'],
+  ['ingatan', 'Ingatan'],
 ] as const
 type TabId = (typeof TABS)[number][0]
 export function AgentDetail({ id }: { id: string }) {
@@ -409,8 +410,158 @@ export function AgentDetail({ id }: { id: string }) {
             <AgentSkills slug={id} />
           </div>
         )}
+
+        {tab === 'ingatan' && <AgentMemory bot={b} />}
       </div>
     </section>
+  )
+}
+
+// ---------- Ingatan ----------
+// Plain-language view of what Hermes stores long-term for this profile (MEMORY.md + USER.md).
+// Deletes are confirmed in place; a 409 means the entry changed since the list was loaded.
+function AgentMemory({ bot }: { bot: Bot }) {
+  const memFn = useCallback(() => api.memory(bot.id), [bot.id])
+  const mem = useLoad(memFn)
+  const [asking, setAsking] = useState('')
+  const [clearAsk, setClearAsk] = useState(false)
+  const [busy, setBusy] = useState('')
+  const [problem, setProblem] = useState('')
+
+  async function remove(item: MemoryItem) {
+    setBusy(item.id)
+    setProblem('')
+    try {
+      await api.deleteMemoryItem(bot.id, item.id)
+      setAsking('')
+      mem.retry()
+    } catch (e) {
+      setProblem(errText(e))
+    } finally {
+      setBusy('')
+    }
+  }
+  async function clear() {
+    setBusy('all')
+    setProblem('')
+    try {
+      await api.clearMemory(bot.id)
+      setClearAsk(false)
+      mem.retry()
+    } catch (e) {
+      setProblem(errText(e))
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const d = mem.state === 'ok' ? mem.data : undefined
+  const total = d ? d.items.length + d.aboutYou.length : 0
+  const pct = d && d.limit.max > 0 ? Math.min(100, Math.round((d.limit.used / d.limit.max) * 100)) : 0
+  const meterState = pct >= 100 ? 'exceeded' : pct >= 80 ? 'warning' : undefined
+
+  return (
+    <div className="cbox">
+      <h2>Ingatan {bot.name}</h2>
+      <p className="quiet">Hal yang diingat {bot.name} dari percakapan sebelumnya. Hapus kalau sudah tidak benar.</p>
+      <p className="quiet small">
+        Ingatan ini dipakai bersama oleh semua orang yang memakai {bot.name}. Menghapus ingatan tidak menghapus riwayat percakapan.
+      </p>
+
+      {problem && (
+        <p className="problem-bar small" role="alert">
+          {problem}
+        </p>
+      )}
+      {mem.state === 'loading' && <Loading text={`Memuat ingatan ${bot.name}...`} shape="lines" rows={3} />}
+      {mem.state === 'error' && <ErrorLine text={mem.error} onRetry={mem.retry} />}
+
+      {d && (
+        <>
+          {total === 0 ? (
+            <Empty title="Belum ada yang diingat">
+              Mulai percakapan dengan {bot.name}. Hal penting yang Anda sebutkan akan muncul di sini.
+            </Empty>
+          ) : (
+            <>
+              <div className="cost-meter mem-meter" data-state={meterState}>
+                <span className="quiet small">
+                  {nf.format(d.limit.used)} dari {nf.format(d.limit.max)} karakter terpakai
+                </span>
+                <span className="set-meter">
+                  <span style={{ width: `${pct}%` }} />
+                </span>
+              </div>
+
+              <h3 className="mem-head">Yang diingat {bot.name}</h3>
+              {d.items.length === 0 ? (
+                <p className="quiet small">Belum ada catatan dari percakapan.</p>
+              ) : (
+                <ul className="mem-list">
+                  {d.items.map((item) => (
+                    <MemRow key={item.id} item={item} asking={asking === item.id} busy={busy === item.id} anyBusy={!!busy} onAsk={() => setAsking(item.id)} onCancel={() => setAsking('')} onDelete={() => void remove(item)} />
+                  ))}
+                </ul>
+              )}
+
+              {d.aboutYou.length > 0 && (
+                <>
+                  <h3 className="mem-head">Tentang Anda</h3>
+                  <p className="quiet small">Catatan yang {bot.name} simpan tentang Anda dari percakapan sebelumnya.</p>
+                  <ul className="mem-list">
+                    {d.aboutYou.map((item) => (
+                      <MemRow key={item.id} item={item} asking={asking === item.id} busy={busy === item.id} anyBusy={!!busy} onAsk={() => setAsking(item.id)} onCancel={() => setAsking('')} onDelete={() => void remove(item)} />
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              {!clearAsk ? (
+                <button className="btn quiet-btn danger-text mem-clear" onClick={() => setClearAsk(true)} disabled={!!busy}>
+                  Hapus semua ingatan
+                </button>
+              ) : (
+                <div className="mem-confirm" role="alert">
+                  <p>
+                    Hapus semua yang diingat {bot.name}? Catatan tentang Anda juga ikut terhapus. Riwayat percakapan dan dokumen di Pengetahuan tidak berubah. Tindakan ini tidak bisa dibatalkan.
+                  </p>
+                  <div className="confirm-actions">
+                    <button className="btn danger" disabled={busy === 'all'} onClick={() => void clear()}>
+                      {busy === 'all' ? 'Menghapus...' : 'Ya, hapus semua'}
+                    </button>
+                    <button className="btn quiet-btn" disabled={busy === 'all'} onClick={() => setClearAsk(false)}>
+                      Batal
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+function MemRow(p: { item: MemoryItem; asking: boolean; busy: boolean; anyBusy: boolean; onAsk: () => void; onCancel: () => void; onDelete: () => void }) {
+  return (
+    <li className="mem-item">
+      <p className="mem-text">{p.item.text}</p>
+      {p.asking ? (
+        <span className="confirm-actions" role="alert">
+          <button className="btn danger sm" disabled={p.busy} onClick={p.onDelete}>
+            {p.busy ? 'Menghapus...' : 'Hapus'}
+          </button>
+          <button className="btn quiet-btn sm" disabled={p.busy} onClick={p.onCancel}>
+            Batal
+          </button>
+        </span>
+      ) : (
+        <button className="btn quiet-btn danger-text sm" aria-label={`Hapus ingatan: ${p.item.text.slice(0, 60)}`} disabled={p.anyBusy} onClick={p.onAsk}>
+          Hapus
+        </button>
+      )}
+    </li>
   )
 }
 

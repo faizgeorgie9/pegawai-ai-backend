@@ -213,6 +213,22 @@ td.st-col { min-width: 170px; }
 .cost-spent { font-size: 20px; font-weight: 600; }
 .cost-meter[data-state="warning"] .set-meter span { background: var(--warn-line); }
 .cost-meter[data-state="exceeded"] .set-meter span { background: var(--bad-ink); }
+
+/* Ingatan (employee detail): one remembered entry per row, with a two-step delete on the right. */
+.mem-meter { margin: 12px 0 4px; }
+.mem-head { margin-top: 16px; font-size: 14px; }
+.mem-list { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
+.mem-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); }
+.mem-text { flex: 1; min-width: 0; margin: 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-wrap; }
+.mem-item .btn { flex: none; }
+.mem-item .confirm-actions { flex-wrap: wrap; }
+.mem-confirm { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; padding: 12px; border-radius: var(--radius-control); background: var(--bad-bg); color: var(--bad-ink); font-size: 13px; }
+.mem-confirm p { margin: 0; }
+.mem-clear { align-self: flex-start; }
+@media (max-width: 640px) {
+  .mem-item { flex-direction: column; align-items: stretch; }
+  .mem-item .btn { align-self: flex-start; }
+}
 .pill.est { font-weight: 500; }
 .usage-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-4); }
 .usage-split h3, .usage-days h3 { font-size: 14px; }
