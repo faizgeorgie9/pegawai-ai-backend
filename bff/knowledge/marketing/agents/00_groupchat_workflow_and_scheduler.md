@@ -1,128 +1,111 @@
-# Colorbox Marketing: 5-Agent Automation & Content Scheduler Guide
-### *R&D Sistem Kolaborasi Multi-Agent Group Chat & Penjadwalan Otomatis (MVP Pegawai AI)*
+# Colorbox Content & Creative: 4-Agent Consolidated Automation & Content Scheduler Guide
+### *R&D Sistem Kolaborasi Multi-Agent Group Chat & Penjadwalan Otomatis (Konsolidasi 4 Pegawai AI)*
 
 > **Dokumen Master Arsitektur & Operasional**  
 > **Brand:** Colorbox Indonesia (Delamibrands)  
 > **Framework:** Multi-Agent Group Chat & Automated Content Scheduler  
 > **Lokasi File Agen:** `hermes/colorbox/marketing/agents/*.md`  
 > **Knowledge Base:** `hermes/colorbox/colorbox-knowledge/*.md`  
+> **Versi:** v2.0 (Consolidated 4-Bot Architecture) | 23 November 2026
 
 ---
 
-## 1. Roster & Struktur 5 Pegawai AI Colorbox
+## 1. Roster & Struktur 4 Pegawai AI Konsolidasi (Content & Creative)
 
-| No | Nama Agen | Handle | Peran & Tanggung Jawab Utama | File Definisi |
-|:---|:---|:---|:---|:---|
-| 1 | **Bimo** | `@projectmanager` | **Project Manager & Flow Controller:** Menerima brief/trigger scheduler, memecah task, memantau kanban, menangani agen macet (*unblocking*), dan **mengalirkan pekerjaan secara otomatis (*auto-cascade*)** antar-agen setelah ide disetujui. | [`01_project_manager_bimo.md`](file:///d:/Users/IVANAGITA/aitoptrends/hermes/colorbox/marketing/agents/01_project_manager_bimo.md) |
-| 2 | **Meda** | `@marketingstrategist` | **Marketing & Fashion Strategist:** Menganalisis audiens Gen Z (*Colorbox Babes*), memetakan pilar gaya (*Urban / Romantic / Chic*), mengurasi produk resmi dari `product-catalog.md`, dan merumuskan **3 Opsi Konsep Konten (Opsi A, B, C)**. | [`02_marketing_strategist_meda.md`](file:///d:/Users/IVANAGITA/aitoptrends/hermes/colorbox/marketing/agents/02_marketing_strategist_meda.md) |
-| 3 | **Raka** | `@researcher` | **Fashion & Content Researcher:** Meneliti fakta katalog resmi (nama item, SKU, warna, harga, cutting), riset ukuran & fitting tubuh (`product-size-reference.md`), melakukan **pengadaan gambar otomatis (*on-demand image scraping*)** jika produk belum ada di folder `images/`, dan menyusun **Creative & Content Research Brief** anti-halusinasi. | [`03_fashion_researcher_raka.md`](file:///d:/Users/IVANAGITA/aitoptrends/hermes/colorbox/marketing/agents/03_fashion_researcher_raka.md) |
-| 4 | **Bram** | `@sketchwriter` | **Creative Copywriter & AI Visual Prompt Artist:** Menyusun naskah per slide (hook, body, CTA), menulis caption Instagram resmi (`#NeverJustOneThing`), dan membuat **AI Visual Prompts (Midjourney/FLUX format)** per slide. | [`04_sketch_writer_bram.md`](file:///d:/Users/IVANAGITA/aitoptrends/hermes/colorbox/marketing/agents/04_sketch_writer_bram.md) |
-| 5 | **Vina** | `@visualcarousel` | **Visual & Carousel Mockup Architect:** Menghasilkan **sketsa/mockup visual nyata yang bisa dilihat** (wireframe ASCII/UI layout block per slide), komposisi framing produk, tata letak teks safe-zone 4:5, color swatches, dan panduan render produksi. | [`05_visual_carousel_vina.md`](file:///d:/Users/IVANAGITA/aitoptrends/hermes/colorbox/marketing/agents/05_visual_carousel_vina.md) |
+Mengacu pada arahan master konsolidasi divisi Content & Creative, 8 peran spesialis telah dikonsolidasikan menjadi **4 Pegawai AI komprehensif** dengan kepemilikan siklus kerja end-to-end:
+
+| No | Kode | Nama Agen | Handle | Peran & Tanggung Jawab Utama | File Definisi |
+|:---|:---|:---|:---|:---|:---|
+| 1 | **CRE-01** | **Content Strategist** | `@contentstrategist` | **Content Strategy & Omnichannel Distribution:** Menentukan pilar konten (*Urban/Romantic/Chic*), riset audiens Gen Z (*Colorbox Babes*), kurasi produk katalog resmi, menyusun kalender editorial mingguan, membuat *creative brief*, serta mengelola adaptasi format multi-platform & antrean penjadwalan distribusi. | [`01_content_strategist.md`](file:///d:/Users/IVANAGITA/aitoptrends/hermes/colorbox/marketing/agents/01_content_strategist.md) |
+| 2 | **CRE-02** | **Content & Copywriter** | `@copywriter` | **Creative Copywriting & Storytelling:** Menulis naskah persuasif berdaya konversi tinggi, caption Instagram/TikTok, headline *thumb-stopping*, hook 3 detik pembuka, teks on-screen minimalis, panduan gaya berpakaian, dan *Call to Action* (CTA) dengan kampanye resmi `#NeverJustOneThing`. | [`02_content_and_copywriter.md`](file:///d:/Users/IVANAGITA/aitoptrends/hermes/colorbox/marketing/agents/02_content_and_copywriter.md) |
+| 3 | **CRE-03** | **Graphic & Motion Designer** | `@motiondesigner` | **Static & Kinetic Visual Architecture:** Merancang feed carousel 4:5 Portrait (1080x1350 px), wireframe tata letak *safe zone*, banner promosi, infografik *size guide*, elemen animasi *kinetic typography*, transisi visual bergerak, dan menyusun *Master AI Visual Prompts* fotorealistik (Midjourney/FLUX/GPT-Image). | [`03_graphic_and_motion_designer.md`](file:///d:/Users/IVANAGITA/aitoptrends/hermes/colorbox/marketing/agents/03_graphic_and_motion_designer.md) |
+| 4 | **CRE-04** | **Video & UGC Creator** | `@videougc` | **Short-Form Video & Authentic UGC Direction:** Mengembangkan konsep video vertikal 9:16 (Reels/TikTok/Shorts), naskah percakapan natural (*spoken script*), panduan talent kreator/UGC (*shot list* & demonstrasi *try-on*), kurasi audio viral/sound effects, dan optimasi visual 3 detik pertama tanpa suara. | [`04_video_and_ugc_creator.md`](file:///d:/Users/IVANAGITA/aitoptrends/hermes/colorbox/marketing/agents/04_video_and_ugc_creator.md) |
 
 ---
 
 ## 2. Diagram Alur Kerja Otomatis di Group Chat (Auto-Cascading State Machine)
 
-Alur kerja dirancang untuk berjalan di **Group Chat tunggal** (Telegram/Slack/WhatsApp Group atau Chat Room Pegawai AI), bukan di form terpisah. Pengguna hanya perlu memilih konsep di awal, setelah itu sistem berjalan otomatis sampai selesai:
+Alur kerja dirancang untuk berjalan di **Group Chat tunggal** (*Single Shared Channel*), di mana koordinasi mengalir secara otomatis (*auto-cascading*) dari strategi hingga distribusi:
 
 ```
-                  ┌─────────────────────────────────────┐
-                  │ 1. USER / CRON SCHEDULER TRIGGER    │
-                  │    "Brief: Outfit Kuliah Santai"    │
-                  └──────────────────┬──────────────────┘
-                                     │
-                                     ▼
-                  ┌─────────────────────────────────────┐
-                  │ 2. BIMO (@projectmanager)           │
-                  │    Inisialisasi Kanban & Dispatch   │
-                  └──────────────────┬──────────────────┘
-                                     │
-                                     ▼
-                  ┌─────────────────────────────────────┐
-                  │ 3. MEDA (@marketingstrategist)      │
-                  │    Riset Audiens & Berikan 3 Opsi   │
-                  └──────────────────┬──────────────────┘
-                                     │
-                                     ▼
-                  ┌─────────────────────────────────────┐
-                  │ 4. HUMAN-IN-THE-LOOP / AUTO-APPROVE │
-                  │    Pilih: "Opsi A"                  │
-                  └──────────────────┬──────────────────┘
-                                     │
-       ══════════════════════════════╪═════════════════════════════
-       SISTEM AUTO-CASCADE AKTIF: TANPA PROMPT MANUAL PENGGUNA LAGI
-       ══════════════════════════════╪═════════════════════════════
-                                     │
-                                     ▼
-                  ┌─────────────────────────────────────┐
-                  │ 5. BIMO (@projectmanager)           │
-                  │    Auto-Dispatch Task-02            │
-                  └──────────────────┬──────────────────┘
-                                     │
-                                     ▼
-                  ┌─────────────────────────────────────┐
-                  │ 6. RAKA (@researcher)               │
-                  │    Katalog Deep-Dive & Brief Riset  │
-                  └──────────────────┬──────────────────┘
-                                     │
-                                     ▼
-                  ┌─────────────────────────────────────┐
-                  │ 7. BIMO (@projectmanager)           │
-                  │    Auto-Dispatch Task-03            │
-                  └──────────────────┬──────────────────┘
-                                     │
-                                     ▼
-                  ┌─────────────────────────────────────┐
-                  │ 8. BRAM (@sketchwriter)             │
-                  │    Copywriting Hook & Visual Prompt │
-                  └──────────────────┬──────────────────┘
-                                     │
-                                     ▼
-                  ┌─────────────────────────────────────┐
-                  │ 9. BIMO (@projectmanager)           │
-                  │    Auto-Dispatch Task-04            │
-                  └──────────────────┬──────────────────┘
-                                     │
-                                     ▼
-                  ┌─────────────────────────────────────┐
-                  │ 10. VINA (@visualcarousel)          │
-                  │     Sketsa Mockup Wireframe 5 Slide │
-                  └──────────────────┬──────────────────┘
-                                     │
-                                     ▼
-                  ┌─────────────────────────────────────┐
-                  │ 11. BIMO (@projectmanager)          │
-                  │     Final Quality Gate & Presentasi │
-                  └─────────────────────────────────────┘
+                  ┌──────────────────────────────────────────────┐
+                  │ 1. USER / CRON SCHEDULER TRIGGER             │
+                  │    "Brief: Inspirasi Outfit Kuliah Santai"   │
+                  └──────────────────────┬───────────────────────┘
+                                         │
+                                         ▼
+                  ┌──────────────────────────────────────────────┐
+                  │ 2. CONTENT STRATEGIST (@contentstrategist)   │
+                  │    - Riset Audiens & Pilar Gaya (Urban/Chic) │
+                  │    - Kurasi 3 Opsi Konsep (A/B/C) Katalog    │
+                  │    - Menyiapkan Omnichannel Creative Brief   │
+                  └──────────────────────┬───────────────────────┘
+                                         │
+                                         ▼
+                  ┌──────────────────────────────────────────────┐
+                  │ 3. HUMAN-IN-THE-LOOP APPROVAL / TIMEOUT      │
+                  │    User memilih: "Opsi A (Effortless Urban)" │
+                  └──────────────────────┬───────────────────────┘
+                                         │
+       ══════════════════════════════════╪═════════════════════════════════
+       SISTEM AUTO-CASCADE AKTIF: OTOMATIS BERLANJUT TANPA PROMPT USER
+       ══════════════════════════════════╪═════════════════════════════════
+                                         │
+                                         ▼
+                  ┌──────────────────────────────────────────────┐
+                  │ 4. CONTENT & COPYWRITER (@copywriter)        │
+                  │    - Naskah Storytelling & Hook 3 Detik      │
+                  │    - Caption Instagram #NeverJustOneThing    │
+                  │    - On-Screen Text & Spoken Script Video    │
+                  └──────────────────────┬───────────────────────┘
+                                         │
+                         ┌───────────────┴───────────────┐
+                         ▼                               ▼
+       ┌───────────────────────────────────┐ ┌───────────────────────────────────┐
+       │ 5A. GRAPHIC & MOTION DESIGNER     │ │ 5B. VIDEO & UGC CREATOR           │
+       │     (@motiondesigner)             │ │     (@videougc)                   │
+       │ - Visual Wireframe 5 Slide 4:5    │ │ - Video Storyboard 9:16 (15-30s)  │
+       │ - Safe Zone Layout & Typo Motion  │ │ - UGC Creator Script & Shot List  │
+       │ - Master AI Visual Prompts        │ │ - Audio Pacing & SFX Direction    │
+       └─────────────────┬─────────────────┘ └─────────────────┬─────────────────┘
+                         │                                     │
+                         └───────────────┬─────────────────────┘
+                                         │
+                                         ▼
+                  ┌──────────────────────────────────────────────┐
+                  │ 6. CONTENT STRATEGIST (@contentstrategist)   │
+                  │    - Verifikasi Kepatuhan Klaim & Katalog    │
+                  │    - Adaptasi Multi-Format (Feed, Reels, WA) │
+                  │    - Penjadwalan Antrean Distribusi (Queue)  │
+                  │    - Paket Penyerahan Final ke Reviewer      │
+                  └──────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Spesifikasi & Setup Content Scheduler (Multi-Day Automation)
+## 3. Spesifikasi & Setup Content Scheduler (Weekly Content Sprint)
 
-Tujuan scheduler adalah menjalankan pipeline beberapa hari berturut-turut untuk menghasilkan paket carousel mingguan tanpa perlu mengetikkan prompt setiap pagi.
+Content Scheduler mengotomatisasi inisialisasi brief konten harian setiap pagi pukul 08:00 WIB:
 
 ### A. Matriks Jadwal Konten Mingguan (Weekly Content Sprint)
 
-| Hari | Tema Brief Terjadwal | Pilar Gaya | Target Persona | Fokus Produk Katalog |
+| Hari | Tema Brief Terjadwal | Pilar Gaya | Target Persona | Fokus Produk Katalog Colorbox Resmi |
 |:---|:---|:---|:---|:---|
-| **Senin (Day 1)** | "Monday Morning Campus Rush: Outfit Kuliah Santai" | **Urban** | Mahasiswi aktif (18-21 th) | Oversized Graphic Tee + Barrel Denim + Liunic Tote Bag |
-| **Selasa (Day 2)** | "Sweet Cafe Study Date: Outfit Perpustakaan Estetik" | **Romantic** | Mahasiswi feminin (19-22 th) | Fitted Crop Tee Lilac + Stripes Pleated Skort + Cable Sweater |
-| **Rabu (Day 3)** | "Midweek Internship Look: Smart Casual Presentation" | **Chic** | Mahasiswi magang / First-jobber (21-24 th) | Contrast Rib Crop Tee + Contrast Collar Jacket + Straight Denim |
-| **Kamis (Day 4)** | "Rainy Day Comfort: Cozy Knit & Coffee Hangout" | **Urban/Chic** | Gen Z Explorer (18-23 th) | Furry Sweater Multicolor + High Waist Denim Pants |
-| **Jumat (Day 5)** | "TGIF Night Out: Sunset Walk to Casual Dinner" | **Romantic/Chic** | Urban Babes (20-25 th) | Sleeveless Suede Mini Dress + Bubble Hem Hoodie |
+| **Senin (Day 1)** | "Monday Campus Rush: Effortless Lecture Look" | **Urban** | Mahasiswi aktif (18–21 th) | Oversized Graphic Tee (Rp 99.900) + High Waist Barrel Denim (Rp 329.900) + Liunic Tote Bag (Rp 199.900) |
+| **Selasa (Day 2)** | "Sweet Cafe Study Date: Pastel Aesthetic Outfit" | **Romantic** | Mahasiswi feminin (19–22 th) | Fitted Crop Tee Lilac (Rp 89.900) + Stripes Pleated Skort (Rp 199.900) + Cable Knit Sweater (Rp 259.900) |
+| **Rabu (Day 3)** | "Midweek Presentation: Chic First-Jobber Look" | **Chic** | Mahasiswi tingkat akhir / Magang (21–24 th) | Contrast Rib Crop Top (Rp 129.900) + Contrast Collar Jacket (Rp 359.900) + Straight Leg Denim (Rp 299.900) |
+| **Kamis (Day 4)** | "Rainy Day Comfort: Cozy Coffee Shop Hangout" | **Urban/Chic** | Gen Z Explorer (18–23 th) | Furry Multicolor Sweater (Rp 279.900) + Relaxed Cargo Pants (Rp 319.900) + Canvas Cap (Rp 79.900) |
+| **Jumat (Day 5)** | "TGIF Casual Dinner: Day-to-Night Versatile Look" | **Romantic/Chic** | Young Creative Worker (20–25 th) | Sleeveless Suede Mini Dress (Rp 249.900) + Cropped Denim Outer (Rp 329.900) + Micro Shoulder Bag |
 
 ### B. Konfigurasi Cron Scheduler
 
-Eksekusi scheduler dapat menggunakan antarmuka cron atau background worker:
-
 ```yaml
-# Scheduler Definition: Colorbox 5-Agent Content Pipeline
+# Scheduler Definition: Colorbox 4-Agent Consolidated Content Pipeline
 scheduler:
-  name: colorbox-carousel-daily-generator
+  name: colorbox-omnichannel-daily-pipeline
   timezone: "Asia/Jakarta"
   cron: "0 8 * * 1-5"  # Setiap Senin - Jumat pukul 08:00 WIB
-  channel: "#colorbox-marketing-groupchat"
+  channel: "#colorbox-content-creative-groupchat"
   
   environment:
     BRAND: "Colorbox Indonesia"
@@ -133,131 +116,114 @@ scheduler:
     
   daily_prompts:
     day_1: "Jalankan sprint Day 1: Inspirasi outfit kuliah santai (Urban Campus). Prioritaskan kenyamanan ruang kelas ber-AC dan mobilitas tinggi."
-    day_2: "Jalankan sprint Day 2: Outfit cafe study date yang manis dan feminin (Romantic Pastel)."
+    day_2: "Jalankan sprint Day 2: Outfit cafe study date manis dan feminin (Romantic Pastel)."
     day_3: "Jalankan sprint Day 3: Smart casual look untuk magang kampus dan presentasi (Chic Smart)."
-    day_4: "Jalankan sprint Day 4: Cozy knitwear styling untuk musim hujan / hangout sore santai."
+    day_4: "Jalankan sprint Day 4: Cozy knitwear styling untuk cuaca sejuk / hangout sore santai."
     day_5: "Jalankan sprint Day 5: Friday night casual dinner & hangout outfit (Versatile Chic)."
 ```
 
 ---
 
-## 4. Mekanisme Penanganan Agen Macet (Stuck Recovery & Error Handling)
+## 4. Mekanisme Penanganan Masalah & Anti-Halusinasi
 
-1. **Timeout Trigger (Watchdog):**
-   Jika sebuah agen tidak memberikan respons dalam window waktu 120 detik, Bimo mengirimkan *ping* pengingat.
-2. **Pendeteksian Halusinasi Produk (Katalog Mismatch):**
-   Jika `@researcher` atau `@marketingstrategist` menyebut produk yang tidak ada di `product-catalog.md`, Bimo otomatis menolak draf tersebut dengan format:
-   ```markdown
-   ⚠️ [BIMO REJECTION - PRODUCT NOT IN CATALOG]
-   @researcher: Produk "[Nama Produk]" tidak terdaftar pada katalog resmi Colorbox.
-   Harap periksa kembali berkas hermes/colorbox/colorbox-knowledge/product-catalog.md 
-   dan ganti dengan item valid dalam kategori yang sama.
-   ```
-3. **Pendeteksian Sketsa Visual Kurang Lengkap:**
-   Jika `@visualcarousel` hanya mengirimkan deskripsi teks tanpa diagram wireframe kanvas atau penempatan safe zone, Bimo meminta regenerasi sketsa visual.
-4. **Batas Maksimal Retry:**
-   Maksimal 3 kali percobaan per task. Jika tetap gagal, Bimo mengeksekusi *fallback plan* (menggunakan template terverifikasi sebelumnya) dan memberi tahu user.
+1. **Watchdog Timeout:**
+   Jika sebuah agen tidak merespons dalam 120 detik, `@contentstrategist` secara otomatis mengirimkan peringatan koordinasi.
+2. **Katalog Guardrail:**
+   Seluruh produk wajib diverifikasi terhadap `product-catalog.md`. Jika nama produk, SKU, atau harga tidak cocok dengan katalog resmi, draf otomatis ditolak untuk diperbaiki sebelum diteruskan.
+3. **Pemisahan Tingkat Data yang Jelas:**
+   - `[VERIFIED FACT]`: Fakta katalog resmi (nama item, harga Rp, foto produk asli).
+   - `[CREATIVE SUGGESTION]`: Inspirasi padu padan, angle hook, naskah caption, dan panduan visual.
+   - `[ASSUMPTION]`: Target audiens dan jam aktif persona Gen Z.
 
 ---
 
 ## 5. Simulasi Percakapan Penuh di Group Chat (End-to-End Chat Log)
 
-Berikut adalah simulasi jalannya workflow 5 agen di Group Chat:
-
 ```
-[08:00:00] [SCHEDULER BOT]: 🔔 TRIGGER HARIAN AKTIF (Day 1 Sprint)
-"Halo Tim Marketing Colorbox! Jadwal konten hari ini: 'Inspirasi outfit kuliah santai'."
+[08:00:00] [CRON SCHEDULER]: 🔔 TRIGGER HARIAN AKTIF (Sprint Day 1)
+"Selamat pagi Tim Content & Creative! Jadwal brief hari ini: Monday Campus Rush: Effortless Lecture Look."
 --------------------------------------------------------------------------------------
-[08:00:05] Bimo (@projectmanager): 
-"Selamat pagi tim! Bimo ambil alih koordinasi. Brief hari ini: Inspirasi Outfit Kuliah Santai.
-Task-01 diinisialisasi.
-@marketingstrategist tolong petakan audiens, tentukan pilar gaya, dan siapkan 3 opsi konsep 
-beserta produk katalog resminya ya. Let's go! 🚀"
---------------------------------------------------------------------------------------
-[08:00:30] Meda (@marketingstrategist): 
-"Morning Babes! Meda udah analisis briefnya. Untuk outfit kuliah santai, target kita mahasiswi Gen Z. 
-Berikut 3 opsi konsep terbaik dari katalog resmi Colorbox:
+[08:00:05] Content Strategist (@contentstrategist):
+"Pagi tim! Strategist mengambil alih inisiasi. Brief hari ini berfokus pada mahasiswi Gen Z (18-21 tahun) untuk outfit kuliah santai yang praktis dan stylish.
+Berdasarkan kurasi katalog resmi Colorbox (product-catalog.md), berikut 3 opsi konsep konten:
 
-🌸 Opsi A: 'Effortless Campus Rebel' (Urban) -> Oversized Graphic Tee + Barrel Denim + Liunic Tote Bag
-🌸 Opsi B: 'Sweet Pastel Break' (Romantic) -> Fitted Crop Tee Lilac + Stripes Pleated Skort + Cable Sweater
-🌸 Opsi C: 'Smart Casual Presentation' (Chic) -> Contrast Rib Crop Tee + Contrast Collar Jacket + Straight Denim
+🌸 Opsi A (Urban Campus Rebel):
+- Produk: Oversized Graphic T-Shirt OFF WHITE (Rp 99.900) + High Waist Barrel Denim BLACK (Rp 329.900) + Liunic Tote Bag (Rp 199.900). Total look: Rp 629.700.
+- Angle: Kenyamanan gerak, siluet santai, anti ribet kelas pagi.
 
-Rekomendasi utama Meda adalah OPSI A karena paling relatable dengan rutinitas kuliah pagi.
-Silakan pilih Opsi A, B, atau C ya @projectmanager / User!"
+🌸 Opsi B (Romantic Casual Pastel):
+- Produk: Fitted Crop Tee LILAC (Rp 89.900) + Stripes Pleated Skort (Rp 199.900) + Cardigan Rajut.
+- Angle: Look manis, feminin, dan estetik untuk perpustakaan & cafe.
+
+🌸 Opsi C (Chic Smart Presentation):
+- Produk: Contrast Rib Crop Top (Rp 129.900) + Contrast Collar Jacket (Rp 359.900) + Straight Denim.
+- Angle: Rapi berwibawa namun tetap modis untuk presentasi tugas.
+
+Rekomendasi utama Strategist adalah OPSI A.
+Silakan konfirmasi pilihan Opsi A, B, atau C ya Tim Reviewer / User!"
 --------------------------------------------------------------------------------------
-[08:01:10] User / Scheduler: 
+[08:01:10] User / Reviewer:
 "Pilih Opsi A."
 --------------------------------------------------------------------------------------
-[08:01:15] Bimo (@projectmanager): 
-"Siap, Opsi A (Effortless Campus Rebel) disetujui!
-SISTEM AUTO-CASCADE AKTIF: Tim akan mengeksekusi sampai tuntas tanpa perlu dipanggil satu per satu.
+[08:01:15] Content Strategist (@contentstrategist):
+"Siap, Opsi A disetujui!
+SISTEM AUTO-CASCADE AKTIF: Beralih otomatis ke tim produksi tanpa perlu dipanggil manual.
 
-📋 [DISPATCH TASK-02] -> @researcher
-Objektif: Validasi data resmi katalog ketiga item Opsi A dan susun Creative Research Brief 
-lengkap dengan formula carousel 5-slide. Ditunggu hasilnya Raka!"
+📋 [DISPATCH TASK-01: COPY & SCRIPTING] -> @copywriter
+Objektif: Tulis naskah lengkap carousel 5 slide, caption Instagram resmi #NeverJustOneThing, dan script video pendek 15 detik. Gunakan fakta harga dan nama produk katalog 100% akurat."
 --------------------------------------------------------------------------------------
-[08:01:45] Raka (@researcher): 
-"🔍 Riset selesai Bimo! Data terverifikasi 100% dari product-catalog.md:
-1. Oversized Fit Short Sleeve Graphic T-Shirt - OFF WHITE (Rp 99.900)
-   - Size: S/M (LD ±99 cm), Siluet: Oversized relaxed. Foto auto-ingested ke images/
-2. High Waist Barrel Denim Pants - BLACK (Rp 329.900)
-   - Size: 26-30 (Size 27-28 LP 65-72 cm, BB 48-57 kg). Foto siap di images/cbx-02-high-waist-barrel-denim-black.jpg
-3. Colorbox x Liunic Tote Bag - ECRU (Rp 199.900)
-   - Foto siap di images/cbx-10-colorbox-x-liunic-tote-bag-ecru.jpg
-Total Look: Rp 629.700. Panduan ukuran cm dan fitting type sudah selesai diriset dari product-size-reference.md.
-Riset tren Instagram mengonfirmasi formula 5 slide: Cover hook relatable, Top breakdown, 
-Bottom silhouette, Flat lay accessories, dan Outro CTA.
-Creative Brief lengkap sudah diunggah. Silakan dilanjutkan!"
---------------------------------------------------------------------------------------
-[08:01:50] Bimo (@projectmanager): 
-"Mantap Raka! Verifikasi katalog lolos tanpa halusinasi, foto produk terarsip aman di folder images/, dan spek ukuran cm lengkap.
-📋 [DISPATCH TASK-03] -> @sketchwriter
-Objektif: Tulis naskah on-screen copy 5 slide, caption Instagram resmi, dan prompt visual AI (FLUX/Midjourney) per slide berdasarkan brief Raka. Gas Bram!"
---------------------------------------------------------------------------------------
-[08:02:25] Bram (@sketchwriter): 
-"✍️ Siap Bimo! Paket copy dan prompt visual AI sudah beres:
-- Slide 1 Hook: 'Kelas Jam 8 Pagi, Tetap Slay Tanpa Pusing.'
-- Slide 2: Oversized Graphic Tee highlight
-- Slide 3: High Waist Barrel Denim highlight
-- Slide 4: Colorbox x Liunic Tote Bag & essentials
-- Slide 5: Outro & CTA Save postingan
-Caption resmi dengan #NeverJustOneThing dan metadata terverifikasi siap.
-5 Prompt visual FLUX/Midjourney rasio 4:5 siap dirender. Silakan dicek!"
---------------------------------------------------------------------------------------
-[08:02:30] Bimo (@projectmanager): 
-"Copywriter on fire! Copy tajam dan prompt visual detail.
-📋 [DISPATCH TASK-04] -> @visualcarousel
-Objektif: Susun arsitektur visual dan sketsa wireframe mockup nyata untuk kelima slide carousel 
-agar tim bisa melihat tata letaknya langsung di chat. Waktu dan tempat dipersilakan Vina!"
---------------------------------------------------------------------------------------
-[08:03:15] Vina (@visualcarousel): 
-"🖼️ Halo tim! Vina sudah buat sketsa wireframe visual nyata untuk ke-5 slide carousel.
-Semua safe zone Instagram (atas 120px, bawah 160px) terjaga.
-[Menampilkan 5 Diagram Wireframe ASCII / Visual Canvas Box Slide 1 sampai Slide 5 lengkap 
-dengan posisi teks, chip harga Rp, area foto subjek, color swatches, dan swipe pills].
-Spec sheet untuk render Canva/Midjourney juga terlampir. Paket visual siap!"
---------------------------------------------------------------------------------------
-[08:03:20] Bimo (@projectmanager): 
-"🎉 EXCELLENT WORK TEAM! Seluruh alur selesai tanpa kendala.
+[08:01:45] Content & Copywriter (@copywriter):
+"✍️ Naskah dan narasi Opsi A selesai!
+1. Carousel Instagram 5 Slide:
+   - Slide 1 (Hook): 'Kelas Jam 8 Pagi, Tetap Slay Tanpa Pusing.'
+   - Slide 2: Oversized Graphic Tee (Rp 99.900) — bahan katun adem, cutting relaxed.
+   - Slide 3: High Waist Barrel Denim (Rp 329.900) — siluet curved kaki jenjang.
+   - Slide 4: Colorbox x Liunic Tote Bag (Rp 199.900) — muat laptop 14 inch & catatan.
+   - Slide 5: Outro CTA 'Save ide outfit ini & tap link di bio untuk checkout!'
+2. Caption Instagram: Storytelling Gen Z kuliah pagi, tagar resmi #NeverJustOneThing #ColorboxBabes, rincian produk & harga resmi.
+3. Spoken Script Video Vertikal (15s): Hook 3 detik suara cepat, voiceover transisi OOTD santai.
 
-📊 LAPORAN QUALITY CONTROL BIMO:
-- Verifikasi Katalog: 100% Valid (Tanpa Halusinasi)
-- Format Konten: Carousel 5-Slide Instagram (4:5 Portrait)
-- Visual Mockup: Wireframe lengkap tersedia dan terverifikasi
-- Status Pipeline: 🟢 SELESAI & SIAP PUBLIKASI
+Pekerjaan siap dialirkan ke tim visual dan video!"
+--------------------------------------------------------------------------------------
+[08:01:50] Content Strategist (@contentstrategist):
+"Mantap @copywriter! Narasi kuat dan fakta katalog 100% valid.
+📋 [DISPATCH TASK-02: PARALLEL CREATIVE ASSETS] -> @motiondesigner & @videougc
+- @motiondesigner: Rancang visual wireframe 5-slide carousel 4:5 Portrait dan master AI visual prompt fotorealistik.
+- @videougc: Susun video storyboard 9:16 vertikal dan panduan UGC creator styling demo."
+--------------------------------------------------------------------------------------
+[08:02:30] Graphic & Motion Designer (@motiondesigner):
+"🎨 Visual Carousel 5 Slide & Motion Direction siap!
+- Wireframe Kanvas: Format 4:5 Portrait (1080x1350 px), safe zone atas 120px, bawah 160px.
+- Foto Produk Asli: Terintegrasi dari folder images/ (cbx-02-high-waist-barrel-denim-black.jpg & cbx-10-colorbox-x-liunic-tote-bag-ecru.jpg) dengan contain mode tanpa distorsi aspek rasio.
+- Master AI Visual Prompt: Prompt fotorealistik kamera 35mm f/1.8 direct flash model Gen Z Indonesia, detail tekstur katun tee dan denim twill.
+- Elemen Kinetic Motion: Transisi slide geser halus dan teks animasi penegas pilar Urban."
+--------------------------------------------------------------------------------------
+[08:02:35] Video & UGC Creator (@videougc):
+"🎬 Video Storyboard 9:16 & UGC Brief siap!
+- Durasi: 22 detik ritme dinamis.
+- Shot List: 0-3s Visual hook menepuk kasur -> 3-8s Memakai Oversized Graphic Tee -> 8-15s Cermin OOTD Barrel Denim & Tote Bag -> 15-22s Berjalan santai keluar gerbang kampus + CTA link bio.
+- Audio Direction: Upbeat lofi-pop trending sound tempo 115 BPM.
+- Talent Guidance: Pencahayaan jendela alami, ekspresi percaya diri santai, pakaian terpasang rapi."
+--------------------------------------------------------------------------------------
+[08:03:00] Content Strategist (@contentstrategist):
+"🎉 SELURUH PAKET KONTEN OPSI A SELESAI DENGAN SEMPURNA!
 
-Materi konten 'Effortless Campus Rebel' telah siap diproduksi dan diarsipkan ke jadwal posting.
-Terima kasih semuanya!"
+📊 LAPORAN QUALITY CONTROL & DISTRIBUSI STRATEGIST:
+- Verifikasi Fakta Katalog: 100% Terverifikasi (Katalog Colorbox resmi, zero-hallucination).
+- Format Carousel: 5 Slide 4:5 Portrait (1080x1350 px) dengan wireframe lengkap.
+- Format Video: Storyboard 9:16 (22s) + UGC Talent Guidance lengkap.
+- Saluran Terjadwal: Instagram Feed Carousel (Senin 11:30 WIB) & TikTok / Reels (Senin 18:30 WIB).
+- Status Distribusi: 🟢 MASUK ANTREAN DISTRIBUSI (Menunggu Approval Akhir Reviewer).
+
+Materi telah terarsip dan siap dipublikasikan. Terima kasih tim!"
 ```
 
 ---
 
 ## 6. Ringkasan Implementasi & Checklist Kesiapan
 
-- [x] **Agent 1 (Bimo):** Mampu mendispatch tugas, auto-cascade antar-agen, unblocking, dan memantau status kanban.
-- [x] **Agent 2 (Meda):** Memahami persona Gen Z, 3 pilar gaya (Urban, Romantic, Chic), dan mengurasi 3 opsi dari katalog resmi.
-- [x] **Agent 3 (Raka):** Memvalidasi SKU, warna resmi, harga, dan menyusun Content Research Brief 5 slide.
-- [x] **Agent 4 (Bram):** Menulis hook headline, copy per slide, caption terverifikasi, dan prompt visual AI (FLUX/Midjourney).
-- [x] **Agent 5 (Vina):** Menghasilkan sketsa visual wireframe ASCII/block yang terlihat, safe-zone layout, dan spec desain.
-- [x] **Content Scheduler:** Mendukung eksekusi beruntun multi-hari (Day 1 s.d. Day 5) dengan trigger cron mandiri.
-
+- [x] **CRE-01 (Content Strategist):** Merancang strategi pilar konten, riset audiens Gen Z, kurasi katalog anti-halusinasi, orchestrator auto-cascade, dan penjadwalan antrean distribusi multi-kanal.
+- [x] **CRE-02 (Content & Copywriter):** Menulis hook viral, narasi persuasif, naskah carousel, caption resmi #NeverJustOneThing, dan script video pendek.
+- [x] **CRE-03 (Graphic & Motion Designer):** Menghasilkan layout kanvas 4:5 Portrait, wireframe safe zone, arahan tipografi kinetik, dan master AI visual prompt fotorealistik.
+- [x] **CRE-04 (Video & UGC Creator):** Mengembangkan video storyboard vertikal 9:16, panduan talent UGC, kurasi audio ritmis, dan daftar adegan (shot list).
+- [x] **Content Scheduler:** Mendukung otomatisasi sprint mingguan (Day 1 s.d. Day 5) dengan auto-approval default 30 menit.
