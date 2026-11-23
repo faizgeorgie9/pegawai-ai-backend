@@ -49,7 +49,9 @@ ESCALATION_KEYWORDS = {
     "cacat", "rusak", "robek", "reject", "kecewa", "tuntut", "kasus", "somasi",
     "refund", "kembalikan uang", "ganti rugi", "tipu", "penipuan",
     "manajer", "manager", "supervisor", "atasan", "lead", "bos", "pimpinan",
-    "lapor", "konsumen", "perlindungan konsumen", "bpom", "polisi"
+    "lapor", "konsumen", "perlindungan konsumen", "bpom", "polisi",
+    "komplain", "complain", "komplen", "keluhan", "complaint", "kendala", "masalah",
+    "kurang", "ketinggalan", "hilang", "salah kirim"
 }
 
 # General intents
@@ -198,33 +200,51 @@ def classify_and_route(message: str, requested_bot: Optional[str] = None) -> Tup
 
     msg_lower = message.lower()
     
-    # 1. Check escalation keywords
+    # 1. Check explicit out-of-scope triggers (cooking, crypto, politics, coding, homework, automotive, health, gaming)
+    is_explicit_out_of_scope = any(re.search(rf"\b{kw}\b", msg_lower) for kw in OUT_OF_SCOPE_EXPLICIT_KEYWORDS)
+    if is_explicit_out_of_scope:
+        return "siti", "OUT_OF_SCOPE", "P3"
+
+    # 2. Check complaints & issues (Hendra - CS Team Lead)
+    # 2a. Missing items / incomplete order
+    is_missing = any(re.search(rf"\b{kw}\b", msg_lower) for kw in ["kurang", "ketinggalan", "hilang", "tidak lengkap", "ga lengkap", "gak lengkap"])
+    if is_missing and any(w in msg_lower for w in ["barang", "item", "paket", "pesanan", "baju", "celana", "isi", "order", "ada", "yang"]):
+        return "hendra", "COMPLAINT_MISSING", "P1"
+
+    # 2b. General complaint without specific details
+    is_complaint_word = any(re.search(rf"\b{kw}\b", msg_lower) for kw in ["komplain", "complain", "komplen", "keluhan", "complaint"])
+    has_specific_detail = any(re.search(rf"\b{kw}\b", msg_lower) for kw in ["cacat", "rusak", "robek", "sobek", "kotor", "reject", "kurang", "salah", "retur", "tukar", "refund"])
+    if is_complaint_word and not has_specific_detail:
+        return "hendra", "COMPLAINT_GENERAL", "P1"
+
+    # 2c. Wrong item sent
+    is_wrong_item = any(re.search(rf"\b{kw}\b", msg_lower) for kw in ["salah kirim", "salah barang", "beda barang", "tidak sesuai", "ga sesuai", "gak sesuai", "salah warna", "salah ukuran", "salah size"])
+    if is_wrong_item:
+        return "hendra", "COMPLAINT_WRONG_ITEM", "P1"
+
+    # 2d. Damaged / defective product
+    is_damaged = any(re.search(rf"\b{kw}\b", msg_lower) for kw in ["cacat", "rusak", "robek", "sobek", "kotor", "reject", "noda", "bolong"])
+    if is_damaged:
+        return "hendra", "COMPLAINT_DAMAGED", "P1"
+
+    # 2e. Return / refund escalation
+    is_refund = any(re.search(rf"\b{kw}\b", msg_lower) for kw in ["refund", "kembalikan uang", "ganti rugi"])
+    if is_refund:
+        return "hendra", "RETURN_REFUND", "P1"
+
+    # 2f. Other managerial escalations
     is_escalated = any(re.search(rf"\b{kw}\b", msg_lower) for kw in ESCALATION_KEYWORDS)
     if is_escalated and not requested_bot:
-        bot_id = "hendra"
-        priority = "P1"
-        intent = "COMPLAINT_DAMAGED" if any(w in msg_lower for w in ["cacat", "rusak", "robek", "reject"]) else "RETURN_REFUND"
-        return bot_id, intent, priority
+        return "hendra", "COMPLAINT_GENERAL", "P1"
 
-    # 2. Check explicit out-of-scope triggers or completely unrelated queries
-    is_explicit_out_of_scope = any(re.search(rf"\b{kw}\b", msg_lower) for kw in OUT_OF_SCOPE_EXPLICIT_KEYWORDS)
-    has_retail_context = any(re.search(rf"\b{kw}\b", msg_lower) for kw in RETAIL_FASHION_KEYWORDS)
-    words = [w for w in re.findall(r'[a-zA-Z0-9]+', msg_lower) if len(w) > 1]
-    
-    if is_explicit_out_of_scope or (len(words) >= 3 and not has_retail_context):
-        bot_id = "siti"
-        intent = "OUT_OF_SCOPE"
-        priority = "P3"
-        return bot_id, intent, priority
-
-    # 3. Determine general retail intents
+    # 3. Determine general retail intents for Frontline (Siti)
     intent = "PRODUCT_INFO"
     for candidate_intent, keywords in INTENT_KEYWORDS.items():
         if any(re.search(rf"\b{kw}\b", msg_lower) for kw in keywords):
             intent = candidate_intent
             break
 
-    priority = "P1" if is_escalated else ("P2" if intent in ("RETURN_REFUND", "SHIPPING_DELIVERY", "SIZE_FIT") else "P3")
+    priority = "P2" if intent in ("RETURN_REFUND", "SHIPPING_DELIVERY", "SIZE_FIT") else "P3"
     return bot_id, intent, priority
 
 def generate_cs_reply(bot_id: str, customer_name: str, message: str, intent: str, priority: str) -> str:
@@ -235,7 +255,23 @@ def generate_cs_reply(bot_id: str, customer_name: str, message: str, intent: str
     if bot_id == "hendra":
         has_order = has_order_details(message)
         # Authoritative, calm, highly empathetic managerial resolution
-        if intent == "COMPLAINT_DAMAGED":
+        if intent == "COMPLAINT_GENERAL":
+            return (
+                f"Halo {c_name}, saya Hendra selaku Customer Service Team Lead Colorbox Indonesia. "
+                "Mohon maaf atas ketidaknyamanannya ya Kak. Mau komplain terkait kendala apa ya Kak? Kami siap membantu 🙏"
+            )
+        elif intent == "COMPLAINT_MISSING":
+            return (
+                f"Halo {c_name}, saya Hendra selaku Customer Service Team Lead Colorbox Indonesia. "
+                "Mohon maaf atas kendala pesanannya ya Kak. Untuk barangnya itu apa ya yang kurang? "
+                "Boleh dilampirkan bukti pembelian atau nomor pesanannya untuk barang-barang yang kurang tersebut ya Kak, kami siap bantu cek langsung 🙏"
+            )
+        elif intent == "COMPLAINT_WRONG_ITEM":
+            return (
+                f"Halo {c_name}, saya Hendra selaku Customer Service Team Lead Colorbox Indonesia. "
+                "Mohon maaf atas kekeliruan pengirimannya ya Kak. Boleh dibantu nomor pesanan serta foto produk yang diterima dan barcode tag-nya? Kami bantu proses penukaran barang yang sesuai 🙏"
+            )
+        elif intent == "COMPLAINT_DAMAGED":
             if not has_order:
                 # Proactive human CS follow-up when complaint details are incomplete (concise)
                 return (

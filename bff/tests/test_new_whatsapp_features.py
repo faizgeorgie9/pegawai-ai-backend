@@ -11,6 +11,29 @@ def test_out_of_scope_detection():
     # Must be concise
     assert len(reply.split()) < 40
 
+def test_complaint_general_without_details():
+    # User says: "saya ingin komplain"
+    bot_id, intent, priority = whatsapp.classify_and_route("saya ingin komplain")
+    assert bot_id == "hendra"
+    assert intent == "COMPLAINT_GENERAL"
+    reply = whatsapp.generate_cs_reply(bot_id, "Doni", "saya ingin komplain", intent, priority)
+    assert "Mau komplain" in reply or "komplain apa" in reply.lower()
+    assert "siap membantu" in reply.lower()
+
+    # English spelling with c: "saya ingin complain"
+    bot_id_c, intent_c, _ = whatsapp.classify_and_route("saya ingin complain")
+    assert bot_id_c == "hendra"
+    assert intent_c == "COMPLAINT_GENERAL"
+
+def test_complaint_missing_items():
+    # User says: "Barang saya ada yang kurang"
+    bot_id, intent, priority = whatsapp.classify_and_route("Barang saya ada yang kurang")
+    assert bot_id == "hendra"
+    assert intent == "COMPLAINT_MISSING"
+    reply = whatsapp.generate_cs_reply(bot_id, "Siska", "Barang saya ada yang kurang", intent, priority)
+    assert "apa ya yang kurang" in reply
+    assert "bukti pembelian" in reply
+
 def test_incomplete_complaint_human_cs_followup():
     bot_id, intent, priority = whatsapp.classify_and_route("Min baju saya cacat robek nih!")
     assert bot_id == "hendra"
