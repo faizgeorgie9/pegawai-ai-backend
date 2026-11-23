@@ -8,6 +8,7 @@ import { markNamed } from './Onboarding'
 import { toolsetText } from './ui-extra'
 import { ErrorLine, nf } from './ui'
 import { CostMeter, Loading, PageHead, Perkiraan, useLoad } from './ui-extra'
+import { cachedRead, onLinkIntent } from './session-cache'
 
 // #/pengaturan/<bagian>. Left: the sections (a scrolling row on small screens). Right: the section, one sentence per option.
 const SECTIONS = [
@@ -206,8 +207,53 @@ function BlockedChips({ bot }: { bot: SecBot }) {
   )
 }
 
+// The real table head plus one placeholder row: the common "same policy for everyone" result has this
+// exact shape, so only the row's text changes when the answer arrives.
+function SecuritySkeleton() {
+  const chips = [148, 128, 114, 106, 172, 144, 132]
+  return (
+    <div className="table-wrap skel skel-sec" role="status" aria-busy="true">
+      <span className="sr">Memuat pengaturan keamanan…</span>
+      <table className="plain" aria-hidden="true">
+        <thead>
+          <tr>
+            <th>Pegawai</th>
+            <th>Dimatikan</th>
+            <th>Persetujuan</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td data-label="Pegawai">
+              <div className="skel-body">
+                <span className="slow-note skel-sec-note">Memuat…</span>
+                <i className="skel-bar w60" />
+              </div>
+            </td>
+            <td data-label="Dimatikan">
+              <div className="skel-body">
+                <span className="skel-chips">
+                  {chips.map((w, i) => (
+                    <i key={i} className="skel-chip" style={{ width: w }} />
+                  ))}
+                </span>
+              </div>
+            </td>
+            <td data-label="Persetujuan">
+              <div className="skel-body">
+                <i className="skel-bar w70" />
+                <i className="skel-bar w40 thin" />
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 function Security() {
-  const fn = useCallback(() => api.security(), [])
+  const fn = useCallback(() => cachedRead('security', () => api.security()), [])
   const s = useLoad(fn)
   const bots = s.data?.bots ?? []
   // One shared policy reads as one row; per-employee rows only when a rule actually differs.
@@ -224,7 +270,7 @@ function Security() {
     <div className="set-sec">
       <h2 className="set-h">Keamanan dan izin</h2>
       <p className="quiet">Demi keamanan, kemampuan di bawah ini dimatikan untuk semua pegawai, dan tindakan berisiko seperti menghapus berkas atau mengirim email selalu menunggu izin Anda.</p>
-      {s.state === 'loading' && <Loading text="Memuat pembatasan..." shape="table" />}
+      {s.state === 'loading' && !s.data && <SecuritySkeleton />}
       {s.state === 'error' && <ErrorLine text={s.error} onRetry={s.retry} />}
       {s.state === 'ok' && s.data && (
         <div className="table-wrap">
@@ -253,6 +299,11 @@ function Security() {
     </div>
   )
 }
+
+// Starts the per-employee toolset read while the pointer or focus is still on "Keamanan" in the section nav.
+onLinkIntent('a[href="#/pengaturan/keamanan"]', () => {
+  void cachedRead('security', () => api.security()).catch(() => {})
+})
 
 // ---------- Paket dan pemakaian ----------
 const dayText = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
@@ -342,6 +393,7 @@ function Plan() {
   return (
     <div className="set-sec">
       <h2 className="set-h">Paket dan pemakaian</h2>
+      <p className="quiet small">Biaya ditampilkan dalam dolar AS (USD), bukan rupiah.</p>
       <dl className="kv kv-wide plan-sum">
         <dt>Paket aktif</dt>
         <dd>{me.plan.name}</dd>

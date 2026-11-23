@@ -4,7 +4,7 @@
 
 - **Belum ada integrasi Telegram sama sekali** di repo: tidak ada route, webhook, env, migrasi, atau UI; `channel_directory.json` kosong dan `gateway_state.json` hanya berisi `api_server`. Karena itu **tidak ada sampel live**; semua temuan di bawah berasal dari kode Hermes terpasang `0.22.5+3201.ga4994d4` dan diberi label **UNTESTED terhadap Pegawai**.
 - **Rekomendasi sementara: output native cukup** untuk teks, notifikasi, dan ringkasan tugas. Tabel pipa **otomatis berubah menjadi grup bullet** (`helpers.py:322`) — dapat diterima di chat. Lever ringan, jika tabel native benar-benar dibutuhkan, adalah **konfigurasi Backend** (`platforms.telegram.extra.rich_messages: true`, default `False` di `adapter.py:609`) plus perubahan hint prompt; **renderer kustom ditunda**.
-- **Memori: rencana saja.** Yang tersedia hari ini hanya riwayat/hapus sesi dan sakelar toolset "Ingatan". Baca/kelola/hapus memori jangka panjang **belum punya endpoint**; lima lapisan adalah target arsitektur, bukan fitur bawaan Hermes.
+- **Memori: baca + hapus sudah tersedia (Hari 5).** Tab **Ingatan** di detail pegawai menampilkan `MEMORY.md`/`USER.md` milik profil, menghapus satu entri, dan mengosongkan keduanya; riwayat chat punya hapus topik dengan konfirmasi. Menambah/mengedit entri, isolasi per pengguna, dan lima lapisan tetap **direncanakan**. Kontrak ada di §5.4 dan `catatan-untuk-backend.md`.
 - **Risiko utama:** memori Hermes terikat **profil**, bukan pengguna akhir. Selama satu profil dipakai beberapa anggota workspace, `session_search` dapat membuka sesi anggota lain (`tools/session_search_tool.py:601-628`). Opsi A/B/C untuk Backend ada di §8.
 
 Path repo relatif terhadap root `pegawai-ai-backend`; path Hermes relatif terhadap `%LOCALAPPDATA%\hermes\hermes-agent`. Kode repo pada `feat/frontend-prototype` (HEAD `8d05aaf`).
@@ -18,7 +18,7 @@ Path repo relatif terhadap root `pegawai-ai-backend`; path Hermes relatif terhad
 | Sampel output Telegram live | **TIDAK ADA** — tidak ada bot/token/chat di sisi Pegawai |
 | Analisis rendering | Dari kode + tes Hermes (bukan observasi live) — **UNTESTED** |
 | Kandidat memori | Kajian dokumen/primary source — **UNTESTED** terhadap Pegawai |
-| Kontrak memori BFF | Tidak ada (grep `memories\|MEMORY.md` di `bff/` = kosong) |
+| Kontrak memori BFF | **Ada (Hari 5)**: `GET`/`DELETE /api/bots/{id}/memory...`; lihat §5.4 dan `catatan-untuk-backend.md` |
 | Migrasi terakhir | `020_auth_users.sql`; tidak ada tabel memori |
 
 Cara menutup gap: satu bot uji + satu chat uji dari Backend, lalu tangkap (a) balasan teks biasa, (b) balasan berisi tabel, (c) ringkasan tugas panjang. Redaksi ID chat/pengguna sebelum disimpan.
@@ -122,7 +122,7 @@ Catatan: hanya **satu** provider eksternal yang dapat aktif per profil (`memory-
 | Permukaan | Jangkar | Pemakaian |
 |---|---|---|
 | Bagian Pengaturan | `frontend/src/Settings.tsx:14-21` | Tambah bagian `memori`: default memori agen, status provider, copy retensi |
-| Blok detail agen | `frontend/src/Agents.tsx:158-232` | Tambah kotak "Memori" setelah Persona: meter kapasitas (2.200/1.375), terakhir diubah, "Kelola" |
+| Blok detail agen | `frontend/src/Agents.tsx` | Tab **Ingatan** (Hari 5): meter kapasitas, daftar entri + hapus per entri, "Hapus semua ingatan" dengan konfirmasi |
 | Panel samping percakapan | `frontend/src/Panel.tsx:15,57-58,182-191` | Tambah tab `memori`: header "Percakapan ini" + aksi sesi; pertahankan Info/Biaya/Aktivitas |
 | Konfirmasi hapus | `frontend/src/ChatLayout.tsx:374-386` | Pola konfirmasi dua langkah yang sudah ada dipakai untuk hapus destruktif |
 | Sakelar kemampuan | `frontend/src/skills-ui.tsx:12-63` + `ui-extra.tsx:80` | Sudah menyalakan toolset `memory`; copy harus menyebut "tidak menghapus memori lama" |
@@ -136,8 +136,9 @@ Catatan: hanya **satu** provider eksternal yang dapat aktif per profil (`memory-
 | Lihat daftar/pesan sesi | Sesi | **Tersedia** | `GET /api/bots/{id}/sessions[/{sid}/messages]` (`main.py:346-362`) | Pemilik bot (`_owned_session`, `main.py:329-333`) | — | 404 sesi asing; 502 Hermes |
 | Hapus sesi | Sesi | **Tersedia** | `DELETE /api/bots/{id}/sessions/{sid}` (`main.py:375-381`) | Pemilik | Konfirmasi inline dua langkah (`ChatLayout.tsx:374-386`) | 404, 502 |
 | Nyalakan/matikan kemampuan ingatan | Karyawan | **Tersedia** | `PUT /api/agents/{slug}/skills {name:"memory"}` (`main.py:318-322`) | Pemilik agen | Langsung + toast; jelaskan "memori lama tetap ada" | 400 skill tersembunyi; 502 |
-| Lihat isi memori jangka panjang | Karyawan | **Direncanakan** | Perlu `GET /api/agents/{slug}/memory`; Hermes hanya mengekspos **ukuran** berkas lewat dashboard (`hermes_cli/web_routers/ops.py:495-509`) | Pemilik/admin; wajib Bearer valid | — | 404, 502, 423 bila profil sibuk |
-| Kosongkan satu store | Karyawan | **Direncanakan** | Perlu `DELETE …?store=memory\|user`; Hermes punya `memory reset --target` | **Hanya owner/admin** | Konfirmasi ketik + pratinjau cakupan (jumlah entri, karakter, nama agen) + ekspor dulu | 401/403/409/502; tidak boleh sukses sebagian diam-diam |
+| Lihat isi memori jangka panjang | Karyawan | **Tersedia** | `GET /api/bots/{id}/memory` → `{items, about_you, limit, about_limit}` (`bff/bff/memory.py`) | Pemilik agen (`bots.get_bot`; 404 untuk agen asing) | — | 404, 502 |
+| Hapus satu entri | Karyawan | **Tersedia** | `DELETE /api/bots/{id}/memory/{item_id}`; id = store + hash teks, stabil selama teks tidak berubah | Pemilik agen | Konfirmasi dua langkah per baris | 404 id rusak; 409 entri sudah berubah; 502 |
+| Kosongkan semua ingatan jangka panjang | Karyawan | **Tersedia** | `DELETE /api/bots/{id}/memory?confirm=true` (atau body `{"confirm":true}`); mengosongkan `MEMORY.md` **dan** `USER.md` | Pemilik agen | Konfirmasi dengan konsekuensi di UI | 400 tanpa konfirmasi; 409 lock; 502 |
 | Tambah/edit entri | Karyawan | **Ditunda** | Belum ada kontrak; tool `memory` hanya untuk agen | Owner/admin | Pratinjau diff | — |
 | Kosongkan lapisan 3–5 | Pelanggan/Proyek/Jangka panjang | **Tidak tersedia** | Tidak ada | — | — | Tampilkan "Belum tersedia"; jangan tombol palsu |
 | Pilih provider | Workspace | **Ditunda** | `hermes memory setup` per profil (CLI) | Admin | — | — |
@@ -147,12 +148,26 @@ Catatan: hanya **satu** provider eksternal yang dapat aktif per profil (`memory-
 
 ### 5.5 Kebijakan izin dan konfirmasi
 
-1. **Lihat:** pemilik agen; 404 untuk agen asing (`bots.py:59,65`).
-2. **Kosongkan memori jangka panjang:** `owner`/`admin` workspace; anggota mendapat 403 dengan "Minta admin".
-3. **Wajib autentikasi:** endpoint memori harus menolak token hilang/kedaluwarsa. Hari ini middleware jatuh ke `default` (`main.py:53-68`) — dapat diterima untuk route lama, **tidak** untuk operasi destruktif.
-4. **Core vs editable:** SOUL/persona builtin read-only; entri memori editable. Jangan pernah mengekspos `.env`, kunci provider, atau berkas profil lain.
+1. **Lihat:** pemilik agen; 404 untuk agen asing (`bots.py:59,65`). Endpoint memori memakai pola yang sama (`bots.get_bot(current_user(), bot_id)`).
+2. **Hapus:** pemilik agen. Tidak ada peran workspace terpisah di endpoint ini; bot memang baris milik satu pengguna. Jika agen dibagikan ke workspace, aturan peran harus ditambahkan bersamaan dengan isolasi tenant.
+3. **Wajib autentikasi:** endpoint memori **belum** menolak token hilang; middleware masih jatuh ke `default` (`main.py:53-68`). Selama celah global ini ada, pemanggil tanpa token diperlakukan sebagai tenant `default`. Perbaikan JWT di router `api` (temuan #1 `catatan-untuk-backend.md`) otomatis menutup ini.
+4. **Core vs editable:** SOUL/persona builtin read-only; entri memori bisa **dihapus**, belum bisa diedit dari UI. Jangan pernah mengekspos `.env`, kunci provider, atau berkas profil lain.
 5. **Jangan aktifkan `memory.write_approval: true`** sebelum ada UI persetujuan: tulisan akan menggantung dan hanya bisa di-approve lewat CLI (`memory.md:332-347`), terlihat seperti "agen lupa".
-6. **Kode error:** 409 bila run aktif, 502 bila Hermes mati, 429 untuk rate limit; error tidak boleh mengubah data.
+6. **Kode error:** 400 tanpa konfirmasi, 404 agen/id asing, 409 entri berubah atau lock sibuk, 502 berkas/Hermes gagal; error tidak boleh mengubah data.
+
+### 5.6 Status implementasi (Hari 5, 2026-11-23)
+
+**Sudah berjalan (diverifikasi live):**
+
+- `bff/bff/memory.py` — baca/tulis `MEMORY.md` + `USER.md` dengan format Hermes (`ENTRY_DELIMITER = "\n§\n"`, `tools/memory_tool_store.py:26`), tulis atomik temp + rename (`_write_file`), dan lock `<file>.lock` byte 0 (`_file_lock`, `tools/memory_tool_store.py:259-299`).
+- `GET /api/bots/{bot_id}/memory`, `DELETE /api/bots/{bot_id}/memory/{item_id}`, `DELETE /api/bots/{bot_id}/memory?confirm=true` di `bff/bff/main.py` (setelah route sesi). Semua memakai `bots.get_bot(current_user(), bot_id)` → 404 untuk agen asing.
+- Tab **Ingatan** di `frontend/src/Agents.tsx` (pola roving tab yang sama): meter kapasitas, daftar "Yang diingat" + "Tentang Anda", hapus per baris dengan konfirmasi, "Hapus semua ingatan" dengan konsekuensi, empty/loading/error.
+- Hapus topik di `frontend/src/ChatLayout.tsx`: konfirmasi menyebut "Ingatan {nama} dan dokumen di Pengetahuan tidak berubah"; topik aktif → kembali ke topik baru.
+- 21 tes baru di `bff/tests/test_memory.py`; total suite **312 lulus**.
+- Bukti live: Rian punya 1 entri nyata (153/2.200 karakter). Hapus satu entri → 204; kosongkan semua → 204 dan `used=0`; id lama → 409; tanpa konfirmasi → 400. `MEMORY.md` dipulihkan byte-identik (sha256 sebelum = sesudah). Hapus topik: rail 1 → 0 dan Hermes `GET /api/sessions/{sid}` 200 → 404.
+- Hermes memang mendukung hapus sesi: `DELETE /api/sessions/{session_id}` (`gateway/platforms/api_server.py`, `_handle_delete_session`); BFF sudah memakainya.
+
+**Belum:** tambah/edit entri, pilih store saat mengosongkan, audit trail, isolasi per pengguna, lapisan 3–5, ekspor memori.
 
 ---
 
@@ -194,11 +209,12 @@ Catatan: hanya **satu** provider eksternal yang dapat aktif per profil (`memory-
 |---|---|---|---|
 | T1 | Sampel output Telegram live (teks/tabel/tugas) + catatan keputusan final | Backend (token bot) → FE mencatat | Bot uji + chat uji |
 | T2 | Terapkan kebijakan format (konfigurasi saja, tanpa renderer) | Backend | T1 |
-| T3 | Kontrak memori: baca ukuran/isi, hapus per store, audit | Backend | Blueprint Hari 4 |
-| T4 | Perbaikan copy sekarang: cakupan "Ingatan", KB ≠ Memori, teks hapus sesi | FE | Tidak ada |
+| T3 | Kontrak memori: baca isi, hapus satu, kosongkan semua | Backend | **Selesai Hari 5** (§5.6); audit trail masih terbuka |
+| T4 | Perbaikan copy: tab "Ingatan", KB ≠ Memori, teks hapus topik | FE | **Selesai Hari 5** (§5.6) |
 | T5 | Keputusan isolasi tenant (A/B/C) | Backend/Sprint 6 | Dokumen ini |
+| T6 | Tambah/edit entri + audit + pilih store | Backend/Sprint 6 | T3, T5 |
 
-**Yang tidak boleh diklaim selesai:** integrasi Telegram, UI memori penuh, lima lapisan memori, atau operasi hapus memori. Semuanya belum ada dan tidak menjadi gate sprint ini.
+**Yang tidak boleh diklaim selesai:** integrasi Telegram, lima lapisan memori, isolasi memori per pengguna, atau tambah/edit entri. Hapus memori jangka panjang sudah ada dan diverifikasi live (§5.6).
 
 ---
 

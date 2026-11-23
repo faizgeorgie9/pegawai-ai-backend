@@ -538,7 +538,7 @@ function EvalForm({ sc, turns, botId, sid, snap, meta, cmp, onSaved }: { sc: Sce
         </label>
       )}
       {cmp && <label className="field"><span>Catatan konsistensi <Opt /></span><textarea rows={2} value={consNote} maxLength={2000} onChange={(e) => setConsNote(e.target.value)} /></label>}
-      <Versions items={cmp ? cmp.cols.map((c, i) => ({ label: `Run ${i + 1} · ${c.botName}`, meta: c.meta })) : [{ label: 'Run', meta }]} />
+      <Versions items={cmp ? cmp.cols.map((c, i) => ({ label: `Putaran ${i + 1} · ${c.botName}`, meta: c.meta })) : [{ label: 'Putaran', meta }]} />
       <p className="quiet small">Versi dicatat otomatis oleh server saat tugas dimulai.</p>
       <fieldset className="rubric">
         <legend>{sc.group === 'cs' ? 'Rubrik CS (6 kriteria), skor 1 sampai 5' : 'Rubrik, skor 1 sampai 5'}</legend>
@@ -669,7 +669,7 @@ function LogTable({ rows }: { rows: Evaluation[] }) {
               </tr>
               <tr className="sub-row">
                 <td colSpan={7}>
-                  <Versions items={e.comparison ? e.comparison.runs.map((r, i) => ({ label: `Run ${i + 1} · ${name(r.bot_id)}`, meta: r.meta })) : [{ label: 'Run', meta: e.meta }]} />
+                  <Versions items={e.comparison ? e.comparison.runs.map((r, i) => ({ label: `Putaran ${i + 1} · ${name(r.bot_id)}`, meta: r.meta })) : [{ label: 'Putaran', meta: e.meta }]} />
                   {e.comparison && (
                     <p className="quiet small cmp-sum">
                       {e.comparison.mode === 'repeat' ? 'Diulang beberapa kali' : 'Dua agen'}: <b>{e.comparison.consistency === 'konsisten' ? 'Konsisten' : 'Tidak konsisten'}</b>. ID tugas: {e.comparison.runs.map((r) => r.run_id.slice(0, 8)).join(', ')}.{e.comparison.note ? ` ${e.comparison.note}` : ''}

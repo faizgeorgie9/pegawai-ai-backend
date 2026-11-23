@@ -8,7 +8,8 @@ import { go } from './router'
 import { SourcePicker } from './pick-ui'
 import { SkillsSection } from './skills-ui'
 import { Dialog, ErrorLine } from './ui'
-import { CapChip, Loading, PageHead, Spinner, useLoad } from './ui-extra'
+import { CapChip, PageHead, Spinner, useLoad } from './ui-extra'
+import { cachedRead, forgetReads, onLinkIntent } from './session-cache'
 
 // Real per-user connections (BFF: bff/connections.py). The state comes from the BFF; nothing here pretends to be connected.
 type AppDef = { name: string; enables: string; where: string }
@@ -48,9 +49,17 @@ export function forwardOldConnectLink() {
 }
 
 export function useConnections() {
-  const fn = useCallback(() => api.connections(), [])
+  const fn = useCallback(() => cachedRead('connections', () => api.connections()), [])
   return useLoad(fn)
 }
+
+// One read, shared by the menu prefetch and the page. The BFF caches its app catalog for 60 s; this keeps
+// the same data on screen when the user leaves Aplikasi and comes back, instead of a new skeleton.
+const primeApps = () => {
+  void cachedRead('connections', () => api.connections()).catch(() => {})
+  void cachedRead('apps-catalog', () => api.appsCatalog()).catch(() => {})
+}
+onLinkIntent('a[href="#/aplikasi"]', primeApps)
 
 // Marks drawn here in each product's colours (simple shapes, not the official artwork).
 function Mark({ id }: { id: string }) {
@@ -320,9 +329,70 @@ function ConnectDialog({ app, onClose, onDone }: { app: HermesApp; onClose: () =
   )
 }
 
+// Same blocks as the loaded page (search row, linked cards, catalog grid), so the first paint already
+// shows the shape of the list and nothing jumps when the data lands. The note appears after 3 s (CSS).
+function AppsSkeleton() {
+  return (
+    <div className="skel skel-apps" role="status" aria-busy="true">
+      <span className="sr">Memuat daftar aplikasi…</span>
+      <div className="skel-body" aria-hidden="true">
+        <div className="skel-app-tools">
+          <i className="skel-search" />
+          <span className="skel-pills">
+            {[70, 132, 106, 118, 104, 88].map((w, i) => (
+              <i key={i} className="skel-pill" style={{ width: w }} />
+            ))}
+          </span>
+        </div>
+        <section className="apps-group apps-linked-sec">
+          <header>
+            <h2>
+              Tersambung <span className="slow-note">· Sedang memuat daftar aplikasi…</span>
+            </h2>
+          </header>
+          <ul className="app-rows">
+            {[0, 1, 2].map((i) => (
+              <li key={i} className="app-card app-row skel-app-row">
+                <span className="skel-head">
+                  <i className="skel-mark" />
+                  <span className="skel-lines">
+                    <i className="skel-bar w40" />
+                    <i className="skel-bar w70 thin" />
+                  </span>
+                </span>
+                <i className="skel-btn" />
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section className="apps-group">
+          <header>
+            <h2>Aplikasi lain</h2>
+          </header>
+          <ul className="app-grid app-mini-grid">
+            {Array.from({ length: 12 }, (_, i) => (
+              <li key={i} className="app-card app-mini skel-app-mini">
+                <span className="skel-head">
+                  <i className="skel-mark sm" />
+                  <i className="skel-bar w40" />
+                </span>
+                <i className="skel-btn sm" />
+                <span className="skel-desc">
+                  <i className="skel-bar w70 thin" />
+                  <i className="skel-bar w40 thin" />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+    </div>
+  )
+}
+
 export function AppsPage() {
   const conns = useConnections()
-  const catFn = useCallback(() => api.appsCatalog(), [])
+  const catFn = useCallback(() => cachedRead('apps-catalog', () => api.appsCatalog()), [])
   const cat = useLoad(catFn)
   const admin = useAdminMode()
   const [result] = useState(readResult)
@@ -373,6 +443,7 @@ export function AppsPage() {
     setAsking(null)
     try {
       await api.disconnect(p)
+      forgetReads('connections')
       conns.retry()
     } catch (e) {
       setProblem(errText(e))
@@ -385,6 +456,7 @@ export function AppsPage() {
     setAsking(null)
     try {
       await api.appDisconnect(a.id)
+      forgetReads('apps-catalog')
       cat.retry()
     } catch (e) {
       setProblem(errText(e))
@@ -399,6 +471,7 @@ export function AppsPage() {
     } catch {
       /* the reload below shows the error */
     }
+    forgetReads('connections')
     conns.retry()
     setBusy(null)
   }
@@ -604,6 +677,7 @@ export function AppsPage() {
   const shown = catalog.slice(0, limit)
   const linkedCount = linkedOauth.length + linkedHermes.length
   const ready = (conns.data || conns.state === 'error') && (cat.data || cat.state === 'error')
+  const failed = conns.state === 'error' && !conns.data ? conns : cat.state === 'error' && !cat.data ? cat : null
 
   return (
     <section className="page apps" data-tab={tab}>
@@ -645,7 +719,7 @@ export function AppsPage() {
       )}
       {tab === 'apps' && (
         <>
-          {ready && (
+          {ready && !failed && (
             <div className="apps-tools apps-tools-row">
               <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari aplikasi" aria-label="Cari aplikasi" />
               <div className="apps-cats" role="group" aria-label="Kategori">
@@ -661,10 +735,17 @@ export function AppsPage() {
             </div>
           )}
           <div className="apps-scroll">
-            {!ready && <Loading text="Memuat aplikasi..." shape="ledger" />}
-            {conns.state === 'error' && !conns.data && <ErrorLine text={conns.error} onRetry={conns.retry} />}
-            {cat.state === 'error' && !cat.data && <ErrorLine text={cat.error} onRetry={cat.retry} />}
-            {ready && (
+            {!ready && !failed && <AppsSkeleton />}
+            {failed && (
+              <ErrorLine
+                text={failed.error}
+                onRetry={() => {
+                  conns.retry()
+                  cat.retry()
+                }}
+              />
+            )}
+            {ready && !failed && (
               <>
                 <section className="apps-group apps-linked-sec" aria-labelledby="g-linked">
                   <header>
@@ -725,7 +806,10 @@ export function AppsPage() {
           onDone={(message) => {
             setConnecting(null)
             setJoined(message)
-            void api.appsCatalog(true).finally(cat.retry)
+            void api.appsCatalog(true).finally(() => {
+              forgetReads('apps-catalog')
+              cat.retry()
+            })
           }}
         />
       )}

@@ -4,6 +4,7 @@ import type { AgentSkills as AgentSkillsData, Skill } from './bff'
 import { useAdminMode } from './adminMode'
 import { Dialog, ErrorLine } from './ui'
 import { Loading, toolsetText, useLoad } from './ui-extra'
+import { cachedRead, forgetReads } from './session-cache'
 
 const clean = (s: string) => s.replace(/^[^\p{L}\p{N}]+/u, '').trim()
 export const skillText = (s: Pick<Skill, 'name' | 'label' | 'description'>) => toolsetText(s.name, clean(s.label), s.description)
@@ -18,6 +19,7 @@ export function SkillSwitches({ slug, skills, onChange }: { slug: string; skills
     setProblem('')
     try {
       onChange(await api.setSkill(slug, s.name, on))
+      forgetReads('skills') // a reopened Keahlian tab asks the BFF again instead of showing the old switches
     } catch (e) {
       setProblem(errText(e))
     }
@@ -63,10 +65,38 @@ export function AgentSkills({ slug }: { slug: string }) {
   return <SkillSwitches slug={slug} skills={local ?? r.data} onChange={setLocal} />
 }
 
+// Card shapes of the loaded grid; the third line is the "Dipakai" line, so the grid height does not jump.
+function SkillsSkeleton() {
+  return (
+    <div className="skel skel-skills" role="status" aria-busy="true">
+      <span className="sr">Memuat keahlian pegawai…</span>
+      <div className="skel-body" aria-hidden="true">
+        <ul className="app-grid app-mini-grid">
+          {Array.from({ length: 12 }, (_, i) => (
+            <li key={i} className="app-card app-mini skel-skill-card">
+              <span className="skel-head">
+                <i className="skel-bar w40" />
+              </span>
+              <i className="skel-btn sm" />
+              <span className="skel-desc">
+                <i className="skel-bar w70 thin" />
+                <i className="skel-bar w40 thin" />
+              </span>
+              <span className="skel-who">
+                <i className="skel-bar w60 thin" />
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
 // Aplikasi page: "Keahlian pegawai". One card per skill, who uses it, and "Atur" for the per-agent switches.
 export function SkillsSection({ q = '' }: { q?: string }) {
   const admin = useAdminMode()
-  const fn = useCallback(() => api.skillsAll(), [])
+  const fn = useCallback(() => cachedRead('skills', () => api.skillsAll()), [])
   const r = useLoad(fn)
   const [agents, setAgents] = useState<AgentSkillsData[] | null>(null)
   const [open, setOpen] = useState<string | null>(null)
@@ -82,9 +112,17 @@ export function SkillsSection({ q = '' }: { q?: string }) {
         <h2 id="g-skills" className="sr">
           Keahlian pegawai
         </h2>
-        <p className="quiet small">Kemampuan bawaan yang bisa dinyalakan atau dimatikan untuk tiap pegawai.</p>
+        <p className="quiet small">
+          Kemampuan bawaan yang bisa dinyalakan atau dimatikan untuk tiap pegawai.
+          {r.state === 'loading' && !r.data && (
+            <span className="slow-note" aria-hidden="true">
+              {' '}
+              Sedang memuat daftar keahlian…
+            </span>
+          )}
+        </p>
       </header>
-      {r.state === 'loading' && !r.data && <Loading text="Memuat keahlian..." shape="ledger" />}
+      {r.state === 'loading' && !r.data && <SkillsSkeleton />}
       {r.state === 'error' && !r.data && <ErrorLine text="Daftar keahlian belum bisa dimuat. Coba lagi sebentar." onRetry={r.retry} />}
       {names.size > 0 && (
         <ul className="app-grid app-mini-grid">

@@ -1,0 +1,39 @@
+/* Admin screens (Marketing, Layanan pelanggan, Kemampuan, Evaluasi, Aktivitas). Tokens only; loaded from ws-common, Platform and Activity. */
+
+/* Small layout helpers that used to be inline styles in Marketing.tsx */
+.ws-row { display: flex; align-items: center; gap: var(--s-3); min-width: 0; }
+.ws-row-tight { gap: var(--s-2); }
+.ws-row-split { justify-content: space-between; flex-wrap: wrap; row-gap: var(--s-2); }
+.ws .tight, .ws-banner .tight { margin: 0; }
+.ws-actions { display: flex; flex-wrap: wrap; gap: var(--s-3); margin-top: var(--s-4); }
+.ws-actions-after { margin-bottom: var(--s-5); }
+.ws-suggest { display: flex; align-items: center; gap: var(--s-3); margin: var(--s-3) 0; }
+.ws-block { margin-top: var(--s-3); }
+.ws-block > .ws-row { margin-bottom: var(--s-2); }
+.ws-rule { border-top: 1px solid var(--border); padding-top: var(--s-4); }
+.ws-banner { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); flex-wrap: wrap; }
+.md-img { display: block; max-width: 100%; margin: var(--s-3) 0; border-radius: var(--radius-control); }
+.rbody.md { line-height: 1.6; }
+
+/* Agent header above each stage: tinted avatar so the initials keep readable contrast in both themes */
+.ws-agent-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s-2) var(--s-4); margin-bottom: var(--s-4); padding: var(--s-3) var(--s-4); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--raised); }
+.ws-agent-head .ws-row-tight > b { font-size: 15px; }
+.ws-agent-av { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border: 2px solid var(--agent-c); border-radius: 50%; background: color-mix(in srgb, var(--agent-c) 16%, var(--surface)); color: var(--text); font-size: 13px; font-weight: 700; }
+.ws-agent-model { text-align: right; }
+
+/* Catalog suggestions under "Produk acuan" */
+.cat-pick { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-2); }
+.cat-chips { display: flex; flex-wrap: wrap; gap: var(--s-2); max-height: 156px; overflow-y: auto; }
+.cat-chip { height: auto; min-height: 32px; padding: var(--s-1) var(--s-3); border: 1px solid transparent; font-size: 12px; text-align: left; white-space: normal; cursor: pointer; }
+.cat-chip:not(.ok) { border-color: var(--control); }
+
+/* Phones: every control on the admin screens reaches 40 px */
+@media (max-width: 640px) {
+  .ws-agent-model { text-align: left; }
+  .ws .btn, .ws select, .ws input:not([type="checkbox"]):not([type="radio"]), .ws .seg button, .ws .cat-chip, .ws .ws-switch, .tab-body .btn,
+  .act-page .btn, .act-page select, .act-page .sum-btn { min-height: 40px; }
+  .ws .seg button { height: 40px; }
+  .ws .ws-switch { display: inline-flex; align-items: center; gap: var(--s-2); }
+  .act-page .sum-btn { padding-block: var(--s-2); }
+  .ws-actions > .btn { flex: 1 1 100%; justify-content: center; }
+}

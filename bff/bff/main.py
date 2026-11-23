@@ -13,7 +13,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import actions, apps, auth, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, mcp_privileges, product_images, scheduler, sequences, settings, tasks, usage, whatsapp
+from . import actions, apps, auth, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, mcp_privileges, memory, product_images, scheduler, sequences, settings, tasks, usage, whatsapp
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -379,6 +379,35 @@ async def delete_session(bot_id: str, sid: str):
     if r.status_code >= 400 and r.status_code != 404:
         raise ApiError(502, "Gagal menghapus sesi")
     await db.ex("delete from chat_sessions where session_id = %s", sid)
+
+
+# ---- Ingatan: what one agent remembers long-term (Hermes MEMORY.md / USER.md) ----
+# File I/O and Hermes' lock live in memory.py; every route first proves the caller owns the bot.
+
+@api.get("/bots/{bot_id}/memory")
+async def bot_memory(bot_id: str):
+    await bots.get_bot(current_user(), bot_id)
+    return await asyncio.to_thread(memory.snapshot, bot_id)
+
+
+@api.delete("/bots/{bot_id}/memory/{item_id}", status_code=204)
+async def delete_memory_item(bot_id: str, item_id: str):
+    await bots.get_bot(current_user(), bot_id)
+    await asyncio.to_thread(memory.delete_item, bot_id, item_id)
+
+
+@api.delete("/bots/{bot_id}/memory", status_code=204)
+async def clear_bot_memory(bot_id: str, request: Request, confirm: bool = False):
+    await bots.get_bot(current_user(), bot_id)
+    if not confirm:
+        try:
+            body = await request.json()
+        except ValueError:
+            body = {}
+        confirm = isinstance(body, dict) and body.get("confirm") is True
+    if not confirm:
+        raise ApiError(400, "Konfirmasi diperlukan untuk menghapus semua ingatan")
+    await asyncio.to_thread(memory.clear_all, bot_id)
 
 
 # ---------- runs ----------

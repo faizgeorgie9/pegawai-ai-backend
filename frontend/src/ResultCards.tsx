@@ -83,7 +83,7 @@ export function MarketingCard({ r, origin, meta }: { r: MarketingResult; origin:
       return (
         <Frame title="Brief terstruktur" meta={meta} origin={origin} flags={<span className={`pill ${r.ready ? 'ok' : 'warn'}`}>{r.ready ? 'Siap dikerjakan' : 'Belum siap'}</span>}>
           <dl className="kv2">{Object.entries(r.fields).map(([k, v]) => <Kv key={k} k={k.replace(/_/g, ' ')} v={v} />)}</dl>
-          {r.assumptions.length > 0 && <Block label="Asumsi" badge={<span className="pill cls cls-assumptions">Assumptions</span>}><List items={r.assumptions} /></Block>}
+          {r.assumptions.length > 0 && <Block label="Asumsi" badge={<span className="pill cls cls-assumptions">Bukan fakta</span>}><List items={r.assumptions} /></Block>}
           {r.questions.length > 0 && <Block label="Pertanyaan terbuka"><List items={r.questions} /></Block>}
         </Frame>
       )
@@ -120,7 +120,7 @@ export function MarketingCard({ r, origin, meta }: { r: MarketingResult; origin:
             </Block>
           ))}
           {r.sources.length > 0 && <Block label="Sumber klaim"><List items={r.sources} /></Block>}
-          {r.assumptions.length > 0 && <Block label="Asumsi kreatif" badge={<span className="pill cls cls-assumptions">Assumptions</span>}><List items={r.assumptions} /></Block>}
+          {r.assumptions.length > 0 && <Block label="Asumsi kreatif" badge={<span className="pill cls cls-assumptions">Bukan fakta</span>}><List items={r.assumptions} /></Block>}
           {r.warnings.length > 0 && <ul className="warns">{r.warnings.map((w, i) => <li key={i}>Peringatan: {w}</li>)}</ul>}
         </Frame>
       )
@@ -148,7 +148,7 @@ export function MarketingCard({ r, origin, meta }: { r: MarketingResult; origin:
             <section className="rblock new"><h3>Sesudah</h3><p>{d.filter((x) => x.k !== 'del').map((x, i) => (x.k === 'ins' ? <ins key={i}>{x.t} </ins> : x.t + ' '))}</p></section>
           </div>
           {r.feedback_applied.length > 0 && <Block label="Feedback yang ditindaklanjuti"><List items={r.feedback_applied} /></Block>}
-          {r.change_log.length > 0 && <Block label="Change log"><List items={r.change_log} /></Block>}
+          {r.change_log.length > 0 && <Block label="Catatan perubahan"><List items={r.change_log} /></Block>}
           {r.open_issues.length > 0 && <Block label="Masalah terbuka"><List items={r.open_issues} /></Block>}
         </Frame>
       )

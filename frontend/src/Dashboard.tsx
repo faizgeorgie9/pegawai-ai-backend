@@ -55,8 +55,8 @@ export default function Dashboard() {
     return () => window.clearTimeout(t)
   }, [tools.state])
 
-  if (loadState === 'loading') return <section className="page"><Loading text="Memuat beranda..." shape="page" /></section>
-  if (loadState === 'error') return <section className="page"><ErrorLine text={error} onRetry={reload} /></section>
+  if (loadState === 'loading') return <section className="page"><h1 className="sr">Beranda</h1><Loading text="Memuat beranda..." shape="page" /></section>
+  if (loadState === 'error') return <section className="page"><h1 className="sr">Beranda</h1><ErrorLine text={error} onRetry={reload} /></section>
 
   const team = groups[0] // "Beri tugas ke tim" opens the first team (Marketing) with the message box ready
   const ask = team ? `#${groupPath(team.id)}?tulis=1` : '#/grup'

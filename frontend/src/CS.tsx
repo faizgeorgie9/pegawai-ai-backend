@@ -7,6 +7,7 @@ import { LiveDraft } from './LiveSteps'
 import type { ContextRef, Cs21, CsResult, Validation } from './results'
 import { SCENARIOS } from './scenarios'
 import { useRun } from './useRun'
+import { ErrorLine } from './ui'
 import { Empty, Loading, PageHead } from './ui-extra'
 import { AgentSelect, ConfirmSwitch, OpenInChat, RunBar, Switch, hhmm, teamBots } from './ws-common'
 
@@ -31,7 +32,7 @@ const EXAMPLE_GROUPS: { label: string; ids: string[] }[] = [
 const EXAMPLES = Object.fromEntries(SCENARIOS.filter((s) => s.group === 'cs').map((s) => [s.id, s]))
 
 export default function CS() {
-  const { bots } = useData()
+  const { bots, loadState, error, reload } = useData()
   const team = teamBots(bots, 'customer_support')
   const [agent, setAgent] = useState('')
   const [pending, setPending] = useState('')
@@ -42,7 +43,15 @@ export default function CS() {
   return (
     <section className="page ws" data-team="customer_support">
       <PageHead title="Layanan pelanggan" sub="Simulasikan pertanyaan pelanggan. Jawaban berupa draf internal: tidak ada pesan yang dikirim." />
-      {!cur ? <Loading text="Memuat agen CS..." /> : <Desk key={cur.id + ':' + gen} bot={cur} agentSelect={<AgentSelect label="Agen" bots={team} value={cur.id} onChange={(id) => (id === cur.id ? null : dirty.current ? setPending(id) : setAgent(id))} />} onDirty={(v) => (dirty.current = v)} onNew={() => { dirty.current = false; setGen((g) => g + 1) }} />}
+      {!cur ? (
+        loadState === 'error' ? (
+          <ErrorLine text={error} onRetry={reload} />
+        ) : loadState === 'ok' ? (
+          <Empty title="Belum ada agen layanan pelanggan">Halaman ini butuh agen di tim layanan pelanggan. Buat agennya di halaman Agen.</Empty>
+        ) : (
+          <Loading text="Memuat agen CS..." />
+        )
+      ) : <Desk key={cur.id + ':' + gen} bot={cur} agentSelect={<AgentSelect label="Agen" bots={team} value={cur.id} onChange={(id) => (id === cur.id ? null : dirty.current ? setPending(id) : setAgent(id))} />} onDirty={(v) => (dirty.current = v)} onNew={() => { dirty.current = false; setGen((g) => g + 1) }} />}
       {pending && (
         <ConfirmSwitch
           onYes={() => {
