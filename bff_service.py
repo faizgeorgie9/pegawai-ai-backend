@@ -1921,10 +1921,27 @@ def _export_history() -> Dict[str, Any]:
     }
 
 
+BOT_ID_ALIASES: Dict[str, str] = {
+    "bimo": "cre-01",
+    "meda": "cre-01",
+    "raka": "cre-01",
+    "bram": "cre-02",
+    "vina": "cre-03",
+    "projectmanager": "cre-01",
+    "marketingstrategist": "cre-01",
+    "researcher": "cre-01",
+    "sketchwriter": "cre-02",
+    "visualcarousel": "cre-03",
+}
+
+
 def _get_bot_row(bot_id: str) -> sqlite3.Row:
+    target_id = BOT_ID_ALIASES.get(bot_id, bot_id)
     conn = _connect()
     try:
-        r = conn.execute("SELECT * FROM bots WHERE id = ? AND deleted_at IS NULL", (bot_id,)).fetchone()
+        r = conn.execute("SELECT * FROM bots WHERE id = ? AND deleted_at IS NULL", (target_id,)).fetchone()
+        if not r and target_id != bot_id:
+            r = conn.execute("SELECT * FROM bots WHERE id = ? AND deleted_at IS NULL", (bot_id,)).fetchone()
         if not r:
             raise ApiError(404, "Bot tidak ditemukan")
         return r
