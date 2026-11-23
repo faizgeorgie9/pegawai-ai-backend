@@ -44,6 +44,64 @@ def is_duplicate_message(message_id: Optional[str]) -> bool:
     _seen_message_ids[message_id] = now
     return False
 
+# Human Agent Takeover cache: {clean_sender: expiration_timestamp}
+_paused_senders: dict[str, float] = {}
+
+def pause_sender(sender: str, duration_seconds: int = 7200) -> None:
+    """Pause automatic bot replies for a specific customer to allow human agent takeover."""
+    clean_sender = "".join(filter(str.isdigit, sender)) or sender
+    _paused_senders[clean_sender] = time.time() + duration_seconds
+    log.info("Sender %s paused for %ds (Human Agent Takeover active)", clean_sender, duration_seconds)
+
+def resume_sender(sender: str) -> None:
+    """Resume automatic bot replies for a specific customer."""
+    clean_sender = "".join(filter(str.isdigit, sender)) or sender
+    _paused_senders.pop(clean_sender, None)
+    log.info("Sender %s resumed (Bot replies reactivated)", clean_sender)
+
+def is_sender_paused(sender: str) -> bool:
+    """Check if automatic bot replies are currently paused for a specific customer."""
+    clean_sender = "".join(filter(str.isdigit, sender)) or sender
+    exp = _paused_senders.get(clean_sender)
+    if not exp:
+        return False
+    if time.time() > exp:
+        _paused_senders.pop(clean_sender, None)
+        return False
+    return True
+
+def get_paused_senders() -> list[dict]:
+    """List all currently paused senders."""
+    now = time.time()
+    results = []
+    expired = []
+    for s_id, exp in list(_paused_senders.items()):
+        if now > exp:
+            expired.append(s_id)
+        else:
+            results.append({
+                "sender": s_id,
+                "remaining_seconds": int(exp - now),
+                "expires_at": datetime.fromtimestamp(exp, tz=timezone.utc).isoformat()
+            })
+    for s in expired:
+        _paused_senders.pop(s, None)
+    return results
+
+# Triggers for Human Agent Takeover (Handover to live human CS staff)
+HUMAN_TAKEOVER_KEYWORDS = {
+    "bicara dengan staf manusia", "bicara dengan manusia", "minta cs asli", "mau ngomong sama manusia",
+    "hubungkan ke manusia", "mau cs asli", "admin manusia", "cs asli", "staf asli", "orang asli",
+    "bukan bot", "bicara dengan orang", "jangan bot", "oper ke manusia", "transfer ke manusia",
+    "live agent", "human agent", "sambungkan ke manusia", "mau manusia", "ngomong sama orang",
+    "staf manusia"
+}
+
+# Triggers to reactivate the bot
+BOT_RESUME_KEYWORDS = {
+    "aktifkan bot", "resume bot", "mulai bot", "kembali ke bot", "hidupkan bot"
+}
+
 # Escalation triggers that route directly to Hendra (CS Team Lead)
 ESCALATION_KEYWORDS = {
     "cacat", "rusak", "robek", "reject", "kecewa", "tuntut", "kasus", "somasi",
@@ -199,6 +257,13 @@ def classify_and_route(message: str, requested_bot: Optional[str] = None) -> Tup
         bot_id = "siti"
 
     msg_lower = message.lower()
+
+    # 0. Check bot resume or human agent takeover requests
+    if any(re.search(rf"\b{re.escape(kw)}\b", msg_lower) for kw in BOT_RESUME_KEYWORDS):
+        return "siti", "BOT_RESUME", "P2"
+
+    if any(re.search(rf"\b{re.escape(kw)}\b", msg_lower) for kw in HUMAN_TAKEOVER_KEYWORDS):
+        return "hendra", "HUMAN_TAKEOVER", "P1"
     
     # 1. Check explicit out-of-scope triggers (cooking, crypto, politics, coding, homework, automotive, health, gaming)
     is_explicit_out_of_scope = any(re.search(rf"\b{kw}\b", msg_lower) for kw in OUT_OF_SCOPE_EXPLICIT_KEYWORDS)
@@ -255,7 +320,12 @@ def generate_cs_reply(bot_id: str, customer_name: str, message: str, intent: str
     if bot_id == "hendra":
         has_order = has_order_details(message)
         # Authoritative, calm, highly empathetic managerial resolution
-        if intent == "COMPLAINT_GENERAL":
+        if intent == "HUMAN_TAKEOVER":
+            return (
+                f"Baik {c_name}, percakapan ini telah saya alihkan ke Tim Customer Service (staf manusia) Colorbox Indonesia. "
+                "Mohon ditunggu sebentar ya Kak, rekan staf kami akan segera membalas langsung di chat ini 🙏"
+            )
+        elif intent == "COMPLAINT_GENERAL":
             return (
                 f"Halo {c_name}, saya Hendra selaku Customer Service Team Lead Colorbox Indonesia. "
                 "Mohon maaf atas ketidaknyamanannya ya Kak. Mau komplain terkait kendala apa ya Kak? Kami siap membantu 🙏"
@@ -310,7 +380,12 @@ def generate_cs_reply(bot_id: str, customer_name: str, message: str, intent: str
             )
     else:
         # Siti: Warm, friendly, helpful frontline assistant (concise & clear)
-        if intent == "OUT_OF_SCOPE":
+        if intent == "BOT_RESUME":
+            return (
+                f"Halo {c_name}! Asisten virtual bot Colorbox telah aktif kembali 😊 "
+                "Ada yang bisa Siti bantu seputar outfit santai, promo terbaru, atau informasi pesanan Kakak hari ini?"
+            )
+        elif intent == "OUT_OF_SCOPE":
             return (
                 f"Halo {c_name}! Maaf ya Kak, pertanyaan tersebut di luar ranah dan scope pengetahuan tugas Siti di Colorbox 😊\n\n"
                 "Ada yang bisa Siti bantu seputar outfit santai, koleksi pakaian, promo, atau pesanan Anda di Colorbox hari ini?"
@@ -458,6 +533,71 @@ async def send_meta_whatsapp_message(to: str, text: str) -> bool:
 async def route_and_process_message(user_id: str, sender: str, customer_name: str, message: str,
                                     requested_bot: Optional[str] = None, metadata: Optional[dict] = None) -> dict:
     """Process incoming WhatsApp message, execute CS routing, log to database, and return response."""
+    # 1. Check if sender is currently in Human Agent Takeover mode (bot paused)
+    if is_sender_paused(sender):
+        bot_id, intent, priority = classify_and_route(message, requested_bot)
+        if intent == "BOT_RESUME":
+            resume_sender(sender)
+            reply_text = generate_cs_reply(bot_id, customer_name, message, intent, priority)
+            status = "replied"
+            msg_id = uuid.uuid4()
+            meta = metadata or {}
+            meta.update({"intent": intent, "priority": priority, "routed_bot": bot_id, "processed_at": datetime.now(timezone.utc).isoformat()})
+            try:
+                await db.ex("""
+                    INSERT INTO whatsapp_messages (id, user_id, sender, customer_name, direction, message, bot_id, status, response_text, metadata)
+                    VALUES (%s, %s, %s, %s, 'inbound', %s, %s, %s, %s, %s)
+                """, msg_id, user_id, sender, customer_name, message, bot_id, status, reply_text, json.dumps(meta))
+            except Exception as e:
+                log.warning("DB store error: %s", e)
+            if EVOLUTION_API_URL and EVOLUTION_API_KEY:
+                import asyncio
+                asyncio.create_task(send_evolution_whatsapp_message(sender, reply_text))
+            return {
+                "id": str(msg_id),
+                "sender": sender,
+                "customer_name": customer_name,
+                "routed_bot": bot_id,
+                "bot_name": "Siti",
+                "bot_role": "Frontline Support Specialist",
+                "intent": intent,
+                "priority": priority,
+                "status": status,
+                "message": message,
+                "reply": reply_text,
+                "paused": False,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+        else:
+            # Human takeover is active: store message with status 'needs_human' and DO NOT send any bot reply
+            msg_id = uuid.uuid4()
+            meta = metadata or {}
+            meta.update({"intent": "HUMAN_TAKEOVER_ACTIVE", "priority": "P1", "routed_bot": "human", "processed_at": datetime.now(timezone.utc).isoformat()})
+            try:
+                await db.ex("""
+                    INSERT INTO whatsapp_messages (id, user_id, sender, customer_name, direction, message, bot_id, status, response_text, metadata)
+                    VALUES (%s, %s, %s, %s, 'inbound', %s, 'human', 'needs_human', '', %s)
+                """, msg_id, user_id, sender, customer_name, message, json.dumps(meta))
+            except Exception as e:
+                log.warning("DB store error: %s", e)
+            log.info("Human agent takeover active for %s. Message logged as needs_human without bot reply.", sender)
+            return {
+                "id": str(msg_id),
+                "sender": sender,
+                "customer_name": customer_name,
+                "routed_bot": "human",
+                "bot_name": "CS Manusia",
+                "bot_role": "Customer Service Human Staff",
+                "intent": "HUMAN_TAKEOVER_ACTIVE",
+                "priority": "P1",
+                "status": "needs_human",
+                "message": message,
+                "reply": "",
+                "paused": True,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+
+    # 2. Normal message routing
     bot_id, intent, priority = classify_and_route(message, requested_bot)
     
     # Generate reply
@@ -473,7 +613,13 @@ async def route_and_process_message(user_id: str, sender: str, customer_name: st
         "processed_at": datetime.now(timezone.utc).isoformat()
     })
     
-    status = "escalated" if bot_id == "hendra" else "replied"
+    if intent == "HUMAN_TAKEOVER":
+        pause_sender(sender, duration_seconds=7200)  # Pause bot for 2 hours
+        status = "needs_human"
+    elif bot_id == "hendra":
+        status = "escalated"
+    else:
+        status = "replied"
     
     try:
         await db.ex("""

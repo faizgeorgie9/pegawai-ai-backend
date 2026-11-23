@@ -84,3 +84,44 @@ def test_evolution_webhook_filters_non_upsert():
     res = whatsapp.parse_webhook_payload(upsert_payload)
     assert len(res) == 1
     assert res[0]["message"] == "Halo"
+
+@pytest.mark.anyio
+async def test_human_agent_takeover_and_pause_flow():
+    test_sender = "6289998887771"
+    whatsapp.resume_sender(test_sender) # Ensure clean start
+    
+    # 1. Customer asks for human staff
+    res1 = await whatsapp.route_and_process_message(
+        user_id="default",
+        sender=test_sender,
+        customer_name="Rian",
+        message="Saya mau bicara dengan staf manusia ya min"
+    )
+    assert res1["status"] == "needs_human"
+    assert res1["intent"] == "HUMAN_TAKEOVER"
+    assert "staf manusia" in res1["reply"].lower()
+    assert whatsapp.is_sender_paused(test_sender) is True
+
+    # 2. Customer sends follow-up while paused -> bot must NOT reply!
+    res2 = await whatsapp.route_and_process_message(
+        user_id="default",
+        sender=test_sender,
+        customer_name="Rian",
+        message="Halo, kok lama belum dibalas ya?"
+    )
+    assert res2["status"] == "needs_human"
+    assert res2["reply"] == ""
+    assert res2["paused"] is True
+
+    # 3. Customer reactivates bot
+    res3 = await whatsapp.route_and_process_message(
+        user_id="default",
+        sender=test_sender,
+        customer_name="Rian",
+        message="aktifkan bot kembali min"
+    )
+    assert res3["status"] == "replied"
+    assert res3["intent"] == "BOT_RESUME"
+    assert "telah aktif kembali" in res3["reply"]
+    assert whatsapp.is_sender_paused(test_sender) is False
+

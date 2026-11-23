@@ -906,6 +906,29 @@ async def whatsapp_list_messages(sender: str | None = None, limit: int = 50):
     return await whatsapp.list_messages(current_user(), limit=limit, sender=sender)
 
 
+@api.get("/whatsapp/takeover")
+async def whatsapp_get_takeover():
+    """List all customers currently in human takeover mode (bot paused)."""
+    return {"paused_senders": whatsapp.get_paused_senders()}
+
+
+@api.post("/whatsapp/takeover")
+async def whatsapp_toggle_takeover(request: Request):
+    """Pause or resume automatic bot replies for a specific customer."""
+    body = await body_of(request)
+    sender = body.get("sender")
+    action = body.get("action", "pause")
+    if not sender:
+        raise ApiError(400, "Nomor sender wajib diisi")
+    if action == "pause":
+        duration = int(body.get("duration", 7200))
+        whatsapp.pause_sender(sender, duration)
+        return {"status": "ok", "sender": sender, "action": "paused", "duration": duration}
+    else:
+        whatsapp.resume_sender(sender)
+        return {"status": "ok", "sender": sender, "action": "resumed"}
+
+
 @public.get("/whatsapp/qr")
 @api.get("/whatsapp/qr")
 async def whatsapp_get_qr(request: Request, format: str | None = None):
