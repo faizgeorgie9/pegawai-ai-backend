@@ -832,16 +832,26 @@ async def notion_connection_start():
 
 @public.get("/whatsapp/webhook")
 async def whatsapp_webhook_verify(request: Request):
-    """Meta WhatsApp Webhook verification handshake."""
+    """Meta WhatsApp Webhook verification handshake or browser status check."""
     mode = request.query_params.get("hub.mode", "")
     token = request.query_params.get("hub.verify_token", "")
     challenge = request.query_params.get("hub.challenge", "")
-    verified_challenge = whatsapp.verify_token(mode, token, challenge)
-    return PlainTextResponse(verified_challenge)
+    if mode or token or challenge:
+        verified_challenge = whatsapp.verify_token(mode, token, challenge)
+        return PlainTextResponse(verified_challenge)
+    
+    # If opened directly in browser without handshake query parameters:
+    conn = await whatsapp.get_evolution_connection_state()
+    return {
+        "status": "active",
+        "gateway": "WhatsApp Webhook Gateway (Evolution API & Meta Cloud API)",
+        "instance": whatsapp.EVOLUTION_INSTANCE,
+        "connection_state": conn.get("instance", {}).get("state", "open"),
+        "note": "Incoming WhatsApp messages are received via HTTP POST."
+    }
 
 
 @public.post("/whatsapp/webhook")
-@api.post("/whatsapp/webhook")
 async def whatsapp_webhook_post(request: Request):
     """Receive incoming WhatsApp messages (Meta Cloud API format or direct simulation)."""
     try:
@@ -855,6 +865,10 @@ async def whatsapp_webhook_post(request: Request):
 
     results = []
     for m in messages:
+        msg_id = m.get("message_id")
+        if msg_id and whatsapp.is_duplicate_message(msg_id):
+            log.info("Skipping duplicate WhatsApp message_id: %s from %s", msg_id, m.get("sender"))
+            continue
         res = await whatsapp.route_and_process_message(
             user_id="default",
             sender=m["sender"],
@@ -890,6 +904,127 @@ async def whatsapp_simulate(request: Request):
 async def whatsapp_list_messages(sender: str | None = None, limit: int = 50):
     """Retrieve logged WhatsApp interactions."""
     return await whatsapp.list_messages(current_user(), limit=limit, sender=sender)
+
+
+@public.get("/whatsapp/qr")
+@api.get("/whatsapp/qr")
+async def whatsapp_get_qr(request: Request, format: str | None = None):
+    """Retrieve WhatsApp QR code for Evolution API connection."""
+    data = await whatsapp.get_evolution_qr()
+    if format == "json" or "application/json" in request.headers.get("accept", ""):
+        return data
+    
+    b64 = data.get("base64")
+    err = data.get("error")
+    
+    html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>WhatsApp Web QR Code - Pegawai AI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {{
+            background: #0f172a;
+            color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }}
+        .card {{
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            text-align: center;
+            max-width: 420px;
+            width: 100%;
+            border: 1px solid #334155;
+        }}
+        h2 {{ margin-top: 0; color: #38bdf8; }}
+        .qr-container {{
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            display: inline-block;
+            margin: 20px 0;
+        }}
+        .qr-container img {{
+            display: block;
+            width: 260px;
+            height: 260px;
+        }}
+        .steps {{
+            text-align: left;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #94a3b8;
+            background: #0f172a;
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }}
+        .badge {{
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #10b981;
+            color: white;
+            margin-bottom: 10px;
+        }}
+        .btn {{
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 15px;
+            text-decoration: none;
+            display: inline-block;
+        }}
+        .btn:hover {{ background: #1d4ed8; }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <span class="badge">Evolution API v2 • Baileys Engine</span>
+        <h2>Sambungkan WhatsApp</h2>
+        <p style="font-size: 14px; color: #94a3b8; margin: 0;">Scan QR code di bawah menggunakan aplikasi WhatsApp di HP Anda:</p>
+        
+        {f'<div class="qr-container"><img src="{b64}" alt="WhatsApp QR Code" /></div>' if b64 else f'<div style="padding: 40px; color: #f87171;">{err or "Memuat QR code atau sudah terhubung... Silakan refresh."}</div>'}
+        
+        <div class="steps">
+            <strong>Cara Menghubungkan:</strong>
+            <ol style="margin: 8px 0 0 18px; padding: 0;">
+                <li>Buka WhatsApp di HP Anda</li>
+                <li>Pilih <strong>Perangkat Tertaut (Linked Devices)</strong></li>
+                <li>Ketuk <strong>Tautkan Perangkat</strong></li>
+                <li>Arahkan kamera ke QR Code di atas</li>
+            </ol>
+        </div>
+        <a href="" onclick="window.location.reload(); return false;" class="btn">🔄 Refresh QR Code</a>
+    </div>
+</body>
+</html>"""
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(content=html)
+
+
+@public.get("/whatsapp/connection")
+@api.get("/whatsapp/connection")
+async def whatsapp_get_connection():
+    """Inspect live connection state from Evolution API."""
+    return await whatsapp.get_evolution_connection_state()
 
 
 @api.get("/whatsapp/status")

@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: evolution_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: evolution_password_2026
+      POSTGRES_DB: evolution
+    volumes:
+      - evolution_pgdata:/var/lib/postgresql/data
+    networks:
+      - evolution_net
+
+  evolution-api:
+    image: evoapicloud/evolution-api:latest
+    container_name: evolution_api
+    restart: always
+    depends_on:
+      - postgres
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      - SERVER_PORT=8080
+      - SERVER_TYPE=http
+      - SERVER_URL=https://139.190.107.151.sslip.io
+      - AUTHENTICATION_TYPE=apikey
+      - AUTHENTICATION_API_KEY=pegawai_ai_evolution_secret_key_2026
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://evolution:evolution_password_2026@postgres:5432/evolution
+      - DATABASE_SAVE_DATA_INSTANCE=true
+      - DATABASE_SAVE_DATA_NEW_MESSAGE=true
+      - DATABASE_SAVE_DATA_CONTACTS=false
+      - DATABASE_SAVE_DATA_CHATS=false
+      - DATABASE_SAVE_DATA_HISTORIC=false
+      - DATABASE_SAVE_DATA_LABELS=false
+      - CACHE_REDIS_ENABLED=false
+      - CACHE_LOCAL_ENABLED=true
+      - LOG_LEVEL=INFO
+      - WEBHOOK_GLOBAL_ENABLED=false
+      - WEBHOOK_GLOBAL_URL=https://139.190.107.151.sslip.io/bff/api/whatsapp/webhook
+      - WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS=false
+      - WEBHOOK_EVENTS_MESSAGES_UPSERT=true
+    volumes:
+      - evolution_instances:/evolution/instances
+      - evolution_store:/evolution/store
+    networks:
+      - evolution_net
+
+networks:
+  evolution_net:
+    driver: bridge
+
+volumes:
+  evolution_pgdata:
+  evolution_instances:
+  evolution_store:
