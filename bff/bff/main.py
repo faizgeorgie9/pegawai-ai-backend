@@ -803,12 +803,23 @@ async def notion_connection_start():
 
 @public.get("/whatsapp/webhook")
 async def whatsapp_webhook_verify(request: Request):
-    """Meta WhatsApp Webhook verification handshake."""
+    """Meta WhatsApp Webhook verification handshake or browser status check."""
     mode = request.query_params.get("hub.mode", "")
     token = request.query_params.get("hub.verify_token", "")
     challenge = request.query_params.get("hub.challenge", "")
-    verified_challenge = whatsapp.verify_token(mode, token, challenge)
-    return PlainTextResponse(verified_challenge)
+    if mode or token or challenge:
+        verified_challenge = whatsapp.verify_token(mode, token, challenge)
+        return PlainTextResponse(verified_challenge)
+    
+    # If opened directly in browser without handshake query parameters:
+    conn = await whatsapp.get_evolution_connection_state()
+    return {
+        "status": "active",
+        "gateway": "WhatsApp Webhook Gateway (Evolution API & Meta Cloud API)",
+        "instance": whatsapp.EVOLUTION_INSTANCE,
+        "connection_state": conn.get("instance", {}).get("state", "open"),
+        "note": "Incoming WhatsApp messages are received via HTTP POST."
+    }
 
 
 @public.post("/whatsapp/webhook")
