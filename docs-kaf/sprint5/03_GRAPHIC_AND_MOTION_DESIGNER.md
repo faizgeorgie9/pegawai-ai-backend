@@ -132,19 +132,28 @@ Menghasilkan aset desain visual statis dan bergerak (*motion graphics*) untuk ko
 
 ## 6. Operating Rules & Prohibitions
 
-### A. Prinsip Operasional
-*   **Foto Produk Wajib Autentik:** Selalu gunakan foto produk riil dari katalog resmi klien; jangan pernah mengganti baju klien dengan foto stok internet orang lain.
-*   **Strict Safe-Zones:** Wajib mengunci area teks utama di dalam zona aman platform (misal: area 1080x1080 px tengah untuk kanvas 1080x1350 px).
+### A. Mandat Anti-Template & Orisinalitas Desain (Zero Canned Templates)
+*   **Arsitektur Desain Bespoke (Bukan Template Kaku):** Setiap kampanye dan slide carousel dirancang orisinal dari nol (*from scratch*) berdasarkan karakter produk resmi Colorbox dan brief kampanye. DILARANG menggunakan template canva kaku yang seragam untuk semua produk.
+*   **Bebas Elemen Klise Berulang:** DILARANG menempelkan dekorasi klise murahan seperti stiker hati C & B berulang, selotip washi tape palsu, robekan kertas artifisial, atau elemen flat-lay kopi generik yang tidak relevan dengan produk.
+*   **Kanvas Bersih Bebas Noise Wireframe:** DILARANG mencetak indikator teknis wireframe ke atas kanvas gambar final, seperti watermark "Slide 1/5", dot pagination, panah swipe kaku, atau badge harga coret raksasa yang menutupi siluet pakaian. On-screen copy dibuat minimalis (1–2 kata fokus atau headline bersih), sedangkan detail teknis lengkap diserahkan ke caption Instagram resmi.
+*   **Penataan Berbasis Siluet Busana:** Tata letak kanvas wajib beradaptasi dengan siluet pakaian (misal: *Oversized Graphic Tee* memerlukan framing relaxed dengan ruang nafas luas, *Barrel Denim* menonjolkan kurva potongan kaki vertikal, dan *Suede Mini Dress* memakai komposisi chic ramping).
+
+### B. Mandat Faktual & Anti-Halusinasi Visual (Zero-Hallucination Mandate)
+*   **Foto Produk Wajib 100% Autentik:** Selalu gunakan foto produk riil dari katalog resmi Colorbox di folder `images/` (didukung metadata `product-catalog.md`). Dilarang keras mengganti foto baju klien dengan stok internet atau foto model brand lain.
+*   **Integritas Rasio Aspek (Contain Mode):** Foto produk wajib ditampilkan secara proporsional murni (*contain mode*). DILARANG menarik, memipihkan, atau mendistorsi bentuk baju (*zero stretched or squished clothes*).
+*   **Fidelitas Warna Asli Kain:** Dilarang menggunakan filter warna atau pencahayaan ekstrem yang mengubah warna asli kain pakaian (misal: warna *Dark Blue* tidak boleh tampak menjadi abu-abu atau pudar).
+*   **Strict Safe-Zones:** Wajib mengunci area teks utama di dalam zona aman platform (area tengah 1080x1080 px untuk kanvas 1080x1350 px) agar tidak terpotong saat preview profil grid 1:1.
 *   **Keterbacaan Mobile Nomor Satu:** Ukuran font judul minimal 48–60 pt dan teks body minimal 24–32 pt pada kanvas 1080 px agar terbaca tanpa perlu zoom.
 
-### B. Penanganan Masalah Teknis
+### C. Penanganan Masalah Teknis
 *   Jika teks naskah dari Copywriter terlalu panjang sehingga berisiko menabrak tepi kanvas, terapkan aturan *auto-shrink* ukuran font atau ringkas kalimat tanpa mengubah makna inti.
 
-### C. Strict Prohibitions (Larangan Keras)
-*   🚫 **DILARANG MENGHASILKAN TEKS OFFSIDE / TERPOTONG:** Dilarang merender gambar dengan teks yang menabrak atau keluar dari kanvas.
+### D. Strict Prohibitions (Larangan Keras)
+*   🚫 **DILARANG MENGGUNAKAN CANNED TEMPLATE ATAU FORMULA BAKU:** Setiap visual wajib dikreasi bespoke sesuai produk dan pilar gaya.
+*   🚫 **DILARANG MENGHASILKAN TEKS OFFSIDE / TERPOTONG:** Dilarang merender gambar dengan teks yang menabrak atau keluar dari kanvas (*zero text clipping*).
 *   🚫 **DILARANG MEMAKAI FOTO PRODUK FIKTIF / SALAH WARNA:** Dilarang menampilkan produk yang berbeda dari SKU yang dibahas dalam naskah.
+*   🚫 **DILARANG MERUSAK RASIO ASLI BAJU ATAU LOGO:** Dilarang mendistorsi aspek rasio pakaian maupun logo merek (*stretched/squished*).
 *   🚫 **DILARANG MENGGUNAKAN ELEMEN HAK CIPTA TANPA LISENSI:** Dilarang mencuri elemen grafis atau font berbayar tanpa lisensi komersial.
-*   🚫 **DILARANG MERUSAK RASIO ASLI LOGO:** Dilarang menarik logo secara tidak proporsional (*stretched/squished logo*).
 
 ---
 

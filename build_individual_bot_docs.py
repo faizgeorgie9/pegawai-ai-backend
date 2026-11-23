@@ -948,21 +948,33 @@ def main():
         
         # Save DOCX to all target locations
         karyawan_docx = KARYAWAN_AI_DIR / bot["docx_name"]
-        doc.save(str(karyawan_docx))
-        print(f"  [+] Saved DOCX: {karyawan_docx}")
+        try:
+            doc.save(str(karyawan_docx))
+            print(f"  [+] Saved DOCX: {karyawan_docx}")
+        except PermissionError:
+            print(f"  [!] Note: {karyawan_docx.name} sedang dibuka oleh aplikasi lain (Word). Melewati penimpaan file ini.")
         
         backend_docx = SRC_DOCS_DIR / bot["docx_name"]
-        doc.save(str(backend_docx))
-        print(f"  [+] Saved DOCX: {backend_docx}")
+        try:
+            doc.save(str(backend_docx))
+            print(f"  [+] Saved DOCX: {backend_docx}")
+        except PermissionError:
+            pass
         
         frontend_docx = FRONTEND_DIR / "docs-kaf" / "sprint5" / bot["docx_name"]
         frontend_docx.parent.mkdir(parents=True, exist_ok=True)
-        doc.save(str(frontend_docx))
-        print(f"  [+] Saved DOCX: {frontend_docx}")
+        try:
+            doc.save(str(frontend_docx))
+            print(f"  [+] Saved DOCX: {frontend_docx}")
+        except PermissionError:
+            pass
         
         artifact_docx = ARTIFACT_DIR / bot["docx_name"]
-        doc.save(str(artifact_docx))
-        print(f"  [+] Saved DOCX: {artifact_docx}")
+        try:
+            doc.save(str(artifact_docx))
+            print(f"  [+] Saved DOCX: {artifact_docx}")
+        except PermissionError:
+            pass
         
         # 2. Build HTML
         html_content = build_bot_html(bot)
