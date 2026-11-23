@@ -42,6 +42,41 @@ INTENT_KEYWORDS = {
     "PRODUCT_INFO": ["bahan", "koleksi", "warna", "katalog", "liunic", "denim", "blazer", "dress", "promo", "diskon"],
 }
 
+# Retail & Fashion context keywords (In-scope for Colorbox / Pegawai AI CS)
+RETAIL_FASHION_KEYWORDS = {
+    "halo", "hai", "hi", "p", "oi", "tes", "test", "siang", "pagi", "sore", "malam",
+    "assalamualaikum", "permisi", "admin", "cs", "kak", "min", "tanya", "mau tanya",
+    "bisa bantu", "tolong", "bantuan", "info", "informasi",
+    "baju", "celana", "kemeja", "dress", "rok", "jaket", "blazer", "kaos", "tshirt", "t-shirt",
+    "crop", "oversized", "oversize", "denim", "jeans", "linen", "katun", "cotton", "knit",
+    "rajut", "bahan", "warna", "katalog", "liunic", "koleksi", "outfit", "ootd", "model",
+    "diskon", "promo", "sale", "voucher", "kupon", "harga", "berapa", "rp", "murah",
+    "ukuran", "size", "chart", "ld", "lingkar", "dada", "panjang", "cm", "bb", "tb",
+    "fitting", "muat", "kebesaran", "kekecilan", "sempit", "longgar",
+    "ready", "stok", "stock", "ada", "tersedia", "restock", "restok", "habis",
+    "order", "pesanan", "pesan", "beli", "checkout", "co", "bayar", "pembayaran", "transfer",
+    "rekening", "qris", "cod", "invoice", "struk", "nota",
+    "ongkir", "ongkos", "kirim", "pengiriman", "ekspedisi", "resi", "lacak", "jne", "sicepat",
+    "jnt", "j&t", "anteraja", "pos", "kapan sampai", "estimasi",
+    "cacat", "rusak", "robek", "sobek", "kotor", "noda", "reject", "retur", "tukar", "kembali",
+    "pengembalian", "refund", "salah kirim", "kurang", "ganti", "komplain", "kecewa",
+    "toko", "store", "offline", "mall", "outlet", "cabang", "buka", "tutup", "lokasi", "alamat"
+}
+
+# Explicit out-of-scope triggers (Not relevant to fashion store / retail CS)
+OUT_OF_SCOPE_EXPLICIT_KEYWORDS = {
+    "resep", "masak", "masakan", "makanan", "kuliner", "kue", "goreng", "minuman", "kopi",
+    "cuaca", "hujan", "gempa", "bmkg", "suhu",
+    "crypto", "bitcoin", "btc", "eth", "saham", "trading", "investasi", "forex", "binance",
+    "politik", "presiden", "pemilu", "pilpres", "partai", "dpr", "menteri", "pemerintah",
+    "coding", "python", "javascript", "php", "golang", "java", "c++", "html", "css", "sql", "database",
+    "matematika", "fisika", "kimia", "biologi", "rumus", "tugas sekolah", "skripsi", "kuliah", "ujian", "pr",
+    "motor", "mobil", "bengkel", "otomotif", "oli", "ban", "karburator", "mesin motor",
+    "dokter", "obat", "penyakit", "gejala", "resep dokter", "rumah sakit", "klinik", "diagnosis",
+    "game", "mobile legends", "mlbb", "free fire", "ff", "pubg", "genshin", "steam", "playstation",
+    "hotel", "tiket pesawat", "travel", "wisata", "liburan"
+}
+
 def verify_token(hub_mode: str, hub_verify_token: str, hub_challenge: str) -> str:
     """Verify Meta WhatsApp Webhook handshake."""
     if hub_mode == "subscribe" and hub_verify_token == WHATSAPP_VERIFY_TOKEN:
@@ -129,6 +164,11 @@ def parse_webhook_payload(payload: dict) -> list[dict]:
         })
     return messages
 
+def has_order_details(message: str) -> bool:
+    """Check if customer provided specific order identifier (invoice, order id, resi)."""
+    msg_lower = message.lower()
+    return bool(re.search(r'\b(cbx|inv|order|pesanan|resi|no\.?|nomor|kode)\s*[-:#]?\s*[a-z0-9]{3,}\b|\b\d{5,}\b', msg_lower))
+
 def classify_and_route(message: str, requested_bot: Optional[str] = None) -> Tuple[str, str, str]:
     """Route message to appropriate CS bot: Siti (Frontline) or Hendra (Lead/Escalation).
     Returns (bot_id, intent, priority)."""
@@ -139,7 +179,7 @@ def classify_and_route(message: str, requested_bot: Optional[str] = None) -> Tup
 
     msg_lower = message.lower()
     
-    # Check escalation keywords
+    # 1. Check escalation keywords
     is_escalated = any(re.search(rf"\b{kw}\b", msg_lower) for kw in ESCALATION_KEYWORDS)
     if is_escalated and not requested_bot:
         bot_id = "hendra"
@@ -147,7 +187,18 @@ def classify_and_route(message: str, requested_bot: Optional[str] = None) -> Tup
         intent = "COMPLAINT_DAMAGED" if any(w in msg_lower for w in ["cacat", "rusak", "robek", "reject"]) else "RETURN_REFUND"
         return bot_id, intent, priority
 
-    # Determine intent
+    # 2. Check explicit out-of-scope triggers or completely unrelated queries
+    is_explicit_out_of_scope = any(re.search(rf"\b{kw}\b", msg_lower) for kw in OUT_OF_SCOPE_EXPLICIT_KEYWORDS)
+    has_retail_context = any(re.search(rf"\b{kw}\b", msg_lower) for kw in RETAIL_FASHION_KEYWORDS)
+    words = [w for w in re.findall(r'[a-zA-Z0-9]+', msg_lower) if len(w) > 1]
+    
+    if is_explicit_out_of_scope or (len(words) >= 3 and not has_retail_context):
+        bot_id = "siti"
+        intent = "OUT_OF_SCOPE"
+        priority = "P3"
+        return bot_id, intent, priority
+
+    # 3. Determine general retail intents
     intent = "PRODUCT_INFO"
     for candidate_intent, keywords in INTENT_KEYWORDS.items():
         if any(re.search(rf"\b{kw}\b", msg_lower) for kw in keywords):
@@ -163,32 +214,58 @@ def generate_cs_reply(bot_id: str, customer_name: str, message: str, intent: str
     msg_lower = message.lower()
 
     if bot_id == "hendra":
+        has_order = has_order_details(message)
         # Authoritative, calm, highly empathetic managerial resolution
         if intent == "COMPLAINT_DAMAGED":
-            return (
-                f"Halo {c_name}, saya Hendra selaku Customer Service Team Lead Colorbox Indonesia. "
-                "Mohon maaf yang sebesar-besarnya atas kendala produk yang kurang berkenan. "
-                "Sesuai SOP Penjaminan Kualitas Colorbox, kami akan bertanggung jawab penuh. "
-                "Mohon bantuannya untuk melampirkan foto barcode tag produk dan video unboxing singkat, "
-                "serta nomor pesanan Anda. Tim kami akan segera memproses penggantian unit baru atau solusi terbaik dalam 1x24 jam kerja."
-            )
+            if not has_order:
+                # Proactive human CS follow-up when complaint details are incomplete
+                return (
+                    f"Halo {c_name}, saya Hendra selaku Customer Service Team Lead Colorbox Indonesia. "
+                    "Mohon maaf yang sebesar-besarnya atas kendala produk yang kurang berkenan ya Kak. "
+                    "Sesuai komitmen penjaminan kualitas Colorbox, kami bertanggung jawab penuh dan siap mencarikan solusi terbaik untuk Kakak.\n\n"
+                    "Agar kendala ini bisa segera saya lacak dan tangani langsung di sistem, boleh dibantu lengkapi beberapa data berikut ya Kak:\n"
+                    "1. 🧾 Nomor Pesanan / Invoice (contoh: CBX-XXXXX atau invoice marketplace)\n"
+                    "2. 👗 Nama Item atau varian pakaian yang bermasalah\n"
+                    "3. 📸 Foto barcode tag produk dan foto/video unboxing singkat yang memperlihatkan kendala tersebut\n\n"
+                    "Begitu datanya Kakak kirimkan di sini, tim kami akan langsung memproses investigasi dan penukaran atau refund tercepat dalam 1x24 jam kerja. Terima kasih banyak atas kerja samanya ya Kak 🙏"
+                )
+            else:
+                return (
+                    f"Halo {c_name}, saya Hendra selaku Customer Service Team Lead Colorbox Indonesia. "
+                    "Terima kasih banyak sudah menyertakan nomor pesanan dan detail kendalanya ya Kak. "
+                    "Mohon maaf yang sebesar-besarnya atas ketidaknyamanan ini. Data pesanan Anda sedang kami verifikasi bersama tim quality assurance dan logistik. "
+                    "Dalam 1x24 jam kerja, tim kami akan memberikan kepastian solusi terbaik (penggantian unit baru atau refund penuh). Mohon kesediaannya menunggu konfirmasi berikutnya ya Kak."
+                )
         elif intent == "RETURN_REFUND":
-            return (
-                f"Halo {c_name}, saya Hendra dari Manajemen CS Colorbox. "
-                "Kami memahami ketidaknyamanan Anda terkait permohonan pengembalian dana/barang. "
-                "Kebijakan penukaran resmi Colorbox berlaku hingga 7 hari kalender sejak pesanan diterima dengan kondisi pakaian belum dicuci dan tag harga masih utuh. "
-                "Mohon informasikan nomor resi/pesanan Anda agar kami tindak lanjuti langsung dengan tim logistik dan finance kami hari ini."
-            )
+            if not has_order:
+                return (
+                    f"Halo {c_name}, saya Hendra dari Manajemen CS Colorbox. "
+                    "Kami memahami ketidaknyamanan Anda terkait permohonan pengembalian dana/barang. "
+                    "Kebijakan penukaran resmi Colorbox berlaku hingga 7 hari kalender sejak pesanan diterima dengan kondisi pakaian belum dicuci dan tag harga masih utuh.\n\n"
+                    "Mohon informasikan nomor resi atau nomor pesanan Anda, serta alasan pengembalian agar kami tindak lanjuti langsung dengan tim logistik dan finance kami hari ini."
+                )
+            else:
+                return (
+                    f"Halo {c_name}, saya Hendra dari Manajemen CS Colorbox. "
+                    "Terima kasih atas nomor pesanan yang diberikan. Permohonan retur/refund Anda telah kami catat dan sedang diproses verifikasi oleh tim finance dan logistik. "
+                    "Kami akan menghubungi kembali dalam 1x24 jam kerja untuk instruksi pengiriman balik atau transfer pengembalian dana. Terima kasih Kak."
+                )
         else:
             return (
                 f"Halo {c_name}, saya Hendra, CS Team Lead Colorbox. "
                 "Pesan Anda telah kami prioritaskan untuk penanganan khusus. "
-                "Tim kami berkomitmen memberikan kepastian layanan terbaik bagi seluruh #ColorboxBabes. "
+                "Tim kami berkomitmen memberikan kepastian layanan terbaik bagi seluruh #ColorboxBabes.\n\n"
                 "Boleh informasikan detail kendala atau nomor invoice Anda agar segera saya verifikasi langsung di sistem kami?"
             )
     else:
         # Siti: Warm, friendly, helpful frontline assistant
-        if intent == "RETURN_REFUND":
+        if intent == "OUT_OF_SCOPE":
+            return (
+                f"Halo {c_name}! Mohon maaf sekali ya Kak, saat ini Siti hanya dapat membantu seputar informasi produk pakaian, panduan ukuran, promo terbaru, pengiriman, serta kendala belanja di Colorbox Indonesia 😊\n\n"
+                "Topik atau pertanyaan yang Kakak tanyakan berada di luar ranah dan scope pengetahuan tugas Siti. "
+                "Apakah ada hal seputar outfit santai, koleksi Colorbox, atau status pesanan yang bisa Siti bantu hari ini?"
+            )
+        elif intent == "RETURN_REFUND":
             return (
                 f"Halo {c_name}! Terima kasih sudah menghubungi CS Colorbox 😊 "
                 "Untuk penukaran produk (misalnya ukuran atau warna), bisa banget dilakukan maksimal 7 hari kerja setelah barang diterima ya Kak, "
