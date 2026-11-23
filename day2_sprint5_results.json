@@ -1,0 +1,132 @@
+{
+  "1. KB Access Matrix API (/kb/matrix)": {
+    "success": true,
+    "details": "Status 200, CS Finance Allowed: False, Bimo Finance Allowed: True"
+  },
+  "2. KB Access Check: CS Denied Finance": {
+    "success": true,
+    "details": {
+      "bot_id": "siti",
+      "category": "finance",
+      "item_id": null,
+      "item_name": "",
+      "allowed": false,
+      "reason": "Akses ditolak: Agen 'siti' tidak memiliki izin mengakses dokumen kategori 'finance'. Dokumen Finance/Keuangan terisolasi."
+    }
+  },
+  "3. KB Access Check: CS Allowed CS SOP": {
+    "success": true,
+    "details": {
+      "bot_id": "siti",
+      "category": "cs",
+      "item_id": null,
+      "item_name": "",
+      "allowed": true,
+      "reason": "Agen 'siti' diizinkan mengakses dokumen kategori 'cs'."
+    }
+  },
+  "4. KB Access Check: PM/Admin Allowed Finance": {
+    "success": true,
+    "details": {
+      "bot_id": "bimo",
+      "category": "finance",
+      "item_id": null,
+      "item_name": "",
+      "allowed": true,
+      "reason": "Agen 'bimo' diizinkan mengakses dokumen kategori 'finance'."
+    }
+  },
+  "5. MCP Privileges Directory API (/mcp/privileges)": {
+    "success": true,
+    "details": "Tools classified: 25, Registered Accounts: 8"
+  },
+  "6. MCP Verification: Read Tier Denied Write Tool": {
+    "success": true,
+    "details": {
+      "bot_id": "siti",
+      "tool_name": "drive_create",
+      "account_id": null,
+      "allowed": false,
+      "required_privilege": "write",
+      "agent_privilege": "read",
+      "reason": "Error 403: Forbidden - Account privilege 'read' is insufficient for tool 'drive_create' (requires 'write')."
+    }
+  },
+  "7. MCP Verification: Write Tier Denied Admin Tool": {
+    "success": true,
+    "details": {
+      "bot_id": "bram",
+      "tool_name": "drive_trash",
+      "account_id": null,
+      "allowed": false,
+      "required_privilege": "admin",
+      "agent_privilege": "write",
+      "reason": "Error 403: Forbidden - Account privilege 'write' is insufficient for tool 'drive_trash' (requires 'admin')."
+    }
+  },
+  "8. MCP Verification: Admin Tier Allowed All Tools": {
+    "success": true,
+    "details": {
+      "bot_id": "bimo",
+      "tool_name": "drive_trash",
+      "account_id": null,
+      "allowed": true,
+      "required_privilege": "admin",
+      "agent_privilege": "admin",
+      "reason": "Authorized: Agent 'bimo' granted admin access to tool 'drive_trash'."
+    }
+  },
+  "9. MCP Cross-Account Spoofing Blocked": {
+    "success": true,
+    "details": {
+      "bot_id": "siti",
+      "tool_name": "drive_search",
+      "account_id": "acc_pm_bimo_01",
+      "allowed": false,
+      "required_privilege": "read",
+      "agent_privilege": "read",
+      "reason": "Error 403: Forbidden - Cross-account access denied. Agent 'siti' cannot execute tools using account 'acc_pm_bimo_01' (bound to 'acc_cs_siti_01')."
+    }
+  },
+  "10. WhatsApp Routing: Frontline CS (Siti)": {
+    "success": true,
+    "details": {
+      "routed_bot": "siti",
+      "intent": "SIZE_FIT",
+      "priority": "P2",
+      "reply_snippet": "Halo Kak Sarah! Senang bisa bantu rekomendasi gaya Colorbox untuk Kakak \ud83d\udc95 Ukuran..."
+    }
+  },
+  "11. WhatsApp Routing: Escalation CS (Hendra)": {
+    "success": true,
+    "details": {
+      "routed_bot": "hendra",
+      "priority": "P1",
+      "status": "escalated",
+      "reply_snippet": "Halo Pak Budi, saya Hendra selaku Customer Service Team Lead Colorbox Indonesia...."
+    }
+  },
+  "12. WhatsApp Gateway Health & Config Status": {
+    "success": true,
+    "details": {
+      "channel": "WhatsApp Business Cloud API",
+      "status": "ready",
+      "mode": "live_webhook_and_simulation",
+      "webhook_url": "https://139.190.107.151.sslip.io/bff/api/whatsapp/webhook",
+      "webhook_verify_token_configured": true,
+      "api_token_configured": false,
+      "primary_agent": {
+        "id": "siti",
+        "name": "Siti",
+        "role": "Frontline Support Specialist"
+      },
+      "escalation_agent": {
+        "id": "hendra",
+        "name": "Hendra",
+        "role": "CS Team Lead & Quality Auditor"
+      },
+      "total_messages_processed": 21,
+      "last_activity": "2026-11-23T03:34:01.646455+00:00"
+    }
+  }
+}

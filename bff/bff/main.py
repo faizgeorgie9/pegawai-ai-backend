@@ -13,7 +13,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import actions, apps, auth, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, product_images, scheduler, sequences, settings, tasks, usage, whatsapp
+from . import actions, apps, auth, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, mcp_privileges, product_images, scheduler, sequences, settings, tasks, usage, whatsapp
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -415,7 +415,7 @@ async def create_run(bot_id: str, request: Request):
     saved = []
     if workflow != "cs":  # CS runs only see the authorized CS evidence (knowledge v2.1), never the user's own files
         saved = await kb.save_links(uid, text)
-        if block := await kb.retrieve(uid, text, kb_ids, saved):
+        if block := await kb.retrieve(uid, text, kb_ids, saved, bot_id=bot_id):
             ins = f"{ins}\n\n{block}" if ins else block
     run = await engine.start_run(uid, bot_id, sid, text.strip(), "chat", instructions=ins, context=context, origin=origin)
     return {"run": engine.run_view(run), "session_id": sid, "kb": saved}
@@ -607,6 +607,88 @@ async def kb_text(item_id: str):
 @api.post("/kb/items/{item_id}/refresh")
 async def kb_refresh(item_id: str):
     return await integrations.refresh_item(current_user(), item_id)
+
+
+@api.get("/kb/matrix")
+async def kb_access_matrix():
+    """Retrieve the per-agent KB privilege and access matrix."""
+    return kb.get_kb_access_matrix()
+
+
+@api.get("/kb/access-check")
+async def kb_access_check(bot_id: str, item_id: str | None = None, category: str | None = None):
+    """Verify if a specific agent has permission to access a KB item or category."""
+    cat = category
+    item_name = ""
+    if item_id and not cat:
+        item = await db.q1("select * from kb_items where id = %s and user_id = %s", kb._own_id(item_id), current_user())
+        if not item:
+            raise ApiError(404, "Item tidak ditemukan")
+        cat = item.get("category", "general")
+        item_name = item.get("name", "")
+    
+    cat = cat or "general"
+    allowed = kb.can_agent_access_item(bot_id, cat, item_name)
+    reason = (
+        f"Agen '{bot_id}' diizinkan mengakses dokumen kategori '{cat}'."
+        if allowed else
+        f"Akses ditolak: Agen '{bot_id}' tidak memiliki izin mengakses dokumen kategori '{cat}'. Dokumen Finance/Keuangan terisolasi."
+    )
+    return {
+        "bot_id": bot_id,
+        "category": cat,
+        "item_id": item_id,
+        "item_name": item_name,
+        "allowed": allowed,
+        "reason": reason
+    }
+
+
+@api.post("/kb/items/{item_id}/category")
+async def kb_update_category(item_id: str, request: Request):
+    """Categorize a KB item (general, finance, cs, marketing, catalog, hr, legal)."""
+    body = await body_of(request)
+    category = body.get("category")
+    if not category or category not in ("general", "finance", "cs", "marketing", "catalog", "hr", "legal"):
+        raise ApiError(400, "Kategori tidak valid (pilih: general, finance, cs, marketing, catalog, hr, legal)")
+    
+    updated = await db.q1(
+        "update kb_items set category = %s where id = %s and user_id = %s returning *",
+        category, kb._own_id(item_id), current_user()
+    )
+    if not updated:
+        raise ApiError(404, "Item tidak ditemukan")
+    return kb.view(updated)
+
+
+# ---------- mcp multi-account privileges ----------
+
+@api.get("/mcp/privileges")
+async def mcp_privileges_list():
+    """List configured MCP accounts, privilege tiers (Read/Write/Admin), and tool classifications."""
+    return mcp_privileges.list_mcp_privileges()
+
+
+@api.post("/mcp/verify")
+async def mcp_verify_privilege(request: Request):
+    """Verify whether a bot/account can call an MCP tool without executing it."""
+    body = await body_of(request)
+    bot_id = body.get("bot_id", "default")
+    tool_name = body.get("tool_name")
+    account_id = body.get("account_id")
+    if not tool_name:
+        raise ApiError(400, "tool_name wajib diisi")
+    
+    allowed, reason = mcp_privileges.check_mcp_privilege(bot_id, tool_name, account_id)
+    return {
+        "bot_id": bot_id,
+        "tool_name": tool_name,
+        "account_id": account_id,
+        "allowed": allowed,
+        "required_privilege": mcp_privileges.TOOL_PRIVILEGES.get(tool_name, "write"),
+        "agent_privilege": mcp_privileges.get_agent_privilege(bot_id).value,
+        "reason": reason
+    }
 
 
 # ---------- connections (Google Drive, Gmail) ----------

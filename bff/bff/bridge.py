@@ -21,7 +21,7 @@ from ruamel.yaml import YAML
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from . import actions, config, db, integrations, kb
+from . import actions, config, db, integrations, kb, mcp_privileges
 from .errors import ApiError
 
 log = logging.getLogger("bff.bridge")
@@ -49,12 +49,32 @@ def _user() -> str:
     return current_user()
 
 
+def _bot_from_ctx(ctx: Context | None = None) -> str:
+    if ctx and hasattr(ctx, "request_context") and ctx.request_context:
+        req = getattr(ctx.request_context, "request", None)
+        if req and hasattr(req, "headers"):
+            bot = req.headers.get(BOT_HEADER, "")
+            if bot and re.fullmatch(r"[\w-]{1,64}", bot):
+                return bot.lower().strip()
+    return "default"
+
+
+def _check_privilege(tool_name: str, ctx: Context | None = None, account_id: str | None = None) -> str | None:
+    bot = _bot_from_ctx(ctx)
+    allowed, reason = mcp_privileges.check_mcp_privilege(bot, tool_name, account_id)
+    if not allowed:
+        return reason
+    return None
+
+
 def _drive_error(e: ApiError) -> str:
     """Tool error text: the friendly message only (integrations never puts tokens or provider bodies in it)."""
     return DRIVE_NOT_CONNECTED if e.extra.get("needs") == "connect" else f"Error: {e.message}"
 
 
-async def drive_search(query: str, limit: int = DRIVE_MAX_RESULTS) -> str:
+async def drive_search(query: str, limit: int = DRIVE_MAX_RESULTS, ctx: Context = None) -> str:  # type: ignore[assignment]
+    if err := _check_privilege("drive_search", ctx):
+        return err
     if not query.strip():
         return "Error: query must not be empty."
     if not 1 <= limit <= DRIVE_MAX_RESULTS:
@@ -69,7 +89,9 @@ async def drive_search(query: str, limit: int = DRIVE_MAX_RESULTS) -> str:
                      for f in found["files"])
 
 
-async def drive_read(file_id: str) -> str:
+async def drive_read(file_id: str, ctx: Context = None) -> str:  # type: ignore[assignment]
+    if err := _check_privilege("drive_read", ctx):
+        return err
     file_id = file_id.strip()
     if not integrations.ID_RE.fullmatch(file_id):
         return "Error: invalid file_id (use the id from drive_search)."
@@ -77,6 +99,11 @@ async def drive_read(file_id: str) -> str:
         name, _link, text = await integrations.drive_read(_user(), file_id)
     except ApiError as e:
         return _drive_error(e)
+    
+    bot = _bot_from_ctx(ctx)
+    if not kb.can_agent_access_item(bot, "finance" if any(k in name.lower() for k in kb.FINANCE_PATTERNS) else "general", name):
+        return f"Error 403: Forbidden - Agen CS ('{bot}') tidak diizinkan membaca berkas Finance/Keuangan ('{name}')."
+
     if len(text) > DRIVE_MAX_CHARS:
         text = text[:DRIVE_MAX_CHARS] + f"\n[dipotong: hanya {DRIVE_MAX_CHARS} karakter pertama]"
     return f"# {name}\n\n{text}"
@@ -86,28 +113,36 @@ def _link(name: str, d: dict) -> str:
     return f"{name}: {d['name']} | id: {d['id']} | link: {d['link'] or '-'}"
 
 
-async def drive_create(name: str, content: str, folder_id: str = "", kind: str = "doc") -> str:
+async def drive_create(name: str, content: str, folder_id: str = "", kind: str = "doc", ctx: Context = None) -> str:  # type: ignore[assignment]
+    if err := _check_privilege("drive_create", ctx):
+        return err
     try:
         return _link("Dibuat", await integrations.drive_create(_user(), name, content, folder_id, kind))
     except ApiError as e:
         return _drive_error(e)
 
 
-async def drive_update(file_id: str, content: str) -> str:
+async def drive_update(file_id: str, content: str, ctx: Context = None) -> str:  # type: ignore[assignment]
+    if err := _check_privilege("drive_update", ctx):
+        return err
     try:
         return _link("Isi diganti", await integrations.drive_update(_user(), file_id, content))
     except ApiError as e:
         return _drive_error(e)
 
 
-async def drive_rename(file_id: str, new_name: str) -> str:
+async def drive_rename(file_id: str, new_name: str, ctx: Context = None) -> str:  # type: ignore[assignment]
+    if err := _check_privilege("drive_rename", ctx):
+        return err
     try:
         return _link("Nama diganti", await integrations.drive_rename(_user(), file_id, new_name))
     except ApiError as e:
         return _drive_error(e)
 
 
-async def drive_move(file_id: str, folder_id: str) -> str:
+async def drive_move(file_id: str, folder_id: str, ctx: Context = None) -> str:  # type: ignore[assignment]
+    if err := _check_privilege("drive_move", ctx):
+        return err
     try:
         return _link("Dipindahkan", await integrations.drive_move(_user(), file_id, folder_id))
     except ApiError as e:
@@ -133,6 +168,8 @@ async def _source(ctx: Context | None) -> dict | None:
 async def drive_trash(file_id: str, file_name: str = "", ctx: Context = None) -> str:  # type: ignore[assignment]
     """Does not trash anything: asks the user (card in the app). The real call happens in actions after Setujui.
     The card shows the name and owner/folder read from Drive now; file_name (from the agent) is only a marked fallback."""
+    if err := _check_privilege("drive_trash", ctx):
+        return err
     file_id = file_id.strip()
     if not integrations.ID_RE.fullmatch(file_id):
         return "Error: invalid file_id (use the id from drive_search)."
@@ -171,7 +208,9 @@ def _gmail_error(e: ApiError) -> str:
     return GMAIL_NOT_CONNECTED if e.extra.get("needs") == "connect" else f"Error: {e.message}"
 
 
-async def gmail_search(query: str, limit: int = GMAIL_MAX_RESULTS) -> str:
+async def gmail_search(query: str, limit: int = GMAIL_MAX_RESULTS, ctx: Context = None) -> str:  # type: ignore[assignment]
+    if err := _check_privilege("gmail_search", ctx):
+        return err
     if not query.strip():
         return "Error: query must not be empty."
     if not 1 <= limit <= GMAIL_MAX_RESULTS:
@@ -185,7 +224,9 @@ async def gmail_search(query: str, limit: int = GMAIL_MAX_RESULTS) -> str:
     return "\n".join(f"- id: {m['id']} | from: {m['from'] or '-'} | subject: {m['subject'] or '-'} | date: {m['date'] or '-'} | {m['snippet']}" for m in found)
 
 
-async def gmail_read(message_id: str) -> str:
+async def gmail_read(message_id: str, ctx: Context = None) -> str:  # type: ignore[assignment]
+    if err := _check_privilege("gmail_read", ctx):
+        return err
     message_id = message_id.strip()
     if not integrations.ID_RE.fullmatch(message_id):
         return "Error: invalid message_id (use the id from gmail_search)."
@@ -199,7 +240,9 @@ async def gmail_read(message_id: str) -> str:
     return f"From: {m['from']}\nTo: {m['to']}\nSubject: {m['subject']}\nDate: {m['date']}\n\n{body}"
 
 
-async def gmail_create_draft(to: str, subject: str, body: str) -> str:
+async def gmail_create_draft(to: str, subject: str, body: str, ctx: Context = None) -> str:  # type: ignore[assignment]
+    if err := _check_privilege("gmail_create_draft", ctx):
+        return err
     to = to.strip()
     if not to:
         return "Error: to must not be empty."
@@ -210,14 +253,18 @@ async def gmail_create_draft(to: str, subject: str, body: str) -> str:
     return f"Draf dibuat di Gmail pengguna (belum terkirim; pengguna mengirimnya sendiri). Buka: {d['url']}"
 
 
-async def gmail_label(message_id: str, add: list[str] | None = None, remove: list[str] | None = None) -> str:
+async def gmail_label(message_id: str, add: list[str] | None = None, remove: list[str] | None = None, ctx: Context = None) -> str:  # type: ignore[assignment]
+    if err := _check_privilege("gmail_label", ctx):
+        return err
     try:
         return await integrations.gmail_label(_user(), message_id, add, remove)
     except ApiError as e:
         return _gmail_error(e)
 
 
-async def gmail_trash(message_id: str) -> str:
+async def gmail_trash(message_id: str, ctx: Context = None) -> str:  # type: ignore[assignment]
+    if err := _check_privilege("gmail_trash", ctx):
+        return err
     try:
         return await integrations.gmail_trash(_user(), message_id)
     except ApiError as e:
@@ -226,6 +273,8 @@ async def gmail_trash(message_id: str) -> str:
 
 async def gmail_send(to: str, subject: str, body: str, reply_to_message_id: str = "", ctx: Context = None) -> str:  # type: ignore[assignment]
     """Does not send anything: stores what would be sent and asks the user. The card shows this stored payload; approve sends exactly it."""
+    if err := _check_privilege("gmail_send", ctx):
+        return err
     try:
         p = await integrations.gmail_prepare_send(_user(), to, subject, body, reply_to_message_id)
     except ApiError as e:
@@ -236,6 +285,8 @@ async def gmail_send(to: str, subject: str, body: str, reply_to_message_id: str 
 
 async def gmail_send_draft(draft_id: str, ctx: Context = None) -> str:  # type: ignore[assignment]
     """Does not send anything: reads the draft from Gmail now and asks the user to approve sending that content."""
+    if err := _check_privilege("gmail_send_draft", ctx):
+        return err
     try:
         p = await integrations.gmail_prepare_send_draft(_user(), draft_id)
     except ApiError as e:
@@ -253,11 +304,15 @@ async def _task_tool(fn, *args, ctx: Context | None = None, with_source: bool = 
         return f"Error: {e.message}"
 
 
-async def task_list(status: str = "") -> str:
+async def task_list(status: str = "", ctx: Context = None) -> str:  # type: ignore[assignment]
+    if err := _check_privilege("task_list", ctx):
+        return err
     return await _task_tool("agent_list", status, with_source=False)
 
 
 async def task_create(title: str, instructions: str = "", assignee: str = "", when: str = "", ctx: Context = None) -> str:  # type: ignore[assignment]
+    if err := _check_privilege("task_create", ctx):
+        return err
     return await _task_tool("agent_create", title, instructions, assignee, when, ctx=ctx)
 
 
@@ -278,11 +333,15 @@ async def task_complete(summary: str, task_id: str = "", ctx: Context = None) ->
 
 
 async def task_cancel(task_id: str, reason: str = "", ctx: Context = None) -> str:  # type: ignore[assignment]
+    if err := _check_privilege("task_cancel", ctx):
+        return err
     return await _task_tool("agent_cancel", task_id, reason, ctx=ctx)
 
 
-async def kb_add_link(url: str) -> str:
+async def kb_add_link(url: str, ctx: Context = None) -> str:  # type: ignore[assignment]
     """Same import path as "Tambah link" on the Pengetahuan page (kb.ingest_url: websites and Google Drive links)."""
+    if err := _check_privilege("kb_add_link", ctx):
+        return err
     try:
         item = await kb.ingest_url(_user(), url.strip())
     except ApiError as e:
@@ -292,7 +351,9 @@ async def kb_add_link(url: str) -> str:
     return f"Tersimpan di Knowledge Base: {item['name']} (status: siap). Terlihat di halaman Pengetahuan."
 
 
-async def kb_add_note(title: str, text: str) -> str:
+async def kb_add_note(title: str, text: str, ctx: Context = None) -> str:  # type: ignore[assignment]
+    if err := _check_privilege("kb_add_note", ctx):
+        return err
     title, text = re.sub(r"\s+", " ", title).strip()[:80], text.strip()
     if not title or not text:
         return "Error: title and text must not be empty."
@@ -307,12 +368,16 @@ async def kb_add_note(title: str, text: str) -> str:
     return f"Catatan tersimpan di Knowledge Base: {item['name']}. Terlihat di halaman Pengetahuan."
 
 
-async def kb_search(query: str, limit: int = KB_SEARCH_MAX) -> str:
+async def kb_search(query: str, limit: int = KB_SEARCH_MAX, ctx: Context = None) -> str:  # type: ignore[assignment]
+    bot = _bot_from_ctx(ctx)
     if not query.strip():
         return "Error: query must not be empty."
     if not 1 <= limit <= KB_SEARCH_MAX:
         return f"Error: limit must be between 1 and {KB_SEARCH_MAX}."
-    hits = await kb.search(_user(), query, limit)
+    if bot and bot != "default":
+        hits = await kb.search(_user(), query, limit, bot_id=bot)
+    else:
+        hits = await kb.search(_user(), query, limit)
     if not hits:
         return "Tidak ada yang cocok di Knowledge Base."
     return "\n".join(f"- [{h['name']}] {' '.join(h['text'].split())[:KB_SNIPPET]}" for h in hits)
