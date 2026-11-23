@@ -113,15 +113,26 @@ async def test_human_agent_takeover_and_pause_flow():
     assert res2["reply"] == ""
     assert res2["paused"] is True
 
-    # 3. Customer reactivates bot
+    # 3. Customer reactivates bot using resume bot
     res3 = await whatsapp.route_and_process_message(
         user_id="default",
         sender=test_sender,
         customer_name="Rian",
-        message="aktifkan bot kembali min"
+        message="resume bot"
     )
     assert res3["status"] == "replied"
     assert res3["intent"] == "BOT_RESUME"
     assert "telah aktif kembali" in res3["reply"]
     assert whatsapp.is_sender_paused(test_sender) is False
+
+    # 4. Customer pauses using pause bot
+    res4 = await whatsapp.route_and_process_message(
+        user_id="default",
+        sender=test_sender,
+        customer_name="Rian",
+        message="pause bot"
+    )
+    assert res4["status"] == "needs_human"
+    assert res4["intent"] == "HUMAN_TAKEOVER"
+    assert whatsapp.is_sender_paused(test_sender) is True
 

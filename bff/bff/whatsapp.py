@@ -94,12 +94,12 @@ HUMAN_TAKEOVER_KEYWORDS = {
     "hubungkan ke manusia", "mau cs asli", "admin manusia", "cs asli", "staf asli", "orang asli",
     "bukan bot", "bicara dengan orang", "jangan bot", "oper ke manusia", "transfer ke manusia",
     "live agent", "human agent", "sambungkan ke manusia", "mau manusia", "ngomong sama orang",
-    "staf manusia"
+    "staf manusia", "pause bot", "stop bot", "matikan bot", "jeda bot"
 }
 
 # Triggers to reactivate the bot
 BOT_RESUME_KEYWORDS = {
-    "aktifkan bot", "resume bot", "mulai bot", "kembali ke bot", "hidupkan bot"
+    "aktifkan bot", "resume bot", "mulai bot", "kembali ke bot", "hidupkan bot", "unpause bot", "start bot"
 }
 
 # Escalation triggers that route directly to Hendra (CS Team Lead)
@@ -322,8 +322,8 @@ def generate_cs_reply(bot_id: str, customer_name: str, message: str, intent: str
         # Authoritative, calm, highly empathetic managerial resolution
         if intent == "HUMAN_TAKEOVER":
             return (
-                f"Baik {c_name}, percakapan ini telah saya alihkan ke Tim Customer Service (staf manusia) Colorbox Indonesia. "
-                "Mohon ditunggu sebentar ya Kak, rekan staf kami akan segera membalas langsung di chat ini 🙏"
+                f"Baik {c_name}, bot telah dinonaktifkan sementara dan percakapan dialihkan ke Tim Customer Service (staf manusia) Colorbox Indonesia. "
+                "CS manusia kami akan segera membalas langsung di chat ini ya Kak 🙏 (Ketik 'resume bot' atau 'aktifkan bot' jika ingin menyalakan bot kembali)."
             )
         elif intent == "COMPLAINT_GENERAL":
             return (
