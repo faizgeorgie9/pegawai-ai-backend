@@ -314,19 +314,121 @@ def drive_target(url: str) -> tuple[str, str] | None:
             return "folder", "Google Drive"
     return None
 
-# ---------- items ----------
+# ---------- items & agent access matrix ----------
+
+FINANCE_PATTERNS = ("keuangan", "finance", "gaji", "salary", "neraca", "rugi laba", "pnl", "pajak", "invoice", "payroll", "laporan keuangan")
+CS_PATTERNS = ("cs", "customer support", "sop cs", "faq", "pelayanan", "panduan komplain", "retur")
+MARKETING_PATTERNS = ("marketing", "campaign", "copywriting", "social media", "promo", "konten")
+CATALOG_PATTERNS = ("katalog", "catalog", "produk", "product", "liunic", "denim", "size chart", "fitting")
+
+# Agent bot_id / role -> Allowed document categories
+AGENT_KB_PERMISSIONS: dict[str, set[str]] = {
+    # CS Agents (Diana, Siti) can NEVER access finance
+    "siti": {"cs", "catalog", "general"},
+    "diana": {"cs", "catalog", "general"},
+    # Marketing Agents (Bram, Meda, Vina, Rian, Budi)
+    "bram": {"marketing", "catalog", "general"},
+    "vina": {"marketing", "catalog", "general"},
+    "meda": {"marketing", "catalog", "general"},
+    "rian": {"marketing", "catalog", "general"},
+    "budi": {"marketing", "catalog", "general"},
+    "raka": {"catalog", "general"},
+    "hendra": {"cs", "marketing", "catalog", "general"},
+    # Management / Project Lead / Admin have access to finance
+    "bimo": {"finance", "cs", "marketing", "catalog", "general", "hr", "legal"},
+    "admin": {"finance", "cs", "marketing", "catalog", "general", "hr", "legal"},
+    "owner": {"finance", "cs", "marketing", "catalog", "general", "hr", "legal"},
+    "default": {"general"},
+}
+
+
+def detect_category(name: str, text: str = "") -> str:
+    norm = re.sub(r"[_\-\.\/]+", " ", (name + " " + text[:500])).lower()
+    words = set(norm.split())
+    if any(k in norm for k in FINANCE_PATTERNS) or bool(words & {"finance", "keuangan", "gaji", "pajak", "invoice", "payroll"}):
+        return "finance"
+    if any(k in norm for k in CS_PATTERNS) or bool(words & {"cs", "support", "faq", "retur", "pelayanan"}):
+        return "cs"
+    if any(k in norm for k in CATALOG_PATTERNS) or bool(words & {"katalog", "catalog", "produk", "product", "denim", "liunic"}):
+        return "catalog"
+    if any(k in norm for k in MARKETING_PATTERNS) or bool(words & {"marketing", "campaign", "promo", "copywriting"}):
+        return "marketing"
+    return "general"
+
+
+def get_agent_allowed_categories(bot_id: str | None) -> set[str]:
+    if not bot_id:
+        return {"general", "cs", "marketing", "catalog", "finance", "hr", "legal"}
+    bot = bot_id.lower().strip()
+    return AGENT_KB_PERMISSIONS.get(bot, {"general"})
+
+
+def can_agent_access_item(bot_id: str | None, item: dict | str, item_name: str = "") -> bool:
+    """Returns True if the agent is allowed to access the KB item, False otherwise."""
+    if not bot_id:
+        return True
+    bot = bot_id.lower().strip()
+    
+    # Extract category and name
+    if isinstance(item, dict):
+        cat = item.get("category") or "general"
+        name = item.get("name") or item_name
+    else:
+        cat = str(item)
+        name = item_name
+
+    cat = cat.lower().strip()
+    name_low = name.lower()
+
+    # Explicit rule: CS agents (siti, diana) can NEVER access finance
+    if bot in ("siti", "diana"):
+        if cat == "finance" or any(k in name_low for k in FINANCE_PATTERNS):
+            return False
+
+    allowed = get_agent_allowed_categories(bot)
+    if cat not in allowed:
+        return False
+    return True
+
+
+def assert_agent_access(bot_id: str | None, item: dict | str, item_name: str = "") -> None:
+    if not can_agent_access_item(bot_id, item, item_name):
+        cat = item.get("category") if isinstance(item, dict) else str(item)
+        name = item.get("name") if isinstance(item, dict) else item_name
+        raise ApiError(
+            403,
+            f"Akses ditolak: Agen '{bot_id}' tidak memiliki hak akses ke dokumen Knowledge Base '{name}' "
+            f"(kategori: '{cat}'). Dokumen kategori '{cat}' terisolasi khusus manajemen."
+        )
+
+
+def get_kb_access_matrix() -> dict:
+    """Returns the sanitised agent-to-category KB access matrix."""
+    return {
+        "categories": ["general", "finance", "cs", "marketing", "catalog", "hr", "legal"],
+        "agents": {
+            bot: {
+                "allowed_categories": sorted(list(cats)),
+                "denied_categories": sorted(list({"finance", "cs", "marketing", "catalog", "hr", "legal", "general"} - cats)),
+                "can_access_finance": "finance" in cats
+            }
+            for bot, cats in AGENT_KB_PERMISSIONS.items()
+        }
+    }
 
 
 def view(row: dict) -> dict:
     return {**{k: row[k] for k in ("kind", "name", "source", "status", "error", "size_bytes", "chars", "created_at")},
-            "id": str(row["id"]), "refreshable": bool(row.get("ext_id")), "has_file": bool(row.get("has_file"))}
+            "id": str(row["id"]), "refreshable": bool(row.get("ext_id")), "has_file": bool(row.get("has_file")),
+            "category": row.get("category", "general"), "classification": row.get("classification", "internal")}
 
 
-async def _new_item(user_id: str, kind: str, name: str, source: str | None, size: int | None) -> dict:
+async def _new_item(user_id: str, kind: str, name: str, source: str | None, size: int | None, category: str = "general") -> dict:
     if (await db.q1("select count(*)::int as n from kb_items where user_id = %s", user_id))["n"] >= MAX_ITEMS:
         raise ApiError(409, f"Knowledge Base penuh (maksimal {MAX_ITEMS} item). Hapus yang tidak dipakai.")
-    return await db.q1("insert into kb_items (user_id, kind, name, source, size_bytes) values (%s, %s, %s, %s, %s) returning *",
-                       user_id, kind, name[:200], source, size)
+    cat = category if category != "general" else detect_category(name)
+    return await db.q1("insert into kb_items (user_id, kind, name, source, size_bytes, category) values (%s, %s, %s, %s, %s, %s) returning *",
+                       user_id, kind, name[:200], source, size, cat)
 
 
 async def _fail(item: dict, error: str) -> dict:
@@ -467,23 +569,27 @@ def _own_id(item_id: str) -> str:
         raise ApiError(404, "Item tidak ditemukan")
 
 
-async def get_file(user_id: str, item_id: str) -> tuple[str, str, bytes]:
+async def get_file(user_id: str, item_id: str, bot_id: str | None = None) -> tuple[str, str, bytes]:
     """(name, mime, bytes) of the original file of one of the user's items. 404 when the item or its original does not exist."""
-    r = await db.q1("select i.name, f.mime, f.data from kb_items i join kb_files f on f.item_id = i.id "
+    r = await db.q1("select i.name, i.category, f.mime, f.data from kb_items i join kb_files f on f.item_id = i.id "
                     "where i.id = %s and i.user_id = %s", _own_id(item_id), user_id)
     if not r:
         raise ApiError(404, "Berkas asli tidak tersimpan. Unggah ulang bila perlu.")
+    if bot_id:
+        assert_agent_access(bot_id, r)
     return r["name"], r["mime"], bytes(r["data"])
 
 
-async def get_text(user_id: str, item_id: str) -> dict:
+async def get_text(user_id: str, item_id: str, bot_id: str | None = None) -> dict:
     """The stored text (chunks in order) of one of the user's items, capped at MAX_VIEW_CHARS."""
     item = await db.q1("select * from kb_items where id = %s and user_id = %s", _own_id(item_id), user_id)
     if not item:
         raise ApiError(404, "Item tidak ditemukan")
+    if bot_id:
+        assert_agent_access(bot_id, item)
     rows = await db.q("select text from kb_chunks where item_id = %s order by pos", item["id"])
     text = (chr(10) * 2).join(r["text"] for r in rows)
-    return {"text": text[:MAX_VIEW_CHARS], "truncated": len(text) > MAX_VIEW_CHARS}
+    return {"text": text[:MAX_VIEW_CHARS], "truncated": len(text) > MAX_VIEW_CHARS, "category": item.get("category", "general")}
 
 
 async def delete_item(user_id: str, item_id: str) -> None:
@@ -502,14 +608,23 @@ async def recover() -> None:
 # ---------- retrieval ----------
 
 
-async def search(user_id: str, text: str, limit: int = CONTEXT_CHUNKS) -> list[dict]:
+async def search(user_id: str, text: str, limit: int = CONTEXT_CHUNKS, bot_id: str | None = None) -> list[dict]:
     """Best matching chunks of the user's ready items for a message.
     shortcut: keyword search (Postgres full-text), upgrade to pgvector embeddings when an embedding provider is chosen."""
     q = tsquery(text)
     if not q:
         return []
+    if bot_id:
+        allowed = list(get_agent_allowed_categories(bot_id))
+        if bot_id.lower() in ("siti", "diana") and "finance" in allowed:
+            allowed.remove("finance")
+        return await db.q(
+            "select i.id as item_id, i.name, i.source, i.category, c.pos, c.text, ts_rank(c.tsv, query) as rank "
+            "from kb_chunks c join kb_items i on i.id = c.item_id, to_tsquery('simple', %s) query "
+            "where c.user_id = %s and i.status = 'ready' and i.category = any(%s) and c.tsv @@ query "
+            "order by rank desc, c.id limit %s", q, user_id, allowed, limit)
     return await db.q(
-        "select i.id as item_id, i.name, i.source, c.pos, c.text, ts_rank(c.tsv, query) as rank "
+        "select i.id as item_id, i.name, i.source, i.category, c.pos, c.text, ts_rank(c.tsv, query) as rank "
         "from kb_chunks c join kb_items i on i.id = c.item_id, to_tsquery('simple', %s) query "
         "where c.user_id = %s and i.status = 'ready' and c.tsv @@ query order by rank desc, c.id limit %s", q, user_id, limit)
 
@@ -585,11 +700,13 @@ async def save_links(user_id: str, text: str) -> list[dict]:
     return list(await asyncio.gather(*(_save_link(user_id, u) for u in urls_in(text)[:MAX_URLS_PER_MESSAGE])))
 
 
-async def retrieve(user_id: str, text: str, attached_ids: list[str], saved: list[dict]) -> str | None:
-    """The instruction block for a run: first chunks of attached and just-saved items, then the best keyword matches."""
+async def retrieve(user_id: str, text: str, attached_ids: list[str], saved: list[dict], bot_id: str | None = None) -> str | None:
+    """The instruction block for a run: first chunks of attached and just-saved items, then the best keyword matches, scoped to bot_id if provided."""
     first = await attached(user_id, list(attached_ids) + [s["id"] for s in saved if s["status"] == "ready"])
+    if bot_id:
+        first = [h for h in first if can_agent_access_item(bot_id, h.get("category", "general"), h.get("name", ""))]
     seen = {(h["item_id"], h["pos"]) for h in first}
-    return block(saved, first + [h for h in await search(user_id, text) if (h["item_id"], h["pos"]) not in seen])
+    return block(saved, first + [h for h in await search(user_id, text, bot_id=bot_id) if (h["item_id"], h["pos"]) not in seen])
 
 
 def saved_note(saved: list[dict]) -> str:
