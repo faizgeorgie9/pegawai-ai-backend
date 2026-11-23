@@ -39,7 +39,7 @@ BOTS_CONFIG = [
         "initials": "CS",
         "color_hex": "6366F1",  # Indigo
         "color_rgb": (99, 102, 241),
-        "tagline": "Merancang strategi pilar konten, riset audiens Gen Z, kurasi produk resmi Colorbox, menyusun kalender editorial, serta mengelola adaptasi format dan penjadwalan distribusi multi-kanal.",
+        "tagline": "Merancang arah dan strategi pilar konten [Nama Brand], riset audiens [Target Audiens], kurasi produk resmi dari Knowledge Base, kalender editorial, serta adaptasi format dan penjadwalan distribusi multi-kanal.",
         "consolidation": "CRE-01 Content Strategist + CRE-08 Content Distribution Specialist",
         "src_file": SRC_DOCS_DIR / "01_CONTENT_STRATEGIST.md",
         "docx_name": "CRE-01_Content_Strategist.docx",
@@ -47,7 +47,7 @@ BOTS_CONFIG = [
         "mhtml_name": "Karyawan AI — CRE-01 - Content Strategist.mhtml",
         "in_scope": "Strategi pilar konten, persona mapping, riset tren, omnichannel calendar, creative brief, multi-platform adaptation, antrean scheduler, agregasi performa distribusi.",
         "out_scope": "Tidak menulis naskah detail per kata (ke Copywriter), tidak mendesain grafis (ke Graphic Designer), tidak mengedit video (ke Video Creator), tidak mengelola budget ads.",
-        "inputs": "Brief kampanye, tujuan bisnis, pilar gaya Colorbox (Urban/Romantic/Chic), katalog produk resmi (product-catalog.md).",
+        "inputs": "Brief kampanye, tujuan bisnis [Nama Brand], pilar brand ([Pilar Konten]), katalog produk resmi (product-catalog.md).",
         "outputs": "Matriks pilar konten, kalender editorial mingguan, creative brief terstruktur, antrean tayang scheduler (Buffer/Meta/WA).",
         "model": "Claude 3.5 Sonnet / GPT-4o (Reasoning: Balanced)",
         "kpi": "Ketepatan waktu kalender (100%), kepatuhan pilar konten (>95%), efektivitas brief (revisi <10%), zero unsupported claim (100%)."
@@ -60,7 +60,7 @@ BOTS_CONFIG = [
         "initials": "CC",
         "color_hex": "E11D48",  # Rose
         "color_rgb": (225, 29, 72),
-        "tagline": "Menghasilkan naskah tulisan persuasif, caption Instagram/TikTok #NeverJustOneThing, hook viral 3 detik, on-screen text minimalis, dan spoken script video berdaya konversi tinggi.",
+        "tagline": "Menghasilkan naskah tulisan persuasif, caption Instagram/TikTok dengan tagline resmi brand, hook viral 3 detik, on-screen text minimalis, dan spoken script video berdaya konversi tinggi untuk [Nama Brand].",
         "consolidation": "CRE-02 Content Writer + CRE-03 Copywriter",
         "src_file": SRC_DOCS_DIR / "02_CONTENT_AND_COPYWRITER.md",
         "docx_name": "CRE-02_Content_and_Copywriter.docx",
@@ -68,8 +68,8 @@ BOTS_CONFIG = [
         "mhtml_name": "Karyawan AI — CRE-02 - Content & Copywriter.mhtml",
         "in_scope": "Caption Instagram & TikTok, teks slide carousel 5 slide, hook 3 detik pembuka, spoken script video 15-60s, artikel blog/panduan gaya, optimasi SEO on-page, A/B angle copy.",
         "out_scope": "Tidak menentukan pilar konten makro (ke Strategist), tidak mendesain visual (ke Graphic Designer), tidak memotong video (ke Video Creator), tidak mempublikasikan langsung tanpa izin.",
-        "inputs": "Creative brief dari Strategist, informasi produk resmi Colorbox terverifikasi, target persona Gen Z, batasan karakter kanal.",
-        "outputs": "Paket naskah carousel 5 slide, caption lengkap tagar #NeverJustOneThing, headline promosi A/B, spoken script video berdurasi 15-60 detik.",
+        "inputs": "Creative brief dari Strategist, informasi produk resmi terverifikasi ([product-catalog.md]), target persona ([Target Audiens]), batasan karakter kanal.",
+        "outputs": "Paket naskah carousel 5 slide, caption lengkap tagar resmi [Tagar Resmi], headline promosi A/B, spoken script video berdurasi 15-60 detik.",
         "model": "Claude 3.5 Sonnet / GPT-4o (Reasoning: Balanced Creative)",
         "kpi": "Hook retention rate (>65%), akurasi fakta katalog (100%), kepatuhan tone brand (100%), kelengkapan CTA (100%)."
     },
@@ -81,7 +81,7 @@ BOTS_CONFIG = [
         "initials": "GM",
         "color_hex": "0284C7",  # Sky
         "color_rgb": (2, 132, 199),
-        "tagline": "Merancang feed carousel 4:5 Portrait (1080x1350 px), wireframe tata letak safe zone, banner promosi, tipografi kinetik, transisi gerak, dan Master AI Visual Prompts fotorealistik.",
+        "tagline": "Merancang feed carousel 4:5 Portrait (1080x1350 px), wireframe tata letak safe zone, banner promosi, tipografi kinetik, transisi gerak, dan Master AI Visual Prompts fotorealistik untuk [Nama Brand].",
         "consolidation": "CRE-04 Graphic Designer + CRE-06 Motion Graphics Specialist",
         "src_file": SRC_DOCS_DIR / "03_GRAPHIC_AND_MOTION_DESIGNER.md",
         "docx_name": "CRE-03_Graphic_and_Motion_Designer.docx",
@@ -89,7 +89,7 @@ BOTS_CONFIG = [
         "mhtml_name": "Karyawan AI — CRE-03 - Graphic & Motion Designer.mhtml",
         "in_scope": "Feed carousel Instagram 4:5 Portrait, wireframe kanvas & safe zone, banner digital e-commerce, infografik size guide, kinetic typography, efek transisi gerak, Master AI Visual Prompts.",
         "out_scope": "Tidak menulis naskah panjang (ke Copywriter), tidak shooting live-action video (ke Video Creator), tidak merilis materi tanpa approval desainer manusia.",
-        "inputs": "Naskah copy & hook dari Copywriter, foto produk asli Colorbox dari folder images/, palet warna brand, spesifikasi kanvas platform.",
+        "inputs": "Naskah copy & hook dari Copywriter, foto produk asli dari folder images/, palet warna brand ([brand-guidelines.md]), spesifikasi kanvas platform.",
         "outputs": "5 Diagram wireframe kanvas lengkap, spec sheet desain Canva/Figma, 5 Master AI Visual Prompts (FLUX/Midjourney), panduan aset kinetic typography.",
         "model": "GPT-4o Multimodal / Claude 3.5 Sonnet + OpenCode Zen (Visual Rendering)",
         "kpi": "Kepatuhan safe-zone (100%), integritas rasio aspek foto asli (100%), kesiapan produksi visual (>95%), kepuasan estetika visual (>90%)."
@@ -102,7 +102,7 @@ BOTS_CONFIG = [
         "initials": "VU",
         "color_hex": "059669",  # Emerald
         "color_rgb": (5, 150, 105),
-        "tagline": "Mengembangkan konsep video vertikal 9:16 (Reels/TikTok/Shorts), naskah percakapan natural, panduan talent UGC styling demo, kurasi audio viral/SFX, dan optimasi hook visual 3 detik.",
+        "tagline": "Mengembangkan konsep video vertikal 9:16 (Reels/TikTok/Shorts), naskah percakapan natural, panduan talent UGC styling/demo produk, kurasi audio viral/SFX, dan optimasi hook visual 3 detik untuk [Nama Brand].",
         "consolidation": "CRE-05 Video Creator + CRE-07 UGC Specialist",
         "src_file": SRC_DOCS_DIR / "04_VIDEO_AND_UGC_CREATOR.md",
         "docx_name": "CRE-04_Video_and_UGC_Creator.docx",
@@ -110,7 +110,7 @@ BOTS_CONFIG = [
         "mhtml_name": "Karyawan AI — CRE-04 - Video & UGC Creator.mhtml",
         "in_scope": "Konsep video vertikal 9:16 (15-60 detik), video storyboard & shot list, spoken dialogue natural, panduan talent UGC try-on, kurasi musik trending/SFX, visual hook 3 detik.",
         "out_scope": "Tidak menentukan strategi pilar makro (ke Strategist), tidak mendesain aset vektor statis (ke Graphic Designer), tidak mengklaim pengalaman fiktif sebagai review riil.",
-        "inputs": "Creative brief & fokus pilar gaya, spoken script dari Copywriter, aset foto produk Colorbox resmi, referensi tren video/audio TikTok.",
+        "inputs": "Creative brief & fokus pilar brand, spoken script dari Copywriter, aset foto produk resmi ([product-catalog.md]), referensi tren video/audio TikTok.",
         "outputs": "Storyboard video 9:16 lengkap per detik, talent briefing doc untuk UGC creator, audio & sound effect recommendation, caption & sound tagar.",
         "model": "Claude 3.5 Sonnet / GPT-4o (Reasoning: Creative Pacing)",
         "kpi": "Hook rate 3 detik pertama (>60%), retensi tontonan video (>45%), kejelasan instruksi talent (revisi <10%), kepatuhan klaim autentik (100%)."
@@ -846,7 +846,7 @@ def build_bot_html(bot_cfg):
                             <span class="badge badge-active"><span class="dot"></span> Selalu aktif</span>
                             <span class="badge">Divisi Content & Creative</span>
                             <span class="badge">Konsolidasi 4-Bot</span>
-                            <span class="badge">Colorbox Pegawai AI</span>
+                            <span class="badge">Master B2B AI Employee</span><span class="badge">Multi-Industry Grounding</span>
                         </div>
                     </div>
                 </div>
@@ -897,7 +897,7 @@ def build_bot_html(bot_cfg):
 
         <!-- Footer -->
         <div class="footer">
-            Dokumen Profiling Resmi Pegawai AI — Versi 2.0 (Arsitektur 4-Bot Konsolidasi) • PT AI Top Trends © 2026
+            Dokumen Profiling Resmi Pegawai AI — Versi 3.0 (Universal Master Framework & Multi-Industry Grounding) • PT AI Top Trends © 2026
         </div>
     </div>
 </body>
@@ -976,8 +976,23 @@ def main():
         except PermissionError:
             pass
         
+        # Save fallback copy if locked
+        karyawan_docx_fallback = KARYAWAN_AI_DIR / f"{bot['code']}_{bot['short_name'].replace(' ', '_').replace('&', 'and')}_Updated.docx"
+        try:
+            doc.save(str(karyawan_docx_fallback))
+        except Exception:
+            pass
+
         # 2. Build HTML
         html_content = build_bot_html(bot)
+        
+        frontend_html = FRONTEND_DIR / "docs-kaf" / "sprint5" / bot["html_name"]
+        frontend_html.parent.mkdir(parents=True, exist_ok=True)
+        frontend_html.write_text(html_content, encoding="utf-8")
+        
+        frontend_mhtml = FRONTEND_DIR / "docs-kaf" / "sprint5" / bot["mhtml_name"]
+        frontend_mhtml.parent.mkdir(parents=True, exist_ok=True)
+        frontend_mhtml.write_text(make_mhtml(html_content, f"Karyawan AI — {bot['code']} {bot['short_name']}", f"http://karyawan.ai/agent/{bot['handle'].replace('@', '')}"), encoding="utf-8")
         
         karyawan_html = KARYAWAN_AI_DIR / bot["html_name"]
         karyawan_html.write_text(html_content, encoding="utf-8")
