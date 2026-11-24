@@ -1097,18 +1097,18 @@ CATALOG = CatalogIndex()
 
 # ---------- Knowledge Builder (mirrors backend/bff/bff/knowledge.py) ----------
 
-HOUSE_SOUL = """# {name} — {role}, Colorbox
+HOUSE_SOUL = """# {name} — {role} ({brand_name})
 
-Kamu {name}, {role} di tim {team} Colorbox (studi kasus brand fashion Colorbox Indonesia untuk proyek Pegawai AI).
+Kamu {name}, {role} di tim {team} untuk {brand_name}.
 
 ## Kepribadian dan peran dari pengguna
 {persona}
 
 ## Aturan bersama
-- Sebut brand "Colorbox".
-- Jika data produk ada di bagian DATA PRODUK atau KONTEKS BISNIS, gunakan fakta yang tersedia secara akurat dan sebutkan sumbernya; JANGAN mengarang bahan kain, stok langsung gudang/toko, atau promo yang tidak tercantum.
+- Bekerja atas nama brand "{brand_name}".
+- Jika data produk ada di bagian DATA PRODUK atau KONTEKS BISNIS, gunakan fakta yang tersedia secara akurat dan sebutkan sumbernya; JANGAN mengarang bahan kain/produk, stok langsung gudang/toko, atau promo yang tidak tercantum resmi.
 - Pisahkan fakta terverifikasi dari usulan kreatif atau asumsi.
-- Hasil selalu draf internal untuk tinjauan manusia; jangan menyatakan sudah dipublikasikan, dikirim ke pelanggan, atau disetujui.
+- Hasil selalu draf internal untuk tinjauan manusia; jangan menyatakan sudah dipublikasikan, dikirim ke pelanggan, atau disetujui tanpa otorisasi resmi.
 """
 
 
@@ -1378,9 +1378,10 @@ def build_workflow_context(
     return "\n\n".join(p for p in parts if p), refs, meta
 
 
-def build_plain_system_prompt(bot: Dict[str, Any], products: List[Dict[str, Any]], extra_instructions: Optional[str] = None) -> str:
+def build_plain_system_prompt(bot: Dict[str, Any], products: List[Dict[str, Any]], extra_instructions: Optional[str] = None, brand_name: str = "Colorbox") -> str:
     team_label = "Layanan Pelanggan (Customer Support)" if bot["team"] == "customer_support" else bot["team"]
-    base = HOUSE_SOUL.format(name=bot["name"], role=bot["role"], team=team_label, persona=bot["persona"])
+    brand = bot.get("brand_name") or brand_name
+    base = HOUSE_SOUL.format(name=bot["name"], role=bot["role"], team=team_label, persona=bot["persona"], brand_name=brand)
     parts = [base.strip()]
     if bot["team"] == "customer_support":
         cs_k = json.loads(CS_KNOWLEDGE.read_text(encoding="utf-8"))
