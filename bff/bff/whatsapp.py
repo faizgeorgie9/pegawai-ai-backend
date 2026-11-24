@@ -44,21 +44,169 @@ def is_duplicate_message(message_id: Optional[str]) -> bool:
     _seen_message_ids[message_id] = now
     return False
 
+# Language Detection Stopwords (Zero-dependency, fast & accurate)
+ENGLISH_STOPWORDS = {
+    "the", "is", "are", "am", "was", "were", "i", "you", "we", "they", "he", "she", "it",
+    "my", "your", "our", "their", "this", "that", "these", "those", "can", "could", "would",
+    "should", "will", "do", "does", "did", "have", "has", "had", "what", "where", "when",
+    "how", "why", "who", "which", "want", "need", "please", "help", "thank", "thanks",
+    "hello", "hi", "good", "morning", "afternoon", "evening", "with", "from", "about",
+    "for", "in", "on", "at", "to", "not", "any", "some", "there", "an", "a", "much", "many",
+    "item", "items", "order", "package", "shipping", "delivery", "track", "tracking", "received"
+}
+
+INDONESIAN_STOPWORDS = {
+    "yang", "di", "ke", "dari", "ini", "itu", "dan", "atau", "saya", "aku", "kamu", "kami",
+    "kita", "mereka", "dia", "kak", "min", "kakak", "halo", "hai", "mau", "ingin", "bisa",
+    "tolong", "bantu", "ada", "tidak", "nggak", "gak", "ya", "nih", "dong", "saja", "apa",
+    "kenapa", "gimana", "kapan", "siapa", "mana", "sudah", "udah", "belum", "lagi", "baju",
+    "celana", "pesanan", "barang", "kirim", "ongkir", "resi", "kurang", "cacat", "rusak",
+    "robek", "retur", "tukar", "staf", "manusia", "kok", "kan", "lah", "deh", "punya", "sama"
+}
+
+# Sender language preference memory cache: {clean_sender: "en" | "id"}
+_sender_languages: dict[str, str] = {}
+
+def get_sender_language(sender: str) -> str:
+    """Retrieve saved language preference for sender, default to 'id'."""
+    clean_sender = "".join(filter(str.isdigit, sender)) or sender
+    return _sender_languages.get(clean_sender, "id")
+
+def set_sender_language(sender: str, lang: str) -> None:
+    """Persist language preference for sender."""
+    clean_sender = "".join(filter(str.isdigit, sender)) or sender
+    _sender_languages[clean_sender] = lang
+
+def detect_language(message: str, fallback_lang: str = "id") -> str:
+    """Detect whether message is primarily in English ('en') or Indonesian ('id').
+    Defaults to fallback_lang for fashion store context if ambiguous.
+    """
+    if not message:
+        return fallback_lang
+    words = re.findall(r"\b[a-zA-Z]+\b", message.lower())
+    if not words:
+        return fallback_lang
+    
+    en_score = sum(1 for w in words if w in ENGLISH_STOPWORDS)
+    id_score = sum(1 for w in words if w in INDONESIAN_STOPWORDS)
+    
+    # Check distinct English multi-word starters or phrases
+    lower = message.lower().strip()
+    english_starters = (
+        "hello", "hi there", "good morning", "good afternoon", "good evening",
+        "do you have", "where is", "i want", "can i", "is there", "how much",
+        "i need", "please help", "my order", "i would like", "what is", "can you"
+    )
+    if any(lower.startswith(starter) for starter in english_starters):
+        en_score += 2
+        
+    if en_score > id_score:
+        return "en"
+    elif id_score > en_score:
+        return "id"
+    return fallback_lang
+
+# Human Agent Takeover cache: {clean_sender: expiration_timestamp}
+_paused_senders: dict[str, float] = {}
+
+def pause_sender(sender: str, duration_seconds: int = 7200) -> None:
+    """Pause automatic bot replies for a specific customer to allow human agent takeover."""
+    clean_sender = "".join(filter(str.isdigit, sender)) or sender
+    _paused_senders[clean_sender] = time.time() + duration_seconds
+    log.info("Sender %s paused for %ds (Human Agent Takeover active)", clean_sender, duration_seconds)
+
+def resume_sender(sender: str) -> None:
+    """Resume automatic bot replies for a specific customer."""
+    clean_sender = "".join(filter(str.isdigit, sender)) or sender
+    _paused_senders.pop(clean_sender, None)
+    log.info("Sender %s resumed (Bot replies reactivated)", clean_sender)
+
+def is_sender_paused(sender: str) -> bool:
+    """Check if automatic bot replies are currently paused for a specific customer."""
+    clean_sender = "".join(filter(str.isdigit, sender)) or sender
+    exp = _paused_senders.get(clean_sender)
+    if not exp:
+        return False
+    if time.time() > exp:
+        _paused_senders.pop(clean_sender, None)
+        return False
+    return True
+
+def get_paused_senders() -> list[dict]:
+    """List all currently paused senders."""
+    now = time.time()
+    results = []
+    expired = []
+    for s_id, exp in list(_paused_senders.items()):
+        if now > exp:
+            expired.append(s_id)
+        else:
+            results.append({
+                "sender": s_id,
+                "remaining_seconds": int(exp - now),
+                "expires_at": datetime.fromtimestamp(exp, tz=timezone.utc).isoformat()
+            })
+    for s in expired:
+        _paused_senders.pop(s, None)
+    return results
+
+# Triggers for Human Agent Takeover (Handover to live human CS staff)
+HUMAN_TAKEOVER_KEYWORDS = {
+    # Indonesian
+    "bicara dengan staf manusia", "bicara dengan manusia", "minta cs asli", "mau ngomong sama manusia",
+    "hubungkan ke manusia", "mau cs asli", "admin manusia", "cs asli", "staf asli", "orang asli",
+    "bukan bot", "bicara dengan orang", "jangan bot", "oper ke manusia", "transfer ke manusia",
+    "sambungkan ke manusia", "mau manusia", "ngomong sama orang", "staf manusia",
+    "pause bot", "stop bot", "matikan bot", "jeda bot",
+    # English
+    "live agent", "human agent", "talk to human", "speak with human", "speak to human",
+    "talk to a person", "speak to a person", "real person", "human support", "human staff",
+    "human representative", "talk to agent", "speak to agent", "connect to agent", "connect to human",
+    "speak to someone", "talk to someone"
+}
+
+# Triggers to reactivate the bot
+BOT_RESUME_KEYWORDS = {
+    "aktifkan bot", "resume bot", "mulai bot", "kembali ke bot", "hidupkan bot", "unpause bot", "start bot", "reactivate bot"
+}
+
 # Escalation triggers that route directly to Hendra (CS Team Lead)
 ESCALATION_KEYWORDS = {
+    # Indonesian
     "cacat", "rusak", "robek", "reject", "kecewa", "tuntut", "kasus", "somasi",
     "refund", "kembalikan uang", "ganti rugi", "tipu", "penipuan",
     "manajer", "manager", "supervisor", "atasan", "lead", "bos", "pimpinan",
-    "lapor", "konsumen", "perlindungan konsumen", "bpom", "polisi"
+    "lapor", "konsumen", "perlindungan konsumen", "bpom", "polisi",
+    "komplain", "complain", "komplen", "keluhan", "complaint", "kendala", "masalah",
+    "kurang", "ketinggalan", "hilang", "salah kirim",
+    # English
+    "damaged", "defective", "torn", "broken", "scam", "fraud", "lawyer",
+    "missing", "lost item", "wrong item", "wrong order", "dissatisfied"
 }
 
 # General intents
 INTENT_KEYWORDS = {
-    "RETURN_REFUND": ["retur", "tukar", "kembali", "pengembalian", "salah ukuran", "kebesaran", "kekecilan"],
-    "SHIPPING_DELIVERY": ["ongkir", "resi", "lacak", "ekspedisi", "kapan sampai", "pengiriman", "jne", "sicepat"],
-    "SIZE_FIT": ["ukuran", "size", "ld", "lingkar dada", "panjang", "cm", "fitting", "bb", "tb"],
-    "PRODUCT_AVAILABILITY": ["ready", "stok", "tersedia", "ada gak", "restok", "habis"],
-    "PRODUCT_INFO": ["bahan", "koleksi", "warna", "katalog", "liunic", "denim", "blazer", "dress", "promo", "diskon"],
+    "RETURN_REFUND": [
+        "retur", "tukar", "kembali", "pengembalian", "salah ukuran", "kebesaran", "kekecilan",
+        "return", "refund", "exchange", "too big", "too small", "wrong size"
+    ],
+    "SHIPPING_DELIVERY": [
+        "ongkir", "resi", "lacak", "ekspedisi", "kapan sampai", "pengiriman", "jne", "sicepat",
+        "shipping", "delivery", "track", "tracking", "courier", "when will it arrive",
+        "where is my order", "where is my package", "shipping fee", "shipping cost"
+    ],
+    "SIZE_FIT": [
+        "ukuran", "size", "ld", "lingkar dada", "panjang", "cm", "fitting", "bb", "tb",
+        "sizing", "measurement", "fit", "fits", "bust", "waist", "chest", "chart"
+    ],
+    "PRODUCT_AVAILABILITY": [
+        "ready", "stok", "tersedia", "ada gak", "restok", "habis",
+        "available", "in stock", "stock", "sold out", "restock", "is it ready"
+    ],
+    "PRODUCT_INFO": [
+        "bahan", "koleksi", "warna", "katalog", "liunic", "denim", "blazer", "dress", "promo", "diskon",
+        "material", "fabric", "collection", "color", "catalogue", "catalog", "discount", "sale", "price", "how much"
+    ],
 }
 
 # Retail & Fashion context keywords (In-scope for Colorbox / Pegawai AI CS)
@@ -79,7 +227,11 @@ RETAIL_FASHION_KEYWORDS = {
     "jnt", "j&t", "anteraja", "pos", "kapan sampai", "estimasi",
     "cacat", "rusak", "robek", "sobek", "kotor", "noda", "reject", "retur", "tukar", "kembali",
     "pengembalian", "refund", "salah kirim", "kurang", "ganti", "komplain", "kecewa",
-    "toko", "store", "offline", "mall", "outlet", "cabang", "buka", "tutup", "lokasi", "alamat"
+    "toko", "store", "offline", "mall", "outlet", "cabang", "buka", "tutup", "lokasi", "alamat",
+    # English terms
+    "hello", "hey", "good morning", "good afternoon", "good evening", "clothing", "clothes",
+    "shirt", "pants", "skirt", "jacket", "fabric", "material", "available", "shipping",
+    "delivery", "courier", "damaged", "torn", "defective", "return", "exchange", "complaint"
 }
 
 # Explicit out-of-scope triggers (Not relevant to fashion store / retail CS)
@@ -93,7 +245,10 @@ OUT_OF_SCOPE_EXPLICIT_KEYWORDS = {
     "motor", "mobil", "bengkel", "otomotif", "oli", "ban", "karburator", "mesin motor",
     "dokter", "obat", "penyakit", "gejala", "resep dokter", "rumah sakit", "klinik", "diagnosis",
     "game", "mobile legends", "mlbb", "free fire", "ff", "pubg", "genshin", "steam", "playstation",
-    "hotel", "tiket pesawat", "travel", "wisata", "liburan"
+    "hotel", "tiket pesawat", "travel", "wisata", "liburan",
+    # English
+    "recipe", "cooking", "crypto", "bitcoin", "stocks", "trading", "politics", "president", "election",
+    "coding", "programming", "python", "javascript", "homework", "exam", "doctor", "medicine", "disease"
 }
 
 def verify_token(hub_mode: str, hub_verify_token: str, hub_challenge: str) -> str:
@@ -186,7 +341,7 @@ def parse_webhook_payload(payload: dict) -> list[dict]:
 def has_order_details(message: str) -> bool:
     """Check if customer provided specific order identifier (invoice, order id, resi)."""
     msg_lower = message.lower()
-    return bool(re.search(r'\b(cbx|inv|order|pesanan|resi|no\.?|nomor|kode)\s*[-:#]?\s*[a-z0-9]{3,}\b|\b\d{5,}\b', msg_lower))
+    return bool(re.search(r'\b(cbx|inv|order|pesanan|resi|tracking|track|no\.?|nomor|number|code|kode)\s*[-:#]?\s*[a-z0-9]{3,}\b|\b\d{5,}\b', msg_lower))
 
 def classify_and_route(message: str, requested_bot: Optional[str] = None) -> Tuple[str, str, str]:
     """Route message to appropriate CS bot: Siti (Frontline) or Hendra (Lead/Escalation).
@@ -197,45 +352,207 @@ def classify_and_route(message: str, requested_bot: Optional[str] = None) -> Tup
         bot_id = "siti"
 
     msg_lower = message.lower()
+
+    # 0. Check bot resume or human agent takeover requests
+    if any(re.search(rf"\b{re.escape(kw)}\b", msg_lower) for kw in BOT_RESUME_KEYWORDS):
+        return "siti", "BOT_RESUME", "P2"
+
+    if any(re.search(rf"\b{re.escape(kw)}\b", msg_lower) for kw in HUMAN_TAKEOVER_KEYWORDS):
+        return "hendra", "HUMAN_TAKEOVER", "P1"
     
-    # 1. Check escalation keywords
+    # 1. Check explicit out-of-scope triggers (cooking, crypto, politics, coding, homework, automotive, health, gaming)
+    is_explicit_out_of_scope = any(re.search(rf"\b{kw}\b", msg_lower) for kw in OUT_OF_SCOPE_EXPLICIT_KEYWORDS)
+    if is_explicit_out_of_scope:
+        return "siti", "OUT_OF_SCOPE", "P3"
+
+    # 2. Check complaints & issues (Hendra - CS Team Lead)
+    # 2a. Missing items / incomplete order
+    is_missing = any(re.search(rf"\b{kw}\b", msg_lower) for kw in [
+        "kurang", "ketinggalan", "hilang", "tidak lengkap", "ga lengkap", "gak lengkap",
+        "missing", "incomplete", "left out", "lost"
+    ])
+    if is_missing and any(w in msg_lower for w in ["barang", "item", "items", "paket", "pesanan", "baju", "celana", "isi", "order", "package", "parcel", "ada", "yang"]):
+        return "hendra", "COMPLAINT_MISSING", "P1"
+
+    # 2b. General complaint without specific details
+    is_complaint_word = any(re.search(rf"\b{kw}\b", msg_lower) for kw in ["komplain", "complain", "komplen", "keluhan", "complaint"])
+    has_specific_detail = any(re.search(rf"\b{kw}\b", msg_lower) for kw in [
+        "cacat", "rusak", "robek", "sobek", "kotor", "reject", "kurang", "salah", "retur", "tukar", "refund",
+        "damaged", "defective", "torn", "broken", "missing", "wrong"
+    ])
+    if is_complaint_word and not has_specific_detail:
+        return "hendra", "COMPLAINT_GENERAL", "P1"
+
+    # 2c. Wrong item sent
+    is_wrong_item = any(re.search(rf"\b{kw}\b", msg_lower) for kw in [
+        "salah kirim", "salah barang", "beda barang", "tidak sesuai", "ga sesuai", "gak sesuai", "salah warna", "salah ukuran", "salah size",
+        "wrong item", "wrong product", "wrong size", "wrong color", "incorrect item", "different item"
+    ])
+    if is_wrong_item:
+        return "hendra", "COMPLAINT_WRONG_ITEM", "P1"
+
+    # 2d. Damaged / defective product
+    is_damaged = any(re.search(rf"\b{kw}\b", msg_lower) for kw in [
+        "cacat", "rusak", "robek", "sobek", "kotor", "reject", "noda", "bolong",
+        "damaged", "defective", "torn", "broken", "stained", "hole", "flaw", "flawed"
+    ])
+    if is_damaged:
+        return "hendra", "COMPLAINT_DAMAGED", "P1"
+
+    # 2e. Return / refund escalation
+    is_refund = any(re.search(rf"\b{kw}\b", msg_lower) for kw in ["refund", "kembalikan uang", "ganti rugi", "money back"])
+    if is_refund:
+        return "hendra", "RETURN_REFUND", "P1"
+
+    # 2f. Other managerial escalations
     is_escalated = any(re.search(rf"\b{kw}\b", msg_lower) for kw in ESCALATION_KEYWORDS)
     if is_escalated and not requested_bot:
-        bot_id = "hendra"
-        priority = "P1"
-        intent = "COMPLAINT_DAMAGED" if any(w in msg_lower for w in ["cacat", "rusak", "robek", "reject"]) else "RETURN_REFUND"
-        return bot_id, intent, priority
+        return "hendra", "COMPLAINT_GENERAL", "P1"
 
-    # 2. Check explicit out-of-scope triggers or completely unrelated queries
-    is_explicit_out_of_scope = any(re.search(rf"\b{kw}\b", msg_lower) for kw in OUT_OF_SCOPE_EXPLICIT_KEYWORDS)
-    has_retail_context = any(re.search(rf"\b{kw}\b", msg_lower) for kw in RETAIL_FASHION_KEYWORDS)
-    words = [w for w in re.findall(r'[a-zA-Z0-9]+', msg_lower) if len(w) > 1]
-    
-    if is_explicit_out_of_scope or (len(words) >= 3 and not has_retail_context):
-        bot_id = "siti"
-        intent = "OUT_OF_SCOPE"
-        priority = "P3"
-        return bot_id, intent, priority
-
-    # 3. Determine general retail intents
+    # 3. Determine general retail intents for Frontline (Siti)
     intent = "PRODUCT_INFO"
     for candidate_intent, keywords in INTENT_KEYWORDS.items():
         if any(re.search(rf"\b{kw}\b", msg_lower) for kw in keywords):
             intent = candidate_intent
             break
 
-    priority = "P1" if is_escalated else ("P2" if intent in ("RETURN_REFUND", "SHIPPING_DELIVERY", "SIZE_FIT") else "P3")
+    priority = "P2" if intent in ("RETURN_REFUND", "SHIPPING_DELIVERY", "SIZE_FIT") else "P3"
     return bot_id, intent, priority
 
-def generate_cs_reply(bot_id: str, customer_name: str, message: str, intent: str, priority: str) -> str:
-    """Generate grounded customer support reply following Colorbox CS SOP (concise & to the point)."""
-    c_name = customer_name if customer_name and customer_name != "Pelanggan" else "Kak"
+def generate_cs_reply(bot_id: str, customer_name: str, message: str, intent: str, priority: str, language: Optional[str] = None) -> str:
+    """Generate grounded customer support reply following Colorbox CS SOP (concise & to the point).
+    Supports bilingual responses (Indonesian & English).
+    """
+    lang = language or detect_language(message)
     msg_lower = message.lower()
+
+    if lang == "en":
+        c_name = customer_name if customer_name and customer_name not in ("Pelanggan", "Kak") else "there"
+        if bot_id == "hendra":
+            has_order = has_order_details(message)
+            if intent == "HUMAN_TAKEOVER":
+                return (
+                    f"Certainly {c_name}, the bot has been paused and your conversation is transferred to our Customer Service team (human staff) at Colorbox Indonesia. "
+                    "Our team will reply directly to this chat shortly 🙏 (Type 'resume bot' or 'start bot' to reactivate the bot)."
+                )
+            elif intent == "COMPLAINT_GENERAL":
+                return (
+                    f"Hello {c_name}, I am Hendra, Customer Service Team Lead at Colorbox Indonesia. "
+                    "We apologize for the inconvenience. Could you please share the details of your issue? We are ready to help 🙏"
+                )
+            elif intent == "COMPLAINT_MISSING":
+                return (
+                    f"Hello {c_name}, I am Hendra, Customer Service Team Lead at Colorbox Indonesia. "
+                    "We apologize for the issue with your order. Which item is missing? "
+                    "Please share your order number or proof of purchase so we can check it right away 🙏"
+                )
+            elif intent == "COMPLAINT_WRONG_ITEM":
+                return (
+                    f"Hello {c_name}, I am Hendra, Customer Service Team Lead at Colorbox Indonesia. "
+                    "We apologize for the shipment mix-up. Could you please share your order number and a photo of the received item with its barcode tag? We'll arrange an exchange immediately 🙏"
+                )
+            elif intent == "COMPLAINT_DAMAGED":
+                if not has_order:
+                    return (
+                        f"Hello {c_name}, I am Hendra, Customer Service Team Lead at Colorbox Indonesia. "
+                        "We apologize for the defective item and are ready to assist with an exchange or refund.\n\n"
+                        "Could you please provide:\n"
+                        "1. 🧾 Order Number / Invoice\n"
+                        "2. 👗 Clothing Item Name\n"
+                        "3. 📸 Photo of the defect and barcode tag\n\n"
+                        "We will process your request within 24 business hours. Thank you 🙏"
+                    )
+                else:
+                    return (
+                        f"Hello {c_name}, I am Hendra, Customer Service Team Lead at Colorbox Indonesia. "
+                        "Thank you for providing your order number.\n\n"
+                        "Our quality assurance & logistics team is currently verifying the issue. "
+                        "We will provide an update regarding replacement or refund within 24 business hours 🙏"
+                    )
+            elif intent == "RETURN_REFUND":
+                if not has_order:
+                    return (
+                        f"Hello {c_name}, I am Hendra, Customer Service Team Lead at Colorbox Indonesia. "
+                        "For returns or refunds (max. 7 days, tags intact & unwashed), "
+                        "please share your order number and reason for return so we can follow up right away 🙏"
+                    )
+                else:
+                    return (
+                        f"Hello {c_name}, I am Hendra, Customer Service Team Lead at Colorbox Indonesia. "
+                        "Thank you for the order details. Your return/refund request is being reviewed by our team. "
+                        "We will update you within 24 business hours 🙏"
+                    )
+            else:
+                return (
+                    f"Hello {c_name}, I am Hendra, Customer Service Team Lead at Colorbox Indonesia. "
+                    "Could you please share your invoice number or issue details so I can assist you directly?"
+                )
+        else:
+            # Siti: Warm, friendly, concise frontline support
+            if intent == "BOT_RESUME":
+                return (
+                    f"Hello {c_name}! Colorbox virtual assistant is back active 😊 "
+                    "How can Siti help you today with casual outfits, new promos, or order tracking?"
+                )
+            elif intent == "OUT_OF_SCOPE":
+                return (
+                    f"Hello {c_name}! Sorry, that question is outside of Siti's scope of assistance at Colorbox 😊\n\n"
+                    "Is there anything I can help you with regarding Colorbox casual outfits, new collections, promos, or orders today?"
+                )
+            elif intent == "RETURN_REFUND":
+                return (
+                    f"Hello {c_name}! Product exchanges can be requested within 7 days of delivery (tags intact & unwashed) 😊 "
+                    "Could you please provide your order number and desired replacement size?"
+                )
+            elif intent == "SHIPPING_DELIVERY":
+                return (
+                    f"Hello {c_name}! Regular Colorbox delivery takes 2-4 business days ✨ "
+                    "Could you please share your order number or tracking number so Siti can check its latest status?"
+                )
+            elif intent == "SIZE_FIT":
+                return (
+                    f"Hello {c_name}! Colorbox sizing ranges from XS to XL (pants 26-32) 💕 "
+                    "What item are you looking at, and could you share your approximate height & weight so Siti can recommend your ideal fit?"
+                )
+            elif intent == "PRODUCT_AVAILABILITY":
+                return (
+                    f"Hello {c_name}! Our latest Colorbox collection and Colorbox x Liunic drops are available online and in official stores ✨ "
+                    "Please share the item name or photo, and Siti will check stock for you right away!"
+                )
+            else:
+                return (
+                    f"Hello {c_name}! Welcome to Colorbox Indonesia WhatsApp Support 💕 "
+                    "How can Siti assist you today with our casual outfits, latest promos, or your order?"
+                )
+
+    # Default Indonesian responses
+    c_name = customer_name if customer_name and customer_name != "Pelanggan" else "Kak"
 
     if bot_id == "hendra":
         has_order = has_order_details(message)
         # Authoritative, calm, highly empathetic managerial resolution
-        if intent == "COMPLAINT_DAMAGED":
+        if intent == "HUMAN_TAKEOVER":
+            return (
+                f"Baik {c_name}, bot telah dinonaktifkan sementara dan percakapan dialihkan ke Tim Customer Service (staf manusia) Colorbox Indonesia. "
+                "CS manusia kami akan segera membalas langsung di chat ini ya Kak 🙏 (Ketik 'resume bot' atau 'aktifkan bot' jika ingin menyalakan bot kembali)."
+            )
+        elif intent == "COMPLAINT_GENERAL":
+            return (
+                f"Halo {c_name}, saya Hendra selaku Customer Service Team Lead Colorbox Indonesia. "
+                "Mohon maaf atas ketidaknyamanannya ya Kak. Mau komplain terkait kendala apa ya Kak? Kami siap membantu 🙏"
+            )
+        elif intent == "COMPLAINT_MISSING":
+            return (
+                f"Halo {c_name}, saya Hendra selaku Customer Service Team Lead Colorbox Indonesia. "
+                "Mohon maaf atas kendala pesanannya ya Kak. Untuk barangnya itu apa ya yang kurang? "
+                "Boleh dilampirkan bukti pembelian atau nomor pesanannya untuk barang-barang yang kurang tersebut ya Kak, kami siap bantu cek langsung 🙏"
+            )
+        elif intent == "COMPLAINT_WRONG_ITEM":
+            return (
+                f"Halo {c_name}, saya Hendra selaku Customer Service Team Lead Colorbox Indonesia. "
+                "Mohon maaf atas kekeliruan pengirimannya ya Kak. Boleh dibantu nomor pesanan serta foto produk yang diterima dan barcode tag-nya? Kami bantu proses penukaran barang yang sesuai 🙏"
+            )
+        elif intent == "COMPLAINT_DAMAGED":
             if not has_order:
                 # Proactive human CS follow-up when complaint details are incomplete (concise)
                 return (
@@ -274,7 +591,12 @@ def generate_cs_reply(bot_id: str, customer_name: str, message: str, intent: str
             )
     else:
         # Siti: Warm, friendly, helpful frontline assistant (concise & clear)
-        if intent == "OUT_OF_SCOPE":
+        if intent == "BOT_RESUME":
+            return (
+                f"Halo {c_name}! Asisten virtual bot Colorbox telah aktif kembali 😊 "
+                "Ada yang bisa Siti bantu seputar outfit santai, promo terbaru, atau informasi pesanan Kakak hari ini?"
+            )
+        elif intent == "OUT_OF_SCOPE":
             return (
                 f"Halo {c_name}! Maaf ya Kak, pertanyaan tersebut di luar ranah dan scope pengetahuan tugas Siti di Colorbox 😊\n\n"
                 "Ada yang bisa Siti bantu seputar outfit santai, koleksi pakaian, promo, atau pesanan Anda di Colorbox hari ini?"
@@ -422,10 +744,93 @@ async def send_meta_whatsapp_message(to: str, text: str) -> bool:
 async def route_and_process_message(user_id: str, sender: str, customer_name: str, message: str,
                                     requested_bot: Optional[str] = None, metadata: Optional[dict] = None) -> dict:
     """Process incoming WhatsApp message, execute CS routing, log to database, and return response."""
+    sender_lang = get_sender_language(sender)
+    lang = detect_language(message, fallback_lang=sender_lang)
+    set_sender_language(sender, lang)
+
+    # 1. Check if sender is currently in Human Agent Takeover mode (bot paused)
+    if is_sender_paused(sender):
+        bot_id, intent, priority = classify_and_route(message, requested_bot)
+        if intent == "BOT_RESUME":
+            resume_sender(sender)
+            reply_text = generate_cs_reply(bot_id, customer_name, message, intent, priority, language=lang)
+            status = "replied"
+            msg_id = uuid.uuid4()
+            meta = metadata or {}
+            meta.update({
+                "intent": intent,
+                "priority": priority,
+                "routed_bot": bot_id,
+                "language": lang,
+                "processed_at": datetime.now(timezone.utc).isoformat()
+            })
+            try:
+                await db.ex("""
+                    INSERT INTO whatsapp_messages (id, user_id, sender, customer_name, direction, message, bot_id, status, response_text, metadata)
+                    VALUES (%s, %s, %s, %s, 'inbound', %s, %s, %s, %s, %s)
+                """, msg_id, user_id, sender, customer_name, message, bot_id, status, reply_text, json.dumps(meta))
+            except Exception as e:
+                log.warning("DB store error: %s", e)
+            if EVOLUTION_API_URL and EVOLUTION_API_KEY:
+                import asyncio
+                asyncio.create_task(send_evolution_whatsapp_message(sender, reply_text))
+            return {
+                "id": str(msg_id),
+                "sender": sender,
+                "customer_name": customer_name,
+                "routed_bot": bot_id,
+                "bot_name": "Siti",
+                "bot_role": "Frontline Support Specialist",
+                "intent": intent,
+                "priority": priority,
+                "language": lang,
+                "status": status,
+                "message": message,
+                "reply": reply_text,
+                "paused": False,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+        else:
+            # Human takeover is active: store message with status 'needs_human' and DO NOT send any bot reply
+            msg_id = uuid.uuid4()
+            meta = metadata or {}
+            meta.update({
+                "intent": "HUMAN_TAKEOVER_ACTIVE",
+                "priority": "P1",
+                "routed_bot": "human",
+                "language": lang,
+                "processed_at": datetime.now(timezone.utc).isoformat()
+            })
+            try:
+                await db.ex("""
+                    INSERT INTO whatsapp_messages (id, user_id, sender, customer_name, direction, message, bot_id, status, response_text, metadata)
+                    VALUES (%s, %s, %s, %s, 'inbound', %s, 'human', 'needs_human', '', %s)
+                """, msg_id, user_id, sender, customer_name, message, json.dumps(meta))
+            except Exception as e:
+                log.warning("DB store error: %s", e)
+            log.info("Human agent takeover active for %s. Message logged as needs_human without bot reply.", sender)
+            return {
+                "id": str(msg_id),
+                "sender": sender,
+                "customer_name": customer_name,
+                "routed_bot": "human",
+                "bot_name": "Human CS" if lang == "en" else "CS Manusia",
+                "bot_role": "Human Customer Service Staff" if lang == "en" else "Customer Service Human Staff",
+                "intent": "HUMAN_TAKEOVER_ACTIVE",
+                "priority": "P1",
+                "language": lang,
+                "status": "needs_human",
+                "message": message,
+                "reply": "",
+                "paused": True,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+
+    # 2. Normal message routing
     bot_id, intent, priority = classify_and_route(message, requested_bot)
     
     # Generate reply
-    reply_text = generate_cs_reply(bot_id, customer_name, message, intent, priority)
+    reply_text = generate_cs_reply(bot_id, customer_name, message, intent, priority, language=lang)
     
     # Store inbound message and outbound reply
     msg_id = uuid.uuid4()
@@ -434,10 +839,17 @@ async def route_and_process_message(user_id: str, sender: str, customer_name: st
         "intent": intent,
         "priority": priority,
         "routed_bot": bot_id,
+        "language": lang,
         "processed_at": datetime.now(timezone.utc).isoformat()
     })
     
-    status = "escalated" if bot_id == "hendra" else "replied"
+    if intent == "HUMAN_TAKEOVER":
+        pause_sender(sender, duration_seconds=7200)  # Pause bot for 2 hours
+        status = "needs_human"
+    elif bot_id == "hendra":
+        status = "escalated"
+    else:
+        status = "replied"
     
     try:
         await db.ex("""
@@ -469,6 +881,7 @@ async def route_and_process_message(user_id: str, sender: str, customer_name: st
         "bot_role": "CS Team Lead & Quality Auditor" if bot_id == "hendra" else "Frontline Support Specialist",
         "intent": intent,
         "priority": priority,
+        "language": lang,
         "status": status,
         "message": message,
         "reply": reply_text,
