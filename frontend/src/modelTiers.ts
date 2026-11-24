@@ -22,12 +22,34 @@ export type TierId = (typeof TIERS)[number]['id']
 const price = (m: string) => OUT[m] ?? 3
 export const tierOf = (m: string): TierId => (price(m) <= 1.5 ? 'hemat' : price(m) <= 6 ? 'seimbang' : 'teliti')
 
+// GET /models does not always name the default route the same way as the provider list: production returned
+// default.provider "opencode" while the only listed provider was "opencode-zen" (live test, 24 Nov 2026), so a plain
+// `slug === default.provider` kept no provider, every tier came out empty and the three "Tingkat ketelitian"
+// choices in the Atur dialog were all disabled (FE-2). Compare normalized names and accept a shared prefix.
+const sameRoute = (a: string, b: string) => {
+  const x = a.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const y = b.toLowerCase().replace(/[^a-z0-9]/g, '')
+  return !!x && !!y && (x.startsWith(y) || y.startsWith(x))
+}
+
+// Only the default provider: it is the one with working credentials; other listed providers may not be signed in.
+// The catalog is still the only source of models, so a tier can never offer something the server does not list.
+// Ranked by evidence: a slug on the same route (opencode / OpenCode / opencode-zen) beats merely listing the default
+// model; the model match breaks ties between two routes that look alike.
+function defaultProviders(cat: ModelCatalog | null): ModelCatalog['providers'] {
+  const all = cat?.providers ?? []
+  const def = cat?.default
+  if (!def?.provider && !def?.model) return []
+  const rank = (p: ModelCatalog['providers'][number]) =>
+    (def.provider && sameRoute(p.slug, def.provider) ? 2 : 0) + (def.model && p.models.includes(def.model) ? 1 : 0)
+  const best = Math.max(0, ...all.map(rank))
+  return best > 0 ? all.filter((p) => rank(p) === best) : []
+}
+
 // tier -> available "provider|model" keys, cheapest first
 export function tiersFrom(cat: ModelCatalog | null): Record<TierId, string[]> {
   const out: Record<TierId, { k: string; m: string }[]> = { hemat: [], seimbang: [], teliti: [] }
-  // Only the default provider: it is the one with working credentials; other listed providers may not be signed in.
-  const own = (cat?.providers ?? []).filter((p) => p.slug === cat?.default.provider)
-  for (const p of own) for (const m of p.models) out[tierOf(m)].push({ k: modelKey(p.slug, m), m })
+  for (const p of defaultProviders(cat)) for (const m of p.models) out[tierOf(m)].push({ k: modelKey(p.slug, m), m })
   const r = {} as Record<TierId, string[]>
   for (const t of TIERS) r[t.id] = out[t.id].sort((a, b) => price(a.m) - price(b.m)).map((x) => x.k)
   return r

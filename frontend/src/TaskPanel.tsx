@@ -7,7 +7,7 @@ import { Md } from './rich'
 import { BotAvatar, Dialog, ErrorLine, stamp } from './ui'
 import { Loading } from './ui-extra'
 
-export type Ask = (a: { text: string; ok: string; run: () => Promise<unknown> }) => void
+export type Ask = (a: { text: string; ok: string; run: () => Promise<unknown>; danger?: boolean }) => void
 
 const EVENT_TEXT: Record<string, string> = {
   created: 'Tugas dibuat',
@@ -154,7 +154,7 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
   }
   const verb = (a: TaskAction) => {
     if (!t) return
-    if (a.confirm) ask({ text: a.confirm, ok: a.label, run: async () => { setT(await api.taskVerb(t.id, a.id)); onChanged() } })
+    if (a.confirm) ask({ text: a.confirm, ok: a.label, danger: a.id === 'cancel', run: async () => { setT(await api.taskVerb(t.id, a.id)); onChanged() } })
     else void run(() => api.taskVerb(t.id, a.id))
   }
 

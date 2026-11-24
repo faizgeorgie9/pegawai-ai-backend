@@ -412,10 +412,11 @@ function DeleteBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
 
 // ---------- Atur agen (for users: name, task, model tier) ----------
 function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
-  const { refreshBots, flash } = useData()
+  const { refreshBots, setBot, flash } = useData()
   const admin = useAdminMode()
   const [d, setD] = useState<BotDetail | null>(null)
   const [cat, setCat] = useState<ModelCatalog | null>(null)
+  const [catDone, setCatDone] = useState(false) // the catalog call finished, successfully or not
   const [loadErr, setLoadErr] = useState('')
   const [name, setName] = useState(bot.name)
   const [persona, setPersona] = useState('')
@@ -435,12 +436,22 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
       },
       (e) => setLoadErr(errText(e)),
     )
-    api.models().then(setCat, () => {}) // without the list only "Ikuti bawaan" and the current choice show
+    // without the list the tiers stay empty and the dialog says so, instead of promising a choice it cannot offer
+    api.models().then(
+      (x) => {
+        setCat(x)
+        setCatDone(true)
+      },
+      () => setCatDone(true),
+    )
   }
   useEffect(load, [bot.id])
 
   const tiers = tiersFrom(cat)
+  // FE-4: when the catalog offers no tier, the dialog must say that plainly instead of promising the choice.
+  const tierOff = catDone && TIERS.every((t) => !tiers[t.id].length)
   const cur = bot.model ? tierOf(bot.model) : null
+  const curTier = cur ? TIERS.find((t) => t.id === cur)?.label ?? '' : ''
   // Picking a tier keeps the current model when it already belongs to it, else takes the middle model of the tier.
   const pick = (t: TierId) => setModel(cur === t && modelKey(bot.provider, bot.model) ? modelKey(bot.provider, bot.model) : tiers[t][Math.floor(tiers[t].length / 2)] ?? '')
   const selTier = model ? tierOf(splitModel(model).model ?? '') : ''
@@ -460,7 +471,8 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
     setBusy(true)
     setProblem('')
     try {
-      await api.updateBot(bot.id, patch)
+      const saved = await api.updateBot(bot.id, patch)
+      setBot(saved) // the detail view reads this list, so its card and avatar change without a reload
       await refreshBots().catch(() => [])
       flash(`${name.trim()} disimpan`)
       onClose()
@@ -477,7 +489,12 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
         {!d && !loadErr && <p className="quiet">Memuat...</p>}
         {d && (
           <fieldset disabled={busy} className="form-page">
-            {bot.builtin && <p className="quiet">Pegawai bawaan: nama dan tugasnya diatur sistem. Anda bisa mengubah warna dan tingkat ketelitiannya.</p>}
+            {bot.builtin && (
+              <p className="quiet">
+                Pegawai bawaan: nama dan tugasnya diatur sistem.
+                {tierOff ? ' Anda bisa mengubah warnanya.' : ' Anda bisa mengubah warna dan tingkat ketelitiannya.'}
+              </p>
+            )}
             {!bot.builtin && <>
             <label className="field">
               <span>Nama</span>
@@ -504,27 +521,35 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
                 ))}
               </div>
             </div>
-            <div className="field" role="radiogroup" aria-label="Tingkat ketelitian">
+            <div className="field" role={tierOff ? undefined : 'radiogroup'} aria-label={tierOff ? undefined : 'Tingkat ketelitian'}>
               <span>Tingkat ketelitian</span>
-              <label className="radio-row">
-                <input type="radio" name="tier" checked={model === ''} onChange={() => setModel('')} />
-                <span>
-                  <b>Ikuti bawaan</b>
-                  <small className="quiet"> Memakai pilihan standar sistem.{admin && cat?.default.model ? ` (${cat.default.model})` : ''}</small>
-                </span>
-              </label>
-              {TIERS.map((t) => {
-                const off = !tiers[t.id].length && selTier !== t.id
-                return (
-                  <label key={t.id} className="radio-row" aria-disabled={off || undefined}>
-                    <input type="radio" name="tier" checked={selTier === t.id} disabled={off} onChange={() => pick(t.id)} />
+              {tierOff ? (
+                <p className="quiet">
+                  Pilihan tingkat ketelitian belum tersedia saat ini, jadi {bot.name} {curTier ? `tetap memakai ${curTier}.` : 'memakai pilihan standar sistem.'}
+                </p>
+              ) : (
+                <>
+                  <label className="radio-row">
+                    <input type="radio" name="tier" checked={model === ''} onChange={() => setModel('')} />
                     <span>
-                      <b>{t.label}</b>
-                      <small className="quiet"> {t.hint}{admin && selTier === t.id ? ` Model: ${splitModel(model).model}` : ''}</small>
+                      <b>Ikuti bawaan</b>
+                      <small className="quiet"> Memakai pilihan standar sistem.{admin && cat?.default.model ? ` (${cat.default.model})` : ''}</small>
                     </span>
                   </label>
-                )
-              })}
+                  {TIERS.map((t) => {
+                    const off = !tiers[t.id].length && selTier !== t.id
+                    return (
+                      <label key={t.id} className="radio-row" aria-disabled={off || undefined}>
+                        <input type="radio" name="tier" checked={selTier === t.id} disabled={off} onChange={() => pick(t.id)} />
+                        <span>
+                          <b>{t.label}</b>
+                          <small className="quiet"> {t.hint}{admin && selTier === t.id ? ` Model: ${splitModel(model).model}` : ''}</small>
+                        </span>
+                      </label>
+                    )
+                  })}
+                </>
+              )}
             </div>
             <small className="quiet">Perubahan berlaku mulai tugas berikutnya. Percakapan lama tidak berubah.</small>
           </fieldset>
