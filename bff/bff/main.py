@@ -2,6 +2,8 @@
 import asyncio
 import hmac
 import json
+import time
+from typing import Optional
 import uuid
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
@@ -13,7 +15,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import actions, apps, auth, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, master_template, mcp_privileges, memory, product_images, scheduler, sequences, settings, tasks, usage, whatsapp
+from . import actions, apps, auth, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, master_template, mcp_privileges, memory, memory_blueprint, product_images, scheduler, sequences, settings, tasks, telegram, usage, whatsapp
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -1403,6 +1405,111 @@ async def update_bot_permissions_endpoint(bot_id: str, request: Request):
     """Update agent's Model, Provider, Reasoning Effort, and MCP/KB permissions."""
     b = await body_of(request)
     return await master_template.update_bot_permissions(bot_id, b, current_user())
+
+
+# ---------- telegram routing & webhook (Sprint 5 Day 4) ----------
+
+@public.post("/telegram/webhook")
+@api.post("/telegram/webhook")
+async def telegram_webhook_endpoint(
+    request: Request,
+    x_telegram_bot_api_secret_token: Optional[str] = Header(None, alias="X-Telegram-Bot-Api-Secret-Token")
+):
+    """Receive and process incoming Telegram bot updates."""
+    b = await body_of(request)
+    return await telegram.process_telegram_update(b, x_telegram_bot_api_secret_token)
+
+
+@public.post("/telegram/webhook/{bot_id}")
+@api.post("/telegram/webhook/{bot_id}")
+async def telegram_webhook_bot_endpoint(
+    bot_id: str,
+    request: Request,
+    x_telegram_bot_api_secret_token: Optional[str] = Header(None, alias="X-Telegram-Bot-Api-Secret-Token")
+):
+    """Receive and process incoming Telegram updates scoped to a specific bot."""
+    b = await body_of(request)
+    message = b.get("message") or b.get("edited_message", {})
+    chat_id = message.get("chat", {}).get("id")
+    if chat_id:
+        telegram.set_chat_active_bot(chat_id, bot_id)
+    return await telegram.process_telegram_update(b, x_telegram_bot_api_secret_token)
+
+
+@public.get("/telegram/status")
+@api.get("/telegram/status")
+async def telegram_status_endpoint():
+    """Inspect Telegram Bot webhook configuration, active sessions, and status."""
+    return telegram.get_telegram_status()
+
+
+@api.post("/telegram/send")
+async def telegram_send_endpoint(request: Request):
+    """Outbound Telegram message dispatcher for agent notifications."""
+    b = await body_of(request)
+    chat_id = b.get("chat_id")
+    text = b.get("text")
+    if not chat_id or not text:
+        raise ApiError(400, "chat_id dan text wajib diisi")
+    parse_mode = b.get("parse_mode")
+    mock = b.get("mock", False)
+    return await telegram.send_telegram_message(int(chat_id), text, parse_mode=parse_mode, mock=mock)
+
+
+@api.post("/telegram/simulate")
+async def telegram_simulate_endpoint(request: Request):
+    """Test endpoint to simulate incoming Telegram message without needing live Telegram credentials."""
+    b = await body_of(request)
+    text = b.get("text", "")
+    chat_id = b.get("chat_id", 999888111)
+    sender_name = b.get("sender_name", "User Uji")
+    bot_id = b.get("bot_id")
+    if bot_id:
+        telegram.set_chat_active_bot(chat_id, bot_id)
+    simulated_update = {
+        "update_id": int(time.time() * 1000) % 10000000,
+        "message": {
+            "message_id": int(time.time()),
+            "from": {"id": chat_id, "first_name": sender_name, "is_bot": False},
+            "chat": {"id": chat_id, "type": "private"},
+            "date": int(time.time()),
+            "text": text
+        }
+    }
+    secret = b.get("secret_token") or telegram.TELEGRAM_WEBHOOK_SECRET
+    return await telegram.process_telegram_update(simulated_update, secret)
+
+
+# ---------- five-layer memory blueprint & benchmark (Sprint 5 Day 4) ----------
+
+@api.get("/memory/blueprint")
+async def get_memory_blueprint_endpoint():
+    """Retrieve full Five-Layer Memory Architecture Blueprint and 7-Candidate Benchmark."""
+    return memory_blueprint.get_memory_blueprint_summary()
+
+
+@api.get("/memory/layers")
+async def get_memory_layers_endpoint():
+    """Inspect status and capabilities of all 5 target memory layers."""
+    return {
+        "layers": memory_blueprint.MEMORY_LAYERS_SPEC,
+        "status_summary": {
+            "layer_1_session": "AVAILABLE",
+            "layer_2_employee": "AVAILABLE_AND_PARTIAL",
+            "layer_3_customer": "PLANNED",
+            "layer_4_project": "PLANNED",
+            "layer_5_long_term": "PLANNED"
+        }
+    }
+
+
+@api.post("/memory/tenant/validate-isolation")
+async def validate_tenant_isolation_endpoint(request: Request):
+    """Execute automated negative security validation tests across 5 threat scenarios."""
+    b = await body_of(request)
+    tenant_a = b.get("tenant_a", "tenant_alpha_corp")
+    tenant_b = b.get("tenant_b", "tenant_beta_ltd")
+    return memory_blueprint.validate_tenant_isolation(tenant_a, tenant_b)
 
 
 
