@@ -107,21 +107,47 @@ def split_telegram_message(text: str, max_chars: int = MAX_TELEGRAM_MESSAGE_CHAR
     return chunks
 
 
+def format_to_telegram_html(text: str) -> str:
+    """Format text for native Telegram HTML rendering.
+    Converts **bold**, `code`, ```pre```, and bullet points into
+    clean, native Telegram formatting tags (<b>, <code>, <pre>).
+    """
+    if not text:
+        return ""
+
+    t = text
+    # If the text does not already contain HTML formatting tags, escape HTML special chars
+    if not ("<b>" in t or "<code>" in t or "<pre>" in t or "<i>" in t):
+        t = t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    # Convert code blocks: ```code``` -> <pre>code</pre>
+    t = re.sub(r"```(?:[a-zA-Z0-9_-]+)?\n?(.*?)```", r"<pre>\1</pre>", t, flags=re.DOTALL)
+    # Convert inline code: `code` -> <code>code</code>
+    t = re.sub(r"`([^`\n]+)`", r"<code>\1</code>", t)
+    # Convert bold: **text** -> <b>text</b>
+    t = re.sub(r"\*\*([^\*\n]+)\*\*", r"<b>\1</b>", t)
+    # Convert remaining *text* to <i>text</i>
+    t = re.sub(r"(?<!\*)\*([^\*\n]+)\*(?!\*)", r"<i>\1</i>", t)
+
+    return t
+
+
 async def send_telegram_message(
     chat_id: int,
     text: str,
-    parse_mode: Optional[str] = None,
+    parse_mode: Optional[str] = "HTML",
     mock: bool = False
 ) -> Dict[str, Any]:
-    """Dispatch an outbound message to Telegram chat via Telegram Bot API."""
+    """Dispatch an outbound message to Telegram chat via Telegram Bot API with native HTML formatting."""
     chunks = split_telegram_message(text)
     results = []
 
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", TELEGRAM_BOT_TOKEN)
     for chunk in chunks:
+        formatted_chunk = format_to_telegram_html(chunk) if parse_mode == "HTML" else chunk
         payload = {
             "chat_id": chat_id,
-            "text": chunk
+            "text": formatted_chunk
         }
         if parse_mode:
             payload["parse_mode"] = parse_mode
@@ -133,12 +159,12 @@ async def send_telegram_message(
                 "result": {
                     "message_id": int(time.time() * 1000) % 1000000,
                     "chat": {"id": chat_id},
-                    "text": chunk,
+                    "text": formatted_chunk,
                     "date": int(time.time())
                 },
                 "mocked": True
             }
-            _outbox_log.append({"chat_id": chat_id, "text": chunk, "timestamp": time.time()})
+            _outbox_log.append({"chat_id": chat_id, "text": formatted_chunk, "timestamp": time.time()})
             results.append(record)
             continue
 
@@ -147,7 +173,14 @@ async def send_telegram_message(
             async with httpx.AsyncClient(timeout=15.0) as client:
                 resp = await client.post(url, json=payload)
                 data = resp.json()
-                _outbox_log.append({"chat_id": chat_id, "text": chunk, "response": data, "timestamp": time.time()})
+                if not data.get("ok") and "parse" in data.get("description", "").lower():
+                    # Fallback to plain text with markdown symbols stripped
+                    log.warning("Telegram parse error, falling back to plain text for chat %s", chat_id)
+                    plain_text = re.sub(r"[*`_]", "", chunk)
+                    fallback_payload = {"chat_id": chat_id, "text": plain_text}
+                    resp = await client.post(url, json=fallback_payload)
+                    data = resp.json()
+                _outbox_log.append({"chat_id": chat_id, "text": formatted_chunk, "response": data, "timestamp": time.time()})
                 results.append(data)
         except Exception as e:
             log.error("Failed to send Telegram message to chat %s: %s", chat_id, e)
@@ -164,59 +197,59 @@ def handle_telegram_command(command: str, args: str, chat_id: int) -> Tuple[bool
     if cmd == "/start":
         active_bot = get_chat_active_bot(chat_id)
         msg = (
-            "👋 **Halo! Selamat datang di Pegawai AI Telegram Assistant.**\n\n"
-            "Saya asisten cerdas yang menghubungkan Anda langsung dengan tim karyawan AI Anda:\n"
-            "• **Siti** (`siti`): Frontline Customer Support Specialist\n"
-            "• **Bram** (`bram`): Senior Copywriter & Campaign Creator\n"
-            "• **Vina** (`vina`): Visual & Layout Designer\n"
-            "• **Bimo** (`bimo`): Project Manager & Operational Lead\n"
-            "• **Hendra** (`hendra`): CS Escalation Lead\n\n"
-            f"Saat ini Anda terhubung dengan: **{active_bot.title()}**.\n\n"
-            "**Perintah yang tersedia:**\n"
-            "• `/status` - Lihat status bot dan agen aktif\n"
-            "• `/agent <nama>` - Ganti agen (contoh: `/agent bram`)\n"
-            "• `/reset` - Bersihkan konteks percakapan saat ini\n"
-            "• `/help` - Panduan bantuan\n\n"
+            "👋 <b>Halo! Selamat datang di Pegawai AI Assistant.</b>\n\n"
+            "Saya asisten cerdas yang menghubungkan Anda langsung dengan tim karyawan AI Anda:\n\n"
+            "• <b>Siti</b> (<code>siti</code>) — Frontline Customer Support Specialist\n"
+            "• <b>Bram</b> (<code>bram</code>) — Senior Copywriter & Campaign Creator\n"
+            "• <b>Vina</b> (<code>vina</code>) — Visual & Layout Designer\n"
+            "• <b>Bimo</b> (<code>bimo</code>) — Project Manager & Operational Lead\n"
+            "• <b>Hendra</b> (<code>hendra</code>) — CS Escalation Lead\n\n"
+            f"Saat ini Anda terhubung dengan: <b>{active_bot.title()}</b>.\n\n"
+            "💡 <b>Perintah yang dapat Anda gunakan:</b>\n"
+            "• /status — Cek status bot & agen aktif\n"
+            "• /agent &lt;nama&gt; — Ganti agen (contoh: <code>/agent bram</code>)\n"
+            "• /reset — Bersihkan konteks percakapan saat ini\n"
+            "• /help — Panduan bantuan lengkap\n\n"
             "Silakan ketik pertanyaan atau tugas Anda langsung di sini!"
         )
         return True, msg
 
     if cmd == "/help":
         msg = (
-            "📖 **Panduan Penggunaan Pegawai AI Telegram:**\n\n"
-            "1. **Kirim Pesan Langsung:** Tanyakan pertanyaan produk, buat draf teks, atau minta status tugas.\n"
-            "2. **Pindah Agen:** Gunakan `/agent <nama>` untuk berbicara dengan staf spesialis.\n"
-            "3. **Reset Sesi:** Gunakan `/reset` jika ingin memulai topik baru tanpa membawa riwayat lama.\n"
-            "4. **Format Pesan:** Respon panjang (> 4.096 karakter) akan dipecah otomatis agar tidak terpotong oleh Telegram."
+            "📖 <b>Panduan Penggunaan Pegawai AI Telegram:</b>\n\n"
+            "1. <b>Kirim Pesan Langsung:</b> Tanyakan pertanyaan produk, buat draf teks, atau minta status tugas.\n"
+            "2. <b>Pindah Karyawan AI:</b> Gunakan perintah <code>/agent &lt;nama&gt;</code> untuk berbicara dengan staf spesialis.\n"
+            "3. <b>Reset Sesi:</b> Gunakan perintah <code>/reset</code> jika ingin memulai topik baru tanpa membawa riwayat lama.\n"
+            "4. <b>Format Pesan:</b> Respon panjang (> 4.096 karakter) akan dipecah otomatis agar tidak terpotong oleh Telegram."
         )
         return True, msg
 
     if cmd == "/status":
         active_bot = get_chat_active_bot(chat_id)
         msg = (
-            "📊 **Status Pegawai AI:**\n"
-            f"• **Telegram Chat ID:** `{chat_id}`\n"
-            f"• **Agen Aktif:** `{active_bot}`\n"
-            "• **Status Webhook:** Aktif & Terhubung\n"
-            "• **Engine:** Hermes Multi-Agent Orchestrator (VPS)\n"
-            "• **Memory Layer:** Tenant-Isolated Session Active"
+            "📊 <b>Status Pegawai AI Assistant:</b>\n\n"
+            f"• <b>Telegram Chat ID:</b> <code>{chat_id}</code>\n"
+            f"• <b>Karyawan AI Aktif:</b> <b>{active_bot.title()}</b>\n"
+            "• <b>Status Webhook:</b> 🟢 Aktif & Terhubung (Let's Encrypt HTTPS)\n"
+            "• <b>Engine:</b> Hermes Multi-Agent Orchestrator (VPS)\n"
+            "• <b>Memory Layer:</b> Tenant-Isolated Session Active"
         )
         return True, msg
 
     if cmd in ("/agent", "/switch"):
         if not args:
             active_bot = get_chat_active_bot(chat_id)
-            return True, f"Agen saat ini: **{active_bot.title()}**. Gunakan `/agent <nama>` untuk mengganti."
+            return True, f"Karyawan AI saat ini: <b>{active_bot.title()}</b>. Gunakan <code>/agent &lt;nama&gt;</code> untuk mengganti."
         target_bot = args.lower().strip()
         valid_bots = ["siti", "diana", "bram", "vina", "bimo", "hendra", "admin"]
         if target_bot not in valid_bots:
-            return True, f"⚠️ Agen '{target_bot}' tidak dikenali. Pilihan agen yang tersedia: {', '.join(valid_bots)}"
+            return True, f"⚠️ Karyawan AI '<b>{target_bot}</b>' tidak dikenali.\n\nPilihan yang tersedia: <code>{', '.join(valid_bots)}</code>"
         set_chat_active_bot(chat_id, target_bot)
-        return True, f"✅ Berhasil beralih ke agen **{target_bot.title()}**. Silakan sampaikan pesan Anda!"
+        return True, f"✅ Berhasil beralih ke <b>{target_bot.title()}</b>. Silakan sampaikan pesan atau tugas Anda!"
 
     if cmd == "/reset":
         reset_chat_session(chat_id)
-        return True, "🔄 Konteks sesi berhasil direset. Agen dikembalikan ke default: **Siti**."
+        return True, "🔄 <b>Konteks sesi berhasil direset.</b> Agen dikembalikan ke default: <b>Siti (Customer Support)</b>."
 
     return False, ""
 

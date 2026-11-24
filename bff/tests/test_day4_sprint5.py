@@ -61,7 +61,7 @@ def test_telegram_command_handling():
     is_cmd, text_status = telegram.handle_telegram_command("/status", "", chat_id)
     assert is_cmd is True
     assert str(chat_id) in text_status
-    assert "siti" in text_status
+    assert "siti" in text_status.lower()
 
     # /agent bram
     is_cmd, text_agent = telegram.handle_telegram_command("/agent", "bram", chat_id)
