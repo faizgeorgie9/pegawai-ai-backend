@@ -13,16 +13,15 @@ import { Empty, Loading, Opt, PageHead } from './ui-extra'
 import { ConfirmSwitch, OpenInChat, RunBar, Switch, hhmm, teamBots } from './ws-common'
 
 const STAGES = [
-  '1. Brief & PM',
-  '2. Strategi & Konsep',
-  '3. Riset Katalog',
-  '4. Naskah & Prompt',
-  '5. Aset Gambar',
-  '6. Review Manusia',
+  '1. Strategi & Distribusi',
+  '2. Naskah & Storytelling',
+  '3. Desain Grafis & Motion',
+  '4. Video Vertikal & UGC',
+  '5. Review & Persetujuan',
 ] as const
 
 // The stepper shows short, everyday words; STAGES stays as the agent's stage id.
-const STAGE_LABELS = ['Permintaan', 'Strategi', 'Riset katalog', 'Naskah', 'Gambar', 'Persetujuan'] as const
+const STAGE_LABELS = ['Strategi', 'Naskah', 'Desain grafis', 'Video & UGC', 'Persetujuan'] as const
 
 const KIND: MarketingKind[] = ['brief', 'plan', 'content', 'review', 'revision']
 const CHANNELS = ['Instagram', 'TikTok', 'WhatsApp', 'Website / marketplace']
@@ -53,12 +52,11 @@ interface AgentInfo {
 }
 
 const AGENTS: AgentInfo[] = [
-  { id: 'bimo', name: 'Bimo', role: 'Pengatur tugas', tagline: 'Menyiapkan permintaan dan membagi tugas', badgeColor: 'var(--c-amber)', modelInfo: 'DeepSeek V4.1 Flash' },
-  { id: 'meda', name: 'Meda', role: 'Penyusun strategi', tagline: 'Menentukan audiens dan tiga pilihan konsep', badgeColor: 'var(--c-rose)', modelInfo: 'DeepSeek V4.1 Flash' },
-  { id: 'raka', name: 'Raka', role: 'Peneliti katalog', tagline: 'Memeriksa produk, ukuran, dan foto', badgeColor: 'var(--c-sky)', modelInfo: 'DeepSeek V4.1 Flash' },
-  { id: 'bram', name: 'Bram', role: 'Penulis naskah', tagline: 'Menulis naskah lima slide dan caption', badgeColor: 'var(--c-indigo)', modelInfo: 'DeepSeek V4.1 Flash' },
-  { id: 'vina', name: 'Vina', role: 'Perancang gambar', tagline: 'Membuat lima gambar 1080 × 1350 px', badgeColor: 'var(--c-teal)', modelInfo: 'openai/gpt-image-2' },
-  { id: 'human', name: 'Anda', role: 'Pemeriksa akhir', tagline: 'Memeriksa hasil dan memberi persetujuan', badgeColor: 'var(--c-green)', modelInfo: 'Diperiksa manusia' },
+  { id: 'cre-01', name: 'Content Strategist (CRE-01)', role: 'Penyusun strategi & distribusi', tagline: 'Merumuskan pilar konten, audiens Gen Z, dan matriks distribusi omnichannel', badgeColor: 'var(--c-amber)', modelInfo: 'DeepSeek V4.1 Flash' },
+  { id: 'cre-02', name: 'Content & Copywriter (CRE-02)', role: 'Penulis naskah & hook', tagline: 'Menulis naskah storytelling, hook 3 detik, dan caption #NeverJustOneThing', badgeColor: 'var(--c-rose)', modelInfo: 'DeepSeek V4.1 Flash' },
+  { id: 'cre-03', name: 'Graphic & Motion Designer (CRE-03)', role: 'Arsitek visual & motion', tagline: 'Merancang layout 4:5 Feed Portrait, motion typography, dan master AI visual prompt', badgeColor: 'var(--c-teal)', modelInfo: 'openai/gpt-image-2' },
+  { id: 'cre-04', name: 'Video & UGC Creator (CRE-04)', role: 'Kreator video & UGC', tagline: 'Merancang storyboard 9:16 vertikal, script talent try-on, dan kurasi audio viral', badgeColor: 'var(--c-indigo)', modelInfo: 'DeepSeek V4.1 Flash' },
+  { id: 'human', name: 'Anda', role: 'Pemeriksa akhir', tagline: 'Memeriksa kepatuhan katalog resmi dan memberi persetujuan', badgeColor: 'var(--c-green)', modelInfo: 'Diperiksa manusia' },
 ]
 
 const CAROUSEL_SLIDES = [
@@ -173,24 +171,24 @@ function briefPrompt(f: Form): string {
     row('Format Konten', f.contentType) +
     row('Jumlah Output/Slide', f.count) +
     FIELDS.map(([k, l]) => row(l, f[k])).join('') +
-    '\nBimo (@projectmanager), tolong periksa brief ini, catat pembagian tugas sprint di papan Kanban, dan panggil @meda (@marketingstrategist) untuk menyiapkan 3 opsi konsep konten.'
+    '\nContent Strategist (@contentstrategist / CRE-01), tolong periksa brief ini, tentukan pilar gaya (Urban/Romantic/Chic), rumuskan 3 opsi konsep konten (Opsi A/B/C) dari katalog resmi Colorbox (product-catalog.md), siapkan matriks distribusi omnichannel, lalu delegasikan langsung ke @copywriter (CRE-02).'
   )
 }
 
 export default function Marketing() {
   const { bots, loadState, error, reload } = useData()
   const team = teamBots(bots, 'marketing')
-  const [agent, setAgent] = useState('bimo')
+  const [agent, setAgent] = useState('cre-01')
   const [pending, setPending] = useState('')
   const dirty = useRef(false)
-  const cur = team.find((b) => b.id === agent) ?? team.find((b) => b.id === 'bimo') ?? team.find((b) => b.id === 'bram') ?? team.find((b) => b.id === 'rian') ?? team[0]
+  const cur = team.find((b) => b.id === agent) ?? team.find((b) => b.id === 'cre-01') ?? team[0]
 
   return (
     <section className="page ws" data-team="marketing">
       <PageHead
-        title="Alur kerja marketing"
-        sub="Lima pegawai AI bekerja berurutan. Periksa hasilnya, lalu setujui sebelum tayang."
-        actions={cur ? <span className="pill ok">Alur 5 pegawai AI aktif</span> : undefined}
+        title="Alur kerja content & creative"
+        sub="Empat pegawai AI bekerja berurutan. Periksa hasilnya, lalu setujui sebelum tayang."
+        actions={cur ? <span className="pill ok">Alur 4 pegawai AI aktif</span> : undefined}
       />
       {!cur ? (
         loadState === 'error' ? (
@@ -253,7 +251,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
   }, [hasWork, onDirty])
 
   const stageDone = (i: number) => {
-    if (i < 5) return outs.some((o) => o.stage === i)
+    if (i < 4) return outs.some((o) => o.stage === i)
     return decision === 'approved'
   }
 
@@ -301,31 +299,25 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
     e.preventDefault()
     setTried(true)
     if (Object.keys(errs).length || run.busy) return
-    void executeAgent(0, 'bimo', briefPrompt(form), 'Brief & Kanban')
+    void executeAgent(0, 'cre-01', briefPrompt(form), 'Strategi & Konsep')
   }
 
-  function callMeda() {
+  function callCopywriter() {
     const prompt =
-      'Meda (@marketingstrategist), berdasarkan brief dari Bimo, rumuskan strategi kampanye, target audiens Gen Z, 3 pilar gaya (Urban/Romantic/Chic), dan pilih produk katalog Colorbox resmi. Buat 3 opsi konsep konten (Opsi A/B/C) dengan rekomendasi utama pada Opsi A, lalu delegasikan ke Raka (@researcher).'
-    void executeAgent(1, 'meda', prompt, 'Strategi & Konsep')
+      'Content & Copywriter (@copywriter / CRE-02), berdasarkan strategi dari CRE-01, susun storytelling kreatif kampanye #NeverJustOneThing. Buat hook 3 detik pembuka yang memikat, on-screen microcopy minimalis (1-2 kata, tanpa harga pada kanvas), caption Instagram lengkap dengan harga resmi katalog dan hashtag resmi, serta narasi spoken script natural untuk video/UGC. Lalu delegasikan ke @motiondesigner (CRE-03) dan @videougc (CRE-04).'
+    void executeAgent(1, 'cre-02', prompt, 'Naskah & Copywriting')
   }
 
-  function callRaka() {
+  function callMotionDesigner() {
     const prompt =
-      'Raka (@researcher), validasi produk dari konsep Meda ke katalog resmi Colorbox (product-catalog.md), sertakan harga normal/diskon Rp, bedah panduan ukuran cm (lingkar dada, pinggang, panjang) dari product-size-reference.md, cek ketersediaan foto di images/, dan buat Creative Research Brief 5 slide. Lalu teruskan ke Bram (@sketchwriter).'
-    void executeAgent(2, 'raka', prompt, 'Riset Katalog & Ukuran')
+      'Graphic & Motion Designer (@motiondesigner / CRE-03), rancang arsitektur visual 5 slide Instagram Feed Carousel format 4:5 Portrait (1080x1350 px PNG) dan kinetic typography secara bespoke tanpa template baku (ZERO CANNED TEMPLATES). Jaga foto produk asli Colorbox dari folder images/ dengan rasio alami terkunci (contain mode, tidak gepeng) dan bebas noise wireframe/dots. Susun Master AI Visual Prompts fotorealistik untuk model openai/gpt-image-2 (OpenCode Zen) dan render gambar final. Lalu serahkan ke Video & UGC Creator (@videougc / CRE-04).'
+    void executeAgent(2, 'cre-03', prompt, 'Desain Grafis & Motion')
   }
 
-  function callBram() {
+  function callVideoUgc() {
     const prompt =
-      'Bram (@sketchwriter), rancang naskah kreatif dan master AI prompt untuk postingan Instagram tanpa menggunakan template baku (JANGAN GUNAKAN TEMPLATE / ZERO RIGID FORMULAS). Buat konsep unik dari nol sesuai produk terpilih dari Raka, susun on-screen micro-copy minimalis (1-2 kata, tanpa harga), caption Instagram lengkap hashtag #NeverJustOneThing dan harga resmi katalog, serta AI Visual Generation Prompt yang sangat detail, fotorealistik, dan kaya arahan artistik (lighting, angle 4:5 Feed Portrait, lensa 35mm, latar arsitektur nyata, dan model styling) untuk model openai/gpt-image-2 via OpenCode. Lalu serahkan ke Vina (@visualcarousel).'
-    void executeAgent(3, 'bram', prompt, 'Naskah & Prompt AI')
-  }
-
-  function callVina() {
-    const prompt =
-      'Vina (@visualcarousel), eksekusi arahan visual dan master prompt dari Bram secara bespoke tanpa template baku. Render 5 slide berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080x1350 px PNG) menggunakan model visual openai/gpt-image-2 (OpenCode Zen) dan foto produk resmi Colorbox tanpa distorsi aspek rasio (contain mode, tidak gepeng) dan bebas dari noise wireframe/dots. Tampilkan pratinjau gambar dan link live interactive preview, lalu serahkan ke Bimo dan Tim Reviewer Manusia.'
-    void executeAgent(4, 'vina', prompt, 'Aset Gambar Carousel')
+      'Video & UGC Creator (@videougc / CRE-04), kembangkan konsep video vertikal 9:16 (durasi 15-30 detik) untuk Reels/TikTok/Shorts. Susun storyboard visual dinamis, panduan talent kreator UGC (try-on shot list produk Colorbox resmi, ekspresi natural, framing vertikal), narasi percakapan santai, dan kurasi audio trending serta audio pacing/SFX. Serahkan seluruh materi lengkap ke @contentstrategist (CRE-01) dan Tim Reviewer Manusia.'
+    void executeAgent(3, 'cre-04', prompt, 'Video Vertikal & UGC')
   }
 
   async function runAutoCascade() {
@@ -335,47 +327,39 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
 
     setCascading(true)
     try {
-      // Step 1: Bimo
-      setCascadeMsg('Langkah 1 dari 5: Bimo menyiapkan permintaan dan membagi tugas...')
+      // Step 1: Content Strategist (CRE-01)
+      setCascadeMsg('Langkah 1 dari 4: CRE-01 (Content Strategist) merumuskan strategi, pilar gaya, dan opsi konsep katalog...')
       setStage(0)
-      const bimoOut = await executeAgent(0, 'bimo', briefPrompt(form), 'Brief & Kanban')
-      if (!bimoOut) throw new Error('Bimo gagal memproses brief.')
+      const stratOut = await executeAgent(0, 'cre-01', briefPrompt(form), 'Strategi & Distribusi')
+      if (!stratOut) throw new Error('Content Strategist gagal memproses brief.')
 
-      // Step 2: Meda
-      setCascadeMsg('Langkah 2 dari 5: Meda menyusun strategi dan tiga pilihan konsep...')
+      // Step 2: Content & Copywriter (CRE-02)
+      setCascadeMsg('Langkah 2 dari 4: CRE-02 (Content & Copywriter) menyusun storytelling, hook 3 detik, dan caption...')
       setStage(1)
-      const medaPrompt =
-        'Meda (@marketingstrategist), berdasarkan brief dari Bimo, rumuskan strategi kampanye, target audiens Gen Z, 3 pilar gaya (Urban/Romantic/Chic), dan pilih produk katalog Colorbox resmi. Buat 3 opsi konsep konten (Opsi A/B/C) dengan rekomendasi utama pada Opsi A, lalu delegasikan ke Raka (@researcher).'
-      const medaOut = await executeAgent(1, 'meda', medaPrompt, 'Strategi & Konsep')
-      if (!medaOut) throw new Error('Meda gagal merumuskan konsep.')
+      const copyPrompt =
+        'Content & Copywriter (@copywriter / CRE-02), berdasarkan strategi dari CRE-01, susun storytelling kreatif kampanye #NeverJustOneThing. Buat hook 3 detik pembuka yang memikat, on-screen microcopy minimalis (1-2 kata, tanpa harga pada kanvas), caption Instagram lengkap dengan harga resmi katalog dan hashtag resmi, serta narasi spoken script natural untuk video/UGC. Lalu delegasikan ke @motiondesigner (CRE-03) dan @videougc (CRE-04).'
+      const copyOut = await executeAgent(1, 'cre-02', copyPrompt, 'Naskah & Copywriting')
+      if (!copyOut) throw new Error('Content & Copywriter gagal merumuskan naskah.')
 
-      // Step 3: Raka
-      setCascadeMsg('Langkah 3 dari 5: Raka mencocokkan produk dengan katalog dan ukuran...')
+      // Step 3: Graphic & Motion Designer (CRE-03)
+      setCascadeMsg('Langkah 3 dari 4: CRE-03 (Graphic & Motion Designer) merancang feed carousel 4:5 dan master visual prompt...')
       setStage(2)
-      const rakaPrompt =
-        'Raka (@researcher), validasi produk dari konsep Meda ke katalog resmi Colorbox (product-catalog.md), sertakan harga normal/diskon Rp, bedah panduan ukuran cm (lingkar dada, pinggang, panjang) dari product-size-reference.md, cek ketersediaan foto di images/, dan buat Creative Research Brief 5 slide. Lalu teruskan ke Bram (@sketchwriter).'
-      const rakaOut = await executeAgent(2, 'raka', rakaPrompt, 'Riset Katalog & Ukuran')
-      if (!rakaOut) throw new Error('Raka gagal memvalidasi katalog.')
+      const motionPrompt =
+        'Graphic & Motion Designer (@motiondesigner / CRE-03), rancang arsitektur visual 5 slide Instagram Feed Carousel format 4:5 Portrait (1080x1350 px PNG) dan kinetic typography secara bespoke tanpa template baku (ZERO CANNED TEMPLATES). Jaga foto produk asli Colorbox dari folder images/ dengan rasio alami terkunci (contain mode, tidak gepeng) dan bebas noise wireframe/dots. Susun Master AI Visual Prompts fotorealistik untuk model openai/gpt-image-2 (OpenCode Zen) dan render gambar final. Lalu serahkan ke Video & UGC Creator (@videougc / CRE-04).'
+      const motionOut = await executeAgent(2, 'cre-03', motionPrompt, 'Desain Grafis & Motion')
+      if (!motionOut) throw new Error('Graphic & Motion Designer gagal merancang visual.')
 
-      // Step 4: Bram
-      setCascadeMsg('Langkah 4 dari 5: Bram menulis naskah dan arahan gambar...')
+      // Step 4: Video & UGC Creator (CRE-04)
+      setCascadeMsg('Langkah 4 dari 4: CRE-04 (Video & UGC Creator) menyusun storyboard video 9:16 dan panduan shot list try-on...')
       setStage(3)
-      const bramPrompt =
-        'Bram (@sketchwriter), rancang naskah kreatif dan master AI prompt untuk postingan Instagram tanpa menggunakan template baku (JANGAN GUNAKAN TEMPLATE / ZERO RIGID FORMULAS). Buat konsep unik dari nol sesuai produk terpilih dari Raka, susun on-screen micro-copy minimalis (1-2 kata, tanpa harga), caption Instagram lengkap hashtag #NeverJustOneThing dan harga resmi katalog, serta AI Visual Generation Prompt yang sangat detail, fotorealistik, dan kaya arahan artistik (lighting, angle 4:5 Feed Portrait, lensa 35mm, latar arsitektur nyata, dan model styling) untuk model openai/gpt-image-2 via OpenCode. Lalu serahkan ke Vina (@visualcarousel).'
-      const bramOut = await executeAgent(3, 'bram', bramPrompt, 'Naskah & Prompt AI')
-      if (!bramOut) throw new Error('Bram gagal menulis naskah.')
+      const videoPrompt =
+        'Video & UGC Creator (@videougc / CRE-04), kembangkan konsep video vertikal 9:16 (durasi 15-30 detik) untuk Reels/TikTok/Shorts. Susun storyboard visual dinamis, panduan talent kreator UGC (try-on shot list produk Colorbox resmi, ekspresi natural, framing vertikal), narasi percakapan santai, dan kurasi audio trending serta audio pacing/SFX. Serahkan seluruh materi lengkap ke @contentstrategist (CRE-01) dan Tim Reviewer Manusia.'
+      const videoOut = await executeAgent(3, 'cre-04', videoPrompt, 'Video Vertikal & UGC')
+      if (!videoOut) throw new Error('Video & UGC Creator gagal menyusun materi video.')
 
-      // Step 5: Vina
-      setCascadeMsg('Langkah 5 dari 5: Vina membuat lima gambar carousel...')
-      setStage(4)
-      const vinaPrompt =
-        'Vina (@visualcarousel), eksekusi arahan visual dan master prompt dari Bram secara bespoke tanpa template baku. Render 5 slide berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080x1350 px PNG) menggunakan model visual openai/gpt-image-2 (OpenCode Zen) dan foto produk resmi Colorbox tanpa distorsi aspek rasio (contain mode, tidak gepeng) dan bebas dari noise wireframe/dots. Tampilkan pratinjau gambar dan link live interactive preview, lalu serahkan ke Bimo dan Tim Reviewer Manusia.'
-      const vinaOut = await executeAgent(4, 'vina', vinaPrompt, 'Aset Gambar Carousel')
-      if (!vinaOut) throw new Error('Vina gagal merender gambar.')
-
-      // Finished! Navigate to Stage 5 (Review Manusia)
+      // Finished! Navigate to Stage 4 (Review Manusia)
       setCascadeMsg('Alur selesai. Membuka tahap persetujuan...')
-      setStage(5)
+      setStage(4)
     } catch (e) {
       console.error(e)
     } finally {
@@ -469,11 +453,11 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
             </span>
           </div>
 
-          {/* Stage 0: Brief & PM (Bimo) */}
+          {/* Stage 0: Strategi & Distribusi (CRE-01) */}
           {stage === 0 && (
             <form className="ws-form" onSubmit={submitBrief} noValidate>
               <div className="ws-form-head">
-                <h2>1. Permintaan dan pembagian tugas (Bimo)</h2>
+                <h2>1. Strategi dan perencanaan distribusi (CRE-01 Content Strategist)</h2>
                 <button type="button" className="btn soft" onClick={() => setForm(COLORBOX_SAMPLE)}>
                   Isi contoh Colorbox
                 </button>
@@ -540,7 +524,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                     ))}
                   </select>
                 </Field>
-                <Field label="Jumlah slide" err={tried ? errs.count : ''}>
+                <Field label="Jumlah slide/output" err={tried ? errs.count : ''}>
                   <input
                     inputMode="numeric"
                     value={form.count}
@@ -570,91 +554,53 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
 
               <div className="form-actions ws-actions">
                 <button className="btn primary" type="submit" disabled={run.busy || cascading}>
-                  Kirim permintaan ke Bimo
+                  Kirim brief ke Content Strategist
                 </button>
                 <button type="button" className="btn soft" disabled={run.busy || cascading} onClick={runAutoCascade}>
-                  Jalankan semua langkah
+                  Jalankan semua langkah (4 Pegawai AI)
                 </button>
               </div>
             </form>
           )}
 
-          {/* Stage 1: Meda (Strategi & Konsep) */}
+          {/* Stage 1: Naskah & Copywriting (CRE-02) */}
           {stage === 1 && (
             <div className="ws-act">
-              <h2>2. Strategi dan konsep (Meda)</h2>
+              <h2>2. Naskah, storytelling, dan caption (CRE-02 Content & Copywriter)</h2>
               <p className="quiet">
-                Meda membaca permintaan dari Bimo, menentukan gaya kampanye, lalu menyiapkan tiga pilihan konsep dengan
-                produk dari katalog resmi Colorbox.
+                CRE-02 membaca arahan strategi dari CRE-01, merancang hook 3 detik pembuka, menulis on-screen microcopy minimalis (tanpa harga),
+                caption Instagram kampanye #NeverJustOneThing dengan harga resmi katalog, dan spoken script video natural.
               </p>
               <div className="ws-actions">
-                <button className="btn primary" disabled={run.busy || cascading} onClick={callMeda}>
-                  Minta strategi dan konsep
+                <button className="btn primary" disabled={run.busy || cascading} onClick={callCopywriter}>
+                  Minta naskah dan caption
                 </button>
                 <button type="button" className="btn soft" disabled={run.busy || cascading} onClick={runAutoCascade}>
-                  Jalankan semua langkah
+                  Jalankan semua langkah (4 Pegawai AI)
                 </button>
               </div>
             </div>
           )}
 
-          {/* Stage 2: Raka (Riset Katalog & Ukuran) */}
+          {/* Stage 2: Desain Grafis & Motion (CRE-03) */}
           {stage === 2 && (
             <div className="ws-act">
-              <h2>3. Riset katalog dan ukuran (Raka)</h2>
+              <h2>3. Desain grafis feed carousel dan motion (CRE-03 Graphic & Motion Designer)</h2>
               <p className="quiet">
-                Raka mencocokkan produk dengan katalog resmi Colorbox (1.206 produk), membaca panduan ukuran dalam cm,
-                memeriksa foto produk, lalu menyusun bahan riset untuk naskah.
-              </p>
-              <div className="ws-actions">
-                <button className="btn primary" disabled={run.busy || cascading} onClick={callRaka}>
-                  Minta riset katalog
-                </button>
-                <button type="button" className="btn soft" disabled={run.busy || cascading} onClick={runAutoCascade}>
-                  Jalankan semua langkah
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Stage 3: Bram (Naskah & Prompt AI) */}
-          {stage === 3 && (
-            <div className="ws-act">
-              <h2>4. Naskah dan arahan gambar (Bram)</h2>
-              <p className="quiet">
-                Bram menulis naskah lima slide, caption Instagram dengan tagar resmi #NeverJustOneThing, dan arahan visual
-                format 4:5 untuk pembuat gambar.
-              </p>
-              <div className="ws-actions">
-                <button className="btn primary" disabled={run.busy || cascading} onClick={callBram}>
-                  Minta naskah dan arahan gambar
-                </button>
-                <button type="button" className="btn soft" disabled={run.busy || cascading} onClick={runAutoCascade}>
-                  Jalankan semua langkah
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Stage 4: Vina (Aset Gambar Carousel) */}
-          {stage === 4 && (
-            <div className="ws-act">
-              <h2>5. Gambar carousel (Vina)</h2>
-              <p className="quiet">
-                Vina membuat gambar carousel Instagram ukuran 1080 × 1350 px (4:5) memakai foto produk asli Colorbox.
-                Hasilnya lima berkas gambar yang siap diunggah.
+                CRE-03 merancang tata letak visual 5 slide Instagram Feed Carousel 4:5 (1080 × 1350 px), arahan kinetic motion,
+                dan Master AI Visual Prompts fotorealistik (openai/gpt-image-2 via OpenCode) secara bespoke tanpa template baku.
               </p>
               <div className="suggest ws-suggest">
                 <div className="small">
-                  <b>Model gambar:</b> <code>openai/gpt-image-2</code> · <b>Ukuran:</b> 1080 × 1350 px (4:5)
+                  <b>Model gambar:</b> <code>openai/gpt-image-2</code> · <b>Format:</b> 1080 × 1350 px (4:5 Feed Portrait)
                   <br />
-                  <span className="quiet">Kalau gambar gagal dibuat, statusnya ditandai gagal.</span>
+                  <span className="quiet">Bebas template baku (Zero Canned Templates) · Rasio produk asli terkunci (contain mode).</span>
                 </div>
               </div>
 
               <div className="ws-actions ws-actions-after">
-                <button className="btn primary" disabled={run.busy || cascading} onClick={callVina}>
-                  {run.busy && stage === 4 ? 'Sedang membuat gambar...' : 'Minta gambar carousel'}
+                <button className="btn primary" disabled={run.busy || cascading} onClick={callMotionDesigner}>
+                  {run.busy && stage === 2 ? 'Sedang merancang visual...' : 'Minta desain visual & gambar'}
                 </button>
                 <a
                   href="/output/carousel_latest/carousel_preview.html"
@@ -662,8 +608,11 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                   rel="noopener noreferrer"
                   className="btn soft"
                 >
-                  Lihat pratinjau
+                  Lihat pratinjau carousel
                 </a>
+                <button type="button" className="btn soft" disabled={run.busy || cascading} onClick={runAutoCascade}>
+                  Jalankan semua langkah (4 Pegawai AI)
+                </button>
               </div>
 
               {/* Display Carousel Cards */}
@@ -682,12 +631,31 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
             </div>
           )}
 
-          {/* Stage 5: Review Manusia (Human-in-the-Loop Quality Gate) */}
-          {stage === 5 && (
+          {/* Stage 3: Video Vertikal & UGC (CRE-04) */}
+          {stage === 3 && (
+            <div className="ws-act">
+              <h2>4. Video vertikal 9:16 dan panduan UGC (CRE-04 Video & UGC Creator)</h2>
+              <p className="quiet">
+                CRE-04 merancang konsep video vertikal 9:16 (15-30 detik) untuk Reels/TikTok/Shorts, panduan talent kreator
+                (try-on shot list & demonstrasi produk asli), narasi UGC autentik, serta rekomendasi audio trending dan tempo ketukan.
+              </p>
+              <div className="ws-actions">
+                <button className="btn primary" disabled={run.busy || cascading} onClick={callVideoUgc}>
+                  Minta storyboard video & panduan UGC
+                </button>
+                <button type="button" className="btn soft" disabled={run.busy || cascading} onClick={runAutoCascade}>
+                  Jalankan semua langkah (4 Pegawai AI)
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 4: Review Manusia (Human Reviewer) */}
+          {stage === 4 && (
             <div className="human-review-card">
               <div className="ws-row ws-row-split">
                 <div>
-                  <h2 className="tight">6. Pemeriksaan dan persetujuan Anda</h2>
+                  <h2 className="tight">5. Pemeriksaan dan persetujuan Anda (Quality Gate)</h2>
                   <p className="quiet tight">
                     Periksa hasil akhir sebelum carousel dijadwalkan atau diterbitkan di Instagram Colorbox.
                   </p>
@@ -882,7 +850,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
             ) : stage > 0 || !run.error ? (
               <Empty title={`Belum ada hasil di tahap ${STAGE_LABELS[stage]}`}>
                 {stage === 0
-                  ? 'Isi formulir di atas, lalu kirim ke Bimo untuk memulai.'
+                  ? 'Isi formulir di atas, lalu kirim ke Content Strategist (CRE-01) untuk memulai.'
                   : 'Klik tombol di atas untuk menjalankan tahap ini.'}
               </Empty>
             ) : null)}
