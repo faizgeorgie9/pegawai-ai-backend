@@ -22,6 +22,7 @@ HEALTH=http://127.0.0.1:8090/api/health
 HOSTHDR=139.190.107.151.sslip.io
 KEEP_RELEASES=3
 KEEP_BACKUPS=5
+LOCK=/home/ubuntu/.deploy-pegawai-ai.lock
 
 log() { printf '[%s] %s\n' "$(date -u +%H:%M:%SZ)" "$*"; }
 die() { log "GAGAL: $*"; exit 1; }
@@ -43,6 +44,21 @@ REL="$REL_ROOT/$SHA"
 [ -d "$REL/bff" ] || die "tidak ada $REL/bff"
 [ -d "$REL/www" ] || die "tidak ada $REL/www"
 [ -f "$REL/SHA" ] || die "tidak ada $REL/SHA"
+
+# -------------------------------------------------- 0. kunci deploy (flock)
+# Satu deployer pada satu waktu. Kunci dipegang sampai skrip selesai; berkas
+# kunci sengaja tidak dihapus agar tidak ada balapan antar-proses.
+if command -v flock >/dev/null 2>&1; then
+    exec 9>>"$LOCK"
+    if ! flock -n 9; then
+        HOLDER=$(tail -n 1 "$LOCK" 2>/dev/null | tr -d '\r' || true)
+        die "deploy lain sedang berjalan (${HOLDER:-pemegang tidak diketahui}); tunggu sampai selesai"
+    fi
+    printf 'pid=%s at=%s\n' "$$" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >&9
+    log "0/7 kunci deploy dipegang (pid $$)"
+else
+    log "0/7 PERINGATAN: flock tidak ada, kunci deploy dilewati"
+fi
 
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 BK="$BACKUP_ROOT/deploy-$STAMP"
