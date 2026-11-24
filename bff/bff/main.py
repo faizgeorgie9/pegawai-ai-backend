@@ -13,7 +13,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import actions, apps, auth, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, mcp_privileges, memory, product_images, scheduler, sequences, settings, tasks, usage, whatsapp
+from . import actions, apps, auth, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, master_template, mcp_privileges, memory, product_images, scheduler, sequences, settings, tasks, usage, whatsapp
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -1359,6 +1359,51 @@ async def create_evaluation(request: Request):
 @api.patch("/evaluations/{eid}")
 async def update_evaluation(eid: str, request: Request):
     return await evaluations.update(current_user(), eid, await body_of(request))
+
+
+# ---------- Master Template & Hermes Config Alignment (Sprint 5 Day 3) ----------
+
+@api.get("/templates/master")
+async def get_master_templates():
+    """Retrieve the master agent template catalog and schema definition."""
+    return master_template.list_master_templates()
+
+
+@api.get("/templates/master/{role_id}")
+async def get_master_template_by_id(role_id: str):
+    """Retrieve full master template files and schema for a specific role."""
+    return master_template.get_template_detail(role_id)
+
+
+@api.post("/templates/render")
+async def render_template_endpoint(request: Request):
+    """Render a master template with client-specific context variables."""
+    b = await body_of(request)
+    role_id = b.get("role_id", "")
+    variables = b.get("variables", {})
+    if not role_id:
+        raise ApiError(400, "role_id wajib diisi")
+    return master_template.render_template(role_id, variables)
+
+
+@api.get("/hermes/config-mapping")
+async def get_hermes_config_mapping():
+    """Retrieve Hermes installed configuration mechanism and Master Template mapping specification."""
+    return master_template.get_hermes_config_mapping()
+
+
+@api.get("/bots/{bot_id}/permissions")
+async def get_bot_permissions_endpoint(bot_id: str):
+    """Retrieve unified Model, Provider, Reasoning Effort, FastMCP Tier, and KB boundaries for an agent."""
+    return await master_template.get_bot_permissions(bot_id, current_user())
+
+
+@api.patch("/bots/{bot_id}/permissions")
+async def update_bot_permissions_endpoint(bot_id: str, request: Request):
+    """Update agent's Model, Provider, Reasoning Effort, and MCP/KB permissions."""
+    b = await body_of(request)
+    return await master_template.update_bot_permissions(bot_id, b, current_user())
+
 
 
 app.include_router(public)

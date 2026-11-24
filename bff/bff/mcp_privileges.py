@@ -55,6 +55,16 @@ TOOL_PRIVILEGES: dict[str, MCPPrivilege] = {
     "task_cancel": MCPPrivilege.ADMIN,
 }
 
+# FastMCP Privilege Tier tool sets (Sprint 5 Day 3)
+TIER_TOOLS: dict[str, list[str]] = {
+    "READ": [t for t, p in TOOL_PRIVILEGES.items() if PRIVILEGE_HIERARCHY[p] <= 1],
+    "WRITE": [t for t, p in TOOL_PRIVILEGES.items() if PRIVILEGE_HIERARCHY[p] <= 2],
+    "ADMIN": [t for t, p in TOOL_PRIVILEGES.items() if PRIVILEGE_HIERARCHY[p] <= 3],
+}
+TIER_TOOLS["read"] = TIER_TOOLS["READ"]
+TIER_TOOLS["write"] = TIER_TOOLS["WRITE"]
+TIER_TOOLS["admin"] = TIER_TOOLS["ADMIN"]
+
 # Registered Agent Accounts & Default Privilege Tiers
 AGENT_MCP_REGISTRY: dict[str, dict] = {
     "siti": {
@@ -195,3 +205,41 @@ def list_mcp_privileges() -> dict:
         "tools": {t: p.value for t, p in TOOL_PRIVILEGES.items()},
         "accounts": AGENT_MCP_REGISTRY
     }
+
+def get_agent_privilege_matrix() -> dict:
+    """Return matrix mapping each agent to their MCP tier and permissions."""
+    return {
+        "hierarchy": [p.value for p in PRIVILEGE_HIERARCHY.keys()],
+        "agents": {
+            bot_id: {
+                "account_id": info["account_id"],
+                "tier": info["privilege"].value.upper(),
+                "privilege": info["privilege"].value,
+                "name": info["name"],
+                "role": info["role"],
+                "team": info["team"],
+            }
+            for bot_id, info in AGENT_MCP_REGISTRY.items()
+        }
+    }
+
+def register_account(account_id: str, bot_id: str, privilege: str | MCPPrivilege, name: str = "", role: str = "", team: str = "") -> dict:
+    """Register or dynamically update an agent's MCP account and tier."""
+    if isinstance(privilege, str):
+        priv_upper = privilege.upper()
+        priv_enum = MCPPrivilege[priv_upper] if priv_upper in MCPPrivilege.__members__ else MCPPrivilege.READ
+    else:
+        priv_enum = privilege
+    
+    bot_key = bot_id.lower().strip()
+    existing = AGENT_MCP_REGISTRY.get(bot_key, {})
+    entry = {
+        "account_id": account_id or existing.get("account_id", f"acc_{bot_key}_01"),
+        "privilege": priv_enum,
+        "name": name or existing.get("name", bot_id.title()),
+        "role": role or existing.get("role", "AI Agent"),
+        "team": team or existing.get("team", "general"),
+        "description": existing.get("description", f"Assigned MCP tier: {priv_enum.value.upper()}")
+    }
+    AGENT_MCP_REGISTRY[bot_key] = entry
+    return entry
