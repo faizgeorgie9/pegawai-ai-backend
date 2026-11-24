@@ -743,3 +743,129 @@ Antre **4**, Dikerjakan **0**, Perlu Anda **3**, Selesai **0**, Arsip **2**. Buk
 | `live-retest-fe3-warna-tersimpan-1280.png` | Bukti FE-3: warna + avatar toska tampil tanpa muat ulang |
 | `live-retest-fe5-konfirmasi-batalkan-1280.png` | Tombol **Batalkan** merah (`btn danger`) di dialog "Yakin?" |
 | `live-retest-nilai-dipulihkan-1280.png` | Keadaan akhir: "Biru langit" + "Ikuti bawaan" (semua nilai dipulihkan) |
+
+---
+
+## Uji setelah kunci akses
+
+**Ringkasan**
+
+- Dijalankan **25 November 2026, 01.37–01.53 WIB (24 Nov 2026, 18.37–18.53 UTC)** di aplikasi live
+  `https://139.190.107.151.sslip.io/demo/`, **setelah** deploy rilis **`ebf0e72`** (lihat `audit-vps.md` §15):
+  semua route `/api` wajib login, dan Nginx tidak lagi menyuntikkan `X-Pegawai-AI-Key`.
+- Build yang dinilai: `assets/index-B4csrld4.js` (`38c94966…`), `assets/index-8hSpk8Z5.css` (`9023cf85…`),
+  `index.html` (`323ea785…`) — ketiganya **byte-identik** dengan hasil `npm run build` lokal dari commit
+  `ebf0e72`. Bundle lama `index-aDJo1iqq.js` sudah dihapus (404).
+- Metode: Chromium headless (viewport 1706×960, `deviceScaleFactor 1`), sesi baru lewat form login; akun
+  `admin@pegawai.ai` (peran `admin`) dan `cs@colorbox.co.id` (peran `cs`). Kata sandi demo diambil dari
+  `bff/migrations/020_auth_users.sql` dan **tidak ditulis** di dokumen ini.
+- **Sanitasi:** token disamarkan `<jwt>`; tidak ada kata sandi, token, atau kunci yang dicetak. Pesan uji
+  yang dikirim ke agen: "Balas satu kata: oke" (admin) dan satu pertanyaan katalog untuk uji Telegram.
+- **Verdict:** semua alur yang diuji **PASS**; satu penyimpangan rencana dicatat di §3 (rian sudah dihapus).
+
+| # | Uji | Verdict |
+|---|---|---|
+| 1 | Sesi lama ditolak, login baru berhasil | **PASS** |
+| 2 | Grup menu **Admin** langsung terlihat setelah login (tanpa mengubah Pengaturan) | **PASS** |
+| 3 | Chat: riwayat termuat, kirim pesan → balasan, hapus topik | **PASS** (dengan catatan: rian sudah soft-delete sejak 18 Nov) |
+| 4 | Keluar → login lagi → grup Admin tetap muncul | **PASS** |
+| 5 | Akun staf: tanpa grup Admin, `#/agen` dialihkan ke Beranda | **PASS** |
+| 6 | Telegram: balasan agen nyata (produk + harga + ukuran) | **PASS** (lihat §4) |
+| 7 | Konsol & permintaan gagal selama uji | **PASS** (0 error konsol, 0 `requestfailed`) |
+| 8 | Log server selama jendela uji | **PASS** (0 respons 5xx) |
+
+### 1. Login dan tampilan sesi lama
+
+Membuka `/demo/` tanpa sesi menampilkan form **Masuk** dengan banner kuning:
+
+> Sesi Anda berakhir, silakan masuk lagi.
+
+Ini perilaku yang diinginkan: token lama (ditandatangani `BFF_API_KEY`) ditolak `401`, frontend membersihkan
+sesi dan menampilkan penjelasan yang tenang. Login `admin@pegawai.ai` → **200**, langsung masuk Beranda;
+tidak ada 401 berulang di jaringan setelah token baru dipakai.
+Bukti: `live-auth-01-login.png`.
+
+### 2. Grup Admin langsung terlihat
+
+Setelah login (tanpa membuka Pengaturan, tanpa mengubah sakelar apa pun) sidebar memuat grup **Admin**:
+Marketing (formulir), Layanan pelanggan, Agen, Kemampuan, Evaluasi, Aktivitas — di samping tujuh menu biasa.
+Tidak ada kedipan "memuat" yang menahan grup ini. Bukti: `live-auth-02-admin-langsung.png`.
+
+### 3. Chat: riwayat, balasan, hapus topik
+
+| Langkah | Hasil |
+|---|---|
+| Buka **Chat** | 7 pegawai aktif tampil (Siti, Hendra, Bimo, Meda, Raka, Bram, Vina); riwayat Siti termuat ("Belum ada percakapan dengan Siti."), tanpa "Menyambung ulang…" terus-menerus |
+| Kirim "Balas satu kata: oke" ke Siti | pesan tampil; indikator bekerja/berpikir; balasan **"oke"** datang ±13 detik lewat SSE ber-Bearer |
+| Riwayat | topik "Balas satu kata oke" muncul, waktu "baru saja" |
+| Hapus topik | hover → tombol **Hapus topik** → dialog "Hapus topik “Balas satu kata oke”? Hanya topik ini yang dihapus…" → **Hapus topik**; setelah muat ulang riwayat kosong lagi |
+
+Bukti: `live-auth-03-chat-balasan.png`, `live-auth-04-topik-dihapus.png`.
+
+**Catatan rencana uji:** permintaan awal adalah mengirim pesan ke **rian**. `rian` (bersama `budi` dan
+`diana`) sudah **soft-delete sejak 18 November 2026**, jadi tidak muncul di UI maupun `GET /api/bots`
+(7 aktif dari 10 baris). Uji dialihkan ke **Siti**; tidak ada pegawai yang dipulihkan atau diubah untuk uji.
+
+### 4. Telegram — agen nyata, bukan template
+
+Uji tanpa akun Telegram nyata: satu panggilan terautentikasi `POST /api/telegram/simulate` (chat fiktif
+`999888111`, `bot_id` `siti`) dengan pertanyaan
+**"Berapa harga Hoodie terbaru dan ukurannya apa saja?"**. Waktu **37 detik**, `HTTP 200`,
+`status: message_routed`, balasan **1.350 karakter**.
+
+Kutipan balasan (dipotong; isi tidak diubah):
+
+> Halo Kak, terima kasih sudah bertanya ya. Berikut item berjenis hoodie yang terlihat di katalog resmi
+> Colorbox saat data kami diamati pada 9 November 2026:
+> 1. Embroidered Long Sleeve Hoodie (Outerwear & Jackets), warna TAUPE — Rp 149.900 (harga sebelumnya
+>    Rp 229.900), ukuran tertera L, M, S, XL
+> 2. Long Sleeve Hoodie Cardigan (Knitwear & Sweaters), warna LT. BEIGE — Rp 249.900, ukuran tertera L, M, S, XL
+> 3. Long Sleeve Hoodie Cardigan (Knitwear & Sweaters), warna GREY — Rp 249.900, ukuran tertera L, M, S, XL
+> 4. Zipped Up Hoodie Knit Jacket (Knitwear & Sweaters), warna DARK GREEN — Rp 259.900, ukuran tertera L, M, S, XL
+> … Sleeveless Ruched Top with Hoodie, warna PLUM — Rp 65.900 (harga sebelumnya Rp 99.900) dengan ukuran tertera L, M, S, XL …
+> Colorbox x Liunic Oversized Sweatshirt — Rp 249.900 (promo Rp 239.900), ukuran S, M, L, XL …
+> harga di atas adalah harga yang kami catat pada tanggal pengamatan dan bisa berubah.
+
+Balasan memuat produk, harga, dan ukuran nyata dari katalog Colorbox — bukti run Hermes sungguhan lewat
+`engine.chat_turn` (bukan balasan template kata kunci).
+
+Pembersihan: sesi `tg-999888111-edcecc56` dihapus lewat API (`DELETE …/sessions/…` → **204**); baris
+`telegram_chats` (tanpa endpoint API) dihapus dengan satu `DELETE` SQL. Setelah itu `chat_sessions` uji = 0
+dan `telegram_chats` = 0. Pengiriman ke chat fiktif dijawab Telegram **400** (wajar) dan tidak memengaruhi run.
+
+### 5. Admin setelah keluar-masuk, dan akun staf
+
+| Skenario | Hasil |
+|---|---|
+| **Keluar** dari akun admin, login lagi | grup **Admin tetap muncul** tanpa mengubah Pengaturan — preferensi mode admin dibersihkan saat logout |
+| Login `cs@colorbox.co.id` (staf) | sidebar hanya 7 menu biasa; **tidak ada grup Admin**, tidak ada sakelar "Mode admin" |
+| Staf membuka `#/agen` | dialihkan ke `#/` (Beranda), bukan halaman kosong/error |
+
+Bukti: `live-auth-05-staf-tanpa-admin.png`.
+
+### 6. Konsol, jaringan, dan log server
+
+| Aspek | Hasil |
+|---|---|
+| Konsol browser (login → Beranda → Chat) | **0 error**, 0 `pageerror` |
+| Permintaan gagal (`requestfailed`) | **0** |
+| Nginx access log, jendela 01.36–01.55 WIB | 200 ×140, 401 ×24 (uji tanpa token), 403 ×4 (registrasi & verify WA), 405 ×2 (GET webhook Telegram), 400 ×2 (JSON rusak & kirim Telegram ke chat fiktif), 204 ×2, 304 ×2, 202 ×1, 404 ×1 (bundle lama) — **0 respons 5xx** di seluruh `access.log` |
+| Journal BFF sejak restart | bersih dari `traceback`/`exception`/`critical`; hanya baris `400 Bad Request` Telegram untuk chat uji fiktif |
+
+### 7. Indeks tangkapan layar
+
+| Berkas | Isi |
+|---|---|
+| `live-auth-01-login.png` | Form Masuk dengan banner "Sesi Anda berakhir, silakan masuk lagi." |
+| `live-auth-02-admin-langsung.png` | Beranda admin: grup **Admin** sudah terlihat tanpa mengubah Pengaturan |
+| `live-auth-03-chat-balasan.png` | Chat Siti: pesan uji, balasan "oke", riwayat "Balas satu kata oke" |
+| `live-auth-04-topik-dihapus.png` | Setelah topik dihapus dan halaman dimuat ulang: "Belum ada percakapan dengan Siti." |
+| `live-auth-05-staf-tanpa-admin.png` | Akun staf: sidebar tanpa grup Admin, berada di Beranda setelah `#/agen` dialihkan |
+
+### 8. Yang tidak diuji di bagian ini
+
+- Tidak ada akun Telegram nyata, WhatsApp nyata, OAuth, atau KB upload baru.
+- Tidak ada perubahan pegawai, warna, model, tugas, atau sambungan.
+- Satu-satunya tulisan data: satu topik chat uji (dihapus), sesi Telegram uji (dihapus), dan
+  `users.token_version` yang naik karena login/logout verifikasi (disengaja; semua pengguna login sekali).
+

@@ -1,4 +1,5 @@
 """Pegawai AI BFF: FastAPI app. Run: uv run uvicorn bff.main:app --port 8090 (binds 127.0.0.1)."""
+import logging
 import asyncio
 import json
 import time
@@ -17,6 +18,9 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from . import actions, apps, auth, bots, bridge, catalog, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, master_template, mcp_privileges, memory, memory_blueprint, product_images, scheduler, sequences, settings, tasks, telegram, usage, whatsapp
 from .engine import LIVE, hub
 from .errors import ApiError
+
+# httpx logs every request URL at INFO; Telegram's Bot API puts the bot token in the URL path, so keep it out of the journal.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 bridge_app = bridge.BridgeApp(bridge.build())  # MCP tools for the Hermes agents at /mcp (see bridge.py)
