@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, FastAPI, File, Header, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, File, Header, Request, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
@@ -450,15 +450,8 @@ async def create_run(bot_id: str, request: Request):
     if not isinstance(test_mode, bool):
         raise ApiError(400, "test_mode harus true atau false")
     origin = engine.clean_origin(b.get("origin")) or engine.infer_origin(None, workflow)
-    context = None
-    if workflow:
-        ins, context = await engine.workflow_context(bot, workflow, stage, test_mode, text, ins)
-    saved = []
-    if workflow != "cs":  # CS runs only see the authorized CS evidence (knowledge v2.1), never the user's own files
-        saved = await kb.save_links(uid, text)
-        if block := await kb.retrieve(uid, text, kb_ids, saved, bot_id=bot_id):
-            ins = f"{ins}\n\n{block}" if ins else block
-    run = await engine.start_run(uid, bot_id, sid, text.strip(), "chat", instructions=ins, context=context, origin=origin)
+    run, saved = await engine.chat_turn(uid, bot, sid, text.strip(), instructions=ins, workflow=workflow,
+                                        stage=stage, test_mode=test_mode, kb_ids=kb_ids, origin=origin)
     return {"run": engine.run_view(run), "session_id": sid, "kb": saved}
 
 
@@ -1422,26 +1415,29 @@ async def update_bot_permissions_endpoint(bot_id: str, request: Request):
 @public.post("/telegram/webhook")
 async def telegram_webhook_endpoint(
     request: Request,
+    background_tasks: BackgroundTasks,
     x_telegram_bot_api_secret_token: Optional[str] = Header(None, alias="X-Telegram-Bot-Api-Secret-Token")
 ):
-    """Receive and process incoming Telegram bot updates."""
+    """Accept a Telegram update and answer 200 at once; the agent turn (up to two minutes) runs after the response."""
     b = await body_of(request)
-    return await telegram.process_telegram_update(b, x_telegram_bot_api_secret_token)
+    telegram.require_webhook_secret(x_telegram_bot_api_secret_token)
+    background_tasks.add_task(telegram.process_telegram_update_in_background, b, x_telegram_bot_api_secret_token)
+    return {"ok": True, "status": "accepted"}
 
 
 @public.post("/telegram/webhook/{bot_id}")
 async def telegram_webhook_bot_endpoint(
     bot_id: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     x_telegram_bot_api_secret_token: Optional[str] = Header(None, alias="X-Telegram-Bot-Api-Secret-Token")
 ):
-    """Receive and process incoming Telegram updates scoped to a specific bot."""
+    """Receive Telegram updates for one bot's own webhook; the chat is bound to that bot (owner-checked)."""
     b = await body_of(request)
-    message = b.get("message") or b.get("edited_message", {})
-    chat_id = message.get("chat", {}).get("id")
-    if chat_id:
-        telegram.set_chat_active_bot(chat_id, bot_id)
-    return await telegram.process_telegram_update(b, x_telegram_bot_api_secret_token)
+    telegram.require_webhook_secret(x_telegram_bot_api_secret_token)
+    background_tasks.add_task(telegram.process_telegram_update_in_background, b, x_telegram_bot_api_secret_token,
+                              forced_bot_id=bot_id)
+    return {"ok": True, "status": "accepted"}
 
 
 @api.get("/telegram/status")
@@ -1471,8 +1467,6 @@ async def telegram_simulate_endpoint(request: Request):
     chat_id = b.get("chat_id", 999888111)
     sender_name = b.get("sender_name", "User Uji")
     bot_id = b.get("bot_id")
-    if bot_id:
-        telegram.set_chat_active_bot(chat_id, bot_id)
     simulated_update = {
         "update_id": int(time.time() * 1000) % 10000000,
         "message": {
@@ -1484,7 +1478,7 @@ async def telegram_simulate_endpoint(request: Request):
         }
     }
     secret = b.get("secret_token") or telegram.TELEGRAM_WEBHOOK_SECRET
-    return await telegram.process_telegram_update(simulated_update, secret)
+    return await telegram.process_telegram_update(simulated_update, secret, forced_bot_id=bot_id or None)
 
 
 # ---------- five-layer memory blueprint & benchmark (Sprint 5 Day 4) ----------

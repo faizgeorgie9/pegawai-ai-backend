@@ -170,16 +170,39 @@ def test_hermes_config_and_master_template_validation():
 
 @pytest.mark.anyio
 async def test_telegram_webhook_execution(monkeypatch, signed_in):
-    """Verifies Telegram webhook secret validation and command dispatching."""
+    """Invalid secrets are rejected before any work; a valid webhook answers at once and queues the agent turn."""
+    queued = []
+
+    async def queued_turn(payload, secret=None, *, forced_bot_id=None):
+        queued.append((payload, forced_bot_id))
+
+    async def fake_state(chat_id, _forced_bot_id=None):
+        return telegram.ChatState(chat_id, "user_owner",
+                                  {"id": "siti", "name": "Siti", "team": "customer_support"}, None)
+
+    monkeypatch.setattr(telegram, "process_telegram_update_in_background", queued_turn)
+    monkeypatch.setattr(telegram, "_resolve_chat", fake_state)
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Invalid secret token -> 401 Unauthorized
+        # Invalid secret token -> 401 Unauthorized, and nothing is queued
         bad_token_res = await client.post(
             "/api/telegram/webhook",
             json={"update_id": 1001, "message": {"message_id": 1, "chat": {"id": 123}, "text": "/status"}},
             headers={"X-Telegram-Bot-Api-Secret-Token": "invalid_secret"}
         )
         assert bad_token_res.status_code == 401
+        assert queued == []
+
+        # Valid update -> 200 accepted without waiting for the run
+        good = await client.post(
+            "/api/telegram/webhook",
+            json={"update_id": 1002, "message": {"message_id": 2, "chat": {"id": 123}, "text": "Halo"}},
+            headers={"X-Telegram-Bot-Api-Secret-Token": telegram.TELEGRAM_WEBHOOK_SECRET}
+        )
+        assert good.status_code == 200
+        assert good.json() == {"ok": True, "status": "accepted"}
+        assert queued and queued[0][0]["update_id"] == 1002
 
         # Simulation endpoint (valid)
         sim_res = await client.post(

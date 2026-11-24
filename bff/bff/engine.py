@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import httpx
 
-from . import catalog, costs, cs_schema, db, hermes, knowledge, settings, versions
+from . import catalog, costs, cs_schema, db, hermes, kb, knowledge, settings, versions
 from .errors import ApiError
 from .redact import redact
 
@@ -209,6 +209,25 @@ async def workflow_context(bot: dict, workflow: str, stage: str | None, test_mod
     products = await catalog.search_products(text, limit=5)
     ins, refs, meta = knowledge.build_context(bot["team"], workflow, ins, products, test_mode and workflow == "cs")
     return ins, {**meta, "stage": stage.strip() if stage else None, "test_mode": test_mode, "context_refs": refs}
+
+
+async def chat_turn(user_id: str, bot: dict, session_id: str, text: str, *, instructions: str | None = None,
+                    workflow: str | None = None, stage: str | None = None, test_mode: bool = False,
+                    kb_ids: list[str] | None = None, origin: dict | None = None) -> tuple[dict, list[dict]]:
+    """One chat turn, shared by the web chat routes and the chat bridges (Telegram): workflow instructions, the
+    user's own KB grounding (never for CS, which sees only the authorized CS evidence), then the run.
+    `start_run`/`finalize` record tokens and cost, so bridged turns appear in usage like web chat."""
+    ins = instructions
+    context = None
+    if workflow:
+        ins, context = await workflow_context(bot, workflow, stage, test_mode, text, ins)
+    saved: list[dict] = []
+    if workflow != "cs":
+        saved = await kb.save_links(user_id, text)
+        if block := await kb.retrieve(user_id, text, kb_ids or [], saved, bot_id=bot["id"]):
+            ins = f"{ins}\n\n{block}" if ins else block
+    run = await start_run(user_id, bot["id"], session_id, text, "chat", instructions=ins, context=context, origin=origin)
+    return run, saved
 
 
 async def _fail_early(rid: str, msg: str) -> None:

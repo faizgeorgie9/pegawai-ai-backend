@@ -247,3 +247,42 @@ Bila benar-benar perlu membatalkan semua sesi: naikkan `token_version` semua bar
 - Tab **Daftar** masih tampil di halaman login; server menjawab 403 dengan pesan jelas. Menyembunyikan
   tab adalah pekerjaan FE terpisah (butuh endpoint konfigurasi publik).
 - Akun demo non-admin masih workspace kosong (temuan tenant, di luar lingkup auth).
+
+---
+
+## 10. Telegram: agen nyata, bukan balasan template (migrasi 023)
+
+Sebelum rilis ini, pesan Telegram dibalas dari template kata kunci dan status chat (`chat_id` → bot/sesi)
+hanya ada di memori proses: hilang saat restart, dan setiap balasan memakai tenant `default`. Sekarang:
+
+| Hal | Perilaku baru |
+|---|---|
+| Balasan | Satu run Hermes sungguhan lewat jalur yang sama dengan chat web (`engine.chat_turn`): instruksi CS, pengetahuan/KB, dan pencatatan biaya yang sama. |
+| Identitas | Run milik **pemilik bot** (`auth.service_user(bot_id)`), bukan `default`. Chat baru memakai bot default (`TELEGRAM_DEFAULT_BOT`, bawaan `siti`). |
+| Sesi | `telegram_chats` (migrasi `023_telegram_chats.sql`, aditif) menyimpan `chat_id` → `user_id`, `bot_id`, `session_id`. Sesi didaftarkan juga di `chat_sessions`, jadi muncul di riwayat chat web. |
+| `/reset` | Sesi baru pada pesan berikutnya; pegawai AI tetap. |
+| `/agent <nama>` | Hanya pegawai AI aktif milik pemilik chat itu. Nama lain dijawab "tidak tersedia". |
+| Webhook | `POST /api/telegram/webhook[/{bot_id}]` menjawab `200` segera; run berjalan di background task. Selama menunggu, `sendChatAction: typing` dikirim tiap ~4 detik. |
+| Gagal/timeout | Balasan Indonesia sederhana (mis. "Maaf, Siti sedang tidak bisa menjawab. Coba lagi sebentar lagi."), detail hanya di log. Tidak ada stack trace ke pelanggan. |
+| CS | Jawaban terstruktur CS (`customer_reply_draft`) dikirim sebagai teks pelanggan; JSON mentah tidak pernah dikirim. |
+
+Tidak ada environment baru yang wajib. `TELEGRAM_DEFAULT_BOT` opsional. Migrasi berjalan otomatis saat BFF
+start (satu transaksi per berkas); tidak ada langkah SQL manual. Setelah restart, cek:
+
+```bash
+cd /home/ubuntu/pegawai-ai/bff && uv run python - <<'PY'
+import asyncio
+from bff import db
+async def main():
+    await db.open_pool()
+    t = await db.q1("select to_regclass('public.telegram_chats') as t")
+    n = await db.q1("select count(*)::int as n from schema_migrations")
+    print("telegram_chats:", bool(t["t"]), "| migrations:", n["n"])
+    await db.close_pool()
+asyncio.run(main())
+PY
+```
+
+Kirim satu pesan ke bot; log BFF harus menunjukkan run agent (bukan balasan template), dan baris
+`telegram_chats` untuk chat itu harus bertambah. Jangan mencetak token bot atau isi pesan pelanggan ke log
+produksi.
