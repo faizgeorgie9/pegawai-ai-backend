@@ -173,7 +173,7 @@ export function Scheduler() {
         <h2 style={{ color: '#10b981' }}>🟢 Autonomous Content Scheduler Aktif</h2>
         <p>
           Scheduler multi-agent untuk <b>Colorbox Indonesia</b> telah aktif. Sistem menjalankan alur kerja 5 AI Agent
-          (Bimo, Meda, Raka, Bram, Vina) secara terjadwal untuk menghasilkan materi Feed Carousel harian siap tayang
+          (CRE-01, CRE-02, CRE-03, CRE-04) secara terjadwal untuk menghasilkan materi Feed Carousel harian siap tayang
           tanpa memerlukan prompt manual setiap hari.
         </p>
       </div>
@@ -201,7 +201,7 @@ export function Scheduler() {
                   <small style={{ color: '#64748b' }}>Hari 1: Campus Rebel, Hari 2: Weekend Chill, Hari 3: Monochrome</small>
                 </td>
                 <td data-label="Jadwal">Setiap Hari, 08.00 WIB</td>
-                <td data-label="Agen Pelaksana">Bimo, Meda, Raka, Bram, Vina</td>
+                <td data-label="Agen Pelaksana">CRE-01, CRE-02, CRE-03, CRE-04</td>
                 <td data-label="Format Output">5 Slide (1080x1350 PNG) + HTML Preview</td>
                 <td data-label="Status">
                   <span style={{ color: '#10b981', fontWeight: 600 }}>Aktif (Berjalan)</span>
@@ -214,7 +214,7 @@ export function Scheduler() {
                   <small style={{ color: '#64748b' }}>Validasi 1.206 produk & spesifikasi cm</small>
                 </td>
                 <td data-label="Jadwal">Setiap Senin, 06.00 WIB</td>
-                <td data-label="Agen Pelaksana">Raka (@researcher)</td>
+                <td data-label="Agen Pelaksana">CRE-01 (@contentstrategist)</td>
                 <td data-label="Format Output">Dossier Riset & Image Audit</td>
                 <td data-label="Status">
                   <span style={{ color: '#10b981', fontWeight: 600 }}>Aktif</span>

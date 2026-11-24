@@ -13,18 +13,18 @@ import { Empty, Loading, Opt, PageHead } from './ui-extra'
 import { ConfirmSwitch, OpenInChat, RunBar, Switch, hhmm, teamBots } from './ws-common'
 
 const STAGES = [
-  '1. Brief & PM',
-  '2. Strategi & Konsep',
-  '3. Riset Katalog',
-  '4. Naskah & Prompt',
-  '5. Aset Gambar',
-  '6. Review Manusia',
+  '1. Strategi & Brief (CRE-01)',
+  '2. Naskah & Copy (CRE-02)',
+  '3. Visual Carousel 4:5 (CRE-03)',
+  '4. Video UGC 9:16 (CRE-04)',
+  '5. Review Manusia & Quality Gate',
 ] as const
 
 const KIND: MarketingKind[] = ['brief', 'plan', 'content', 'review', 'revision']
 const CHANNELS = ['Instagram', 'TikTok', 'WhatsApp', 'Website / marketplace']
 const CONTENT_TYPES = [
   'Feed Carousel (4:5 Portrait)',
+  'Video UGC Vertikal (9:16)',
   'Caption Instagram',
   'Copy promosi',
   'Headline',
@@ -43,20 +43,19 @@ interface AgentInfo {
 }
 
 const AGENTS: AgentInfo[] = [
-  { id: 'bimo', name: 'Bimo', role: 'AI Project Manager', handle: '@projectmanager', tagline: 'Inisialisasi Kanban & Brief Dispatch', badgeColor: '#f59e0b', modelInfo: 'DeepSeek V4.1 Flash (OpenCode Zen)' },
-  { id: 'meda', name: 'Meda', role: 'Marketing & Fashion Strategist', handle: '@marketingstrategist', tagline: 'Target Audiens Gen Z & 3 Opsi Konsep (A/B/C)', badgeColor: '#f43f5e', modelInfo: 'DeepSeek V4.1 Flash (OpenCode Zen)' },
-  { id: 'raka', name: 'Raka', role: 'Fashion & Content Researcher', handle: '@researcher', tagline: 'Cek 1.206 Katalog, Size Guide (cm) & Aset Foto', badgeColor: '#0ea5e9', modelInfo: 'DeepSeek V4.1 Flash (OpenCode Zen)' },
-  { id: 'bram', name: 'Bram', role: 'Creative Copywriter & Visual Prompter', handle: '@sketchwriter', tagline: 'Naskah 5 Slide AIDA, Caption IG & AI Visual Prompt', badgeColor: '#6366f1', modelInfo: 'DeepSeek V4.1 Flash (OpenCode Zen)' },
-  { id: 'vina', name: 'Vina', role: 'Visual Art Director & Carousel Specialist', handle: '@visualcarousel', tagline: 'Render 5 Slide Gambar Final (1080x1350 px PNG) & Live Preview', badgeColor: '#14b8a6', modelInfo: 'openai/gpt-image-2 (OpenCode Zen)' },
-  { id: 'human', name: 'Reviewer Manusia', role: 'Final Quality Gate & Human Approval', handle: '@humanreviewer', tagline: 'Quality Gate, Audit Anti-Halusinasi & Persetujuan Tayang', badgeColor: '#10b981', modelInfo: 'Human-in-the-Loop' },
+  { id: 'cre-01', name: 'CRE-01 Content Strategist', role: 'Content Strategist & Omnichannel Lead', handle: '@contentstrategist', tagline: 'Analisis Brief, Kurasi Produk Katalog & Flow Controller', badgeColor: '#f59e0b', modelInfo: 'DeepSeek V4.1 Flash (OpenCode Go)' },
+  { id: 'cre-02', name: 'CRE-02 Content & Copywriter', role: 'Content & Copywriter Lead', handle: '@copywriter', tagline: 'Hook 3 Detik, Storytelling Gen Z, Zero-Text 5 Slide & IG Caption', badgeColor: '#f43f5e', modelInfo: 'DeepSeek V4.1 Flash (OpenCode Go)' },
+  { id: 'cre-03', name: 'CRE-03 Graphic & Motion Designer', role: 'Graphic & Motion Designer Lead', handle: '@graphicdesigner', tagline: 'Render 5 Slide Carousel 4:5 (1080x1350 px), 5 Pilar Estetik & Anti-Stretch', badgeColor: '#14b8a6', modelInfo: 'openai/gpt-image-2 (OpenCode Zen)' },
+  { id: 'cre-04', name: 'CRE-04 Video & UGC Creator', role: 'Video & UGC Creator Lead', handle: '@videocreator', tagline: 'Naskah, Storyboard & Video UGC Vertikal 9:16 (720x1280 px MP4)', badgeColor: '#6366f1', modelInfo: 'grok-imagine-video / OpenCode API' },
+  { id: 'human', name: 'Reviewer Manusia (Ivanagita)', role: 'Final Quality Gate & Human Approval', handle: '@humanreviewer', tagline: 'Quality Gate Level 2, Audit Anti-Halusinasi & Persetujuan Tayang', badgeColor: '#10b981', modelInfo: 'Human-in-the-Loop' },
 ]
 
 const CAROUSEL_SLIDES = [
-  { n: 1, title: 'Slide 1: Cover Hook', desc: 'Effortless Campus Rebel · Formula OOTD Ngampus Standout', img: '/output/carousel_latest/slide_1_cover_hero.png' },
-  { n: 2, title: 'Slide 2: Hero Top', desc: 'Contrast Stitch Chambray Shirt (Rp 140.900) · Dark Blue', img: '/output/carousel_latest/slide_2_hero_top.png' },
-  { n: 3, title: 'Slide 3: Bottom Pairing', desc: 'High Waist Barrel Denim Pants (Rp 329.900) · Black', img: '/output/carousel_latest/slide_3_bottom_pairing.png' },
-  { n: 4, title: 'Slide 4: Accessories & Flatlay', desc: 'Colorbox x Liunic Ecru Tote & Layering Advice', img: '/output/carousel_latest/slide_4_accessories_flatlay.png' },
-  { n: 5, title: 'Slide 5: Outro CTA', desc: 'Temukan Fit Favoritmu di colorbox.co.id #NeverJustOneThing', img: '/output/carousel_latest/slide_5_outro_cta.png' },
+  { n: 1, title: 'Slide 1: Cover Hook', desc: 'Split Editorial / Hero Cutout · Formula OOTD Gen Z Standout', img: '/output/carousel_latest/slide_1_cover_hero.png' },
+  { n: 2, title: 'Slide 2: Hero Top', desc: 'Craftsmanship Detail · Foto Produk Asli Proporsional Anti-Stretch', img: '/output/carousel_latest/slide_2_hero_top.png' },
+  { n: 3, title: 'Slide 3: Bottom Pairing', desc: 'Padu-Padan Bawahan · Siluet Harmonis Tanpa Pengulangan Produk', img: '/output/carousel_latest/slide_3_bottom_pairing.png' },
+  { n: 4, title: 'Slide 4: Accessories & Flatlay', desc: 'Cozy Flatlay & Ambient Boutique · Layering Guide Estetik', img: '/output/carousel_latest/slide_4_accessories_flatlay.png' },
+  { n: 5, title: 'Slide 5: Outro CTA', desc: 'Paper-Doll Wardrobe Summary · Cek Link Bio #NeverJustOneThing', img: '/output/carousel_latest/slide_5_outro_cta.png' },
 ]
 
 interface Output {
@@ -64,7 +63,7 @@ interface Output {
   stage: number
   agentId: string
   agentName: string
-  n: number // version within the stage
+  n: number
   label: string
   text: string
   parsed: Parsed<MarketingResult>
@@ -93,18 +92,18 @@ const blankForm = {
 type Form = typeof blankForm
 
 const COLORBOX_SAMPLE: Form = {
-  objective: 'Meningkatkan ketertarikan produk melalui inspirasi styling OOTD kuliah (Campus Lookbook) di Instagram',
+  objective: 'Meningkatkan ketertarikan produk melalui inspirasi styling OOTD Gen Z (Campus Lookbook) di Instagram',
   product: 'Oversize Long Sleeve Checks Blazer (Rp 299.900 - DUSTY OLIVE)',
   channel: 'Instagram',
   contentType: 'Feed Carousel (4:5 Portrait)',
   count: '5',
-  audience: 'Remaja/Pemuda Gen Z terutama perempuan (18-25 tahun, Colorbox Babes)',
-  tone: 'Fun, effortless, confident, ramah, dan mendukung self-expression #NeverJustOneThing',
+  audience: 'Remaja/Pemuda Gen Z cewek 13–24 tahun, Colorbox Babes',
+  tone: 'Playful, expressive, authentic, fearless, dan mendukung self-expression #NeverJustOneThing',
   keyMessage: 'Formula styling kampus effortless: paduan blazer checks oversize & denim chic yang standout seharian tanpa ribet',
   cta: 'Cek katalog lengkap dan ukuran di website resmi colorbox.co.id atau gerai terdekat',
   period: '18 November - 22 November 2026',
   promoFacts: 'Koleksi New Arrivals Colorbox 2026 (tanpa promo diskon fiktif)',
-  forbidden: 'Jangan mengarang promo, potongan harga fiktif, stok, atau bahan kain yang tidak tercantum di katalog resmi',
+  forbidden: 'DILARANG teks di atas visual (Zero Text on Visual Rule), dilarang mengarang promo, potongan harga fiktif, stok, atau bahan kain yang tidak tercantum di katalog resmi',
   unknowns: 'Pilihan varian warna tambahan di luar katalog resmi',
 }
 
@@ -156,34 +155,34 @@ function briefPrompt(f: Form): string {
     row('Format Konten', f.contentType) +
     row('Jumlah Output/Slide', f.count) +
     FIELDS.map(([k, l]) => row(l, f[k])).join('') +
-    '\nBimo (@projectmanager), tolong periksa brief ini, catat pembagian tugas sprint di papan Kanban, dan panggil @meda (@marketingstrategist) untuk menyiapkan 3 opsi konsep konten.'
+    '\nCRE-01 Content Strategist (@contentstrategist), tolong periksa brief ini, rumuskan pilar kampanye #NeverJustOneThing, tentukan arahan produk katalog resmi, dan panggil @cre-02 (@copywriter) untuk menyusun naskah storytelling dan caption.'
   )
 }
 
 export default function Marketing() {
   const { bots } = useData()
   const team = teamBots(bots, 'marketing')
-  const [agent, setAgent] = useState('bimo')
+  const [agent, setAgent] = useState('cre-01')
   const [pending, setPending] = useState('')
   const dirty = useRef(false)
-  const cur = team.find((b) => b.id === agent) ?? team.find((b) => b.id === 'bimo') ?? team[0]
+  const cur = team.find((b) => b.id === agent) ?? team.find((b) => b.id === 'cre-01') ?? team[0]
 
   return (
     <section className="page ws" data-team="marketing">
       <PageHead
-        title="Marketing Workflow"
-        sub="Alur 5-Agent Colorbox: Bimo (PM) → Meda (Strategi) → Raka (Riset Katalog) → Bram (Naskah & AI Prompt) → Vina (Aset Gambar) → Review Manusia."
+        title="Marketing Workflow (Content & Creative)"
+        sub="Alur 4-Pegawai AI Colorbox: CRE-01 (Content Strategist) → CRE-02 (Content & Copywriter) → CRE-03 (Graphic & Motion Designer) → CRE-04 (Video & UGC Creator) → Review Manusia."
         actions={
           <div className="ws-agent" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span className="mkt-agent-badge" style={{ borderColor: '#10b981' }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }} />
-              Alur 5-Agent Colorbox Aktif
+              Divisi Content & Creative (CRE-01 s/d CRE-04) Aktif
             </span>
           </div>
         }
       />
       {!cur ? (
-        <Loading text="Memuat agen marketing Colorbox..." />
+        <Loading text="Memuat tim Content & Creative Colorbox..." />
       ) : (
         <Workspace key={cur.id} leadBot={cur} onDirty={(v) => (dirty.current = v)} />
       )}
@@ -218,13 +217,14 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
   const [cascading, setCascading] = useState(false)
   const [cascadeMsg, setCascadeMsg] = useState('')
 
-  // Human Review State (Stage 5)
+  // Human Review State (Stage 4)
   const [checklist, setChecklist] = useState({
     catalogFact: true,
     noFabricHallucination: true,
     ratio45: true,
     brandTone: true,
     officialCTA: true,
+    zeroTextRule: true,
   })
   const [decision, setDecision] = useState<'pending' | 'approved' | 'revision' | 'rejected'>('pending')
   const [reviewNotes, setReviewNotes] = useState('')
@@ -237,7 +237,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
   }, [hasWork, onDirty])
 
   const stageDone = (i: number) => {
-    if (i < 5) return outs.some((o) => o.stage === i)
+    if (i < 4) return outs.some((o) => o.stage === i)
     return decision === 'approved'
   }
 
@@ -285,31 +285,25 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
     e.preventDefault()
     setTried(true)
     if (Object.keys(errs).length || run.busy) return
-    void executeAgent(0, 'bimo', briefPrompt(form), 'Brief & Kanban')
+    void executeAgent(0, 'cre-01', briefPrompt(form), 'Strategi & Brief')
   }
 
-  function callMeda() {
+  function callCRE02() {
     const prompt =
-      'Meda (@marketingstrategist), berdasarkan brief dari Bimo, rumuskan strategi kampanye, target audiens Gen Z, 3 pilar gaya (Urban/Romantic/Chic), dan pilih produk katalog Colorbox resmi. Buat 3 opsi konsep konten (Opsi A/B/C) dengan rekomendasi utama pada Opsi A, lalu delegasikan ke Raka (@researcher).'
-    void executeAgent(1, 'meda', prompt, 'Strategi & Konsep')
+      'CRE-02 Content & Copywriter (@copywriter), berdasarkan brief dari CRE-01, susun hook 3 detik thumb-stopping, storytelling Gen Z (#NeverJustOneThing), naskah 5 slide carousel dengan aturan Zero-Text on Visual, dan caption Instagram lengkap dengan harga katalog resmi (product-catalog.md). Lalu delegasikan ke CRE-03 (@graphicdesigner).'
+    void executeAgent(1, 'cre-02', prompt, 'Naskah & Copy')
   }
 
-  function callRaka() {
+  function callCRE03() {
     const prompt =
-      'Raka (@researcher), validasi produk dari konsep Meda ke katalog resmi Colorbox (product-catalog.md), sertakan harga normal/diskon Rp, bedah panduan ukuran cm (lingkar dada, pinggang, panjang) dari product-size-reference.md, cek ketersediaan foto di images/, dan buat Creative Research Brief 5 slide. Lalu teruskan ke Bram (@sketchwriter).'
-    void executeAgent(2, 'raka', prompt, 'Riset Katalog & Ukuran')
+      'CRE-03 Graphic & Motion Designer (@graphicdesigner), eksekusi arahan visual dan naskah dari CRE-02. Render 5 slide berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080x1350 px PNG) menggunakan model visual openai/gpt-image-2 (OpenCode Zen) dan foto produk resmi Colorbox tanpa distorsi aspek rasio (contain mode, tidak gepeng) dan bebas dari noise wireframe/dots. Tampilkan pratinjau gambar dan link live interactive preview, lalu delegasikan ke CRE-04 (@videocreator).'
+    void executeAgent(2, 'cre-03', prompt, 'Visual Carousel 4:5')
   }
 
-  function callBram() {
+  function callCRE04() {
     const prompt =
-      'Bram (@sketchwriter), rancang naskah kreatif dan master AI prompt untuk postingan Instagram tanpa menggunakan template baku (JANGAN GUNAKAN TEMPLATE / ZERO RIGID FORMULAS). Buat konsep unik dari nol sesuai produk terpilih dari Raka, susun on-screen micro-copy minimalis (1-2 kata, tanpa harga), caption Instagram lengkap hashtag #NeverJustOneThing dan harga resmi katalog, serta AI Visual Generation Prompt yang sangat detail, fotorealistik, dan kaya arahan artistik (lighting, angle 4:5 Feed Portrait, lensa 35mm, latar arsitektur nyata, dan model styling) untuk model openai/gpt-image-2 via OpenCode. Lalu serahkan ke Vina (@visualcarousel).'
-    void executeAgent(3, 'bram', prompt, 'Naskah & Prompt AI')
-  }
-
-  function callVina() {
-    const prompt =
-      'Vina (@visualcarousel), eksekusi arahan visual dan master prompt dari Bram secara bespoke tanpa template baku. Render 5 slide berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080x1350 px PNG) menggunakan model visual openai/gpt-image-2 (OpenCode Zen) dan foto produk resmi Colorbox tanpa distorsi aspek rasio (contain mode, tidak gepeng) dan bebas dari noise wireframe/dots. Tampilkan pratinjau gambar dan link live interactive preview, lalu serahkan ke Bimo dan Tim Reviewer Manusia.'
-    void executeAgent(4, 'vina', prompt, 'Aset Gambar Carousel')
+      'CRE-04 Video & UGC Creator (@videocreator), rancang konsep dan storyboard detik-demi-detik video vertikal 9:16 (720x1280 px MP4) fit check model asli Colorbox, panduan UGC talent, dan tautan pratinjau video live. Lalu serahkan kembali ke CRE-01 dan Tim Reviewer Manusia.'
+    void executeAgent(3, 'cre-04', prompt, 'Video UGC 9:16')
   }
 
   async function runAutoCascade() {
@@ -319,47 +313,39 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
 
     setCascading(true)
     try {
-      // Step 1: Bimo
-      setCascadeMsg('Tahap 1/5: Bimo (@projectmanager) memproses brief & kanban...')
+      // Step 1: CRE-01
+      setCascadeMsg('Tahap 1/4: CRE-01 (@contentstrategist) merumuskan brief & strategi pilar...')
       setStage(0)
-      const bimoOut = await executeAgent(0, 'bimo', briefPrompt(form), 'Brief & Kanban')
-      if (!bimoOut) throw new Error('Bimo gagal memproses brief.')
+      const out1 = await executeAgent(0, 'cre-01', briefPrompt(form), 'Strategi & Brief')
+      if (!out1) throw new Error('CRE-01 gagal memproses brief.')
 
-      // Step 2: Meda
-      setCascadeMsg('Tahap 2/5: Meda (@marketingstrategist) menyusun 3 opsi konsep...')
+      // Step 2: CRE-02
+      setCascadeMsg('Tahap 2/4: CRE-02 (@copywriter) menulis storytelling & naskah zero-text...')
       setStage(1)
-      const medaPrompt =
-        'Meda (@marketingstrategist), berdasarkan brief dari Bimo, rumuskan strategi kampanye, target audiens Gen Z, 3 pilar gaya (Urban/Romantic/Chic), dan pilih produk katalog Colorbox resmi. Buat 3 opsi konsep konten (Opsi A/B/C) dengan rekomendasi utama pada Opsi A, lalu delegasikan ke Raka (@researcher).'
-      const medaOut = await executeAgent(1, 'meda', medaPrompt, 'Strategi & Konsep')
-      if (!medaOut) throw new Error('Meda gagal merumuskan konsep.')
+      const prompt2 =
+        'CRE-02 Content & Copywriter (@copywriter), berdasarkan brief dari CRE-01, susun hook 3 detik thumb-stopping, storytelling Gen Z (#NeverJustOneThing), naskah 5 slide carousel dengan aturan Zero-Text on Visual, dan caption Instagram lengkap dengan harga katalog resmi (product-catalog.md). Lalu delegasikan ke CRE-03 (@graphicdesigner).'
+      const out2 = await executeAgent(1, 'cre-02', prompt2, 'Naskah & Copy')
+      if (!out2) throw new Error('CRE-02 gagal merumuskan naskah copy.')
 
-      // Step 3: Raka
-      setCascadeMsg('Tahap 3/5: Raka (@researcher) memeriksa 1.216 katalog & ukuran cm...')
+      // Step 3: CRE-03
+      setCascadeMsg('Tahap 3/4: CRE-03 (@graphicdesigner) merender 5 slide visual carousel 4:5...')
       setStage(2)
-      const rakaPrompt =
-        'Raka (@researcher), validasi produk dari konsep Meda ke katalog resmi Colorbox (product-catalog.md), sertakan harga normal/diskon Rp, bedah panduan ukuran cm (lingkar dada, pinggang, panjang) dari product-size-reference.md, cek ketersediaan foto di images/, dan buat Creative Research Brief 5 slide. Lalu teruskan ke Bram (@sketchwriter).'
-      const rakaOut = await executeAgent(2, 'raka', rakaPrompt, 'Riset Katalog & Ukuran')
-      if (!rakaOut) throw new Error('Raka gagal memvalidasi katalog.')
+      const prompt3 =
+        'CRE-03 Graphic & Motion Designer (@graphicdesigner), eksekusi arahan visual dan naskah dari CRE-02. Render 5 slide berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080x1350 px PNG) menggunakan model visual openai/gpt-image-2 (OpenCode Zen) dan foto produk resmi Colorbox tanpa distorsi aspek rasio (contain mode, tidak gepeng) dan bebas dari noise wireframe/dots. Tampilkan pratinjau gambar dan link live interactive preview, lalu delegasikan ke CRE-04 (@videocreator).'
+      const out3 = await executeAgent(2, 'cre-03', prompt3, 'Visual Carousel 4:5')
+      if (!out3) throw new Error('CRE-03 gagal merender gambar.')
 
-      // Step 4: Bram
-      setCascadeMsg('Tahap 4/5: Bram (@sketchwriter) menulis naskah & visual prompter bespoke...')
+      // Step 4: CRE-04
+      setCascadeMsg('Tahap 4/4: CRE-04 (@videocreator) merender konsep video vertikal UGC 9:16...')
       setStage(3)
-      const bramPrompt =
-        'Bram (@sketchwriter), rancang naskah kreatif dan master AI prompt untuk postingan Instagram tanpa menggunakan template baku (JANGAN GUNAKAN TEMPLATE / ZERO RIGID FORMULAS). Buat konsep unik dari nol sesuai produk terpilih dari Raka, susun on-screen micro-copy minimalis (1-2 kata, tanpa harga), caption Instagram lengkap hashtag #NeverJustOneThing dan harga resmi katalog, serta AI Visual Generation Prompt yang sangat detail, fotorealistik, dan kaya arahan artistik (lighting, angle 4:5 Feed Portrait, lensa 35mm, latar arsitektur nyata, dan model styling) untuk model openai/gpt-image-2 via OpenCode. Lalu serahkan ke Vina (@visualcarousel).'
-      const bramOut = await executeAgent(3, 'bram', bramPrompt, 'Naskah & Prompt AI')
-      if (!bramOut) throw new Error('Bram gagal menulis naskah.')
+      const prompt4 =
+        'CRE-04 Video & UGC Creator (@videocreator), rancang konsep dan storyboard detik-demi-detik video vertikal 9:16 (720x1280 px MP4) fit check model asli Colorbox, panduan UGC talent, dan tautan pratinjau video live. Lalu serahkan kembali ke CRE-01 dan Tim Reviewer Manusia.'
+      const out4 = await executeAgent(3, 'cre-04', prompt4, 'Video UGC 9:16')
+      if (!out4) throw new Error('CRE-04 gagal memproduksi video UGC.')
 
-      // Step 5: Vina
-      setCascadeMsg('Tahap 5/5: Vina (@visualcarousel) merender gambar visual final (openai/gpt-image-2)...')
+      // Finished! Navigate to Stage 4 (Review Manusia)
+      setCascadeMsg('Alur selesai! Membuka gerbang Review Manusia (Ivanagita)...')
       setStage(4)
-      const vinaPrompt =
-        'Vina (@visualcarousel), eksekusi arahan visual dan master prompt dari Bram secara bespoke tanpa template baku. Render 5 slide berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080x1350 px PNG) menggunakan model visual openai/gpt-image-2 (OpenCode Zen) dan foto produk resmi Colorbox tanpa distorsi aspek rasio (contain mode, tidak gepeng) dan bebas dari noise wireframe/dots. Tampilkan pratinjau gambar dan link live interactive preview, lalu serahkan ke Bimo dan Tim Reviewer Manusia.'
-      const vinaOut = await executeAgent(4, 'vina', vinaPrompt, 'Aset Gambar Carousel')
-      if (!vinaOut) throw new Error('Vina gagal merender gambar.')
-
-      // Finished! Navigate to Stage 5 (Review Manusia)
-      setCascadeMsg('Alur selesai! Membuka gerbang Review Manusia...')
-      setStage(5)
     } catch (e) {
       console.error(e)
     } finally {
@@ -392,7 +378,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
         </div>
       )}
 
-      {/* Stepper with 6 Stages */}
+      {/* Stepper with 5 Stages */}
       <ol className="stepper" aria-label="Tahap kerja alur marketing">
         {STAGES.map((s, i) => (
           <li key={s} data-link={i > 0 && stageDone(i - 1) ? 'done' : undefined}>
@@ -478,11 +464,11 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
             </span>
           </div>
 
-          {/* Stage 0: Brief & PM (Bimo) */}
+          {/* Stage 0: Brief & Strategi (CRE-01) */}
           {stage === 0 && (
             <form className="ws-form" onSubmit={submitBrief} noValidate>
               <div className="ws-form-head">
-                <h2>1. Brief & Task Dispatch (Bimo)</h2>
+                <h2>1. Brief & Perencanaan Kampanye (CRE-01)</h2>
                 <button type="button" className="btn soft" onClick={() => setForm(COLORBOX_SAMPLE)}>
                   Isi contoh Colorbox (Campus Lookbook)
                 </button>
@@ -497,7 +483,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                     placeholder="Contoh: Inspirasi OOTD kuliah santai tapi stylish di Instagram"
                   />
                 </Field>
-                <Field label="Produk Acuan (Katalog Resmi 1.216 Produk)" err={tried ? errs.product : ''}>
+                <Field label="Produk Acuan (Katalog Resmi 1.206 Produk)" err={tried ? errs.product : ''}>
                   <input
                     value={form.product}
                     onChange={(e) => setForm({ ...form, product: e.target.value })}
@@ -586,7 +572,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
 
               <div className="form-actions" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <button className="btn primary" type="submit" disabled={run.busy || cascading}>
-                  Kirim Brief ke Bimo (Project Manager)
+                  Kirim Brief ke CRE-01 (Content Strategist)
                 </button>
                 <button
                   type="button"
@@ -594,23 +580,24 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                   disabled={run.busy || cascading}
                   onClick={runAutoCascade}
                 >
-                  ⚡ Jalankan Alur Lengkap Otomatis (Auto-Cascade)
+                  ⚡ Jalankan Alur Lengkap Otomatis (CRE-01 s/d CRE-04)
                 </button>
               </div>
             </form>
           )}
 
-          {/* Stage 1: Meda (Strategi & Konsep) */}
+          {/* Stage 1: CRE-02 (Naskah & Copy) */}
           {stage === 1 && (
             <div className="ws-act">
-              <h2>2. Strategi & Konsep (Meda)</h2>
+              <h2>2. Naskah Storytelling & Copywriting (CRE-02)</h2>
               <p className="quiet">
-                Meda menganalisis brief dari Bimo, memetakan pilar gaya (Urban / Romantic / Chic), dan merumuskan 3 Opsi
-                Konsep Konten (Opsi A/B/C) lengkap dengan kurasi produk resmi Colorbox.
+                CRE-02 menyusun hook 3 detik thumb-stopping, storytelling Gen Z (#NeverJustOneThing), naskah 5 slide
+                carousel dengan aturan ketat <b>Zero-Text on Visual</b> (teks disimpan pada caption Instagram), SKU, dan
+                harga katalog resmi (product-catalog.md).
               </p>
               <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-                <button className="btn primary" disabled={run.busy || cascading} onClick={callMeda}>
-                  Minta Konsep & Strategi ke Meda
+                <button className="btn primary" disabled={run.busy || cascading} onClick={callCRE02}>
+                  Minta Naskah & Copy ke CRE-02
                 </button>
                 <button
                   type="button"
@@ -624,63 +611,15 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
             </div>
           )}
 
-          {/* Stage 2: Raka (Riset Katalog & Ukuran) */}
+          {/* Stage 2: CRE-03 (Visual Carousel 4:5) */}
           {stage === 2 && (
             <div className="ws-act">
-              <h2>3. Riset Katalog & Ukuran (Raka)</h2>
+              <h2>3. Desain Visual Carousel 4:5 (CRE-03)</h2>
               <p className="quiet">
-                Raka memvalidasi produk ke katalog resmi Colorbox (1.206 produk), membedah panduan ukuran cm (lingkar
-                dada, pinggang, panjang) dari reference guide, memeriksa aset foto di images/, dan menyusun Creative
-                Research Brief.
-              </p>
-              <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-                <button className="btn primary" disabled={run.busy || cascading} onClick={callRaka}>
-                  Minta Riset Katalog & Ukuran ke Raka
-                </button>
-                <button
-                  type="button"
-                  className="btn mkt-auto-btn"
-                  disabled={run.busy || cascading}
-                  onClick={runAutoCascade}
-                >
-                  ⚡ Jalankan Alur Otomatis
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Stage 3: Bram (Naskah & Prompt AI) */}
-          {stage === 3 && (
-            <div className="ws-act">
-              <h2>4. Naskah & Prompt AI (Bram)</h2>
-              <p className="quiet">
-                Bram menyusun naskah 5 slide carousel AIDA, caption Instagram lengkap hashtag #NeverJustOneThing, serta
-                prompt visual detail format 4:5 Feed Portrait untuk model openai/gpt-image-2 via OpenCode.
-              </p>
-              <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-                <button className="btn primary" disabled={run.busy || cascading} onClick={callBram}>
-                  Minta Naskah & Prompt AI ke Bram
-                </button>
-                <button
-                  type="button"
-                  className="btn mkt-auto-btn"
-                  disabled={run.busy || cascading}
-                  onClick={runAutoCascade}
-                >
-                  ⚡ Jalankan Alur Otomatis
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Stage 4: Vina (Aset Gambar Carousel) */}
-          {stage === 4 && (
-            <div className="ws-act">
-              <h2>5. Aset Gambar Carousel (Vina)</h2>
-              <p className="quiet">
-                Vina bertugas sebagai Visual Art Director & Image Generation Specialist menggunakan model visual{' '}
-                <b>openai/gpt-image-2</b> (OpenCode Zen). Output wajib berupa berkas gambar visual Instagram Feed
-                Carousel format 4:5 Portrait (1080 × 1350 px PNG) menggunakan foto produk asli Colorbox.
+                CRE-03 bertindak sebagai Visual Art Director & Canvas Specialist menggunakan model visual{' '}
+                <b>openai/gpt-image-2</b> (OpenCode Zen). Output berupa berkas gambar visual Instagram Feed Carousel format
+                4:5 Portrait (1080 × 1350 px PNG) yang estetik ala Pinterest, menjaga foto produk asli tidak terdistorsi (contain mode),
+                dan bebas dari teks kanvas yang mengganggu.
               </p>
               <div
                 style={{
@@ -699,14 +638,14 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                   <b>Engine Model Visual:</b> <code>openai/gpt-image-2</code> · <b>Format:</b> 1080 × 1350 px (4:5 Feed Portrait)
                   <br />
                   <span className="quiet">
-                    Jika model gagal merender gambar, status eksekusi ditandai <b>GAGAL</b> sebagai konfirmasi kegagalan.
+                    5 Pilar Visual: Split Editorial, Cozy Fur Flatlay, Detail Zoom Callouts, Ambient Boutique, Paper-Doll Wardrobe.
                   </span>
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: 12, marginTop: 14, marginBottom: 20, flexWrap: 'wrap' }}>
-                <button className="btn primary" disabled={run.busy || cascading} onClick={callVina}>
-                  {run.busy && stage === 4 ? 'Sedang Render Gambar...' : 'Minta Render Gambar Carousel ke Vina'}
+                <button className="btn primary" disabled={run.busy || cascading} onClick={callCRE03}>
+                  {run.busy && stage === 2 ? 'Sedang Render Gambar...' : 'Minta Render Visual Carousel ke CRE-03'}
                 </button>
                 <a
                   href="/output/carousel_latest/carousel_preview.html"
@@ -719,7 +658,6 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                 </a>
               </div>
 
-              {/* Display Carousel Cards */}
               <h3 style={{ fontSize: 16, marginTop: 16, marginBottom: 8 }}>
                 🎨 5 Slide Gambar Final Feed Carousel (1080 × 1350 px):
               </h3>
@@ -737,15 +675,86 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
             </div>
           )}
 
-          {/* Stage 5: Review Manusia (Human-in-the-Loop Quality Gate) */}
-          {stage === 5 && (
+          {/* Stage 3: CRE-04 (Video UGC 9:16) */}
+          {stage === 3 && (
+            <div className="ws-act">
+              <h2>4. Produksi Video UGC Vertikal 9:16 (CRE-04)</h2>
+              <p className="quiet">
+                CRE-04 merancang konsep dan storyboard detik-demi-detik video vertikal 9:16 (720 × 1280 px MP4) fit check
+                model asli Colorbox, panduan UGC talent berkamera HP, transisi ritmis, serta naskah hook video Reels/TikTok.
+              </p>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '10px 14px',
+                  borderRadius: 6,
+                  background: 'rgba(99, 102, 241, 0.08)',
+                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  margin: '12px 0',
+                }}
+              >
+                <span style={{ fontSize: 18 }}>🎬</span>
+                <div style={{ fontSize: 13 }}>
+                  <b>Engine Model Video:</b> <code>grok-imagine-video / OpenCode API</code> · <b>Format:</b> 9:16 Vertikal (720 × 1280 px MP4)
+                  <br />
+                  <span className="quiet">
+                    Durasi: 5–15 Detik High-Definition Fit Check Model Cewek Asli Colorbox.
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 14, marginBottom: 20, flexWrap: 'wrap' }}>
+                <button className="btn primary" disabled={run.busy || cascading} onClick={callCRE04}>
+                  {run.busy && stage === 3 ? 'Sedang Memproses Video UGC...' : 'Minta Konsep & Video UGC ke CRE-04'}
+                </button>
+                <a
+                  href="/output/carousel_latest/ugc_video.mp4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn soft"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <span>▶️ Putar Video UGC (MP4)</span>
+                </a>
+              </div>
+
+              <div
+                style={{
+                  maxWidth: 320,
+                  margin: '16px 0',
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  border: '1px solid var(--border)',
+                  background: 'var(--raised)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                }}
+              >
+                <video
+                  src="/output/carousel_latest/ugc_video.mp4"
+                  controls
+                  loop
+                  muted
+                  playsInline
+                  style={{ width: '100%', display: 'block', maxHeight: 480, objectFit: 'cover' }}
+                />
+                <div style={{ padding: 12 }}>
+                  <b style={{ fontSize: 13, display: 'block' }}>Video UGC Vertikal 9:16 (Colorbox Model)</b>
+                  <small style={{ color: 'var(--muted)' }}>Output resmi dari CRE-04 Video & UGC Creator</small>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Stage 4: Review Manusia (Ivanagita) */}
+          {stage === 4 && (
             <div className="human-review-card">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: 18 }}>6. Review Manusia & Quality Gate</h2>
+                  <h2 style={{ margin: 0, fontSize: 18 }}>5. Review Manusia & Quality Gate Level 2</h2>
                   <p className="quiet" style={{ margin: '4px 0 0' }}>
-                    Evaluasi akhir oleh manusia sebelum materi carousel dijadwalkan atau diterbitkan ke Instagram resmi
-                    Colorbox.
+                    Evaluasi akhir oleh Marketing Specialist (Ivanagita) sebelum materi carousel dan video UGC dipublikasikan.
                   </p>
                 </div>
                 <span
@@ -795,9 +804,26 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                 </div>
               </div>
 
+              {/* Video UGC Preview in Human Review */}
+              <div style={{ marginTop: 16 }}>
+                <b style={{ fontSize: 14 }}>Aset Video UGC Vertikal 9:16:</b>
+                <div style={{ marginTop: 8, display: 'flex', gap: 16, alignItems: 'center' }}>
+                  <a
+                    href="/output/carousel_latest/ugc_video.mp4"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn soft"
+                    style={{ fontSize: 12, padding: '6px 12px' }}
+                  >
+                    ▶️ Tonton Video UGC (MP4) ↗
+                  </a>
+                  <span className="quiet small">Format: 9:16 Vertikal (720 × 1280 px MP4)</span>
+                </div>
+              </div>
+
               {/* Quality Checklist */}
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
-                <b style={{ fontSize: 14 }}>Daftar Periksa Kualitas (Quality Checklist):</b>
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, marginTop: 16 }}>
+                <b style={{ fontSize: 14 }}>Daftar Periksa Kualitas (Quality Checklist Level 2):</b>
                 <div className="review-checklist">
                   <label>
                     <input
@@ -806,8 +832,17 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                       onChange={(e) => setChecklist({ ...checklist, catalogFact: e.target.checked })}
                     />
                     <span>
-                      <b>Fakta Produk & Harga Resmi:</b> Nama produk dan harga sesuai katalog resmi Colorbox (tanpa diskon
-                      gaib atau stok fiktif).
+                      <b>Fakta Produk & Harga Resmi:</b> Nama produk dan harga sesuai katalog resmi Colorbox (tanpa diskon fiktif).
+                    </span>
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={checklist.zeroTextRule}
+                      onChange={(e) => setChecklist({ ...checklist, zeroTextRule: e.target.checked })}
+                    />
+                    <span>
+                      <b>Zero-Text on Visual Rule:</b> Tidak ada teks promosi/harga yang menumpuk di atas kanvas gambar; seluruh copy tersimpan di caption.
                     </span>
                   </label>
                   <label>
@@ -827,8 +862,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                       onChange={(e) => setChecklist({ ...checklist, ratio45: e.target.checked })}
                     />
                     <span>
-                      <b>Format & Proporsi Visual:</b> Kanvas 4:5 Feed Portrait (1080 × 1350 px), bebas tombol UI Reels
-                      yang menutupi kanvas.
+                      <b>Format & Proporsi Visual:</b> Kanvas 4:5 Feed Portrait (1080 × 1350 px), garmen tidak terdistorsi (contain mode).
                     </span>
                   </label>
                   <label>
@@ -856,7 +890,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
 
               {/* Review Notes */}
               <label className="field" style={{ marginTop: 8 }}>
-                <span>Catatan / Umpan Balik Reviewer</span>
+                <span>Catatan / Umpan Balik Reviewer (Ivanagita)</span>
                 <textarea
                   rows={3}
                   value={reviewNotes}
@@ -906,11 +940,11 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                     </b>
                   </div>
                   <p style={{ margin: 0, fontSize: 13, color: '#065f46' }}>
-                    Materi kampanye Instagram Feed Carousel telah lolos seluruh parameter quality gate dan diverifikasi
+                    Materi kampanye Instagram Feed Carousel dan Video UGC telah lolos seluruh parameter quality gate dan diverifikasi
                     terhadap basis data katalog resmi Colorbox.
                   </p>
                   <small style={{ color: '#047857' }}>
-                    Ditandatangani oleh Tim Reviewer Manusia pada{' '}
+                    Ditandatangani oleh Ivanagita (Marketing Specialist) pada{' '}
                     {approvedAt ? hhmm(approvedAt) : hhmm(new Date())} WIB.
                   </small>
                 </div>
@@ -946,7 +980,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
             ) : stage > 0 || !run.error ? (
               <Empty title={`Belum ada hasil di tahap ${STAGES[stage]}`}>
                 {stage === 0
-                  ? 'Isi formulir brief di atas lalu kirim ke Bimo untuk memulai alur sprint.'
+                  ? 'Isi formulir brief di atas lalu kirim ke CRE-01 untuk memulai alur sprint.'
                   : 'Klik tombol di atas untuk menjalankan tahap ini.'}
               </Empty>
             ) : null)}

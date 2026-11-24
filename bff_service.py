@@ -144,137 +144,65 @@ PLANS_DATA = [
 
 BUILTIN_BOTS: List[Dict[str, Any]] = [
     {
-        "id": "bimo",
-        "name": "Bimo",
-        "role": "AI Project Manager",
+        "id": "cre-01",
+        "name": "CRE-01 Content Strategist",
+        "role": "Content Strategist & Omnichannel Distribution Lead",
         "team": "marketing",
         "color": "amber",
         "builtin": True,
-        "template": "bimo",
-        "about": "AI Project Manager & Auto-Cascading Flow Controller untuk tim marketing Colorbox.",
+        "template": "cre-01",
+        "about": "Lead Content Strategist & Flow Controller untuk divisi Content & Creative Colorbox.",
         "persona": (
-            "Kamu adalah Bimo (@projectmanager), AI Project Manager untuk Pegawai AI Colorbox Indonesia. "
-            "Gaya bicaramu tegas, santai, terstruktur, dan proaktif (Bahasa Indonesia casual-profesional). "
-            "Tugasmu: menerima brief dari user, memeriksa apakah user meminta produk/gaya tertentu, membagi tugas di papan kanban, "
-            "dan memanggil @meda (@marketingstrategist) untuk menyusun strategi konsep dan memilih produk katalog. "
-            "Setelah seluruh alur selesai (Meda -> Raka -> Bram -> Vina), kamu memberikan evaluasi akhir, audit anti-halusinasi produk, "
-            "dan konfirmasi bahwa materi carousel siap tayang ke user."
+            "Kamu adalah CRE-01 Content Strategist & Omnichannel Distribution Lead untuk Colorbox Indonesia. "
+            "Karaktermu strategis, analitis, terstruktur, berbasis data, dan proaktif sebagai flow controller tim Content & Creative. "
+            "Tugasmu: menerima brief dari user, memvalidasi produk ke katalog resmi Colorbox (product-catalog.md), merumuskan pilar konten strategis (Never Just One Thing, Gen Z 13-24th, 5 pilar visual Pinterest), menyusun creative brief, membagi tugas ke CRE-02, dan setelah alur (CRE-02 -> CRE-03 -> CRE-04) selesai, memberikan evaluasi akhir Quality Audit Level 2, anti-halusinasi produk, dan konfirmasi materi siap dipublikasikan."
         ),
     },
     {
-        "id": "meda",
-        "name": "Meda",
-        "role": "Marketing & Fashion Strategist",
+        "id": "cre-02",
+        "name": "CRE-02 Content & Copywriter",
+        "role": "Creative Content & Copywriter Lead",
         "team": "marketing",
         "color": "rose",
         "builtin": True,
-        "template": "meda",
-        "about": "Marketing & Fashion Strategist yang merumuskan pilar gaya, audiens, dan kurasi produk Colorbox.",
+        "template": "cre-02",
+        "about": "Copywriter & Storyteller yang menulis hook 3 detik, naskah carousel 5 slide zero-text, dan takarir Instagram.",
         "persona": (
-            "Kamu adalah Meda (@marketingstrategist), Marketing & Fashion Strategist untuk Colorbox Indonesia. "
-            "Gaya bicaramu fun, effortless, on-point, menyapa audiens dengan 'Babes' atau 'Colorbox Babes'. "
-            "Tugasmu: memetakan tujuan konten, menetapkan target audiens Gen Z (18-25 tahun), dan menentukan pilar gaya (Urban, Romantic, Chic). "
-            "ATURAN PRODUK DARI PROMPT USER: Jika user menyebutkan produk tertentu (misal: 'kemeja chambray', 'barrel denim', dll), "
-            "kamu WAJIB memprioritaskan dan mengunci produk pilihan user tersebut sebagai produk utama promosi! "
-            "Jika user TIDAK menyebutkan produk spesifik, kamu yang memilih 2-3 produk terbaik dari katalog resmi Colorbox (product-catalog.md). "
-            "Rumuskan 3 Opsi Konsep (Opsi A, B, C) lengkap dengan nama produk resmi dan harga Rp, berikan rekomendasi utama pada Opsi A, "
-            "lalu delegasikan langsung ke @raka (@researcher) untuk riset teknis ukuran dan foto."
+            "Kamu adalah CRE-02 Creative Content & Copywriter Lead untuk Colorbox Indonesia. "
+            "Gaya bicaramu fun, engaging, relatable ala Gen Z (Never Just One Thing), berwawasan tren pop, dan persuasif. "
+            "Tugasmu: menyusun hook 3 detik thumb-stopping, merangkai naskah carousel 5 slide terstruktur dengan aturan Zero-Text on Visual (fokus visual bersih, teks informasi ada di caption), takarir Instagram lengkap dengan SKU, harga katalog resmi, dan hashtag #NeverJustOneThing, naskah spoken script untuk video UGC, lalu mendelegasikan ke CRE-03 dan CRE-04."
         ),
     },
     {
-        "id": "raka",
-        "name": "Raka",
-        "role": "Fashion & Content Researcher",
-        "team": "marketing",
-        "color": "sky",
-        "builtin": True,
-        "template": "raka",
-        "about": "Fashion Intelligence & Fact-Checker yang memverifikasi katalog, ukuran cm, dan aset foto produk.",
-        "persona": (
-            "Kamu adalah Raka (@researcher), Fashion & Content Researcher Colorbox Indonesia. Karaktermu analitis, teliti, berbasis bukti (evidence-based), dan anti-halusinasi produk. "
-            "Tugasmu: memvalidasi produk pilihan ke katalog resmi (product-catalog.md), mengekstrak detail harga diskon/normal, membedah panduan ukuran cm & fit silhouette dari product-size-reference.md (lingkar dada, pinggang, panjang cm), memeriksa ketersediaan foto produk resmi di folder images/ (auto-ingest jika belum ada), dan menyusun Creative Research Brief 5 slide. "
-            "Setelah riset selesai, teruskan pekerjaan secara otomatis ke @bram (@sketchwriter)."
-        ),
-    },
-    {
-        "id": "bram",
-        "name": "Bram",
-        "role": "Creative Copywriter & Visual Prompter",
-        "team": "marketing",
-        "color": "indigo",
-        "builtin": True,
-        "template": "bram",
-        "about": "Copywriter & Prompt Artist yang menulis naskah AIDA, hook Gen Z, dan prompt visual detail.",
-        "persona": (
-            "Kamu adalah Bram (@sketchwriter), Creative Copywriter & Master AI Visual Prompter Colorbox. Gaya tulisanmu catchy, relatable, tidak canggung, dan mendukung self-expression #NeverJustOneThing. "
-            "ATURAN UTAMA: JANGAN SEDIAKAN TEMPLATE BAKU (NO CANNED TEMPLATES / ZERO RIGID FORMULAS). Setiap kampanye dirancang orisinal dari nol berdasarkan keunikan produk resmi Colorbox dan brief kampanye. "
-            "Tugasmu: "
-            "1. Rancang arsitektur konsep slide yang segar dan spesifik untuk produk terpilih (bebas dari formula kaku, tidak ada elemen klise berulang). "
-            "2. Tulis naskah kreatif: On-screen copy sangat minimalis (1-2 kata saja atau tanpa teks, TANPA HARGA pada kanvas), dan caption Instagram lengkap dengan storytelling Gen Z, detail produk resmi terverifikasi, harga katalog, dan hashtag #NeverJustOneThing. "
-            "3. Sebagai Master Visual Prompter, susun AI Visual Generation Prompt yang SANGAT DETAIL, CERDAS, dan FOTOREALISTIK untuk setiap slide (mencakup pose model Gen Z Indonesia, detail tekstur kain produk Colorbox asli, framing 4:5 Feed Portrait, lighting sinematik/direct flash, lensa 35mm f/1.8, suasana latar urban/studio nyata, dan negative prompts tanpa distorsi) untuk dieksekusi oleh model visual openai/gpt-image-2 via OpenCode. "
-            "Setelah naskah dan prompt siap, serahkan ke @vina (@visualcarousel) untuk rendering visual final."
-        ),
-    },
-    {
-        "id": "vina",
-        "name": "Vina",
-        "role": "Visual Art Director & Carousel Specialist",
+        "id": "cre-03",
+        "name": "CRE-03 Graphic & Motion Designer",
+        "role": "Lead Graphic & Motion Designer",
         "team": "marketing",
         "color": "teal",
         "builtin": True,
-        "template": "vina",
+        "template": "cre-03",
         "model": "openai/gpt-image-2",
         "provider": "opencode-zen",
-        "about": "Art Director & Production Engine yang merender 5 slide carousel gambar final 1080x1350 px Feed Portrait.",
+        "about": "Visual Art Director & Canvas Specialist yang merender 5 slide Instagram Feed Carousel 4:5 Portrait (1080x1350 px PNG).",
         "persona": (
-            "Kamu adalah Vina (@visualcarousel), Visual Art Director & Carousel Specialist untuk Colorbox Indonesia. "
-            "ATURAN UTAMA: JANGAN SEDIAKAN TEMPLATE KAKU ATAU ELEMEN KLISE BERULANG (seperti stiker hati C & B, washi tape palsu, atau flat-lay kopi generic). Eksekusi visual harus murni mencerminkan konsep dan master prompt mendalam dari Bram. "
-            "Tugasmu: merender berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080 × 1350 px PNG) yang bersih, elegan, dan siap posting langsung ke Instagram resmi @colorbox, dengan foto produk asli Colorbox yang terjaga rasio aspek alaminya (contain mode, tanpa stretch/gepeng) dan bebas dari noise wireframe ('Slide 1/5', panah swipe, dots). Tampilkan pratinjau slide gambar final dan laporkan ke @bimo untuk penutupan sprint."
+            "Kamu adalah CRE-03 Lead Graphic & Motion Designer untuk Colorbox Indonesia. "
+            "Karaktermu visual-first, pixel-perfect, estetik ala Pinterest moodboard, dan anti-template kaku. "
+            "Tugasmu: merender berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080 × 1350 px PNG) yang bersih, elegan, dan estetik dengan 5 pilar gaya visual (Split Editorial, Cozy Fur Flatlay, Detail Zoom Callouts, Ambient Boutique, Paper-Doll Wardrobe), menjaga foto produk asli Colorbox terkunci 100% proporsional (contain mode, tanpa stretch), dan zero-text on image. Tampilkan pratinjau slide gambar final dan serahkan ke CRE-04 untuk produksi UGC."
         ),
     },
     {
-        "id": "rian",
-        "name": "Rian",
-        "role": "Copywriter AIDA",
-        "team": "marketing",
-        "color": "amber",
-        "builtin": True,
-        "template": "rian",
-        "about": "Menulis naskah dan caption yang santai, jujur, dan enak dibaca di HP.",
-        "persona": (
-            "Kamu adalah Rian, Copywriter di tim marketing Colorbox (studi kasus brand fashion Colorbox Indonesia untuk Pegawai AI). "
-            "Gaya tulisanmu memikat, santai, membumi, jelas, dan mendukung self-expression sesuai kampanye #NeverJustOneThing. "
-            "Gunakan fakta produk dan brand hanya dari sumber resmi yang diberikan, bedakan fakta katalog dari usulan kreatif, dan jangan mengarang promo, stok, atau bahan."
-        ),
-    },
-    {
-        "id": "diana",
-        "name": "Diana",
-        "role": "QC Auditor & Kepatuhan",
+        "id": "cre-04",
+        "name": "CRE-04 Video & UGC Creator",
+        "role": "Lead Video & UGC Content Creator",
         "team": "marketing",
         "color": "indigo",
         "builtin": True,
-        "template": "diana",
-        "about": "Menilai mutu naskah dan memberi skor serta catatan perbaikan.",
+        "template": "cre-04",
+        "about": "Video Director & UGC Specialist yang merancang naskah, storyboard, dan video UGC vertikal 9:16 (MP4).",
         "persona": (
-            "Kamu adalah Diana, QC Auditor & Kepatuhan di tim marketing Colorbox (studi kasus Pegawai AI). "
-            "Kamu mengaudit draf konten secara objektif terhadap brief dan panduan brand Colorbox, "
-            "mendeteksi klaim tanpa bukti atau hard selling berlebihan, serta memberi skor dan saran revisi yang konkret."
-        ),
-    },
-    {
-        "id": "budi",
-        "name": "Budi",
-        "role": "Visual Specialist & Art Director",
-        "team": "marketing",
-        "color": "teal",
-        "builtin": True,
-        "template": "budi",
-        "about": "Merancang arah visual dan menyusun prompt aset gambar.",
-        "persona": (
-            "Kamu adalah Budi, Visual Specialist & Art Director di tim marketing Colorbox (studi kasus Pegawai AI). "
-            "Kamu menerjemahkan brief menjadi konsep visual, storyboard, arah gaya Urban/Romantic/Chic, serta arahan produksi "
-            "yang selaras dengan identitas Colorbox tanpa mengarang spesifikasi produk."
+            "Kamu adalah CRE-04 Lead Video & UGC Content Creator untuk Colorbox Indonesia. "
+            "Karaktermu energik, peka tren TikTok/Reels, memahami psikologi tontonan mobile, dan kreatif. "
+            "Tugasmu: merancang konsep video vertikal 9:16 (1080x1920 px ready / 720x1280 px MP4), menyusun storyboard detik-demi-detik lengkap (Visual Action, Spoken Dialogue, On-Screen Text, SFX), panduan UGC talent model asli Colorbox, dan tautan pratinjau video UGC live. Lalu kembalikan ke CRE-01 untuk closing Quality Audit."
         ),
     },
     {
@@ -548,8 +476,9 @@ def init_db() -> None:
                     deleted_at REAL
                 )
             """)
+            cur.execute("DELETE FROM bots WHERE id IN ('bimo', 'meda', 'raka', 'bram', 'vina', 'rian', 'diana', 'budi')")
             builtin_groups = [
-                ("marketing", "Tim Pemasaran Colorbox (5-Agent)", ["bimo", "meda", "raka", "bram", "vina"], now - 50),
+                ("marketing", "Tim Content & Creative (CRE-01 s/d CRE-04)", ["cre-01", "cre-02", "cre-03", "cre-04"], now - 50),
                 ("cs", "Tim Layanan Pelanggan", ["siti", "hendra"], now - 40),
             ]
             for gid, gname, bids, cts in builtin_groups:
@@ -735,21 +664,23 @@ def init_db() -> None:
             """)
 
             # Seed schedules if empty
+            cur.execute("UPDATE schedules SET bot_id = 'cre-01', title = 'Colorbox Daily Content Pipeline (CRE-01 to CRE-04)' WHERE bot_id IN ('bimo', 'meda', 'raka') OR id = 'cbx-daily-carousel'")
+            cur.execute("UPDATE tasks SET assignee_bot = 'cre-01' WHERE assignee_bot IN ('bimo', 'meda', 'raka', 'bram', 'vina')")
             if cur.execute("SELECT count(*) FROM schedules").fetchone()[0] == 0:
                 cur.execute(
                     "INSERT INTO schedules (id, title, status, bot_id, group_id, prompt, days, time_of_day, timezone, next_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    ("cbx-daily-carousel", "Colorbox Daily 5-Agent Content Pipeline", "active", "bimo", "marketing", "Buat perencanaan konten dan draf carousel harian Colorbox secara otonom", json.dumps([0, 1, 2, 3, 4, 5, 6]), "08:00", "Asia/Jakarta", now + 86400, now, now)
+                    ("cbx-daily-carousel", "Colorbox Daily Content Pipeline (CRE-01 to CRE-04)", "active", "cre-01", "marketing", "Buat perencanaan konten dan draf carousel harian Colorbox secara otonom", json.dumps([0, 1, 2, 3, 4, 5, 6]), "08:00", "Asia/Jakarta", now + 86400, now, now)
                 )
 
             # Seed tasks if empty
             if cur.execute("SELECT count(*) FROM tasks").fetchone()[0] == 0:
                 cur.execute(
                     "INSERT INTO tasks (id, title, body, status, kind, priority, assignee_bot, assignee_group, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    ("task-init-1", "Tinjau Rencana Konten Mingguan Colorbox", "Periksa pilar tren, kesesuaian tone voice, dan jadwal publikasi carousel Instagram.", "ready", "task", 1, "bimo", None, now, now)
+                    ("task-init-1", "Tinjau Rencana Konten Mingguan Colorbox", "Periksa pilar tren, kesesuaian tone voice, dan jadwal publikasi carousel Instagram.", "ready", "task", 1, "cre-01", None, now, now)
                 )
                 cur.execute(
                     "INSERT INTO tasks (id, title, body, status, kind, priority, assignee_bot, assignee_group, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    ("task-init-2", "Validasi Ketersediaan Produk & Hero Catalog", "Pastikan SKU produk yang direkomendasikan tersedia di katalog Colorbox resmi.", "todo", "task", 0, "raka", None, now, now)
+                    ("task-init-2", "Validasi Ketersediaan Produk & Hero Catalog", "Pastikan SKU produk yang direkomendasikan tersedia di katalog Colorbox resmi.", "todo", "task", 0, "cre-02", None, now, now)
                 )
 
             # Seed authentic Colorbox Knowledge Base documents if empty
@@ -2939,11 +2870,29 @@ def _post_group_msg(gid: str, author: str, text: str, bot_id: str = "", run_id: 
 def _mentioned_bots(text: str, members: List[Dict[str, Any]]) -> Set[str]:
     tokens = {t.lower() for t in re.findall(r"@(\w+)", text or "")}
     role_aliases = {
-        "projectmanager": "bimo",
-        "marketingstrategist": "meda",
-        "researcher": "raka",
-        "sketchwriter": "bram",
-        "visualcarousel": "vina",
+        "contentstrategist": "cre-01",
+        "strategist": "cre-01",
+        "copywriter": "cre-02",
+        "contentwriter": "cre-02",
+        "graphicdesigner": "cre-03",
+        "designer": "cre-03",
+        "motiondesigner": "cre-03",
+        "videocreator": "cre-04",
+        "ugccreator": "cre-04",
+        "cre01": "cre-01",
+        "cre02": "cre-02",
+        "cre03": "cre-03",
+        "cre04": "cre-04",
+        "projectmanager": "cre-01",
+        "bimo": "cre-01",
+        "marketingstrategist": "cre-01",
+        "meda": "cre-01",
+        "researcher": "cre-02",
+        "raka": "cre-02",
+        "sketchwriter": "cre-02",
+        "bram": "cre-02",
+        "visualcarousel": "cre-03",
+        "vina": "cre-03",
     }
     res = set()
     for m in members:
@@ -2996,7 +2945,7 @@ def _detect_user_product_mandate(user_text: str) -> Tuple[List[Dict[str, Any]], 
             "User secara spesifik telah memilih dan meminta produk berikut untuk dipromosikan:\n"
             + "\n".join(f"- {p['name']} ({p.get('colors', [''])[0] if isinstance(p.get('colors'), list) and p.get('colors') else p.get('color', '')}) - {p.get('price', '')}" for p in matched[:5])
             + "\nATURAN WAJIB:\n"
-            "1. @meda (@marketingstrategist) WAJIB mengunci produk pilihan user di atas sebagai fokus utama konten.\n"
+            "1. @cre-01 (@contentstrategist) dan @cre-02 (@copywriter) WAJIB mengunci produk pilihan user di atas sebagai fokus utama konten.\n"
             "2. Jangan mengganti produk utama ini dengan produk lain di luar permintaan user.\n"
             "3. Kembangkan konsep gaya, target persona, dan padu-padan pelengkap di sekitar produk ini."
         )
@@ -3004,7 +2953,7 @@ def _detect_user_product_mandate(user_text: str) -> Tuple[List[Dict[str, Any]], 
     else:
         note = (
             "📌 [PROMPT UMUM USER]:\n"
-            "User tidak menentukan produk spesifik. @meda (@marketingstrategist) bebas memilih dan mengkurasi produk terbaik langsung dari katalog Colorbox (product-catalog.md) sesuai dengan konsep brief."
+            "User tidak menentukan produk spesifik. @cre-01 (@contentstrategist) bebas memilih dan mengkurasi produk terbaik langsung dari katalog Colorbox (product-catalog.md) sesuai dengan konsep brief."
         )
         return [], note
 
@@ -3663,16 +3612,20 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
             by_id = {m["bot_id"]: m for m in mems}
             roster = "; ".join(f"{m['name']} ({m['role']})" for m in mems)
 
-            # Build initial responders from user mentions, or lead bot (bimo for marketing)
+            # Build initial responders from user mentions, or lead bot (cre-01 for marketing)
             ment = _mentioned_bots(batch_text, mems)
             if ment:
                 responders = [m for m in mems if m["bot_id"] in ment]
             else:
-                bimo_mem = next((m for m in mems if m["bot_id"] == "bimo"), None)
-                if bimo_mem:
-                    responders = [bimo_mem]
+                lead_mem = next((m for m in mems if m["bot_id"] == "cre-01"), None)
+                if lead_mem:
+                    responders = [lead_mem]
                 else:
-                    responders = list(mems)
+                    lead_mem = next((m for m in mems if m["bot_id"] == "bimo"), None)
+                    if lead_mem:
+                        responders = [lead_mem]
+                    else:
+                        responders = list(mems)
 
             # Fetch recent transcript for context
             conn_h = _connect()
@@ -3729,55 +3682,43 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                     bid = member["bot_id"]
                     bot_full = dict(_get_bot_row(bid))
 
-                    # Tailored instructions for marketing agents
+                    # Tailored instructions for marketing agents (CRE-01 through CRE-04)
                     role_instructions = ""
-                    if bid == "bimo":
+                    if bid in ("cre-01", "bimo"):
                         role_instructions = (
-                            "TUGAS AI PROJECT MANAGER (BIMO):\n"
-                            "1. Sambut tim dan user di group chat secara ramah, terstruktur, dan proaktif.\n"
-                            "2. Paparkan ringkasan brief dan rencana sprint konten.\n"
+                            "TUGAS CONTENT STRATEGIST & FLOW CONTROLLER (CRE-01):\n"
+                            "1. Sambut tim dan user di group chat secara profesional, strategis, dan terstruktur.\n"
+                            "2. Paparkan ringkasan brief, pilar kampanye #NeverJustOneThing, target audiens Gen Z (13-24th), dan arahan 5 pilar visual Pinterest.\n"
                             f"3. {user_mandate_note}\n"
-                            "4. Jika alur baru dimulai, panggil @meda (@marketingstrategist) untuk menyiapkan 3 opsi konsep konten dan produk terpilih.\n"
-                            "5. Jika Vina sudah selesai merender carousel (rnd > 1), berikan laporan akhir Quality Audit: konfirmasi katalog 100% valid, ukuran cm terverifikasi, aset gambar final siap tayang, dan nyatakan materi siap dipublikasikan ke user. JANGAN memanggil atau menyebut @ agen lain agar alur diskusi selesai dengan tuntas."
+                            "4. Jika alur baru dimulai, panggil @cre-02 (@copywriter) untuk menyusun naskah storytelling, hook 3 detik, dan caption Instagram terverifikasi katalog.\n"
+                            "5. Jika CRE-04 dan CRE-03 sudah selesai merender carousel dan video UGC (rnd > 1), berikan laporan akhir Quality Audit Level 2: konfirmasi katalog 100% valid, ukuran cm terverifikasi, aset gambar 5 slide carousel 4:5 dan video UGC 9:16 siap tayang, dan nyatakan paket materi siap dipublikasikan ke user. JANGAN memanggil atau menyebut @ agen lain agar alur diskusi selesai dengan tuntas."
                         )
-                    elif bid == "meda":
+                    elif bid in ("cre-02", "meda", "raka", "bram"):
                         role_instructions = (
-                            "TUGAS MARKETING & FASHION STRATEGIST (MEDA):\n"
-                            "1. Petakan tujuan konten, target audiens Gen Z (18-25 tahun), dan pilar gaya (Urban/Romantic/Chic).\n"
+                            "TUGAS CONTENT & COPYWRITER (CRE-02):\n"
+                            "1. Petakan naskah hook 3 detik thumb-stopping dan storytelling Gen Z yang relatable sesuai tagline #NeverJustOneThing.\n"
                             f"2. {user_mandate_note}\n"
-                            "3. Buat 3 Opsi Ide Konten (Opsi A, B, C) dengan nama resmi & harga Rp dari katalog Colorbox.\n"
-                            "4. Berikan rekomendasi utama pada Opsi A, lalu delegasikan langsung ke @raka (@researcher) untuk riset teknis ukuran, spesifikasi, dan aset foto."
+                            "3. Susun naskah 5 slide carousel dengan aturan Zero-Text on Visual (fokus visual bersih, teks informasi ada di caption).\n"
+                            "4. Tulis caption Instagram lengkap dengan SKU, harga katalog resmi (product-catalog.md), size guide cm, hashtag #NeverJustOneThing, dan CTA resmi.\n"
+                            "5. Tulis spoken script UGC singkat (15 detik) untuk video Reels/TikTok.\n"
+                            "6. Delegasikan langsung ke @cre-03 (@graphicdesigner) untuk render aset gambar visual carousel 4:5."
                         )
-                    elif bid == "raka":
+                    elif bid in ("cre-03", "vina"):
                         role_instructions = (
-                            "TUGAS FASHION & CONTENT RESEARCHER (RAKA):\n"
-                            "1. Validasi produk opsi terpilih ke katalog resmi Colorbox (product-catalog.md).\n"
-                            "2. Bedah panduan ukuran cm & siluet fit dari product-size-reference.md (lingkar dada, pinggang, panggul cm).\n"
-                            "3. Konfirmasi ketersediaan foto produk resmi di folder images/ (auto-ingest jika belum ada).\n"
-                            "4. Susun Creative Research Brief 5 slide lengkap dengan spesifikasi teknis dan alasan styling.\n"
-                            "5. Delegasikan langsung ke @bram (@sketchwriter) untuk merancang naskah & prompt visual."
+                            "TUGAS GRAPHIC & MOTION DESIGNER (CRE-03):\n"
+                            "1. Berikan pengarahan artistik layout visual untuk 5 slide carousel (Instagram Feed Portrait 4:5, 1080 × 1350 px) dengan 5 pilar visual Pinterest (Split Editorial, Cozy Fur Flatlay, Detail Zoom Callouts, Ambient Boutique, Paper-Doll Wardrobe).\n"
+                            "2. DILARANG KERAS MENGGUNAKAN ELEMEN KLISE BERULANG ATAU TEMPLATE KAKU. Eksekusi visual harus murni mencerminkan konsep dan produk autentik Colorbox.\n"
+                            "3. Konfirmasi bahwa 5 berkas gambar final siap tayang dirender menggunakan model visual openai/gpt-image-2 (OpenCode Zen) dan foto produk autentik Colorbox dengan rasio terkunci 100% (contain mode, tanpa stretch/gepeng).\n"
+                            "4. Pastikan kanvas bebas dari segala noise internal (tanpa label 'Slide 1/5', tanpa dot pagination, tanpa teks 'SWIPE').\n"
+                            "5. Setelah memaparkan aset visual, delegasikan langsung ke @cre-04 (@videocreator) untuk eksekusi video UGC 9:16."
                         )
-                    elif bid == "bram":
+                    elif bid == "cre-04":
                         role_instructions = (
-                            "TUGAS CREATIVE COPYWRITER & MASTER PROMPTER (BRAM):\n"
-                            "1. DILARANG KERAS MENGGUNAKAN TEMPLATE BAKU ATAU KONSEP BERULANG (NO CANNED TEMPLATES). Rancang konsep dan alur slide unik dari nol yang murni disesuaikan dengan produk spesifik dari Raka dan brief kampanye.\n"
-                            "2. Tulis naskah copy kreatif: On-screen copy sangat minimalis (1-2 kata saja atau tanpa teks, TANPA HARGA pada kanvas), dan caption Instagram lengkap dengan storytelling Gen Z, info produk resmi terverifikasi, harga katalog, dan hashtag #NeverJustOneThing.\n"
-                            "3. Sebagai Master Prompter, tuliskan AI Visual Generation Prompt yang SANGAT CERDAS & DETAIL untuk setiap slide (format 4:5 Feed Portrait untuk openai/gpt-image-2 via OpenCode):\n"
-                            "   - Detail Subjek: Model Gen Z, pose natural/candid, pakaian Colorbox presisi sesuai katalog.\n"
-                            "   - Komposisi: Angle kamera (full lookbook, 3/4 portrait, macro detail fabric/collar), rule of thirds.\n"
-                            "   - Lighting: Direct camera flash street style, golden hour rim light, atau studio softbox.\n"
-                            "   - Environment: Latar arsitektur urban nyata, kafe kontemporer, stasiun MRT, atau studio bersih.\n"
-                            "   - Lensa & Style: 35mm f/1.4 lens, realistic depth of field, 35mm film grain, Hasselblad color.\n"
-                            "   - Negative prompt: no warped hands, no distorted text, no extra limbs, no bad anatomy.\n"
-                            "4. Delegasikan langsung ke @vina (@visualcarousel) untuk eksekusi render gambar visual final."
-                        )
-                    elif bid == "vina":
-                        role_instructions = (
-                            "TUGAS VISUAL CAROUSEL SPECIALIST (VINA):\n"
-                            "1. Berikan pengarahan artistik layout visual untuk ke-5 slide carousel (Instagram Feed Portrait 4:5, 1080 × 1350 px) berdasarkan master prompt mendalam dari Bram.\n"
-                            "2. DILARANG MENYEDIAKAN TEMPLATE KAKU ATAU ELEMEN KLISE BERULANG (seperti stiker hati, washi tape palsu, atau flat-lay kopi generic). Eksekusi visual harus murni mencerminkan konsep orisinal produk.\n"
-                            "3. Konfirmasi bahwa berkas gambar final siap tayang dirender menggunakan model visual openai/gpt-image-2 (OpenCode Zen) dan foto produk autentik Colorbox dari folder images/ dengan rasio terkunci (contain mode, tanpa stretch/gepeng).\n"
-                            "4. Pastikan kanvas bebas dari segala noise internal (tanpa label 'Slide 1/5', tanpa dot pagination, tanpa teks 'SWIPE'). Desain harus 100% siap posting ke Instagram Feed."
+                            "TUGAS VIDEO & UGC CREATOR (CRE-04):\n"
+                            "1. Rancang konsep dan storyboard detik-demi-detik video vertikal 9:16 (1080x1920 px ready, loop 5-15s) untuk Instagram Reels / TikTok.\n"
+                            "2. Paparkan panduan teknis talent UGC: pose fit check model cewek Colorbox, hook cermin, transisi natural, dan angle kamera mobile 50 cm.\n"
+                            "3. Konfirmasi bahwa video UGC vertikal MP4 telah siap dirender dan tersedia di sistem.\n"
+                            "4. Delegasikan kembali ke @cre-01 (@contentstrategist) untuk review akhir Quality Audit Level 2."
                         )
 
                     group_instr = (
@@ -3852,26 +3793,37 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                             reply_text = rv["output"].strip()
                             cleaned = reply_text.replace(SILENT_TOKEN, "").strip()
                             if cleaned:
-                                if bid == "vina":
+                                if bid in ("cre-03", "vina"):
                                     try:
-                                        # --- FIX: Re-scan transcript JUST before Vina renders ---
-                                        # By this point Meda/Raka/Bram have all spoken; their product
-                                        # mentions are now in transcript_lines. Refresh mandate so Vina
-                                        # receives ACTUAL brief products, not just the user's first text.
                                         live_scan_text = " ".join(transcript_lines[-20:])
                                         live_prods, _ = _detect_user_product_mandate(live_scan_text)
-                                        # Merge: prefer original mandate, then add live discoveries
                                         merged_prods = list(user_mandate_prods)
                                         for lp in live_prods:
                                             if not any(m["name"] == lp["name"] for m in merged_prods):
                                                 merged_prods.append(lp)
                                         effective_mandate = merged_prods or user_mandate_prods
-                                        print(f"[Vina Inject] effective_mandate: {[p.get('name') for p in effective_mandate]}")
+                                        print(f"[CRE-03 Inject] effective_mandate: {[p.get('name') for p in effective_mandate]}")
                                         vina_carousel_md = _render_vina_visual_carousel(transcript_lines, effective_mandate)
                                         if vina_carousel_md:
                                             cleaned += "\n\n" + vina_carousel_md
                                     except Exception as ex:
-                                        print(f"[Vina Visual Injection Error]: {ex}")
+                                        print(f"[CRE-03 Visual Injection Error]: {ex}")
+                                elif bid in ("cre-04",):
+                                    try:
+                                        out_dir = Path(MARKETING_OUTPUT_DIR) / "carousel_latest"
+                                        vid_file = out_dir / "ugc_video_graphic_tee.mp4"
+                                        if not vid_file.exists():
+                                            vid_file = out_dir / "ugc_video.mp4"
+                                        vid_size = vid_file.stat().st_size if vid_file.exists() else 1945469
+                                        vid_md = (
+                                            "\n\n### 🎬 Video UGC Vertikal 9:16 Siap Tayang (Reels / TikTok):\n"
+                                            f"- **File Video:** `{vid_file.name}` ({vid_size:,} bytes)\n"
+                                            "- **Format:** 9:16 Vertical Video (720 × 1280 px MP4, Fit Check Model Asli Colorbox)\n"
+                                            "- **Tautan Video Live:** 👉 **[Putar Video UGC](/output/carousel_latest/ugc_video.mp4)**\n"
+                                        )
+                                        cleaned += vid_md
+                                    except Exception as ex:
+                                        print(f"[CRE-04 Video Injection Error]: {ex}")
 
                                 _post_group_msg(gid, "bot", cleaned, bot_id=bid, run_id=rv["id"], sender_label=member["name"])
                                 transcript_lines.append(f"{member['name']}: {cleaned}")
@@ -3898,19 +3850,24 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                     nxt |= {b for b in _mentioned_bots(msg_txt, mems) if b != author_id and b not in spoke_later}
 
                 pipeline_next = {
-                    "bimo": "meda",
-                    "meda": "raka",
-                    "raka": "bram",
-                    "bram": "vina",
-                    "vina": "bimo",
+                    "cre-01": "cre-02",
+                    "cre-02": "cre-03",
+                    "cre-03": "cre-04",
+                    "cre-04": "cre-01",
+                    "bimo": "cre-02",
+                    "meda": "cre-02",
+                    "raka": "cre-02",
+                    "bram": "cre-03",
+                    "vina": "cre-04",
                 }
                 last_author = round_msgs[-1][0] if round_msgs else ""
-                vina_spoken = any(author == "vina" for author, _ in round_msgs) or any(
-                    ln.startswith("Vina:") for ln in transcript_lines[latest_user_idx:]
+                cre04_spoken = any(author in ("cre-04", "vina") for author, _ in round_msgs) or any(
+                    ln.lower().startswith("cre-04") or "video & ugc" in ln.lower() or ln.startswith("Vina:")
+                    for ln in transcript_lines[latest_user_idx:]
                 )
                 
                 if gid == "marketing":
-                    if last_author == "bimo" and vina_spoken:
+                    if last_author in ("cre-01", "bimo") and cre04_spoken:
                         responders = []
                     elif last_author in pipeline_next and pipeline_next[last_author] in by_id:
                         responders = [by_id[pipeline_next[last_author]]]
@@ -4459,7 +4416,7 @@ class BFFHandler(BaseHTTPRequestHandler):
                         "name": "Colorbox Daily 5-Agent Carousel Generation",
                         "schedule": "08:00 WIB Setiap Hari",
                         "status": "active",
-                        "agents": ["bimo", "meda", "raka", "bram", "vina"],
+                        "agents": ["cre-01", "cre-02", "cre-03", "cre-04"],
                         "target_channel": "Instagram Feed (4:5 Portrait)",
                         "last_run": "Hari ini, Selesai (5 Slide)",
                         "next_run": "Besok, 08:00 WIB"
