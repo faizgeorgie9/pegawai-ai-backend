@@ -184,8 +184,29 @@ ESCALATION_KEYWORDS = {
     "missing", "lost item", "wrong item", "wrong order", "dissatisfied"
 }
 
-# General intents
+# General intents grounded in Colorbox CS Knowledge Base v2.1
 INTENT_KEYWORDS = {
+    "PAYMENT": [
+        "metode pembayaran", "cara bayar", "virtual account", "va bca", "va mandiri", "va bri", "va bni",
+        "qris", "gopay", "shopeepay", "dana", "kartu kredit", "credit card", "transfer bank",
+        "bayar lewat apa", "pembayaran apa saja", "payment method", "how to pay"
+    ],
+    "CANCELLATION": [
+        "batalkan pesanan", "batal pesanan", "cancel order", "cancel pesanan", "cancle", "pembatalan",
+        "batalin pesanan", "ubah alamat", "ganti alamat", "change address", "cancel order", "cancellation"
+    ],
+    "CLICK_COLLECT": [
+        "click & collect", "click and collect", "ambil di toko", "ambil di store",
+        "ambil sendiri di toko", "store pickup", "ambil pesanan di toko"
+    ],
+    "STORE_HOURS_CONTACT": [
+        "jam kerja", "jam operasional", "jam buka toko", "kontak cs", "email cs", "nomor cs",
+        "customer care", "customer service", "call center", "operating hours", "business hours", "contact cs"
+    ],
+    "PRODUCT_RECOMMENDATION": [
+        "rekomendasi baju", "rekomendasi jaket", "rekomendasi celana", "rekomendasi dress",
+        "rekomendasi outfit", "rekomendasi gaya", "recommend outfit", "suggest outfit"
+    ],
     "RETURN_REFUND": [
         "retur", "tukar", "kembali", "pengembalian", "salah ukuran", "kebesaran", "kekecilan",
         "return", "refund", "exchange", "too big", "too small", "wrong size"
@@ -416,11 +437,11 @@ def classify_and_route(message: str, requested_bot: Optional[str] = None) -> Tup
             intent = candidate_intent
             break
 
-    priority = "P2" if intent in ("RETURN_REFUND", "SHIPPING_DELIVERY", "SIZE_FIT") else "P3"
+    priority = "P2" if intent in ("RETURN_REFUND", "SHIPPING_DELIVERY", "SIZE_FIT", "PAYMENT", "CANCELLATION", "CLICK_COLLECT") else "P3"
     return bot_id, intent, priority
 
 def generate_cs_reply(bot_id: str, customer_name: str, message: str, intent: str, priority: str, language: Optional[str] = None) -> str:
-    """Generate grounded customer support reply following Colorbox CS SOP (concise & to the point).
+    """Generate grounded customer support reply following Colorbox CS Knowledge Base v2.1 (concise & grounded).
     Supports bilingual responses (Indonesian & English).
     """
     lang = language or detect_language(message)
@@ -473,7 +494,7 @@ def generate_cs_reply(bot_id: str, customer_name: str, message: str, intent: str
                 if not has_order:
                     return (
                         f"Hello {c_name}, I am Hendra, Customer Service Team Lead at Colorbox Indonesia. "
-                        "For returns or refunds (max. 7 days, tags intact & unwashed), "
+                        "For returns or refunds (max. 7 calendar days, tags intact & unwashed), "
                         "please share your order number and reason for return so we can follow up right away 🙏"
                     )
                 else:
@@ -488,7 +509,7 @@ def generate_cs_reply(bot_id: str, customer_name: str, message: str, intent: str
                     "Could you please share your invoice number or issue details so I can assist you directly?"
                 )
         else:
-            # Siti: Warm, friendly, concise frontline support
+            # Siti: Warm, friendly, concise frontline support grounded in Colorbox CS v2.1
             if intent == "BOT_RESUME":
                 return (
                     f"Hello {c_name}! Colorbox virtual assistant is back active 😊 "
@@ -500,28 +521,75 @@ def generate_cs_reply(bot_id: str, customer_name: str, message: str, intent: str
                     "Is there anything I can help you with regarding Colorbox casual outfits, new collections, promos, or orders today?"
                 )
             elif intent == "RETURN_REFUND":
+                is_exchange = any(w in msg_lower for w in ["tukar", "exchange", "swap", "size", "fit", "kekecilan", "kebesaran", "too big", "too small"])
+                if is_exchange:
+                    return (
+                        f"Hello {c_name}! Please kindly note that Colorbox currently does not provide direct size or model exchanges 😊\n\n"
+                        "However, if the item is unwashed, tags are intact, and it is within 7 calendar days of delivery, you can request a refund return and place a new order for your preferred size at colorbox.co.id 💕\n\n"
+                        "Could you please share your order number or invoice so Siti can assist you further?"
+                    )
                 return (
-                    f"Hello {c_name}! Product exchanges can be requested within 7 days of delivery (tags intact & unwashed) 😊 "
-                    "Could you please provide your order number and desired replacement size?"
+                    f"Hello {c_name}! Colorbox returns and refunds can be submitted within a maximum of 7 calendar days after delivery 😊\n\n"
+                    "Requirements:\n"
+                    "1. Applicable for defective items or incorrect article/color received.\n"
+                    "2. An uninterrupted unboxing video is required.\n"
+                    "3. Price tags intact, unwashed, and unworn.\n\n"
+                    "Refund transfer takes 5–7 business days once the item arrives and passes verification at our warehouse 🙏 May Siti have your order number?"
                 )
             elif intent == "SHIPPING_DELIVERY":
                 return (
-                    f"Hello {c_name}! Regular Colorbox delivery takes 2-4 business days ✨ "
-                    "Could you please share your order number or tracking number so Siti can check its latest status?"
+                    f"Hello {c_name}! Regular Colorbox delivery takes 2-4 business days (Jabodetabek 2-3 days, Java 3-5 days, outer island 4-8 days) ✨ "
+                    "Please share your order number or tracking number so Siti can check its latest status!"
+                )
+            elif intent == "PAYMENT":
+                return (
+                    f"Hello {c_name}! Official purchases on colorbox.co.id accept secure and convenient payment methods ✨\n\n"
+                    "1. 💳 Virtual Account (VA): BCA, Mandiri, BNI, BRI, Permata\n"
+                    "2. 📱 E-Wallet & QRIS: GoPay, OVO, ShopeePay, DANA, QRIS\n"
+                    "3. 💳 Credit / Debit Cards: Visa and Mastercard (3D Secure)\n\n"
+                    "Note: COD (Cash on Delivery) is currently not supported on our official website. How may Siti assist with your payment today?"
+                )
+            elif intent == "CANCELLATION":
+                return (
+                    f"Hello {c_name}! In accordance with Colorbox policy, address changes can only be requested within 1 hour of checkout by contacting CS before order processing 😊\n\n"
+                    "Order cancellation is only possible before the order has been handed over to the courier. If a tracking number has already been assigned, the order cannot be cancelled, but you may request a formal return within 7 calendar days after receiving the parcel. May Siti have your order number to check?"
+                )
+            elif intent == "CLICK_COLLECT":
+                return (
+                    f"Hello {c_name}! Yes, Colorbox offers Click & Collect service 🎉 You can shop online on colorbox.co.id and choose store pickup at your nearest Colorbox physical store with zero shipping fees!\n\n"
+                    "You will have a 10 to 14 calendar day pickup window once you receive an email notification that your parcel has arrived at the store. Would you like help finding a nearby store?"
+                )
+            elif intent == "STORE_HOURS_CONTACT":
+                return (
+                    f"Hello {c_name}! Colorbox Indonesia Customer Care is happy to assist you during our official service hours:\n\n"
+                    "⏰ Working Hours: Monday – Friday, 09:00 – 18:00 WIB (Closed on weekends and national holidays)\n"
+                    "📧 Official Email: csonline@colorbox.co.id\n"
+                    "🌐 Official Website: https://colorbox.co.id\n\n"
+                    "How can Siti assist you with your outfit or order today? 😊"
                 )
             elif intent == "SIZE_FIT":
                 return (
-                    f"Hello {c_name}! Colorbox sizing ranges from XS to XL (pants 26-32) 💕 "
-                    "What item are you looking at, and could you share your approximate height & weight so Siti can recommend your ideal fit?"
+                    f"Hello {c_name}! Colorbox sizing ranges from XS to XL (pants 26-32) 💕\n\n"
+                    "We recommend checking the Size Chart on each product page. What item are you looking at, and could you share your approximate height & weight so Siti can recommend your ideal fit?"
+                )
+            elif intent in ("PRODUCT_RECOMMENDATION", "PRODUCT_INFO") and any(w in msg_lower for w in ["rekomendasi", "outfit", "recommend", "suggest"]):
+                return (
+                    f"Hello {c_name}! Here are top favorite outfit picks from the official Colorbox catalog for a casual & chic style ✨\n\n"
+                    "1. 🧥 Leather Collar Oversized Boxy Jacket (Beige) - IDR 359,900\n"
+                    "2. 👖 High Waist Barrel Denim Pants (Black) - IDR 329,900\n"
+                    "3. 👗 Side Ruched Sleeveless Mini Dress (Navy) - IDR 279,900\n"
+                    "4. 🎨 Colorbox x Liunic Oversized Sweatshirt - IDR 249,900\n"
+                    "5. 👜 Colorbox x Liunic Tote Bag (Ecru) - IDR 199,900\n\n"
+                    "Are you looking for casual tops, a dress, or denim jeans today? Siti is happy to help you choose!"
                 )
             elif intent == "PRODUCT_AVAILABILITY":
                 return (
-                    f"Hello {c_name}! Our latest Colorbox collection and Colorbox x Liunic drops are available online and in official stores ✨ "
-                    "Please share the item name or photo, and Siti will check stock for you right away!"
+                    f"Hello {c_name}! Our latest Colorbox collection and Colorbox x Liunic drops are available online and in official stores ✨\n\n"
+                    "Stock queries here reference our sample demo catalog. To verify real-time inventory, please share the item name or SKU so Siti can check!"
                 )
             else:
                 return (
-                    f"Hello {c_name}! Welcome to Colorbox Indonesia WhatsApp Support 💕 "
+                    f"Hello {c_name}! Welcome to Colorbox Indonesia WhatsApp Support 💕\n\n"
                     "How can Siti assist you today with our casual outfits, latest promos, or your order?"
                 )
 
@@ -575,7 +643,7 @@ def generate_cs_reply(bot_id: str, customer_name: str, message: str, intent: str
             if not has_order:
                 return (
                     f"Halo {c_name}, saya Hendra selaku Customer Service Team Lead Colorbox Indonesia. "
-                    "Untuk retur/refund (maks. 7 hari, tag utuh & belum dicuci), "
+                    "Untuk retur/refund (maks. 7 hari kalender, tag utuh & belum dicuci), "
                     "boleh infokan nomor pesanan dan alasan pengembalian agar langsung kami tindak lanjuti hari ini?"
                 )
             else:
@@ -590,7 +658,7 @@ def generate_cs_reply(bot_id: str, customer_name: str, message: str, intent: str
                 "Boleh informasikan nomor invoice atau detail kendala pesanan Anda agar segera saya bantu verifikasi langsung?"
             )
     else:
-        # Siti: Warm, friendly, helpful frontline assistant (concise & clear)
+        # Siti: Warm, friendly, helpful frontline assistant grounded in Colorbox CS v2.1
         if intent == "BOT_RESUME":
             return (
                 f"Halo {c_name}! Asisten virtual bot Colorbox telah aktif kembali 😊 "
@@ -602,28 +670,79 @@ def generate_cs_reply(bot_id: str, customer_name: str, message: str, intent: str
                 "Ada yang bisa Siti bantu seputar outfit santai, koleksi pakaian, promo, atau pesanan Anda di Colorbox hari ini?"
             )
         elif intent == "RETURN_REFUND":
+            is_exchange = any(w in msg_lower for w in ["tukar", "tukar ukuran", "tukar size", "kebesaran", "kekecilan", "ganti ukuran", "ganti size"])
+            if is_exchange:
+                return (
+                    f"Halo {c_name}! Mohon maaf ya Kak, untuk saat ini Colorbox belum melayani penukaran ukuran (size exchange) atau model pakaian secara langsung 😊\n\n"
+                    "Namun jika produk belum dicuci, price tag/label masih utuh, dan masih dalam batas maksimal 7 hari kalender sejak pesanan diterima, Kakak dapat mengajukan retur pengembalian dana (refund), kemudian melakukan pemesanan ulang untuk ukuran yang pas di website colorbox.co.id 💕\n\n"
+                    "Boleh Siti bantu dengan nomor pesanan atau invoice Kakak?"
+                )
             return (
-                f"Halo {c_name}! Untuk penukaran produk bisa diajukan maks. 7 hari kerja (tag label utuh & belum dicuci) ya 😊 "
-                "Boleh dibantu nomor pesanan dan ukuran pengganti yang diinginkan Kak?"
+                f"Halo {c_name}! Pengembalian produk (retur & refund) di Colorbox dapat diajukan maksimal 7 hari kalender sejak barang diterima ya Kak 😊\n\n"
+                "Syarat retur:\n"
+                "1. 📦 Berlaku untuk produk cacat produksi atau salah artikel/warna dari pesanan.\n"
+                "2. 📹 Wajib menyertakan video unboxing tanpa jeda saat membuka paket.\n"
+                "3. 🏷️ Price tag masih terpasang lengkap, belum dicuci, dan belum pernah dipakai.\n\n"
+                "Estimasi transfer dana refund adalah 5–7 hari kerja setelah barang tiba dan lolos verifikasi di gudang kami 🙏 Boleh dibantu nomor pesanannya Kak?"
             )
         elif intent == "SHIPPING_DELIVERY":
             return (
-                f"Halo {c_name}! Estimasi pengiriman reguler Colorbox 2-4 hari kerja ✨ "
-                "Boleh kirimkan nomor pesanan atau nomor resinya agar langsung Siti bantu lacak status terbarunya sekarang?"
+                f"Halo {c_name}! Pesanan Colorbox diproses dan dikirim dari Distribution Center kami dalam kurun waktu 48 jam kerja ✨\n\n"
+                "Estimasi durasi pengiriman reguler (JNE):\n"
+                "• Jabodetabek & Bandung: 2 – 3 hari kerja\n"
+                "• Kota besar Pulau Jawa: 3 – 5 hari kerja\n"
+                "• Luar Pulau Jawa: 4 – 8 hari kerja\n\n"
+                "Nomor resi pengiriman otomatis dikirimkan ke email Kakak setelah paket diserahkan ke pihak ekspedisi. Boleh kirimkan nomor pesanan atau resi agar Siti bantu cek status terbarunya?"
+            )
+        elif intent == "PAYMENT":
+            return (
+                f"Halo {c_name}! Pembelian di website resmi colorbox.co.id menerima metode pembayaran yang aman dan praktis ✨\n\n"
+                "1. 💳 Virtual Account (VA): BCA, Mandiri, BNI, BRI, Permata\n"
+                "2. 📱 E-Wallet & QRIS: GoPay, OVO, ShopeePay, DANA, QRIS\n"
+                "3. 💳 Kartu Kredit / Debit: Visa dan Mastercard (3D Secure)\n\n"
+                "Catatan: Website resmi kami saat ini tidak melayani sistem COD (Bayar di Tempat) ya Kak. Ada yang bisa Siti bantu seputar pembayaran pesanan Kakak?"
+            )
+        elif intent == "CANCELLATION":
+            return (
+                f"Halo {c_name}! Sesuai SOP resmi Colorbox, perubahan alamat hanya dapat dilakukan maksimal 1 jam setelah pemesanan dengan menghubungi CS sebelum order diproses ya Kak 😊\n\n"
+                "Untuk pembatalan pesanan hanya bisa dilakukan selama status pesanan belum diserahkan ke pihak kurir/ekspedisi. Jika nomor resi pengiriman sudah diterbitkan, pesanan tidak dapat dibatalkan, namun Kakak dapat mengajukan retur resmi setelah paket diterima sesuai syarat 7 hari kalender. Boleh infokan nomor pesanan Kakak agar Siti bantu cek?"
+            )
+        elif intent == "CLICK_COLLECT":
+            return (
+                f"Halo {c_name}! Ya, Colorbox memiliki layanan Click & Collect 🎉 Kakak bisa berbelanja online di website colorbox.co.id lalu memilih opsi ambil di gerai toko fisik Colorbox terdekat tanpa biaya ongkos kirim!\n\n"
+                "Waktu pengambilan pesanan di toko adalah 10 hingga 14 hari kalender setelah Kakak menerima email notifikasi bahwa barang sudah tiba di toko pilihan. Mau info toko terdekat Kak?"
+            )
+        elif intent == "STORE_HOURS_CONTACT":
+            return (
+                f"Halo {c_name}! Layanan Customer Care resmi Colorbox Indonesia siap melayani Kakak dengan jadwal operasional:\n\n"
+                "⏰ Jam Operasional CS: Senin – Jumat, 09.00 – 18.00 WIB (Sabtu, Minggu & Hari Libur Nasional tutup)\n"
+                "📧 Email Resmi: csonline@colorbox.co.id\n"
+                "🌐 Website Resmi: https://colorbox.co.id\n\n"
+                "Ada yang bisa Siti bantu untuk kebutuhan outfit atau pesanan Kakak hari ini? 😊"
             )
         elif intent == "SIZE_FIT":
             return (
-                f"Halo {c_name}! Ukuran Colorbox tersedia dari XS sampai XL (celana 26-32) 💕 "
-                "Boleh tahu model pakaian yang Kakak taksir serta perkiraan tinggi & berat badan agar Siti rekomendasikan ukuran yang paling pas?"
+                f"Halo {c_name}! Ukuran pakaian Colorbox umumnya tersedia dari XS sampai XL (dan ukuran celana 26-32) 💕\n\n"
+                "Siti sarankan mencocokkan dengan Size Chart di halaman produk ya Kak. Boleh tahu model pakaian yang Kakak taksir serta perkiraan tinggi badan (TB), berat badan (BB), atau lingkar dada (LD) Kakak agar Siti bantu rekomendasikan ukuran yang paling pas?"
+            )
+        elif intent in ("PRODUCT_RECOMMENDATION", "PRODUCT_INFO") and any(w in msg_lower for w in ["rekomendasi", "outfit", "gaya", "chic", "taksir", "casual"]):
+            return (
+                f"Halo {c_name}! Ini beberapa rekomendasi outfit favorit dari katalog resmi Colorbox yang lagi hits buat gaya santai & chic ✨\n\n"
+                "1. 🧥 Leather Collar Oversized Boxy Jacket (Beige) - Rp 359.900\n"
+                "2. 👖 High Waist Barrel Denim Pants (Black) - Rp 329.900\n"
+                "3. 👗 Side Ruched Sleeveless Mini Dress (Navy) - Rp 279.900\n"
+                "4. 🎨 Colorbox x Liunic Oversized Sweatshirt - Rp 249.900\n"
+                "5. 👜 Colorbox x Liunic Tote Bag (Ecru) - Rp 199.900\n\n"
+                "Kakak lagi cari atasan santai, dress, atau celana denim untuk acara apa nih? Biar Siti bantu carikan yang paling cocok!"
             )
         elif intent == "PRODUCT_AVAILABILITY":
             return (
-                f"Halo {c_name}! Koleksi terbaru Colorbox dan kolaborasi Colorbox x Liunic tersedia di website & official store ✨ "
+                f"Halo {c_name}! Koleksi terbaru Colorbox dan kolaborasi Colorbox x Liunic tersedia di website & official store ✨\n\n"
                 "Boleh sebutkan nama item atau kirim foto produknya? Siti siap cek ketersediaan stoknya sekarang!"
             )
         else:
             return (
-                f"Halo {c_name}! Terima kasih sudah menghubungi WhatsApp resmi Colorbox Indonesia 💕 "
+                f"Halo {c_name}! Terima kasih sudah menghubungi WhatsApp resmi Colorbox Indonesia 💕\n\n"
                 "Ada yang bisa Siti bantu seputar outfit santai, promo terbaru, atau informasi pesanan Kakak hari ini?"
             )
 

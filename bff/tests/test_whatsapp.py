@@ -140,3 +140,38 @@ async def test_tools_integrations_overview():
         assert "gmail" in tool_ids
         assert "notion" in tool_ids
         assert "whatsapp" in tool_ids
+
+def test_colorbox_kb_size_exchange_grounding():
+    bot, intent, _ = classify_and_route("Halo kak, kalau baju saya kekecilan apakah bisa tukar ukuran?")
+    assert bot == "siti"
+    assert intent == "RETURN_REFUND"
+    reply = generate_cs_reply(bot, "Dian", "baju kekecilan mau tukar ukuran", intent, "P2")
+    assert "belum melayani penukaran ukuran" in reply or "size exchange" in reply
+    assert "7 hari" in reply
+    assert "refund" in reply
+
+def test_colorbox_kb_shipping_sla_grounding():
+    bot, intent, _ = classify_and_route("Berapa lama estimasi pengiriman ke luar jawa?")
+    assert bot == "siti"
+    assert intent == "SHIPPING_DELIVERY"
+    reply = generate_cs_reply(bot, "Dian", "Berapa lama estimasi pengiriman?", intent, "P2")
+    assert "Jabodetabek" in reply
+    assert "Pulau Jawa" in reply
+    assert "Luar Pulau Jawa" in reply
+
+def test_colorbox_kb_payment_methods_grounding():
+    bot, intent, _ = classify_and_route("Metode pembayaran apa saja yang bisa digunakan di website?")
+    assert bot == "siti"
+    assert intent == "PAYMENT"
+    reply = generate_cs_reply(bot, "Dian", "metode pembayaran apa saja", intent, "P2")
+    assert "Virtual Account" in reply
+    assert "QRIS" in reply
+    assert "COD" in reply
+
+def test_colorbox_kb_cancellation_grounding():
+    bot, intent, _ = classify_and_route("Kak saya mau batalkan pesanan saya apakah masih bisa?")
+    assert bot == "siti"
+    assert intent == "CANCELLATION"
+    reply = generate_cs_reply(bot, "Dian", "mau batalkan pesanan", intent, "P2")
+    assert "kurir" in reply or "ekspedisi" in reply
+    assert "7 hari" in reply
