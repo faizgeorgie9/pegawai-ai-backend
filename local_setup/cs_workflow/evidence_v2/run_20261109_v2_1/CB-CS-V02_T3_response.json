@@ -1,0 +1,101 @@
+{
+  "test_id": "CB-CS-V02",
+  "turn_id": "T3",
+  "http_status": 200,
+  "elapsed_seconds": 36.76,
+  "parsed_output": {
+    "primary_intent": "RETURN_REFUND",
+    "secondary_intents": [
+      "COMPLAINT_WRONG_ITEM"
+    ],
+    "classification_confidence": 0.9,
+    "priority": "P1",
+    "customer_reply_draft": "Halo, terima kasih sudah mengoreksi informasinya. Kami memperbarui catatan: barang yang Anda laporkan adalah rok plisket yang warnanya berbeda dari pesanan, bukan atasan. Laporan sebelumnya mengenai atasan yang jahitannya lepas dan bernoda kami tandai sebagai sudah digantikan oleh keterangan terbaru ini.\n\nKebijakan pengembalian resmi Colorbox menyebutkan bahwa pesanan yang sudah dibayar dapat dikembalikan apabila barang yang diterima berbeda dari pesanan pada nama artikel atau warna, atau dalam kondisi rusak/cacat, dengan pengembalian maksimal 7 hari setelah barang diterima, dan halaman tersebut menyatakan tidak ada biaya layanan/pengembalian tambahan pada kondisi yang disebutkan. Berdasarkan tanggal terima yang Anda sampaikan (5 November), laporan ini masih berada dalam rentang 7 hari.\n\nKami belum dapat memproses, menyetujui, atau menolak permintaan refund Anda, dan belum dapat memastikan metode maupun lama waktu pengembalian dana, karena hal itu tidak ditetapkan dalam sumber publik resmi yang kami tinjau. Karena pesanan Anda dilakukan melalui Shopee, proses pengembalian untuk pesanan marketplace juga belum dijelaskan dalam sumber yang kami tinjau, sehingga laporan ini masih perlu ditinjau lebih lanjut.\n\nLangkah berikutnya: mohon hubungi kanal layanan pelanggan resmi Colorbox dengan menyertakan nomor pesanan DEMO-CBX-002 dan tanggal terima 5 November. Sebaiknya rok plisket beserta kemasannya disimpan untuk keperluan peninjauan.",
+    "ticket_summary": {
+      "issue": "Customer melaporkan rok plisket yang diterima berwarna berbeda dari pesanan dan meminta refund; laporan sebelumnya tentang atasan (jahitan lepas dan noda) dikoreksi oleh customer dan tidak lagi berlaku.",
+      "customer_reported_facts": [
+        "Barang yang bermasalah adalah rok plisket, bukan atasan (keterangan terbaru customer).",
+        "Warna rok plisket berbeda dari warna yang dipesan.",
+        "Pesanan dilakukan melalui Shopee dengan nomor DEMO-CBX-002.",
+        "Paket diterima pada 5 November.",
+        "Customer meminta pengembalian dana (refund).",
+        "SUPERSEDED: laporan awal bahwa atasan memiliki jahitan lepas dan noda digantikan oleh keterangan terbaru; kedua versi tidak digabungkan."
+      ],
+      "publicly_verified_facts": [
+        "Kebijakan refund/return resmi Colorbox: pesanan yang sudah dibayar dapat dikembalikan bila barang yang diterima berbeda dari pesanan pada nama artikel atau warna, atau dalam kondisi rusak/cacat, maksimal 7 hari setelah barang diterima.",
+        "Halaman kebijakan menyatakan tidak ada biaya layanan/pengembalian tambahan pada kondisi yang disebutkan.",
+        "Halaman utama Colorbox menyediakan entri Track Your Order, namun prototipe ini tidak dapat melakukan pencarian pesanan/pelacakan."
+      ],
+      "unknowns": [
+        "Kelayakan dan persetujuan pengembalian untuk pesanan spesifik ini belum terverifikasi.",
+        "Waktu proses pengembalian dana dan metode refund tidak ditetapkan dalam sumber publik yang ditinjau.",
+        "Proses pengembalian untuk pesanan yang dibuat melalui marketplace Shopee tidak dijelaskan dalam sumber yang ditinjau.",
+        "Kesesuaian warna barang yang sebenarnya belum diverifikasi independen (hanya berdasarkan laporan customer).",
+        "Tidak ada sumber publik yang ditinjau yang menetapkan kebijakan penukaran ukuran atau jaminan fit."
+      ],
+      "customer_provided_references": [
+        "DEMO-CBX-002 (nomor pesanan Shopee, dilaporkan customer; bukan bukti pesanan terverifikasi)",
+        "Tanggal terima 5 November (dilaporkan customer)"
+      ],
+      "requested_outcome": "Refund (pengembalian dana) untuk rok plisket yang warnanya berbeda dari pesanan.",
+      "context_retained": [
+        "Sesi yang sama: keluhan awal berupa produk rusak/cacat, kemudian direklasifikasi menjadi ketidaksesuaian warna barang (COMPLAINT_WRONG_ITEM) dengan permintaan refund.",
+        "Kanal pembelian Shopee dan nomor pesanan DEMO-CBX-002 tetap dipertahankan dari percakapan sebelumnya.",
+        "Tanggal terima 5 November tetap dipertahankan; berdasarkan tanggal tersebut laporan berada 4 hari setelah penerimaan, masih dalam batas 7 hari menurut kebijakan yang ditinjau.",
+        "Permintaan refund tetap menjadi hasil yang diminta customer."
+      ]
+    },
+    "knowledge_refs": [
+      {
+        "knowledge_id": "CB-RETURNS-001",
+        "source_ids": [
+          "SRC-04"
+        ],
+        "source_url": "https://colorbox.co.id/policies/refund-policy",
+        "accessed_date": "2026-11-07",
+        "used_for": "Menjelaskan kondisi pengembalian yang berlaku (nama artikel/warna berbeda atau rusak/cacat, maksimal 7 hari setelah diterima) dan tidak adanya biaya tambahan; sekaligus dasar menyatakan bahwa lama proses, metode refund, dan kelayakan pesanan individual tidak ditetapkan."
+      },
+      {
+        "knowledge_id": "CB-TRACKING-LIMIT-001",
+        "source_ids": [
+          "SRC-01"
+        ],
+        "source_url": "https://colorbox.co.id/",
+        "accessed_date": "2026-11-07",
+        "used_for": "Menyatakan batas bahwa prototipe ini tidak dapat melakukan pencarian pesanan/pelacakan, sehingga status dan detail pesanan tidak dapat dicek langsung."
+      }
+    ],
+    "clarifying_question": null,
+    "escalation": {
+      "recommended": true,
+      "reason": "Permintaan refund dengan dugaan ketidaksesuaian warna barang (P1): keputusan pengembalian dana tidak dapat diambil otomatis, kelayakan pesanan belum diverifikasi, dan sumber publik yang ditinjau tidak menetapkan lama proses maupun metode refund, termasuk alur untuk pesanan marketplace Shopee.",
+      "handoff_status": "recommendation_only"
+    },
+    "human_review_required": true,
+    "simulation": {
+      "is_simulated": false,
+      "scenario_ids": []
+    }
+  },
+  "raw_body": {
+    "status": "success",
+    "session_id": "sess_ffe6639b",
+    "customer_id": "colorbox_v2_CB-CS-V02",
+    "department": "customer_support",
+    "agent_mode": "single",
+    "agent_count": 1,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback_applied": false,
+    "blocker_note": null,
+    "execution_time_seconds": 36.74,
+    "output": "{\n  \"primary_intent\": \"RETURN_REFUND\",\n  \"secondary_intents\": [\"COMPLAINT_WRONG_ITEM\"],\n  \"classification_confidence\": 0.9,\n  \"priority\": \"P1\",\n  \"customer_reply_draft\": \"Halo, terima kasih sudah mengoreksi informasinya. Kami memperbarui catatan: barang yang Anda laporkan adalah rok plisket yang warnanya berbeda dari pesanan, bukan atasan. Laporan sebelumnya mengenai atasan yang jahitannya lepas dan bernoda kami tandai sebagai sudah digantikan oleh keterangan terbaru ini.\\n\\nKebijakan pengembalian resmi Colorbox menyebutkan bahwa pesanan yang sudah dibayar dapat dikembalikan apabila barang yang diterima berbeda dari pesanan pada nama artikel atau warna, atau dalam kondisi rusak/cacat, dengan pengembalian maksimal 7 hari setelah barang diterima, dan halaman tersebut menyatakan tidak ada biaya layanan/pengembalian tambahan pada kondisi yang disebutkan. Berdasarkan tanggal terima yang Anda sampaikan (5 November), laporan ini masih berada dalam rentang 7 hari.\\n\\nKami belum dapat memproses, menyetujui, atau menolak permintaan refund Anda, dan belum dapat memastikan metode maupun lama waktu pengembalian dana, karena hal itu tidak ditetapkan dalam sumber publik resmi yang kami tinjau. Karena pesanan Anda dilakukan melalui Shopee, proses pengembalian untuk pesanan marketplace juga belum dijelaskan dalam sumber yang kami tinjau, sehingga laporan ini masih perlu ditinjau lebih lanjut.\\n\\nLangkah berikutnya: mohon hubungi kanal layanan pelanggan resmi Colorbox dengan menyertakan nomor pesanan DEMO-CBX-002 dan tanggal terima 5 November. Sebaiknya rok plisket beserta kemasannya disimpan untuk keperluan peninjauan.\",\n  \"ticket_summary\": {\n    \"issue\": \"Customer melaporkan rok plisket yang diterima berwarna berbeda dari pesanan dan meminta refund; laporan sebelumnya tentang atasan (jahitan lepas dan noda) dikoreksi oleh customer dan tidak lagi berlaku.\",\n    \"customer_reported_facts\": [\n      \"Barang yang bermasalah adalah rok plisket, bukan atasan (keterangan terbaru customer).\",\n      \"Warna rok plisket berbeda dari warna yang dipesan.\",\n      \"Pesanan dilakukan melalui Shopee dengan nomor DEMO-CBX-002.\",\n      \"Paket diterima pada 5 November.\",\n      \"Customer meminta pengembalian dana (refund).\",\n      \"SUPERSEDED: laporan awal bahwa atasan memiliki jahitan lepas dan noda digantikan oleh keterangan terbaru; kedua versi tidak digabungkan.\"\n    ],\n    \"publicly_verified_facts\": [\n      \"Kebijakan refund/return resmi Colorbox: pesanan yang sudah dibayar dapat dikembalikan bila barang yang diterima berbeda dari pesanan pada nama artikel atau warna, atau dalam kondisi rusak/cacat, maksimal 7 hari setelah barang diterima.\",\n      \"Halaman kebijakan menyatakan tidak ada biaya layanan/pengembalian tambahan pada kondisi yang disebutkan.\",\n      \"Halaman utama Colorbox menyediakan entri Track Your Order, namun prototipe ini tidak dapat melakukan pencarian pesanan/pelacakan.\"\n    ],\n    \"unknowns\": [\n      \"Kelayakan dan persetujuan pengembalian untuk pesanan spesifik ini belum terverifikasi.\",\n      \"Waktu proses pengembalian dana dan metode refund tidak ditetapkan dalam sumber publik yang ditinjau.\",\n      \"Proses pengembalian untuk pesanan yang dibuat melalui marketplace Shopee tidak dijelaskan dalam sumber yang ditinjau.\",\n      \"Kesesuaian warna barang yang sebenarnya belum diverifikasi independen (hanya berdasarkan laporan customer).\",\n      \"Tidak ada sumber publik yang ditinjau yang menetapkan kebijakan penukaran ukuran atau jaminan fit.\"\n    ],\n    \"customer_provided_references\": [\n      \"DEMO-CBX-002 (nomor pesanan Shopee, dilaporkan customer; bukan bukti pesanan terverifikasi)\",\n      \"Tanggal terima 5 November (dilaporkan customer)\"\n    ],\n    \"requested_outcome\": \"Refund (pengembalian dana) untuk rok plisket yang warnanya berbeda dari pesanan.\",\n    \"context_retained\": [\n      \"Sesi yang sama: keluhan awal berupa produk rusak/cacat, kemudian direklasifikasi menjadi ketidaksesuaian warna barang (COMPLAINT_WRONG_ITEM) dengan permintaan refund.\",\n      \"Kanal pembelian Shopee dan nomor pesanan DEMO-CBX-002 tetap dipertahankan dari percakapan sebelumnya.\",\n      \"Tanggal terima 5 November tetap dipertahankan; berdasarkan tanggal tersebut laporan berada 4 hari setelah penerimaan, masih dalam batas 7 hari menurut kebijakan yang ditinjau.\",\n      \"Permintaan refund tetap menjadi hasil yang diminta customer.\"\n    ]\n  },\n  \"knowledge_refs\": [\n    {\n      \"knowledge_id\": \"CB-RETURNS-001\",\n      \"source_ids\": [\"SRC-04\"],\n      \"source_url\": \"https://colorbox.co.id/policies/refund-policy\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Menjelaskan kondisi pengembalian yang berlaku (nama artikel/warna berbeda atau rusak/cacat, maksimal 7 hari setelah diterima) dan tidak adanya biaya tambahan; sekaligus dasar menyatakan bahwa lama proses, metode refund, dan kelayakan pesanan individual tidak ditetapkan.\"\n    },\n    {\n      \"knowledge_id\": \"CB-TRACKING-LIMIT-001\",\n      \"source_ids\": [\"SRC-01\"],\n      \"source_url\": \"https://colorbox.co.id/\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Menyatakan batas bahwa prototipe ini tidak dapat melakukan pencarian pesanan/pelacakan, sehingga status dan detail pesanan tidak dapat dicek langsung.\"\n    }\n  ],\n  \"clarifying_question\": null,\n  \"escalation\": {\n    \"recommended\": true,\n    \"reason\": \"Permintaan refund dengan dugaan ketidaksesuaian warna barang (P1): keputusan pengembalian dana tidak dapat diambil otomatis, kelayakan pesanan belum diverifikasi, dan sumber publik yang ditinjau tidak menetapkan lama proses maupun metode refund, termasuk alur untuk pesanan marketplace Shopee.\",\n    \"handoff_status\": \"recommendation_only\"\n  },\n  \"human_review_required\": true,\n  \"simulation\": {\n    \"is_simulated\": false,\n    \"scenario_ids\": []\n  }\n}",
+    "multi_agent_data": null,
+    "token_usage": {
+      "input_tokens": 38602,
+      "output_tokens": 3196,
+      "total_tokens": 41798
+    },
+    "timestamp": "2026-11-09T15:44:40+0700"
+  }
+}

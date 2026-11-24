@@ -1,0 +1,98 @@
+{
+  "test_id": "CB-CS-V02",
+  "turn_id": "T2",
+  "http_status": 200,
+  "elapsed_seconds": 32.48,
+  "parsed_output": {
+    "primary_intent": "RETURN_REFUND",
+    "secondary_intents": [
+      "COMPLAINT_DAMAGED"
+    ],
+    "classification_confidence": 0.94,
+    "priority": "P1",
+    "customer_reply_draft": "Halo, terima kasih atas informasinya. Kami mencatat laporan Anda bahwa atasan yang diterima pada 5 November memiliki jahitan lepas dan noda, serta bahwa Anda ingin mengajukan pengembalian dana (refund) untuk pesanan Shopee dengan nomor DEMO-CBX-002.\n\nKebijakan pengembalian resmi Colorbox menyebutkan bahwa pesanan yang sudah dibayar dapat dikembalikan apabila barang yang diterima berbeda dari pesanan (nama artikel atau warna) atau dalam kondisi rusak/cacat, dengan pengembalian maksimal 7 hari setelah barang diterima, dan halaman tersebut menyatakan tidak ada biaya layanan/pengembalian tambahan pada kondisi yang disebutkan. Berdasarkan tanggal terima yang Anda sampaikan, laporan ini masih berada dalam rentang 7 hari.\n\nNamun kami tidak dapat memproses, menyetujui, atau menolak refund, dan juga tidak dapat memastikan metode maupun lama waktu pengembalian dana, karena hal itu belum ditetapkan dalam sumber publik resmi yang kami tinjau. Pesanan Anda juga tidak dapat kami cek langsung di sistem Shopee maupun Colorbox. Untuk peninjauan dan proses selanjutnya, mohon hubungi kanal layanan pelanggan resmi Colorbox dengan menyertakan nomor pesanan dan tanggal terima. Sebaiknya barang beserta kemasannya disimpan untuk keperluan peninjauan.",
+    "ticket_summary": {
+      "issue": "Customer melaporkan atasan yang diterima memiliki jahitan lepas dan noda, lalu meminta refund untuk pesanan Shopee.",
+      "customer_reported_facts": [
+        "Atasan yang diterima memiliki jahitan lepas dan noda.",
+        "Pesanan dilakukan melalui Shopee dengan nomor DEMO-CBX-002.",
+        "Barang diterima pada 5 November (tahun tidak disebutkan).",
+        "Customer ingin pengembalian dana (refund)."
+      ],
+      "publicly_verified_facts": [
+        "Kebijakan refund/return resmi menyatakan pesanan yang sudah dibayar dapat dikembalikan bila barang yang diterima berbeda dari pesanan menurut nama artikel atau warna, atau dalam kondisi rusak/cacat, dengan batas maksimal 7 hari setelah barang diterima.",
+        "Halaman kebijakan tersebut menyatakan tidak ada biaya layanan/pengembalian tambahan pada kondisi yang disebutkan."
+      ],
+      "unknowns": [
+        "Lama waktu pemrosesan refund dan metode pengembalian dana tidak ditetapkan oleh sumber publik resmi yang ditinjau.",
+        "Kelayakan dan persetujuan refund untuk pesanan ini belum diverifikasi.",
+        "Status, riwayat, dan detail pesanan Shopee DEMO-CBX-002 tidak dapat diakses (tidak ada lookup live).",
+        "Prosedur penanganan retur untuk pesanan yang dibeli melalui Shopee tidak tercakup dalam sumber yang ditinjau.",
+        "Tahun pada tanggal terima (5 November) tidak disebutkan customer."
+      ],
+      "customer_provided_references": [
+        "Shopee DEMO-CBX-002",
+        "Diterima 5 November"
+      ],
+      "requested_outcome": "Refund (pengembalian dana) untuk pesanan Shopee DEMO-CBX-002.",
+      "context_retained": [
+        "Laporan awal customer: atasan dengan jahitan lepas dan noda.",
+        "Pertanyaan assistant sebelumnya meminta nomor pesanan dan tanggal terima; customer menjawab pada turn ini.",
+        "Kebijakan 7 hari sudah diinformasikan pada turn sebelumnya dan tetap relevan.",
+        "Kanal pembelian (Shopee) baru diketahui pada turn ini, bukan kanal Colorbox langsung."
+      ]
+    },
+    "knowledge_refs": [
+      {
+        "knowledge_id": "CB-RETURNS-001",
+        "source_ids": [
+          "SRC-04"
+        ],
+        "source_url": "https://colorbox.co.id/policies/refund-policy",
+        "accessed_date": "2026-11-07",
+        "used_for": "Dasar kondisi pengembalian (rusak/cacat, maksimal 7 hari setelah diterima) dan pernyataan tidak ada biaya tambahan; acuan untuk menyatakan kelayakan pesanan ini belum terverifikasi."
+      },
+      {
+        "knowledge_id": "CB-REFUND-TIMING-UNKNOWN-001",
+        "source_ids": [
+          "SRC-04"
+        ],
+        "source_url": "https://colorbox.co.id/policies/refund-policy",
+        "accessed_date": "2026-11-07",
+        "used_for": "Menjelaskan keterbatasan bahwa lama waktu proses dan metode refund tidak ditetapkan sumber resmi, sehingga tidak ada janji waktu atau metode."
+      }
+    ],
+    "clarifying_question": null,
+    "escalation": {
+      "recommended": true,
+      "reason": "Permintaan refund dengan klaim barang rusak/cacat (P1) dan kelayakan tidak dapat diputuskan tanpa verifikasi manusia; lama proses serta metode refund tidak ditetapkan sumber publik, dan pembelian melalui Shopee belum tercakup sumber yang ditinjau.",
+      "handoff_status": "recommendation_only"
+    },
+    "human_review_required": true,
+    "simulation": {
+      "is_simulated": false,
+      "scenario_ids": []
+    }
+  },
+  "raw_body": {
+    "status": "success",
+    "session_id": "sess_58642b50",
+    "customer_id": "colorbox_v2_CB-CS-V02",
+    "department": "customer_support",
+    "agent_mode": "single",
+    "agent_count": 1,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback_applied": false,
+    "blocker_note": null,
+    "execution_time_seconds": 32.46,
+    "output": "{\n  \"primary_intent\": \"RETURN_REFUND\",\n  \"secondary_intents\": [\"COMPLAINT_DAMAGED\"],\n  \"classification_confidence\": 0.94,\n  \"priority\": \"P1\",\n  \"customer_reply_draft\": \"Halo, terima kasih atas informasinya. Kami mencatat laporan Anda bahwa atasan yang diterima pada 5 November memiliki jahitan lepas dan noda, serta bahwa Anda ingin mengajukan pengembalian dana (refund) untuk pesanan Shopee dengan nomor DEMO-CBX-002.\\n\\nKebijakan pengembalian resmi Colorbox menyebutkan bahwa pesanan yang sudah dibayar dapat dikembalikan apabila barang yang diterima berbeda dari pesanan (nama artikel atau warna) atau dalam kondisi rusak/cacat, dengan pengembalian maksimal 7 hari setelah barang diterima, dan halaman tersebut menyatakan tidak ada biaya layanan/pengembalian tambahan pada kondisi yang disebutkan. Berdasarkan tanggal terima yang Anda sampaikan, laporan ini masih berada dalam rentang 7 hari.\\n\\nNamun kami tidak dapat memproses, menyetujui, atau menolak refund, dan juga tidak dapat memastikan metode maupun lama waktu pengembalian dana, karena hal itu belum ditetapkan dalam sumber publik resmi yang kami tinjau. Pesanan Anda juga tidak dapat kami cek langsung di sistem Shopee maupun Colorbox. Untuk peninjauan dan proses selanjutnya, mohon hubungi kanal layanan pelanggan resmi Colorbox dengan menyertakan nomor pesanan dan tanggal terima. Sebaiknya barang beserta kemasannya disimpan untuk keperluan peninjauan.\",\n  \"ticket_summary\": {\n    \"issue\": \"Customer melaporkan atasan yang diterima memiliki jahitan lepas dan noda, lalu meminta refund untuk pesanan Shopee.\",\n    \"customer_reported_facts\": [\n      \"Atasan yang diterima memiliki jahitan lepas dan noda.\",\n      \"Pesanan dilakukan melalui Shopee dengan nomor DEMO-CBX-002.\",\n      \"Barang diterima pada 5 November (tahun tidak disebutkan).\",\n      \"Customer ingin pengembalian dana (refund).\"\n    ],\n    \"publicly_verified_facts\": [\n      \"Kebijakan refund/return resmi menyatakan pesanan yang sudah dibayar dapat dikembalikan bila barang yang diterima berbeda dari pesanan menurut nama artikel atau warna, atau dalam kondisi rusak/cacat, dengan batas maksimal 7 hari setelah barang diterima.\",\n      \"Halaman kebijakan tersebut menyatakan tidak ada biaya layanan/pengembalian tambahan pada kondisi yang disebutkan.\"\n    ],\n    \"unknowns\": [\n      \"Lama waktu pemrosesan refund dan metode pengembalian dana tidak ditetapkan oleh sumber publik resmi yang ditinjau.\",\n      \"Kelayakan dan persetujuan refund untuk pesanan ini belum diverifikasi.\",\n      \"Status, riwayat, dan detail pesanan Shopee DEMO-CBX-002 tidak dapat diakses (tidak ada lookup live).\",\n      \"Prosedur penanganan retur untuk pesanan yang dibeli melalui Shopee tidak tercakup dalam sumber yang ditinjau.\",\n      \"Tahun pada tanggal terima (5 November) tidak disebutkan customer.\"\n    ],\n    \"customer_provided_references\": [\n      \"Shopee DEMO-CBX-002\",\n      \"Diterima 5 November\"\n    ],\n    \"requested_outcome\": \"Refund (pengembalian dana) untuk pesanan Shopee DEMO-CBX-002.\",\n    \"context_retained\": [\n      \"Laporan awal customer: atasan dengan jahitan lepas dan noda.\",\n      \"Pertanyaan assistant sebelumnya meminta nomor pesanan dan tanggal terima; customer menjawab pada turn ini.\",\n      \"Kebijakan 7 hari sudah diinformasikan pada turn sebelumnya dan tetap relevan.\",\n      \"Kanal pembelian (Shopee) baru diketahui pada turn ini, bukan kanal Colorbox langsung.\"\n    ]\n  },\n  \"knowledge_refs\": [\n    {\n      \"knowledge_id\": \"CB-RETURNS-001\",\n      \"source_ids\": [\"SRC-04\"],\n      \"source_url\": \"https://colorbox.co.id/policies/refund-policy\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Dasar kondisi pengembalian (rusak/cacat, maksimal 7 hari setelah diterima) dan pernyataan tidak ada biaya tambahan; acuan untuk menyatakan kelayakan pesanan ini belum terverifikasi.\"\n    },\n    {\n      \"knowledge_id\": \"CB-REFUND-TIMING-UNKNOWN-001\",\n      \"source_ids\": [\"SRC-04\"],\n      \"source_url\": \"https://colorbox.co.id/policies/refund-policy\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Menjelaskan keterbatasan bahwa lama waktu proses dan metode refund tidak ditetapkan sumber resmi, sehingga tidak ada janji waktu atau metode.\"\n    }\n  ],\n  \"clarifying_question\": null,\n  \"escalation\": {\n    \"recommended\": true,\n    \"reason\": \"Permintaan refund dengan klaim barang rusak/cacat (P1) dan kelayakan tidak dapat diputuskan tanpa verifikasi manusia; lama proses serta metode refund tidak ditetapkan sumber publik, dan pembelian melalui Shopee belum tercakup sumber yang ditinjau.\",\n    \"handoff_status\": \"recommendation_only\"\n  },\n  \"human_review_required\": true,\n  \"simulation\": {\n    \"is_simulated\": false,\n    \"scenario_ids\": []\n  }\n}",
+    "multi_agent_data": null,
+    "token_usage": {
+      "input_tokens": 38063,
+      "output_tokens": 2801,
+      "total_tokens": 40864
+    },
+    "timestamp": "2026-11-09T15:44:04+0700"
+  }
+}

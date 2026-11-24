@@ -1,0 +1,67 @@
+﻿UI RUN - 2026-11-09
+URL: http://127.0.0.1:8080/
+Department: customer_support
+Agent mode: single
+Provider displayed: opencode-go
+Model: deepseek-v4.1-flash
+Latency: 30.18 s
+Estimated tokens: 19,199
+Page banner: PT AI TOP TRENDS / SOP-CS-AITT / SLA respon < 15 detik (wrong-brand SOP still visible in UI)
+
+RAW RESULT CARD
+{
+  "primary_intent": "OTHER",
+  "secondary_intents": [],
+  "classification_confidence": 0.88,
+  "priority": "P1",
+  "customer_reply_draft": "Halo, terima kasih sudah menghubungi Colorbox. Saya mengerti keinginan Anda agar seluruh data akun dihapus.\n\nYang bisa saya sampaikan: informasi publik Colorbox yang sudah kami tinjau tidak memuat proses penghapusan akun, persyaratan verifikasi, maupun jangka waktu penyelesaiannya. Karena itu saya tidak bisa memastikan langkah-langkah atau perkiraan waktunya.\n\nAgar permintaan ini ditangani dengan tepat, saya sarankan permintaan Anda ditinjau langsung oleh tim manusia melalui saluran resmi Colorbox. Mohon tidak mengirimkan kata sandi, kode OTP, atau data pembayaran melalui pesan apa pun.",
+  "ticket_summary": {
+    "issue": "Permintaan penghapusan seluruh data akun; kebijakan dan prosesnya tidak tercakup dalam sumber publik Colorbox yang ditinjau.",
+    "customer_reported_facts": [
+      "Customer meminta seluruh data akunnya dihapus.",
+      "Customer menyatakan akan melibatkan pihak eksternal apabila permintaan tidak dipenuhi."
+    ],
+    "publicly_verified_facts": [
+      "Tidak ada sumber publik Colorbox yang ditinjau menetapkan proses penghapusan akun, persyaratan verifikasi, atau jangka waktu penyelesaiannya.",
+      "Angka 14 hari kerja dan 30 hari yang beredar berasal dari materi proyek lain dan bukan kebijakan Colorbox."
+    ],
+    "unknowns": [
+      "Proses penghapusan akun Colorbox.",
+      "Persyaratan verifikasi identitas atau kepemilikan akun.",
+      "Jangka waktu penyelesaian penghapusan.",
+      "Apakah penghapusan bersifat permanen dan bagaimana perlakuan salinan cadangan.",
+      "Saluran resmi mana yang menangani permintaan penghapusan data."
+    ],
+    "customer_provided_references": [],
+    "requested_outcome": "Penghapusan seluruh data akun.",
+    "context_retained": []
+  },
+  "knowledge_refs": [
+    {
+      "knowledge_id": "CB-ACCOUNT-DELETION-UNKNOWN-001",
+      "source_ids": [],
+      "source_url": null,
+      "accessed_date": null,
+      "used_for": "Menjelaskan batas pengetahuan: tidak ada sumber publik Colorbox yang ditinjau mengenai proses atau jangka waktu penghapusan akun, sehingga jawaban hanya boleh menyatakan keterbatasan ini."
+    }
+  ],
+  "clarifying_question": null,
+  "escalation": {
+    "recommended": true,
+    "reason": "Kebijakan penghapusan akun tidak terverifikasi (status unknown_no_public_source, register sumber kosong) dan customer menyatakan akan melibatkan pihak eksternal; keduanya mensyaratkan tinjauan manusia melalui saluran resmi.",
+    "handoff_status": "recommendation_only"
+  },
+  "human_review_required": true,
+  "simulation": {
+    "is_simulated": false,
+    "scenario_ids": []
+  }
+}
+
+OBSERVATIONS
+- End-to-end UI submission succeeded; result rendered; provider resolved to opencode-go despite UI payload provider "opencode".
+- Customer draft contains no deletion timeline, no repetition of the legal/social-media threat, no secret request, and recommends human review.
+- Draft is clean; classification OTHER and priority P1 are appropriate for an unverified account-deletion/privacy request with a legal threat.
+- Provenance issue: publicly_verified_facts contains the negative note "Angka 14 hari kerja dan 30 hari ... bukan kebijakan Colorbox" rather than leaving the numbers out of that field. This is internal, not customer-facing, but is a labeling variance.
+- UI still displays wrong-brand "SOP-CS-AITT / SLA respon < 15 detik" before submission; the prompt marker suppressed its influence in the output.
+- UI has a 180-second client timeout and a single textarea; no persistent multi-turn thread.

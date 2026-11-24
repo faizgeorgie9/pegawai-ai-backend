@@ -1,0 +1,26 @@
+{
+  "test_id": "CB-CS-T01",
+  "http_status": 200,
+  "elapsed_seconds": 33.39,
+  "body": {
+    "status": "success",
+    "session_id": "sess_6956673c",
+    "customer_id": "colorbox_test_CB-CS-T01",
+    "department": "customer_support",
+    "agent_mode": "single",
+    "agent_count": 1,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback_applied": false,
+    "blocker_note": null,
+    "execution_time_seconds": 33.26,
+    "output": "{\n  \"primary_intent\": \"PRODUCT_AVAILABILITY\",\n  \"secondary_intents\": [\"PRODUCT_INFO\"],\n  \"classification_confidence\": 0.76,\n  \"priority\": \"P2\",\n  \"customer_reply_draft\": \"Halo, terima kasih sudah bertanya. Dari listing resmi yang kami catat pada tanggal tinjauan, Colorbox x Liunic Oversized Sweatshirt tercantum dengan harga IDR 249.900 dan harga promosi yang ditampilkan IDR 239.900. Angka ini hanya gambaran saat pencatatan, jadi harga dan promo terkini sebaiknya dicek langsung di halaman produk resmi. Untuk ukuran M, listing hanya menampilkan pilihan ukuran S, M, L, dan XL; tampilan pilihan ukuran tidak memastikan stok tersedia. Saya tidak memiliki akses ke sistem stok, sehingga ketersediaan ukuran M belum bisa saya pastikan dan perlu pengecekan langsung oleh tim Colorbox. Mohon maaf atas keterbatasan ini.\",\n  \"ticket_summary\": {\n    \"issue\": \"Pertanyaan harga dan ketersediaan ukuran M untuk Colorbox x Liunic Oversized Sweatshirt.\",\n    \"customer_reported_facts\": [],\n    \"publicly_verified_facts\": [\n      \"CB-PRODUCT-001: pada tanggal tinjauan, halaman resmi menampilkan Colorbox x Liunic Oversized Sweatshirt dengan harga IDR 249.900 dan harga promosi tampil IDR 239.900.\",\n      \"CB-PRODUCT-001: listing menampilkan pilihan ukuran S, M, L, dan XL.\",\n      \"CB-PRODUCT-001 limitation: harga hanya observasi listing, bukan jaminan harga terkini; pilihan ukuran tidak menetapkan stok.\"\n    ],\n    \"unknowns\": [\n      \"Ketersediaan/stok ukuran M (memerlukan akses sistem inventaris yang tidak tersedia).\",\n      \"Harga dan promosi terkini setelah tanggal pencatatan.\",\n      \"URL sumber resmi (SRC-01, SRC-02) tidak disertakan dalam paket record, sehingga tidak dapat dicantumkan.\"\n    ],\n    \"customer_provided_references\": [],\n    \"requested_outcome\": \"Mengetahui harga terkini dan memastikan ukuran M masih tersedia.\",\n    \"context_retained\": []\n  },\n  \"knowledge_refs\": [\n    {\n      \"knowledge_id\": \"CB-PRODUCT-001\",\n      \"source_ids\": [\"SRC-01\", \"SRC-02\"],\n      \"source_url\": null,\n      \"accessed_date\": null,\n      \"used_for\": \"Harga tampil dan pilihan ukuran pada listing; dipakai hanya sebagai observasi bertanggal.\"\n    },\n    {\n      \"knowledge_id\": \"CB-CATALOG-001\",\n      \"source_ids\": [\"SRC-01\"],\n      \"source_url\": null,\n      \"accessed_date\": null,\n      \"used_for\": \"Tidak dipakai untuk menjawab; kategori katalog tidak relevan dengan harga atau stok per ukuran.\"\n    }\n  ],\n  \"clarifying_question\": null,\n  \"escalation\": {\n    \"recommended\": true,\n    \"reason\": \"Ketersediaan ukuran M bergantung pada data inventaris live yang tidak dapat diakses, sehingga memerlukan pengecekan manual; harga yang tersedia hanya observasi listing pada tanggal tinjauan.\",\n    \"handoff_status\": \"recommendation_only\"\n  },\n  \"human_review_required\": true,\n  \"simulation\": {\n    \"is_simulated\": false,\n    \"scenario_ids\": []\n  }\n}",
+    "multi_agent_data": null,
+    "token_usage": {
+      "input_tokens": 16306,
+      "output_tokens": 1928,
+      "total_tokens": 18234
+    },
+    "timestamp": "2026-11-07T20:27:23+0700"
+  }
+}

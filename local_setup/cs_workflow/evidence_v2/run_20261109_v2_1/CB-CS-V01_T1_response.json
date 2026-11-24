@@ -1,0 +1,101 @@
+{
+  "test_id": "CB-CS-V01",
+  "turn_id": "T1",
+  "http_status": 200,
+  "elapsed_seconds": 28.3,
+  "parsed_output": {
+    "primary_intent": "PRODUCT_AVAILABILITY",
+    "secondary_intents": [
+      "PRODUCT_INFO",
+      "SIZE_FIT"
+    ],
+    "classification_confidence": 0.9,
+    "priority": "P2",
+    "customer_reply_draft": "Halo, terima kasih sudah bertanya soal sweatshirt Colorbox x Liunic.\n\nUntuk harga: pada halaman utama resmi Colorbox yang kami tinjau (7 November 2026), produk ini tercantum dengan harga IDR 249.900 dan harga promo yang ditampilkan IDR 239.900. Harga dan promosi bisa berubah, jadi angka ini kami sampaikan sebagai catatan saat peninjauan, bukan jaminan harga saat ini.\n\nUntuk stok ukuran M, kami tidak bisa memastikan ketersediaannya. Halaman tersebut hanya menampilkan pilihan ukuran S, M, L, dan XL, tanpa informasi stok per ukuran, dan kami tidak memiliki akses ke sistem inventori atau ketersediaan toko. Sebaiknya dicek langsung di halaman produk resmi atau ditanyakan ke layanan pelanggan resmi Colorbox.\n\nSoal bahan: ketebalan atau jenis bahan sweatshirt ini belum terverifikasi pada sumber publik yang kami tinjau, jadi kami tidak bisa menyimpulkan bahannya tipis atau menyarankan naik ke XL berdasarkan itu. Sebagai panduan umum semata (bukan ketentuan Colorbox), banyak orang memilih ukuran yang biasa dipakai untuk potongan oversized, dan satu ukuran di atas bisa dipertimbangkan bila ingin lebih longgar. Keputusan ukuran tetap perlu dikonfirmasi ke Colorbox, termasuk ada atau tidaknya kebijakan penukaran ukuran, karena hal itu belum kami temukan di sumber publik yang kami tinjau.",
+    "ticket_summary": {
+      "issue": "Pelanggan menanyakan harga sweatshirt Colorbox x Liunic yang tampil di homepage, ketersediaan stok ukuran M, dan meminta pertimbangan ukuran/bahan (M vs XL).",
+      "customer_reported_facts": [
+        "Pelanggan biasanya memakai ukuran M.",
+        "Pelanggan mempertimbangkan ukuran XL jika bahan dinilai tipis."
+      ],
+      "publicly_verified_facts": [
+        "Pada tanggal peninjauan, homepage resmi menampilkan Colorbox x Liunic Oversized Sweatshirt dengan harga IDR 249.900 dan harga promo yang ditampilkan IDR 239.900 (harga dinamis, bukan jaminan harga saat ini).",
+        "Homepage menampilkan pilihan ukuran S, M, L, dan XL; ini tidak membuktikan stok atau ketersediaan ukuran mana pun.",
+        "Kebijakan pengembalian resmi mencakup barang yang berbeda nama artikel/warna atau cacat/rusak dalam maksimal 7 hari setelah diterima.",
+        "Tidak ada sumber publik yang ditinjau yang menetapkan kebijakan penukaran ukuran, jaminan fit, atau bahwa ketidaksesuaian ukuran dapat dikembalikan.",
+        "Gambar size guide tidak ditranskripsi dan tidak ada klaim bahan/ketebalan yang didukung sumber."
+      ],
+      "unknowns": [
+        "Harga dan promosi saat ini (data hanya diamati pada tanggal peninjauan).",
+        "Ketersediaan stok ukuran M atau ukuran lain.",
+        "Ketebalan/jenis bahan sweatshirt.",
+        "Kebijakan penukaran ukuran, biaya, dan kelayakannya.",
+        "Angka dimensi pada size guide."
+      ],
+      "customer_provided_references": [],
+      "requested_outcome": "Mengetahui harga, memastikan stok ukuran M, dan mendapat saran ukuran/bahan.",
+      "context_retained": []
+    },
+    "knowledge_refs": [
+      {
+        "knowledge_id": "CB-PRODUCT-001",
+        "source_ids": [
+          "SRC-01"
+        ],
+        "source_url": "https://colorbox.co.id/",
+        "accessed_date": "2026-11-07",
+        "used_for": "Dasar penyebutan harga IDR 249.900 / promo IDR 239.900 dan pilihan ukuran S-XL yang tampil, dengan penegasan bahwa itu bukan jaminan harga maupun stok."
+      },
+      {
+        "knowledge_id": "CB-EXCHANGE-UNKNOWN-001",
+        "source_ids": [
+          "SRC-04"
+        ],
+        "source_url": "https://colorbox.co.id/policies/refund-policy",
+        "accessed_date": "2026-11-07",
+        "used_for": "Menjelaskan bahwa kebijakan penukaran ukuran dan jaminan fit tidak ditetapkan sumber publik yang ditinjau, sehingga tidak dijanjikan."
+      },
+      {
+        "knowledge_id": "CB-RETURNS-001",
+        "source_ids": [
+          "SRC-04"
+        ],
+        "source_url": "https://colorbox.co.id/policies/refund-policy",
+        "accessed_date": "2026-11-07",
+        "used_for": "Membatasi cakupan kebijakan pengembalian (nama artikel/warna atau cacat/rusak, maksimal 7 hari) agar tidak diperluas ke ketidaksesuaian ukuran."
+      }
+    ],
+    "clarifying_question": null,
+    "escalation": {
+      "recommended": true,
+      "reason": "Pertanyaan stok membutuhkan pengecekan inventori langsung yang tidak tersedia, dan pertimbangan ukuran/bahan tidak dapat dijawab karena kebijakan penukaran ukuran, jaminan fit, serta data bahan tidak ditetapkan sumber publik yang ditinjau.",
+      "handoff_status": "recommendation_only"
+    },
+    "human_review_required": true,
+    "simulation": {
+      "is_simulated": false,
+      "scenario_ids": []
+    }
+  },
+  "raw_body": {
+    "status": "success",
+    "session_id": "sess_078d566d",
+    "customer_id": "colorbox_v2_CB-CS-V01",
+    "department": "customer_support",
+    "agent_mode": "single",
+    "agent_count": 1,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback_applied": false,
+    "blocker_note": null,
+    "execution_time_seconds": 28.1,
+    "output": "{\n  \"primary_intent\": \"PRODUCT_AVAILABILITY\",\n  \"secondary_intents\": [\"PRODUCT_INFO\", \"SIZE_FIT\"],\n  \"classification_confidence\": 0.9,\n  \"priority\": \"P2\",\n  \"customer_reply_draft\": \"Halo, terima kasih sudah bertanya soal sweatshirt Colorbox x Liunic.\\n\\nUntuk harga: pada halaman utama resmi Colorbox yang kami tinjau (7 November 2026), produk ini tercantum dengan harga IDR 249.900 dan harga promo yang ditampilkan IDR 239.900. Harga dan promosi bisa berubah, jadi angka ini kami sampaikan sebagai catatan saat peninjauan, bukan jaminan harga saat ini.\\n\\nUntuk stok ukuran M, kami tidak bisa memastikan ketersediaannya. Halaman tersebut hanya menampilkan pilihan ukuran S, M, L, dan XL, tanpa informasi stok per ukuran, dan kami tidak memiliki akses ke sistem inventori atau ketersediaan toko. Sebaiknya dicek langsung di halaman produk resmi atau ditanyakan ke layanan pelanggan resmi Colorbox.\\n\\nSoal bahan: ketebalan atau jenis bahan sweatshirt ini belum terverifikasi pada sumber publik yang kami tinjau, jadi kami tidak bisa menyimpulkan bahannya tipis atau menyarankan naik ke XL berdasarkan itu. Sebagai panduan umum semata (bukan ketentuan Colorbox), banyak orang memilih ukuran yang biasa dipakai untuk potongan oversized, dan satu ukuran di atas bisa dipertimbangkan bila ingin lebih longgar. Keputusan ukuran tetap perlu dikonfirmasi ke Colorbox, termasuk ada atau tidaknya kebijakan penukaran ukuran, karena hal itu belum kami temukan di sumber publik yang kami tinjau.\",\n  \"ticket_summary\": {\n    \"issue\": \"Pelanggan menanyakan harga sweatshirt Colorbox x Liunic yang tampil di homepage, ketersediaan stok ukuran M, dan meminta pertimbangan ukuran/bahan (M vs XL).\",\n    \"customer_reported_facts\": [\n      \"Pelanggan biasanya memakai ukuran M.\",\n      \"Pelanggan mempertimbangkan ukuran XL jika bahan dinilai tipis.\"\n    ],\n    \"publicly_verified_facts\": [\n      \"Pada tanggal peninjauan, homepage resmi menampilkan Colorbox x Liunic Oversized Sweatshirt dengan harga IDR 249.900 dan harga promo yang ditampilkan IDR 239.900 (harga dinamis, bukan jaminan harga saat ini).\",\n      \"Homepage menampilkan pilihan ukuran S, M, L, dan XL; ini tidak membuktikan stok atau ketersediaan ukuran mana pun.\",\n      \"Kebijakan pengembalian resmi mencakup barang yang berbeda nama artikel/warna atau cacat/rusak dalam maksimal 7 hari setelah diterima.\",\n      \"Tidak ada sumber publik yang ditinjau yang menetapkan kebijakan penukaran ukuran, jaminan fit, atau bahwa ketidaksesuaian ukuran dapat dikembalikan.\",\n      \"Gambar size guide tidak ditranskripsi dan tidak ada klaim bahan/ketebalan yang didukung sumber.\"\n    ],\n    \"unknowns\": [\n      \"Harga dan promosi saat ini (data hanya diamati pada tanggal peninjauan).\",\n      \"Ketersediaan stok ukuran M atau ukuran lain.\",\n      \"Ketebalan/jenis bahan sweatshirt.\",\n      \"Kebijakan penukaran ukuran, biaya, dan kelayakannya.\",\n      \"Angka dimensi pada size guide.\"\n    ],\n    \"customer_provided_references\": [],\n    \"requested_outcome\": \"Mengetahui harga, memastikan stok ukuran M, dan mendapat saran ukuran/bahan.\",\n    \"context_retained\": []\n  },\n  \"knowledge_refs\": [\n    {\n      \"knowledge_id\": \"CB-PRODUCT-001\",\n      \"source_ids\": [\"SRC-01\"],\n      \"source_url\": \"https://colorbox.co.id/\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Dasar penyebutan harga IDR 249.900 / promo IDR 239.900 dan pilihan ukuran S-XL yang tampil, dengan penegasan bahwa itu bukan jaminan harga maupun stok.\"\n    },\n    {\n      \"knowledge_id\": \"CB-EXCHANGE-UNKNOWN-001\",\n      \"source_ids\": [\"SRC-04\"],\n      \"source_url\": \"https://colorbox.co.id/policies/refund-policy\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Menjelaskan bahwa kebijakan penukaran ukuran dan jaminan fit tidak ditetapkan sumber publik yang ditinjau, sehingga tidak dijanjikan.\"\n    },\n    {\n      \"knowledge_id\": \"CB-RETURNS-001\",\n      \"source_ids\": [\"SRC-04\"],\n      \"source_url\": \"https://colorbox.co.id/policies/refund-policy\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Membatasi cakupan kebijakan pengembalian (nama artikel/warna atau cacat/rusak, maksimal 7 hari) agar tidak diperluas ke ketidaksesuaian ukuran.\"\n    }\n  ],\n  \"clarifying_question\": null,\n  \"escalation\": {\n    \"recommended\": true,\n    \"reason\": \"Pertanyaan stok membutuhkan pengecekan inventori langsung yang tidak tersedia, dan pertimbangan ukuran/bahan tidak dapat dijawab karena kebijakan penukaran ukuran, jaminan fit, serta data bahan tidak ditetapkan sumber publik yang ditinjau.\",\n    \"handoff_status\": \"recommendation_only\"\n  },\n  \"human_review_required\": true,\n  \"simulation\": {\n    \"is_simulated\": false,\n    \"scenario_ids\": []\n  }\n}",
+    "multi_agent_data": null,
+    "token_usage": {
+      "input_tokens": 18392,
+      "output_tokens": 2691,
+      "total_tokens": 21083
+    },
+    "timestamp": "2026-11-09T15:43:10+0700"
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "dataset_version": "2.0",
+  "dataset_status": "FABRICATED_TEST_FIXTURES_ONLY",
+  "warning": "Every record is fictional. Never use as a live lookup, never display outside an explicitly marked test, and never describe a return/refund/exchange as approved, processed, or executed.",
+  "simulated_orders": [
+    {
+      "scenario_id": "SIM-ORDER-001",
+      "simulated_state": "in_transit",
+      "last_event": "2026-11-06",
+      "destination_city": "Jakarta",
+      "dummy_order_ref": "DEMO-CBX-001",
+      "expected_behavior": "Only in a marked simulation, identify this as supplied fixture data. In normal mode, state that live order tracking is unavailable."
+    },
+    {
+      "scenario_id": "SIM-ORDER-002",
+      "simulated_state": "not_found",
+      "dummy_order_ref": "DEMO-CBX-002",
+      "expected_behavior": "The fixture contains no shipment record for this reference. Do not invent a status; say the simulation has no shipment record and that live tracking is unavailable."
+    }
+  ],
+  "simulated_returns": [
+    {
+      "scenario_id": "SIM-RETURN-001",
+      "simulated_state": "pending_human_review",
+      "dummy_order_ref": "DEMO-CBX-002",
+      "item": "Pleated A-Line Skirt",
+      "reported_issue": "wrong color",
+      "received_date": "2026-11-05",
+      "order_paid": true,
+      "refund_status": "not_decided",
+      "expected_behavior": "Keep the simulation label visible. Public policy lists wrong color and a maximum 7-day return window, but a human must verify eligibility and explain the actual process. Do not state approved, processed, or guaranteed."
+    }
+  ],
+  "simulated_policies": [
+    {
+      "scenario_id": "SIM-POLICY-001",
+      "status": "FABRICATED_CONFLICT_FIXTURE_NOT_COLORBOX_POLICY",
+      "dummy_statement": "For this test fixture only, a fictional script claims all returns are accepted within 30 days.",
+      "expected_behavior": "Call this statement fictional, do not treat it as Colorbox policy, and use the verified public source only for the stated 7-day condition. Escalate unresolved policy questions."
+    }
+  ],
+  "simulated_exchange_requests": [
+    {
+      "scenario_id": "SIM-EXCHANGE-001",
+      "simulated_state": "not_supported_by_verified_policy",
+      "dummy_order_ref": "DEMO-CBX-003",
+      "item": "Pleated A-Line Skirt",
+      "requested_change": "size M to size L",
+      "expected_behavior": "Do not promise or imply that a size exchange is available. The reviewed public policy does not establish size-exchange eligibility, fee, or process. Recommend human review."
+    }
+  ],
+  "explicit_unknowns": [
+    {
+      "scenario_id": "SIM-UNKNOWN-REFUND-TIME-001",
+      "subject": "refund_processing_time",
+      "state": "unknown",
+      "expected_behavior": "Do not invent a date or duration; say the reviewed public information does not specify it and recommend human review."
+    }
+  ]
+}

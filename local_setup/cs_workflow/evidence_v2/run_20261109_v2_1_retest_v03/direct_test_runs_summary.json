@@ -1,0 +1,68 @@
+{
+  "package": "Colorbox CS Sprint 4 Validation",
+  "run_tag": "run_20261109_v2_1_retest_v03",
+  "run_started_at": "2026-11-09T15:51:14.414180+07:00",
+  "test_corpus_version": "2.0",
+  "instruction_version": "2.1",
+  "knowledge_version": "2.0",
+  "endpoint": "http://127.0.0.1:8080/api/v1/agent/execute",
+  "execution_mode": "direct shared-backend API request; no UI",
+  "retrieval_mode": "CS test-harness keyword retrieval shim; candidate records injected; Backend retrieval engine not implemented",
+  "expected_fixtures_are_model_output": false,
+  "cases": [
+    {
+      "test_id": "CB-CS-V03",
+      "title": "Simulated order/return status and fictional 30-day policy conflict",
+      "coverage": [
+        "simulated_order",
+        "simulated_return_refund",
+        "dummy_policy_isolation",
+        "unknown_refund_timing",
+        "classification",
+        "priority",
+        "escalation"
+      ],
+      "turns": [
+        {
+          "turn_id": "T1",
+          "http_status": 200,
+          "status": "success",
+          "provider": "opencode-go",
+          "model": "deepseek-v4.1-flash",
+          "fallback_applied": false,
+          "elapsed_seconds": 46.2,
+          "retrieved_ids": [
+            "CB-RETURNS-001",
+            "CB-REFUND-TIMING-UNKNOWN-001",
+            "CB-TRACKING-LIMIT-001",
+            "CB-SHIPPING-UNKNOWN-001",
+            "CB-ACCOUNT-DELETION-UNKNOWN-001",
+            "CB-FAQ-CATEGORIES-001"
+          ],
+          "json_parsed": true,
+          "error": null
+        },
+        {
+          "turn_id": "T2",
+          "http_status": 200,
+          "status": "success",
+          "provider": "opencode-go",
+          "model": "deepseek-v4.1-flash",
+          "fallback_applied": false,
+          "elapsed_seconds": 32.44,
+          "retrieved_ids": [
+            "CB-RETURNS-001",
+            "CB-REFUND-TIMING-UNKNOWN-001",
+            "CB-EXCHANGE-UNKNOWN-001",
+            "CB-FAQ-CATEGORIES-001",
+            "CB-ACCOUNT-DELETION-UNKNOWN-001"
+          ],
+          "json_parsed": true,
+          "error": null
+        }
+      ]
+    }
+  ],
+  "all_http_200_success": true,
+  "all_json_parsed": true
+}

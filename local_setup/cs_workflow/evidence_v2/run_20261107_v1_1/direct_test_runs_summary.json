@@ -1,0 +1,70 @@
+{
+  "package": "Colorbox CS Sprint 3",
+  "test_corpus_version": "1.0",
+  "instruction_version": "1.1",
+  "knowledge_version": "1.0",
+  "run_date": "2026-11-07",
+  "endpoint": "http://127.0.0.1:8080/api/v1/agent/execute",
+  "execution_mode": "direct shared-backend API request; no UI",
+  "retrieval_mode": "manual test-case selection and prompt injection; no retrieval engine",
+  "expected_fixtures_are_model_output": false,
+  "cases": [
+    {
+      "test_id": "CB-CS-T01",
+      "coverage": [
+        "classification",
+        "knowledge_selection",
+        "grounded_draft",
+        "missing_live_inventory"
+      ],
+      "http_status": 200,
+      "status": "success",
+      "provider": "opencode-go",
+      "model": "deepseek-v4.1-flash",
+      "fallback_applied": false,
+      "elapsed_seconds": 14.62,
+      "output_present": true,
+      "error": null
+    },
+    {
+      "test_id": "CB-CS-T02",
+      "coverage": [
+        "multi_turn_context",
+        "complaint",
+        "return_policy_retrieval",
+        "classification",
+        "priority",
+        "escalation"
+      ],
+      "http_status": 200,
+      "status": "success",
+      "provider": "opencode-go",
+      "model": "deepseek-v4.1-flash",
+      "fallback_applied": false,
+      "elapsed_seconds": 103.49,
+      "output_present": true,
+      "error": null
+    },
+    {
+      "test_id": "CB-CS-T03",
+      "coverage": [
+        "simulated_order",
+        "simulated_return_refund",
+        "dummy_policy_isolation",
+        "unknown_policy",
+        "classification",
+        "priority",
+        "escalation"
+      ],
+      "http_status": 200,
+      "status": "success",
+      "provider": "opencode-go",
+      "model": "deepseek-v4.1-flash",
+      "fallback_applied": false,
+      "elapsed_seconds": 80.19,
+      "output_present": true,
+      "error": null
+    }
+  ],
+  "all_http_200_success": true
+}

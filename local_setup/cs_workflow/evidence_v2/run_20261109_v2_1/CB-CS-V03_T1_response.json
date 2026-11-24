@@ -1,0 +1,108 @@
+{
+  "test_id": "CB-CS-V03",
+  "turn_id": "T1",
+  "http_status": 200,
+  "elapsed_seconds": 52.19,
+  "parsed_output": {
+    "primary_intent": "RETURN_REFUND",
+    "secondary_intents": [
+      "ORDER_STATUS",
+      "COMPLAINT_WRONG_ITEM"
+    ],
+    "classification_confidence": 0.82,
+    "priority": "P1",
+    "customer_reply_draft": "Halo, terima kasih sudah menghubungi Colorbox. Kami tidak dapat melakukan pengecekan langsung ke sistem pesanan, pengiriman, akun, atau refund, jadi informasi berikut berasal dari data uji simulasi yang disediakan untuk validasi ini, bukan hasil pencarian langsung.\n\nUntuk referensi DEMO-CBX-002: data simulasi SIM-ORDER-002 tidak memuat catatan pengiriman apa pun untuk nomor tersebut, sehingga status pengirimannya tidak dapat dipastikan dari data ini. Data simulasi SIM-RETURN-001 mencatat keluhan warna produk yang tidak sesuai (Pleated A-Line Skirt, diterima 5 November 2026) dengan status refund masih menunggu peninjauan manusia dan belum diputuskan. Karena itu kami belum bisa menyatakan refund sudah diproses, disetujui, atau selesai.\n\nKebijakan pengembalian resmi yang kami tinjau menyebutkan barang dapat dikembalikan bila artikel/nama atau warna berbeda dari pesanan, atau barang rusak/cacat, maksimal 7 hari setelah barang diterima. Halaman kebijakan tersebut tidak mencantumkan lama proses maupun metode refund, sehingga hal itu belum bisa kami pastikan. Kepastian kelayakan tetap perlu diperiksa oleh tim kami atas pesanan Anda.\n\nLangkah berikutnya: nomor pesanan dapat dicek sendiri melalui menu Track Your Order di situs resmi colorbox.co.id (nomor pesanan ada di email konfirmasi Anda), dan untuk keputusan refund silakan hubungi layanan pelanggan resmi Colorbox. Ada hal lain yang bisa kami bantu?",
+    "ticket_summary": {
+      "issue": "Permintaan status pengiriman dan status/proses refund untuk referensi pesanan DEMO-CBX-002 dalam uji simulasi Colorbox CS v2.1.",
+      "customer_reported_facts": [
+        "Customer meminta pengecekan pesanan dengan referensi DEMO-CBX-002 melalui kanal ini.",
+        "Customer menanyakan status pengiriman pesanan tersebut.",
+        "Customer menanyakan status refund dan apakah refund sudah diproses."
+      ],
+      "publicly_verified_facts": [
+        "Halaman kebijakan refund/return resmi menyatakan pesanan berbayar dapat dikembalikan bila barang yang diterima berbeda dari pesanan dalam hal nama artikel atau warna, atau rusak/cacat, maksimal 7 hari setelah barang diterima, dan halaman tersebut tidak menyebut biaya layanan/pengembalian tambahan pada kondisi yang dinyatakan.",
+        "Halaman utama menampilkan entri Track Your Order dan menyebutkan nomor pesanan dapat ditemukan di email.",
+        "Tidak ada sumber publik resmi yang ditinjau menetapkan lama proses atau metode refund."
+      ],
+      "unknowns": [
+        "Status pengiriman DEMO-CBX-002: fixture simulasi SIM-ORDER-002 tidak memuat catatan pengiriman, dan pencarian langsung tidak tersedia.",
+        "Keputusan/kelayakan refund untuk DEMO-CBX-002 (fixture SIM-RETURN-001: not_decided, pending human review).",
+        "Lama proses dan metode refund: tidak ditetapkan sumber publik yang ditinjau.",
+        "Keabsahan DEMO-CBX-002 sebagai pesanan nyata: referensi diberikan customer, bukan bukti adanya pesanan."
+      ],
+      "customer_provided_references": [
+        "DEMO-CBX-002 (referensi pesanan dari customer; bukan bukti pesanan dan bukan hasil lookup)"
+      ],
+      "requested_outcome": "Mengetahui status pengiriman dan status/proses refund untuk DEMO-CBX-002.",
+      "context_retained": [
+        "Referensi pesanan DEMO-CBX-002 disebutkan customer pada pesan ini.",
+        "Dua pertanyaan customer: status pengiriman dan status refund (sudah diproses atau belum).",
+        "Uji simulasi ditandai eksplisit; fixture yang relevan: SIM-ORDER-002 (tidak ada catatan pengiriman), SIM-RETURN-001 (warna salah, diterima 2026-11-05, refund belum diputuskan), SIM-UNKNOWN-REFUND-TIME-001 (lama proses refund tidak diketahui)."
+      ]
+    },
+    "knowledge_refs": [
+      {
+        "knowledge_id": "CB-RETURNS-001",
+        "source_ids": [
+          "SRC-04"
+        ],
+        "source_url": "https://colorbox.co.id/policies/refund-policy",
+        "accessed_date": "2026-11-07",
+        "used_for": "Menyebutkan kondisi pengembalian yang terverifikasi (artikel/nama atau warna berbeda, rusak/cacat, maksimal 7 hari) sebagai konteks keluhan warna salah, tanpa menjamin kelayakan atau persetujuan."
+      },
+      {
+        "knowledge_id": "CB-REFUND-TIMING-UNKNOWN-001",
+        "source_ids": [
+          "SRC-04"
+        ],
+        "source_url": "https://colorbox.co.id/policies/refund-policy",
+        "accessed_date": "2026-11-07",
+        "used_for": "Menjelaskan bahwa lama proses dan metode refund tidak ditetapkan sumber publik yang ditinjau, sehingga tidak ada tanggal atau durasi yang dijanjikan."
+      },
+      {
+        "knowledge_id": "CB-TRACKING-LIMIT-001",
+        "source_ids": [
+          "SRC-01"
+        ],
+        "source_url": "https://colorbox.co.id/",
+        "accessed_date": "2026-11-07",
+        "used_for": "Menyatakan keterbatasan tanpa lookup langsung dan mengarahkan ke entri Track Your Order resmi dengan nomor pesanan dari email."
+      }
+    ],
+    "clarifying_question": null,
+    "escalation": {
+      "recommended": true,
+      "reason": "Intent RETURN_REFUND (P1) pada referensi DEMO-CBX-002: keputusan refund belum ada (fixture menyatakan not_decided/pending human review), kelayakan bergantung pada verifikasi pesanan, dan lama proses refund tidak ditetapkan sumber publik mana pun; selain itu fixture SIM-ORDER-002 tidak memuat catatan pengiriman sehingga status kirim tidak dapat dipastikan.",
+      "handoff_status": "recommendation_only"
+    },
+    "human_review_required": true,
+    "simulation": {
+      "is_simulated": true,
+      "scenario_ids": [
+        "SIM-ORDER-002",
+        "SIM-RETURN-001"
+      ]
+    }
+  },
+  "raw_body": {
+    "status": "success",
+    "session_id": "sess_95a8c774",
+    "customer_id": "colorbox_v2_CB-CS-V03",
+    "department": "customer_support",
+    "agent_mode": "single",
+    "agent_count": 1,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback_applied": false,
+    "blocker_note": null,
+    "execution_time_seconds": 52.17,
+    "output": "{\n  \"primary_intent\": \"RETURN_REFUND\",\n  \"secondary_intents\": [\n    \"ORDER_STATUS\",\n    \"COMPLAINT_WRONG_ITEM\"\n  ],\n  \"classification_confidence\": 0.82,\n  \"priority\": \"P1\",\n  \"customer_reply_draft\": \"Halo, terima kasih sudah menghubungi Colorbox. Kami tidak dapat melakukan pengecekan langsung ke sistem pesanan, pengiriman, akun, atau refund, jadi informasi berikut berasal dari data uji simulasi yang disediakan untuk validasi ini, bukan hasil pencarian langsung.\\n\\nUntuk referensi DEMO-CBX-002: data simulasi SIM-ORDER-002 tidak memuat catatan pengiriman apa pun untuk nomor tersebut, sehingga status pengirimannya tidak dapat dipastikan dari data ini. Data simulasi SIM-RETURN-001 mencatat keluhan warna produk yang tidak sesuai (Pleated A-Line Skirt, diterima 5 November 2026) dengan status refund masih menunggu peninjauan manusia dan belum diputuskan. Karena itu kami belum bisa menyatakan refund sudah diproses, disetujui, atau selesai.\\n\\nKebijakan pengembalian resmi yang kami tinjau menyebutkan barang dapat dikembalikan bila artikel/nama atau warna berbeda dari pesanan, atau barang rusak/cacat, maksimal 7 hari setelah barang diterima. Halaman kebijakan tersebut tidak mencantumkan lama proses maupun metode refund, sehingga hal itu belum bisa kami pastikan. Kepastian kelayakan tetap perlu diperiksa oleh tim kami atas pesanan Anda.\\n\\nLangkah berikutnya: nomor pesanan dapat dicek sendiri melalui menu Track Your Order di situs resmi colorbox.co.id (nomor pesanan ada di email konfirmasi Anda), dan untuk keputusan refund silakan hubungi layanan pelanggan resmi Colorbox. Ada hal lain yang bisa kami bantu?\",\n  \"ticket_summary\": {\n    \"issue\": \"Permintaan status pengiriman dan status/proses refund untuk referensi pesanan DEMO-CBX-002 dalam uji simulasi Colorbox CS v2.1.\",\n    \"customer_reported_facts\": [\n      \"Customer meminta pengecekan pesanan dengan referensi DEMO-CBX-002 melalui kanal ini.\",\n      \"Customer menanyakan status pengiriman pesanan tersebut.\",\n      \"Customer menanyakan status refund dan apakah refund sudah diproses.\"\n    ],\n    \"publicly_verified_facts\": [\n      \"Halaman kebijakan refund/return resmi menyatakan pesanan berbayar dapat dikembalikan bila barang yang diterima berbeda dari pesanan dalam hal nama artikel atau warna, atau rusak/cacat, maksimal 7 hari setelah barang diterima, dan halaman tersebut tidak menyebut biaya layanan/pengembalian tambahan pada kondisi yang dinyatakan.\",\n      \"Halaman utama menampilkan entri Track Your Order dan menyebutkan nomor pesanan dapat ditemukan di email.\",\n      \"Tidak ada sumber publik resmi yang ditinjau menetapkan lama proses atau metode refund.\"\n    ],\n    \"unknowns\": [\n      \"Status pengiriman DEMO-CBX-002: fixture simulasi SIM-ORDER-002 tidak memuat catatan pengiriman, dan pencarian langsung tidak tersedia.\",\n      \"Keputusan/kelayakan refund untuk DEMO-CBX-002 (fixture SIM-RETURN-001: not_decided, pending human review).\",\n      \"Lama proses dan metode refund: tidak ditetapkan sumber publik yang ditinjau.\",\n      \"Keabsahan DEMO-CBX-002 sebagai pesanan nyata: referensi diberikan customer, bukan bukti adanya pesanan.\"\n    ],\n    \"customer_provided_references\": [\n      \"DEMO-CBX-002 (referensi pesanan dari customer; bukan bukti pesanan dan bukan hasil lookup)\"\n    ],\n    \"requested_outcome\": \"Mengetahui status pengiriman dan status/proses refund untuk DEMO-CBX-002.\",\n    \"context_retained\": [\n      \"Referensi pesanan DEMO-CBX-002 disebutkan customer pada pesan ini.\",\n      \"Dua pertanyaan customer: status pengiriman dan status refund (sudah diproses atau belum).\",\n      \"Uji simulasi ditandai eksplisit; fixture yang relevan: SIM-ORDER-002 (tidak ada catatan pengiriman), SIM-RETURN-001 (warna salah, diterima 2026-11-05, refund belum diputuskan), SIM-UNKNOWN-REFUND-TIME-001 (lama proses refund tidak diketahui).\"\n    ]\n  },\n  \"knowledge_refs\": [\n    {\n      \"knowledge_id\": \"CB-RETURNS-001\",\n      \"source_ids\": [\n        \"SRC-04\"\n      ],\n      \"source_url\": \"https://colorbox.co.id/policies/refund-policy\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Menyebutkan kondisi pengembalian yang terverifikasi (artikel/nama atau warna berbeda, rusak/cacat, maksimal 7 hari) sebagai konteks keluhan warna salah, tanpa menjamin kelayakan atau persetujuan.\"\n    },\n    {\n      \"knowledge_id\": \"CB-REFUND-TIMING-UNKNOWN-001\",\n      \"source_ids\": [\n        \"SRC-04\"\n      ],\n      \"source_url\": \"https://colorbox.co.id/policies/refund-policy\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Menjelaskan bahwa lama proses dan metode refund tidak ditetapkan sumber publik yang ditinjau, sehingga tidak ada tanggal atau durasi yang dijanjikan.\"\n    },\n    {\n      \"knowledge_id\": \"CB-TRACKING-LIMIT-001\",\n      \"source_ids\": [\n        \"SRC-01\"\n      ],\n      \"source_url\": \"https://colorbox.co.id/\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Menyatakan keterbatasan tanpa lookup langsung dan mengarahkan ke entri Track Your Order resmi dengan nomor pesanan dari email.\"\n    }\n  ],\n  \"clarifying_question\": null,\n  \"escalation\": {\n    \"recommended\": true,\n    \"reason\": \"Intent RETURN_REFUND (P1) pada referensi DEMO-CBX-002: keputusan refund belum ada (fixture menyatakan not_decided/pending human review), kelayakan bergantung pada verifikasi pesanan, dan lama proses refund tidak ditetapkan sumber publik mana pun; selain itu fixture SIM-ORDER-002 tidak memuat catatan pengiriman sehingga status kirim tidak dapat dipastikan.\",\n    \"handoff_status\": \"recommendation_only\"\n  },\n  \"human_review_required\": true,\n  \"simulation\": {\n    \"is_simulated\": true,\n    \"scenario_ids\": [\n      \"SIM-ORDER-002\",\n      \"SIM-RETURN-001\"\n    ]\n  }\n}",
+    "multi_agent_data": null,
+    "token_usage": {
+      "input_tokens": 43964,
+      "output_tokens": 6159,
+      "total_tokens": 50123
+    },
+    "timestamp": "2026-11-09T15:45:33+0700"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "package": "Colorbox CS Sprint 4 Validation",
+  "run_tag": "run_20261109_v2_0_before",
+  "run_started_at": "2026-11-09T15:39:49.524798+07:00",
+  "test_corpus_version": "2.0",
+  "instruction_version": "2.0",
+  "knowledge_version": "1.0",
+  "endpoint": "http://127.0.0.1:8080/api/v1/agent/execute",
+  "execution_mode": "direct shared-backend API request; no UI",
+  "retrieval_mode": "CS test-harness keyword retrieval shim; candidate records injected; Backend retrieval engine not implemented",
+  "expected_fixtures_are_model_output": false,
+  "cases": [
+    {
+      "test_id": "CB-CS-V06",
+      "title": "Account deletion request with legal threat and no verified deletion policy",
+      "coverage": [
+        "sensitive_complaint",
+        "legal_threat",
+        "unknown_policy",
+        "account_deletion",
+        "priority",
+        "escalation"
+      ],
+      "turns": [
+        {
+          "turn_id": "T1",
+          "http_status": 200,
+          "status": "success",
+          "provider": "opencode-go",
+          "model": "deepseek-v4.1-flash",
+          "fallback_applied": false,
+          "elapsed_seconds": 158.21,
+          "retrieved_ids": [],
+          "json_parsed": true,
+          "error": null
+        }
+      ]
+    }
+  ],
+  "all_http_200_success": true,
+  "all_json_parsed": true,
+  "metadata_correction": "Runner summary initially reported current instruction_version 2.1; this before-case used COLORBOX_CS_Instructions_v2.md (v2.0) and COLORBOX_CS_Knowledge_v1.json (v1.0)."
+}

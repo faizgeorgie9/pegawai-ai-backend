@@ -1,0 +1,1219 @@
+{
+  "run_tag": "run_20261109_v2_1",
+  "before_tag": "run_20261109_v2_0_before",
+  "turns": [
+    {
+      "test_id": "CB-CS-V01",
+      "turn_id": "T1",
+      "retrieved_ids": [
+        "CB-PRODUCT-001",
+        "CB-EXCHANGE-UNKNOWN-001",
+        "CB-ACCOUNT-DELETION-UNKNOWN-001",
+        "CB-RETURNS-001",
+        "CB-BRAND-001"
+      ],
+      "response_elapsed_seconds": 28.3,
+      "checks": {
+        "http_200": true,
+        "valid_json": true,
+        "schema_complete": true,
+        "primary_intent": true,
+        "secondary_intents": true,
+        "priority": true,
+        "escalation_recommended": true,
+        "escalation_reason": true,
+        "human_review": true,
+        "handoff_recommendation_only": true,
+        "citations": true,
+        "expected_knowledge_any": true,
+        "must_include": true,
+        "must_not_include": true,
+        "simulation_label": true,
+        "clarifying_question": true,
+        "summary_terms": true,
+        "draft_length": true,
+        "draft_clean": true,
+        "draft_polite": true,
+        "no_shouting": true
+      },
+      "details": {
+        "reference_results": [
+          "matched SRC-01",
+          "matched SRC-04",
+          "matched SRC-04"
+        ],
+        "cited_ids": [
+          "CB-EXCHANGE-UNKNOWN-001",
+          "CB-PRODUCT-001",
+          "CB-RETURNS-001"
+        ],
+        "missing_include_groups": [],
+        "forbidden_found": [],
+        "scenario_ids": [],
+        "missing_summary_groups": [],
+        "draft_word_count": 192
+      },
+      "rubric": {
+        "accuracy": 2,
+        "relevance": 2,
+        "grounding": 2,
+        "clarity": 2,
+        "tone": 2,
+        "classification": 2,
+        "priority": 2,
+        "escalation": 2
+      },
+      "rubric_total": 16,
+      "parsed_output": {
+        "primary_intent": "PRODUCT_AVAILABILITY",
+        "secondary_intents": [
+          "PRODUCT_INFO",
+          "SIZE_FIT"
+        ],
+        "classification_confidence": 0.9,
+        "priority": "P2",
+        "customer_reply_draft": "Halo, terima kasih sudah bertanya soal sweatshirt Colorbox x Liunic.\n\nUntuk harga: pada halaman utama resmi Colorbox yang kami tinjau (7 November 2026), produk ini tercantum dengan harga IDR 249.900 dan harga promo yang ditampilkan IDR 239.900. Harga dan promosi bisa berubah, jadi angka ini kami sampaikan sebagai catatan saat peninjauan, bukan jaminan harga saat ini.\n\nUntuk stok ukuran M, kami tidak bisa memastikan ketersediaannya. Halaman tersebut hanya menampilkan pilihan ukuran S, M, L, dan XL, tanpa informasi stok per ukuran, dan kami tidak memiliki akses ke sistem inventori atau ketersediaan toko. Sebaiknya dicek langsung di halaman produk resmi atau ditanyakan ke layanan pelanggan resmi Colorbox.\n\nSoal bahan: ketebalan atau jenis bahan sweatshirt ini belum terverifikasi pada sumber publik yang kami tinjau, jadi kami tidak bisa menyimpulkan bahannya tipis atau menyarankan naik ke XL berdasarkan itu. Sebagai panduan umum semata (bukan ketentuan Colorbox), banyak orang memilih ukuran yang biasa dipakai untuk potongan oversized, dan satu ukuran di atas bisa dipertimbangkan bila ingin lebih longgar. Keputusan ukuran tetap perlu dikonfirmasi ke Colorbox, termasuk ada atau tidaknya kebijakan penukaran ukuran, karena hal itu belum kami temukan di sumber publik yang kami tinjau.",
+        "ticket_summary": {
+          "issue": "Pelanggan menanyakan harga sweatshirt Colorbox x Liunic yang tampil di homepage, ketersediaan stok ukuran M, dan meminta pertimbangan ukuran/bahan (M vs XL).",
+          "customer_reported_facts": [
+            "Pelanggan biasanya memakai ukuran M.",
+            "Pelanggan mempertimbangkan ukuran XL jika bahan dinilai tipis."
+          ],
+          "publicly_verified_facts": [
+            "Pada tanggal peninjauan, homepage resmi menampilkan Colorbox x Liunic Oversized Sweatshirt dengan harga IDR 249.900 dan harga promo yang ditampilkan IDR 239.900 (harga dinamis, bukan jaminan harga saat ini).",
+            "Homepage menampilkan pilihan ukuran S, M, L, dan XL; ini tidak membuktikan stok atau ketersediaan ukuran mana pun.",
+            "Kebijakan pengembalian resmi mencakup barang yang berbeda nama artikel/warna atau cacat/rusak dalam maksimal 7 hari setelah diterima.",
+            "Tidak ada sumber publik yang ditinjau yang menetapkan kebijakan penukaran ukuran, jaminan fit, atau bahwa ketidaksesuaian ukuran dapat dikembalikan.",
+            "Gambar size guide tidak ditranskripsi dan tidak ada klaim bahan/ketebalan yang didukung sumber."
+          ],
+          "unknowns": [
+            "Harga dan promosi saat ini (data hanya diamati pada tanggal peninjauan).",
+            "Ketersediaan stok ukuran M atau ukuran lain.",
+            "Ketebalan/jenis bahan sweatshirt.",
+            "Kebijakan penukaran ukuran, biaya, dan kelayakannya.",
+            "Angka dimensi pada size guide."
+          ],
+          "customer_provided_references": [],
+          "requested_outcome": "Mengetahui harga, memastikan stok ukuran M, dan mendapat saran ukuran/bahan.",
+          "context_retained": []
+        },
+        "knowledge_refs": [
+          {
+            "knowledge_id": "CB-PRODUCT-001",
+            "source_ids": [
+              "SRC-01"
+            ],
+            "source_url": "https://colorbox.co.id/",
+            "accessed_date": "2026-11-07",
+            "used_for": "Dasar penyebutan harga IDR 249.900 / promo IDR 239.900 dan pilihan ukuran S-XL yang tampil, dengan penegasan bahwa itu bukan jaminan harga maupun stok."
+          },
+          {
+            "knowledge_id": "CB-EXCHANGE-UNKNOWN-001",
+            "source_ids": [
+              "SRC-04"
+            ],
+            "source_url": "https://colorbox.co.id/policies/refund-policy",
+            "accessed_date": "2026-11-07",
+            "used_for": "Menjelaskan bahwa kebijakan penukaran ukuran dan jaminan fit tidak ditetapkan sumber publik yang ditinjau, sehingga tidak dijanjikan."
+          },
+          {
+            "knowledge_id": "CB-RETURNS-001",
+            "source_ids": [
+              "SRC-04"
+            ],
+            "source_url": "https://colorbox.co.id/policies/refund-policy",
+            "accessed_date": "2026-11-07",
+            "used_for": "Membatasi cakupan kebijakan pengembalian (nama artikel/warna atau cacat/rusak, maksimal 7 hari) agar tidak diperluas ke ketidaksesuaian ukuran."
+          }
+        ],
+        "clarifying_question": null,
+        "escalation": {
+          "recommended": true,
+          "reason": "Pertanyaan stok membutuhkan pengecekan inventori langsung yang tidak tersedia, dan pertimbangan ukuran/bahan tidak dapat dijawab karena kebijakan penukaran ukuran, jaminan fit, serta data bahan tidak ditetapkan sumber publik yang ditinjau.",
+          "handoff_status": "recommendation_only"
+        },
+        "human_review_required": true,
+        "simulation": {
+          "is_simulated": false,
+          "scenario_ids": []
+        }
+      }
+    },
+    {
+      "test_id": "CB-CS-V02",
+      "turn_id": "T1",
+      "retrieved_ids": [
+        "CB-RETURNS-001"
+      ],
+      "response_elapsed_seconds": 21.25,
+      "checks": {
+        "http_200": true,
+        "valid_json": true,
+        "schema_complete": true,
+        "primary_intent": true,
+        "secondary_intents": true,
+        "priority": true,
+        "escalation_recommended": true,
+        "escalation_reason": true,
+        "human_review": true,
+        "handoff_recommendation_only": true,
+        "citations": true,
+        "expected_knowledge_any": true,
+        "must_include": true,
+        "must_not_include": true,
+        "simulation_label": true,
+        "clarifying_question": true,
+        "summary_terms": true,
+        "draft_length": true,
+        "draft_clean": true,
+        "draft_polite": true,
+        "no_shouting": true
+      },
+      "details": {
+        "reference_results": [
+          "matched SRC-04"
+        ],
+        "cited_ids": [
+          "CB-RETURNS-001"
+        ],
+        "missing_include_groups": [],
+        "forbidden_found": [],
+        "scenario_ids": [],
+        "missing_summary_groups": [],
+        "draft_word_count": 100
+      },
+      "rubric": {
+        "accuracy": 2,
+        "relevance": 2,
+        "grounding": 2,
+        "clarity": 2,
+        "tone": 2,
+        "classification": 2,
+        "priority": 2,
+        "escalation": 2
+      },
+      "rubric_total": 16,
+      "parsed_output": {
+        "primary_intent": "COMPLAINT_DAMAGED",
+        "secondary_intents": [],
+        "classification_confidence": 0.9,
+        "priority": "P1",
+        "customer_reply_draft": "Halo, terima kasih sudah memberi tahu kami. Kami mencatat laporan Anda bahwa atasan yang diterima memiliki jahitan lepas dan ada noda. Boleh dibantu nomor pesanan beserta tanggal paket Anda terima, agar laporan ini bisa ditinjau lebih lanjut?\n\nSebagai informasi, kebijakan pengembalian resmi Colorbox menyebutkan bahwa pesanan yang sudah dibayar dapat dikembalikan apabila barang yang diterima berbeda dari pesanan (nama artikel atau warna) atau dalam kondisi rusak/cacat, dengan pengembalian maksimal 7 hari setelah barang diterima; halaman tersebut juga menyatakan tidak ada biaya layanan/pengembalian tambahan pada kondisi yang disebutkan. Untuk pesanan Anda, kelayakan dan prosesnya masih perlu diverifikasi terlebih dahulu.",
+        "ticket_summary": {
+          "issue": "Pelanggan melaporkan atasan yang diterima memiliki jahitan lepas dan noda (dugaan produk cacat/rusak).",
+          "customer_reported_facts": [
+            "Pelanggan menerima atasan dengan jahitan lepas.",
+            "Pelanggan menerima atasan dengan noda."
+          ],
+          "publicly_verified_facts": [
+            "Kebijakan refund/return resmi Colorbox: pesanan yang sudah dibayar dapat dikembalikan bila barang berbeda dari pesanan menurut nama artikel atau warna, atau rusak/cacat, maksimal 7 hari setelah barang diterima.",
+            "Halaman kebijakan menyatakan tidak ada biaya layanan/pengembalian tambahan pada kondisi yang disebutkan."
+          ],
+          "unknowns": [
+            "Nomor pesanan dan tanggal penerimaan barang belum diketahui.",
+            "Apakah kondisi barang memenuhi syarat pengembalian belum dapat dipastikan.",
+            "Waktu proses refund dan metode pengembalian dana tidak ditetapkan oleh sumber yang ditinjau.",
+            "Kebijakan pengembalian/exchange berdasarkan ukuran (size/fit) tidak terverifikasi."
+          ],
+          "customer_provided_references": [],
+          "requested_outcome": "Belum dinyatakan secara eksplisit; pelanggan melaporkan produk cacat dan tampaknya mengharapkan penyelesaian.",
+          "context_retained": [
+            "Item bermasalah: atasan (customer_reported).",
+            "Keluhan: jahitan lepas dan noda (customer_reported)."
+          ]
+        },
+        "knowledge_refs": [
+          {
+            "knowledge_id": "CB-RETURNS-001",
+            "source_ids": [
+              "SRC-04"
+            ],
+            "source_url": "https://colorbox.co.id/policies/refund-policy",
+            "accessed_date": "2026-11-07",
+            "used_for": "Menjelaskan ketentuan pengembalian untuk barang rusak/cacat dalam maksimal 7 hari setelah diterima dan pernyataan tidak ada biaya layanan/pengembalian tambahan pada kondisi tersebut."
+          }
+        ],
+        "clarifying_question": "Boleh dibantu nomor pesanan beserta tanggal paket Anda terima?",
+        "escalation": {
+          "recommended": true,
+          "reason": "Komplain barang rusak/cacat (jahitan lepas dan noda) memerlukan verifikasi pesanan dan tenggat 7 hari oleh manusia; sumber yang ditinjau tidak menetapkan kelayakan, keputusan, maupun proses pengembalian untuk kasus individual.",
+          "handoff_status": "recommendation_only"
+        },
+        "human_review_required": true,
+        "simulation": {
+          "is_simulated": false,
+          "scenario_ids": []
+        }
+      }
+    },
+    {
+      "test_id": "CB-CS-V02",
+      "turn_id": "T2",
+      "retrieved_ids": [
+        "CB-RETURNS-001",
+        "CB-REFUND-TIMING-UNKNOWN-001",
+        "CB-TRACKING-LIMIT-001"
+      ],
+      "response_elapsed_seconds": 32.48,
+      "checks": {
+        "http_200": true,
+        "valid_json": true,
+        "schema_complete": true,
+        "primary_intent": true,
+        "secondary_intents": true,
+        "priority": true,
+        "escalation_recommended": true,
+        "escalation_reason": true,
+        "human_review": true,
+        "handoff_recommendation_only": true,
+        "citations": true,
+        "expected_knowledge_any": true,
+        "must_include": true,
+        "must_not_include": true,
+        "simulation_label": true,
+        "clarifying_question": true,
+        "summary_terms": true,
+        "draft_length": true,
+        "draft_clean": true,
+        "draft_polite": true,
+        "no_shouting": true
+      },
+      "details": {
+        "reference_results": [
+          "matched SRC-04",
+          "matched SRC-04"
+        ],
+        "cited_ids": [
+          "CB-REFUND-TIMING-UNKNOWN-001",
+          "CB-RETURNS-001"
+        ],
+        "missing_include_groups": [],
+        "forbidden_found": [],
+        "scenario_ids": [],
+        "missing_summary_groups": [],
+        "draft_word_count": 171
+      },
+      "rubric": {
+        "accuracy": 2,
+        "relevance": 2,
+        "grounding": 2,
+        "clarity": 2,
+        "tone": 2,
+        "classification": 2,
+        "priority": 2,
+        "escalation": 2
+      },
+      "rubric_total": 16,
+      "parsed_output": {
+        "primary_intent": "RETURN_REFUND",
+        "secondary_intents": [
+          "COMPLAINT_DAMAGED"
+        ],
+        "classification_confidence": 0.94,
+        "priority": "P1",
+        "customer_reply_draft": "Halo, terima kasih atas informasinya. Kami mencatat laporan Anda bahwa atasan yang diterima pada 5 November memiliki jahitan lepas dan noda, serta bahwa Anda ingin mengajukan pengembalian dana (refund) untuk pesanan Shopee dengan nomor DEMO-CBX-002.\n\nKebijakan pengembalian resmi Colorbox menyebutkan bahwa pesanan yang sudah dibayar dapat dikembalikan apabila barang yang diterima berbeda dari pesanan (nama artikel atau warna) atau dalam kondisi rusak/cacat, dengan pengembalian maksimal 7 hari setelah barang diterima, dan halaman tersebut menyatakan tidak ada biaya layanan/pengembalian tambahan pada kondisi yang disebutkan. Berdasarkan tanggal terima yang Anda sampaikan, laporan ini masih berada dalam rentang 7 hari.\n\nNamun kami tidak dapat memproses, menyetujui, atau menolak refund, dan juga tidak dapat memastikan metode maupun lama waktu pengembalian dana, karena hal itu belum ditetapkan dalam sumber publik resmi yang kami tinjau. Pesanan Anda juga tidak dapat kami cek langsung di sistem Shopee maupun Colorbox. Untuk peninjauan dan proses selanjutnya, mohon hubungi kanal layanan pelanggan resmi Colorbox dengan menyertakan nomor pesanan dan tanggal terima. Sebaiknya barang beserta kemasannya disimpan untuk keperluan peninjauan.",
+        "ticket_summary": {
+          "issue": "Customer melaporkan atasan yang diterima memiliki jahitan lepas dan noda, lalu meminta refund untuk pesanan Shopee.",
+          "customer_reported_facts": [
+            "Atasan yang diterima memiliki jahitan lepas dan noda.",
+            "Pesanan dilakukan melalui Shopee dengan nomor DEMO-CBX-002.",
+            "Barang diterima pada 5 November (tahun tidak disebutkan).",
+            "Customer ingin pengembalian dana (refund)."
+          ],
+          "publicly_verified_facts": [
+            "Kebijakan refund/return resmi menyatakan pesanan yang sudah dibayar dapat dikembalikan bila barang yang diterima berbeda dari pesanan menurut nama artikel atau warna, atau dalam kondisi rusak/cacat, dengan batas maksimal 7 hari setelah barang diterima.",
+            "Halaman kebijakan tersebut menyatakan tidak ada biaya layanan/pengembalian tambahan pada kondisi yang disebutkan."
+          ],
+          "unknowns": [
+            "Lama waktu pemrosesan refund dan metode pengembalian dana tidak ditetapkan oleh sumber publik resmi yang ditinjau.",
+            "Kelayakan dan persetujuan refund untuk pesanan ini belum diverifikasi.",
+            "Status, riwayat, dan detail pesanan Shopee DEMO-CBX-002 tidak dapat diakses (tidak ada lookup live).",
+            "Prosedur penanganan retur untuk pesanan yang dibeli melalui Shopee tidak tercakup dalam sumber yang ditinjau.",
+            "Tahun pada tanggal terima (5 November) tidak disebutkan customer."
+          ],
+          "customer_provided_references": [
+            "Shopee DEMO-CBX-002",
+            "Diterima 5 November"
+          ],
+          "requested_outcome": "Refund (pengembalian dana) untuk pesanan Shopee DEMO-CBX-002.",
+          "context_retained": [
+            "Laporan awal customer: atasan dengan jahitan lepas dan noda.",
+            "Pertanyaan assistant sebelumnya meminta nomor pesanan dan tanggal terima; customer menjawab pada turn ini.",
+            "Kebijakan 7 hari sudah diinformasikan pada turn sebelumnya dan tetap relevan.",
+            "Kanal pembelian (Shopee) baru diketahui pada turn ini, bukan kanal Colorbox langsung."
+          ]
+        },
+        "knowledge_refs": [
+          {
+            "knowledge_id": "CB-RETURNS-001",
+            "source_ids": [
+              "SRC-04"
+            ],
+            "source_url": "https://colorbox.co.id/policies/refund-policy",
+            "accessed_date": "2026-11-07",
+            "used_for": "Dasar kondisi pengembalian (rusak/cacat, maksimal 7 hari setelah diterima) dan pernyataan tidak ada biaya tambahan; acuan untuk menyatakan kelayakan pesanan ini belum terverifikasi."
+          },
+          {
+            "knowledge_id": "CB-REFUND-TIMING-UNKNOWN-001",
+            "source_ids": [
+              "SRC-04"
+            ],
+            "source_url": "https://colorbox.co.id/policies/refund-policy",
+            "accessed_date": "2026-11-07",
+            "used_for": "Menjelaskan keterbatasan bahwa lama waktu proses dan metode refund tidak ditetapkan sumber resmi, sehingga tidak ada janji waktu atau metode."
+          }
+        ],
+        "clarifying_question": null,
+        "escalation": {
+          "recommended": true,
+          "reason": "Permintaan refund dengan klaim barang rusak/cacat (P1) dan kelayakan tidak dapat diputuskan tanpa verifikasi manusia; lama proses serta metode refund tidak ditetapkan sumber publik, dan pembelian melalui Shopee belum tercakup sumber yang ditinjau.",
+          "handoff_status": "recommendation_only"
+        },
+        "human_review_required": true,
+        "simulation": {
+          "is_simulated": false,
+          "scenario_ids": []
+        }
+      }
+    },
+    {
+      "test_id": "CB-CS-V02",
+      "turn_id": "T3",
+      "retrieved_ids": [
+        "CB-RETURNS-001",
+        "CB-TRACKING-LIMIT-001"
+      ],
+      "response_elapsed_seconds": 36.76,
+      "checks": {
+        "http_200": true,
+        "valid_json": true,
+        "schema_complete": true,
+        "primary_intent": true,
+        "secondary_intents": true,
+        "priority": true,
+        "escalation_recommended": true,
+        "escalation_reason": true,
+        "human_review": true,
+        "handoff_recommendation_only": true,
+        "citations": true,
+        "expected_knowledge_any": true,
+        "must_include": true,
+        "must_not_include": true,
+        "simulation_label": true,
+        "clarifying_question": true,
+        "summary_terms": true,
+        "draft_length": true,
+        "draft_clean": true,
+        "draft_polite": true,
+        "no_shouting": true
+      },
+      "details": {
+        "reference_results": [
+          "matched SRC-04",
+          "matched SRC-01"
+        ],
+        "cited_ids": [
+          "CB-RETURNS-001",
+          "CB-TRACKING-LIMIT-001"
+        ],
+        "missing_include_groups": [],
+        "forbidden_found": [],
+        "scenario_ids": [],
+        "missing_summary_groups": [],
+        "draft_word_count": 195
+      },
+      "rubric": {
+        "accuracy": 2,
+        "relevance": 2,
+        "grounding": 2,
+        "clarity": 2,
+        "tone": 2,
+        "classification": 2,
+        "priority": 2,
+        "escalation": 2
+      },
+      "rubric_total": 16,
+      "parsed_output": {
+        "primary_intent": "RETURN_REFUND",
+        "secondary_intents": [
+          "COMPLAINT_WRONG_ITEM"
+        ],
+        "classification_confidence": 0.9,
+        "priority": "P1",
+        "customer_reply_draft": "Halo, terima kasih sudah mengoreksi informasinya. Kami memperbarui catatan: barang yang Anda laporkan adalah rok plisket yang warnanya berbeda dari pesanan, bukan atasan. Laporan sebelumnya mengenai atasan yang jahitannya lepas dan bernoda kami tandai sebagai sudah digantikan oleh keterangan terbaru ini.\n\nKebijakan pengembalian resmi Colorbox menyebutkan bahwa pesanan yang sudah dibayar dapat dikembalikan apabila barang yang diterima berbeda dari pesanan pada nama artikel atau warna, atau dalam kondisi rusak/cacat, dengan pengembalian maksimal 7 hari setelah barang diterima, dan halaman tersebut menyatakan tidak ada biaya layanan/pengembalian tambahan pada kondisi yang disebutkan. Berdasarkan tanggal terima yang Anda sampaikan (5 November), laporan ini masih berada dalam rentang 7 hari.\n\nKami belum dapat memproses, menyetujui, atau menolak permintaan refund Anda, dan belum dapat memastikan metode maupun lama waktu pengembalian dana, karena hal itu tidak ditetapkan dalam sumber publik resmi yang kami tinjau. Karena pesanan Anda dilakukan melalui Shopee, proses pengembalian untuk pesanan marketplace juga belum dijelaskan dalam sumber yang kami tinjau, sehingga laporan ini masih perlu ditinjau lebih lanjut.\n\nLangkah berikutnya: mohon hubungi kanal layanan pelanggan resmi Colorbox dengan menyertakan nomor pesanan DEMO-CBX-002 dan tanggal terima 5 November. Sebaiknya rok plisket beserta kemasannya disimpan untuk keperluan peninjauan.",
+        "ticket_summary": {
+          "issue": "Customer melaporkan rok plisket yang diterima berwarna berbeda dari pesanan dan meminta refund; laporan sebelumnya tentang atasan (jahitan lepas dan noda) dikoreksi oleh customer dan tidak lagi berlaku.",
+          "customer_reported_facts": [
+            "Barang yang bermasalah adalah rok plisket, bukan atasan (keterangan terbaru customer).",
+            "Warna rok plisket berbeda dari warna yang dipesan.",
+            "Pesanan dilakukan melalui Shopee dengan nomor DEMO-CBX-002.",
+            "Paket diterima pada 5 November.",
+            "Customer meminta pengembalian dana (refund).",
+            "SUPERSEDED: laporan awal bahwa atasan memiliki jahitan lepas dan noda digantikan oleh keterangan terbaru; kedua versi tidak digabungkan."
+          ],
+          "publicly_verified_facts": [
+            "Kebijakan refund/return resmi Colorbox: pesanan yang sudah dibayar dapat dikembalikan bila barang yang diterima berbeda dari pesanan pada nama artikel atau warna, atau dalam kondisi rusak/cacat, maksimal 7 hari setelah barang diterima.",
+            "Halaman kebijakan menyatakan tidak ada biaya layanan/pengembalian tambahan pada kondisi yang disebutkan.",
+            "Halaman utama Colorbox menyediakan entri Track Your Order, namun prototipe ini tidak dapat melakukan pencarian pesanan/pelacakan."
+          ],
+          "unknowns": [
+            "Kelayakan dan persetujuan pengembalian untuk pesanan spesifik ini belum terverifikasi.",
+            "Waktu proses pengembalian dana dan metode refund tidak ditetapkan dalam sumber publik yang ditinjau.",
+            "Proses pengembalian untuk pesanan yang dibuat melalui marketplace Shopee tidak dijelaskan dalam sumber yang ditinjau.",
+            "Kesesuaian warna barang yang sebenarnya belum diverifikasi independen (hanya berdasarkan laporan customer).",
+            "Tidak ada sumber publik yang ditinjau yang menetapkan kebijakan penukaran ukuran atau jaminan fit."
+          ],
+          "customer_provided_references": [
+            "DEMO-CBX-002 (nomor pesanan Shopee, dilaporkan customer; bukan bukti pesanan terverifikasi)",
+            "Tanggal terima 5 November (dilaporkan customer)"
+          ],
+          "requested_outcome": "Refund (pengembalian dana) untuk rok plisket yang warnanya berbeda dari pesanan.",
+          "context_retained": [
+            "Sesi yang sama: keluhan awal berupa produk rusak/cacat, kemudian direklasifikasi menjadi ketidaksesuaian warna barang (COMPLAINT_WRONG_ITEM) dengan permintaan refund.",
+            "Kanal pembelian Shopee dan nomor pesanan DEMO-CBX-002 tetap dipertahankan dari percakapan sebelumnya.",
+            "Tanggal terima 5 November tetap dipertahankan; berdasarkan tanggal tersebut laporan berada 4 hari setelah penerimaan, masih dalam batas 7 hari menurut kebijakan yang ditinjau.",
+            "Permintaan refund tetap menjadi hasil yang diminta customer."
+          ]
+        },
+        "knowledge_refs": [
+          {
+            "knowledge_id": "CB-RETURNS-001",
+            "source_ids": [
+              "SRC-04"
+            ],
+            "source_url": "https://colorbox.co.id/policies/refund-policy",
+            "accessed_date": "2026-11-07",
+            "used_for": "Menjelaskan kondisi pengembalian yang berlaku (nama artikel/warna berbeda atau rusak/cacat, maksimal 7 hari setelah diterima) dan tidak adanya biaya tambahan; sekaligus dasar menyatakan bahwa lama proses, metode refund, dan kelayakan pesanan individual tidak ditetapkan."
+          },
+          {
+            "knowledge_id": "CB-TRACKING-LIMIT-001",
+            "source_ids": [
+              "SRC-01"
+            ],
+            "source_url": "https://colorbox.co.id/",
+            "accessed_date": "2026-11-07",
+            "used_for": "Menyatakan batas bahwa prototipe ini tidak dapat melakukan pencarian pesanan/pelacakan, sehingga status dan detail pesanan tidak dapat dicek langsung."
+          }
+        ],
+        "clarifying_question": null,
+        "escalation": {
+          "recommended": true,
+          "reason": "Permintaan refund dengan dugaan ketidaksesuaian warna barang (P1): keputusan pengembalian dana tidak dapat diambil otomatis, kelayakan pesanan belum diverifikasi, dan sumber publik yang ditinjau tidak menetapkan lama proses maupun metode refund, termasuk alur untuk pesanan marketplace Shopee.",
+          "handoff_status": "recommendation_only"
+        },
+        "human_review_required": true,
+        "simulation": {
+          "is_simulated": false,
+          "scenario_ids": []
+        }
+      }
+    },
+    {
+      "test_id": "CB-CS-V03",
+      "turn_id": "T1",
+      "retrieved_ids": [
+        "CB-RETURNS-001",
+        "CB-REFUND-TIMING-UNKNOWN-001",
+        "CB-TRACKING-LIMIT-001",
+        "CB-SHIPPING-UNKNOWN-001",
+        "CB-ACCOUNT-DELETION-UNKNOWN-001"
+      ],
+      "response_elapsed_seconds": 52.19,
+      "checks": {
+        "http_200": true,
+        "valid_json": true,
+        "schema_complete": true,
+        "primary_intent": true,
+        "secondary_intents": true,
+        "priority": true,
+        "escalation_recommended": true,
+        "escalation_reason": true,
+        "human_review": true,
+        "handoff_recommendation_only": true,
+        "citations": true,
+        "expected_knowledge_any": true,
+        "must_include": true,
+        "must_not_include": true,
+        "simulation_label": true,
+        "clarifying_question": true,
+        "summary_terms": true,
+        "draft_length": true,
+        "draft_clean": true,
+        "draft_polite": true,
+        "no_shouting": true
+      },
+      "details": {
+        "reference_results": [
+          "matched SRC-04",
+          "matched SRC-04",
+          "matched SRC-01"
+        ],
+        "cited_ids": [
+          "CB-REFUND-TIMING-UNKNOWN-001",
+          "CB-RETURNS-001",
+          "CB-TRACKING-LIMIT-001"
+        ],
+        "missing_include_groups": [],
+        "forbidden_found": [],
+        "scenario_ids": [
+          "SIM-ORDER-002",
+          "SIM-RETURN-001"
+        ],
+        "missing_summary_groups": [],
+        "draft_word_count": 197
+      },
+      "rubric": {
+        "accuracy": 2,
+        "relevance": 2,
+        "grounding": 2,
+        "clarity": 2,
+        "tone": 2,
+        "classification": 2,
+        "priority": 2,
+        "escalation": 2
+      },
+      "rubric_total": 16,
+      "parsed_output": {
+        "primary_intent": "RETURN_REFUND",
+        "secondary_intents": [
+          "ORDER_STATUS",
+          "COMPLAINT_WRONG_ITEM"
+        ],
+        "classification_confidence": 0.82,
+        "priority": "P1",
+        "customer_reply_draft": "Halo, terima kasih sudah menghubungi Colorbox. Kami tidak dapat melakukan pengecekan langsung ke sistem pesanan, pengiriman, akun, atau refund, jadi informasi berikut berasal dari data uji simulasi yang disediakan untuk validasi ini, bukan hasil pencarian langsung.\n\nUntuk referensi DEMO-CBX-002: data simulasi SIM-ORDER-002 tidak memuat catatan pengiriman apa pun untuk nomor tersebut, sehingga status pengirimannya tidak dapat dipastikan dari data ini. Data simulasi SIM-RETURN-001 mencatat keluhan warna produk yang tidak sesuai (Pleated A-Line Skirt, diterima 5 November 2026) dengan status refund masih menunggu peninjauan manusia dan belum diputuskan. Karena itu kami belum bisa menyatakan refund sudah diproses, disetujui, atau selesai.\n\nKebijakan pengembalian resmi yang kami tinjau menyebutkan barang dapat dikembalikan bila artikel/nama atau warna berbeda dari pesanan, atau barang rusak/cacat, maksimal 7 hari setelah barang diterima. Halaman kebijakan tersebut tidak mencantumkan lama proses maupun metode refund, sehingga hal itu belum bisa kami pastikan. Kepastian kelayakan tetap perlu diperiksa oleh tim kami atas pesanan Anda.\n\nLangkah berikutnya: nomor pesanan dapat dicek sendiri melalui menu Track Your Order di situs resmi colorbox.co.id (nomor pesanan ada di email konfirmasi Anda), dan untuk keputusan refund silakan hubungi layanan pelanggan resmi Colorbox. Ada hal lain yang bisa kami bantu?",
+        "ticket_summary": {
+          "issue": "Permintaan status pengiriman dan status/proses refund untuk referensi pesanan DEMO-CBX-002 dalam uji simulasi Colorbox CS v2.1.",
+          "customer_reported_facts": [
+            "Customer meminta pengecekan pesanan dengan referensi DEMO-CBX-002 melalui kanal ini.",
+            "Customer menanyakan status pengiriman pesanan tersebut.",
+            "Customer menanyakan status refund dan apakah refund sudah diproses."
+          ],
+          "publicly_verified_facts": [
+            "Halaman kebijakan refund/return resmi menyatakan pesanan berbayar dapat dikembalikan bila barang yang diterima berbeda dari pesanan dalam hal nama artikel atau warna, atau rusak/cacat, maksimal 7 hari setelah barang diterima, dan halaman tersebut tidak menyebut biaya layanan/pengembalian tambahan pada kondisi yang dinyatakan.",
+            "Halaman utama menampilkan entri Track Your Order dan menyebutkan nomor pesanan dapat ditemukan di email.",
+            "Tidak ada sumber publik resmi yang ditinjau menetapkan lama proses atau metode refund."
+          ],
+          "unknowns": [
+            "Status pengiriman DEMO-CBX-002: fixture simulasi SIM-ORDER-002 tidak memuat catatan pengiriman, dan pencarian langsung tidak tersedia.",
+            "Keputusan/kelayakan refund untuk DEMO-CBX-002 (fixture SIM-RETURN-001: not_decided, pending human review).",
+            "Lama proses dan metode refund: tidak ditetapkan sumber publik yang ditinjau.",
+            "Keabsahan DEMO-CBX-002 sebagai pesanan nyata: referensi diberikan customer, bukan bukti adanya pesanan."
+          ],
+          "customer_provided_references": [
+            "DEMO-CBX-002 (referensi pesanan dari customer; bukan bukti pesanan dan bukan hasil lookup)"
+          ],
+          "requested_outcome": "Mengetahui status pengiriman dan status/proses refund untuk DEMO-CBX-002.",
+          "context_retained": [
+            "Referensi pesanan DEMO-CBX-002 disebutkan customer pada pesan ini.",
+            "Dua pertanyaan customer: status pengiriman dan status refund (sudah diproses atau belum).",
+            "Uji simulasi ditandai eksplisit; fixture yang relevan: SIM-ORDER-002 (tidak ada catatan pengiriman), SIM-RETURN-001 (warna salah, diterima 2026-11-05, refund belum diputuskan), SIM-UNKNOWN-REFUND-TIME-001 (lama proses refund tidak diketahui)."
+          ]
+        },
+        "knowledge_refs": [
+          {
+            "knowledge_id": "CB-RETURNS-001",
+            "source_ids": [
+              "SRC-04"
+            ],
+            "source_url": "https://colorbox.co.id/policies/refund-policy",
+            "accessed_date": "2026-11-07",
+            "used_for": "Menyebutkan kondisi pengembalian yang terverifikasi (artikel/nama atau warna berbeda, rusak/cacat, maksimal 7 hari) sebagai konteks keluhan warna salah, tanpa menjamin kelayakan atau persetujuan."
+          },
+          {
+            "knowledge_id": "CB-REFUND-TIMING-UNKNOWN-001",
+            "source_ids": [
+              "SRC-04"
+            ],
+            "source_url": "https://colorbox.co.id/policies/refund-policy",
+            "accessed_date": "2026-11-07",
+            "used_for": "Menjelaskan bahwa lama proses dan metode refund tidak ditetapkan sumber publik yang ditinjau, sehingga tidak ada tanggal atau durasi yang dijanjikan."
+          },
+          {
+            "knowledge_id": "CB-TRACKING-LIMIT-001",
+            "source_ids": [
+              "SRC-01"
+            ],
+            "source_url": "https://colorbox.co.id/",
+            "accessed_date": "2026-11-07",
+            "used_for": "Menyatakan keterbatasan tanpa lookup langsung dan mengarahkan ke entri Track Your Order resmi dengan nomor pesanan dari email."
+          }
+        ],
+        "clarifying_question": null,
+        "escalation": {
+          "recommended": true,
+          "reason": "Intent RETURN_REFUND (P1) pada referensi DEMO-CBX-002: keputusan refund belum ada (fixture menyatakan not_decided/pending human review), kelayakan bergantung pada verifikasi pesanan, dan lama proses refund tidak ditetapkan sumber publik mana pun; selain itu fixture SIM-ORDER-002 tidak memuat catatan pengiriman sehingga status kirim tidak dapat dipastikan.",
+          "handoff_status": "recommendation_only"
+        },
+        "human_review_required": true,
+        "simulation": {
+          "is_simulated": true,
+          "scenario_ids": [
+            "SIM-ORDER-002",
+            "SIM-RETURN-001"
+          ]
+        }
+      }
+    },
+    {
+      "test_id": "CB-CS-V03",
+      "turn_id": "T2",
+      "retrieved_ids": [
+        "CB-RETURNS-001",
+        "CB-REFUND-TIMING-UNKNOWN-001",
+        "CB-EXCHANGE-UNKNOWN-001",
+        "CB-FAQ-CATEGORIES-001"
+      ],
+      "response_elapsed_seconds": 34.48,
+      "checks": {
+        "http_200": true,
+        "valid_json": false,
+        "json_recovered": true,
+        "schema_complete": true,
+        "primary_intent": true,
+        "secondary_intents": true,
+        "priority": true,
+        "escalation_recommended": true,
+        "escalation_reason": true,
+        "human_review": true,
+        "handoff_recommendation_only": true,
+        "citations": true,
+        "expected_knowledge_any": true,
+        "must_include": true,
+        "must_not_include": true,
+        "simulation_label": true,
+        "clarifying_question": true,
+        "summary_terms": true,
+        "draft_length": true,
+        "draft_clean": true,
+        "draft_polite": true,
+        "no_shouting": true
+      },
+      "details": {
+        "reference_results": [
+          "matched SRC-04",
+          "matched SRC-04",
+          "matched SRC-04"
+        ],
+        "cited_ids": [
+          "CB-EXCHANGE-UNKNOWN-001",
+          "CB-REFUND-TIMING-UNKNOWN-001",
+          "CB-RETURNS-001"
+        ],
+        "missing_include_groups": [],
+        "forbidden_found": [],
+        "scenario_ids": [
+          "SIM-RETURN-001",
+          "SIM-POLICY-001",
+          "SIM-UNKNOWN-REFUND-TIME-001"
+        ],
+        "missing_summary_groups": [],
+        "draft_word_count": 197
+      },
+      "rubric": {
+        "accuracy": 2,
+        "relevance": 2,
+        "grounding": 2,
+        "clarity": 1,
+        "tone": 2,
+        "classification": 2,
+        "priority": 2,
+        "escalation": 2
+      },
+      "rubric_total": 15,
+      "parsed_output": {
+        "primary_intent": "RETURN_REFUND",
+        "secondary_intents": [
+          "COMPLAINT_WRONG_ITEM",
+          "ORDER_STATUS"
+        ],
+        "classification_confidence": 0.93,
+        "priority": "P1",
+        "customer_reply_draft": "Halo, terima kasih sudah menanyakan lagi. Kami tidak dapat memverifikasi pernyataan bahwa retur bisa 30 hari, dan angka itu tidak ada dalam sumber publik resmi Colorbox yang kami tinjau. Dalam data uji ini, klaim 30 hari tersebut berasal dari skrip simulasi fiktif dan bukan kebijakan Colorbox, jadi tidak bisa dipakai sebagai dasar.\n\nKebijakan resmi yang kami tinjau hanya menyebutkan: barang yang berbeda artikel/nama atau warna dari pesanan, atau yang rusak/cacat, dapat dikembalikan maksimal 7 hari setelah barang diterima. Kebijakan itu tidak menyebut masa 30 hari, tidak menyebut lama proses maupun metode refund, dan tidak menjamin permintaan Anda akan disetujui.\n\nUntuk data simulasi DEMO-CBX-002 (Pleated A-Line Skirt, keluhan warna tidak sesuai, diterima 5 November 2026), jaraknya 4 hari sampai tanggal uji 9 November 2026 sehingga masih di dalam rentang 7 hari. Namun kelayakan dan keputusan refund tetap harus diperiksa oleh tim kami; status refund pada data simulasi masih belum diputuskan, dan kami belum bisa menyatakan refund sudah diproses atau disetujui.\n\nLangkah berikutnya: silakan hubungi layanan pelanggan resmi Colorbox dengan nomor pesanan Anda agar pesanan dan permintaan pengembaliannya diperiksa langsung. Boleh kami tahu warna apa yang Anda terima dibandingkan warna yang Anda pesan? Itu akan membantu pemeriksaan.",
+        "ticket_summary": {
+          "issue": "Pelanggan menanyakan status pengiriman dan refund untuk DEMO-CBX-002 (warna produk tidak sesuai) dan mempertanyakan klaim CS lain bahwa retur dapat dilakukan dalam 30 hari.",
+          "customer_reported_facts": [
+            "Pelanggan memakai referensi pesanan DEMO-CBX-002.",
+            "Pelanggan menyatakan mendapat informasi dari CS lain bahwa retur bisa 30 hari.",
+            "Pelanggan menanyakan apakah karena itu refund masih dapat dilakukan."
+          ],
+          "publicly_verified_facts": [
+            "Kebijakan refund/retur resmi: pesanan berbayar dapat dikembalikan bila barang berbeda artikel/nama atau warna dari pesanan, atau rusak/cacat, maksimal 7 hari setelah diterima.",
+            "Halaman kebijakan menyatakan tidak ada biaya layanan/retur tambahan pada kondisi yang disebutkannya.",
+            "Tidak ada sumber publik resmi yang menetapkan lama proses atau metode refund.",
+            "Tidak ada sumber publik resmi yang menetapkan kebijakan retur 30 hari."
+          ],
+          "unknowns": [
+            "Status pengiriman pesanan DEMO-CBX-002 tidak tercatat pada data yang tersedia.",
+            "Lama proses dan metode refund tidak ditetapkan sumber resmi mana pun.",
+            "Kelayakan dan keputusan refund untuk kasus ini belum ditetapkan; fixture simulasi mencatat status belum diputuskan.",
+            "Kebenaran klaim 'CS lain' soal 30 hari tidak dapat diverifikasi; klaim itu cocok dengan fixture konflik fiktif SIM-POLICY-001, bukan kebijakan Colorbox."
+          ],
+          "customer_provided_references": [
+            "DEMO-CBX-002",
+            "Klaim lisan CS lain: retur 30 hari"
+          ],
+          "requested_outcome": "Kepastian apakah refund masih dapat dilakukan dalam masa 30 hari.",
+          "context_retained": [
+            "Keluhan warna tidak sesuai pada Pleated A-Line Skirt, diterima 5 November 2026 (customer_reported, sesuai fixture SIM-RETURN-001).",
+            "Pelanggan sebelumnya menanyakan status pengiriman dan status pemrosesan refund (ORDER_STATUS).",
+            "Prioritas dinaikkan ke P1 karena inti permintaan kini adalah keputusan refund disertai konflik kebijakan."
+          ]
+        },
+        "knowledge_refs": [
+          {
+            "knowledge_id": "CB-RETURNS-001",
+            "source_ids": [
+              "SRC-04"
+            ],
+            "source_url": "https://colorbox.co.id/policies/refund-policy",
+            "accessed_date": "2026-11-07",
+            "used_for": "Menyatakan kondisi retur terverifikasi (artikel/nama atau warna berbeda, atau rusak/cacat, maksimal 7 hari) serta tidak adanya biaya retur tambahan pada kondisi tersebut; dasar untuk menolak klaim 30 hari sebagai kebijakan."
+          },
+          {
+            "knowledge_id": "CB-REFUND-TIMING-UNKNOWN-001",
+            "source_ids": [
+              "SRC-04"
+            ],
+            "source_url": "https://colorbox.co.id/policies/refund-policy",
+            "accessed_date": "2026-11-07",
+            "used_for": "Menjelaskan bahwa lama proses dan metode refund tidak ditetapkan sumber resmi, sehingga tidak ada janji waktu penyelesaian."
+          },
+          {
+            "knowledge_id": "CB-EXCHANGE-UNKNOWN-001",
+            "source_ids": [
+              "SRC-04"
+            ],
+            "source_url": "https://colorbox.co.id/policies/refund-policy",
+            "accessed_date": "2026-11-07",
+            "used_for": "Menjaga batas bahwa kondisi retur 7 hari tidak diperluas ke penukaran ukuran/fit; tidak menjanjikan penukaran atau pengembalian atas dasar kecocokan."
+          }
+        ],
+        "clarifying_question": "Warna apa yang Anda terima dibandingkan warna yang Anda pesan pada DEMO-CBX-002?",
+        "escalation": {
+          "recommended": true,
+          "reason": "Permintaan refund (RETURN_REFUND) atas keluhan warna tidak sesuai, disertai konflik kebijakan yang belum terselesaikan: klaim retur 30 hari berasal dari fixture simulasi fiktif SIM-POLICY-001 dan bertentangan dengan kebijakan publik terverifikasi maksimal 7 hari (CB-RETURNS-001), sementara lama proses refund tidak ditetapkan sumber resmi mana pun.",
+          "handoff_status": "recommendation_only"
+        },
+        "human_review_required": true,
+        "simulation": {
+          "is_simulated": true,
+          "scenario_ids": [
+            "SIM-RETURN-001",
+            "SIM-POLICY-001",
+            "SIM-UNKNOWN-REFUND-TIME-001"
+          ]
+        }
+      }
+    },
+    {
+      "test_id": "CB-CS-V04",
+      "turn_id": "T1",
+      "retrieved_ids": [
+        "CB-RETURNS-001",
+        "CB-SHIPPING-UNKNOWN-001",
+        "CB-EXCHANGE-UNKNOWN-001",
+        "CB-FAQ-CATEGORIES-001",
+        "CB-PRODUCT-001"
+      ],
+      "response_elapsed_seconds": 47.55,
+      "checks": {
+        "http_200": true,
+        "valid_json": true,
+        "schema_complete": true,
+        "primary_intent": true,
+        "secondary_intents": true,
+        "priority": true,
+        "escalation_recommended": true,
+        "escalation_reason": true,
+        "human_review": true,
+        "handoff_recommendation_only": true,
+        "citations": true,
+        "expected_knowledge_any": true,
+        "must_include": true,
+        "must_not_include": true,
+        "simulation_label": true,
+        "clarifying_question": true,
+        "summary_terms": true,
+        "draft_length": true,
+        "draft_clean": true,
+        "draft_polite": true,
+        "no_shouting": true
+      },
+      "details": {
+        "reference_results": [
+          "matched SRC-01",
+          "matched SRC-04",
+          "matched SRC-04"
+        ],
+        "cited_ids": [
+          "CB-EXCHANGE-UNKNOWN-001",
+          "CB-RETURNS-001",
+          "CB-SHIPPING-UNKNOWN-001"
+        ],
+        "missing_include_groups": [],
+        "forbidden_found": [],
+        "scenario_ids": [],
+        "missing_summary_groups": [],
+        "draft_word_count": 157
+      },
+      "rubric": {
+        "accuracy": 2,
+        "relevance": 2,
+        "grounding": 2,
+        "clarity": 2,
+        "tone": 2,
+        "classification": 2,
+        "priority": 2,
+        "escalation": 2
+      },
+      "rubric_total": 16,
+      "parsed_output": {
+        "primary_intent": "RETURN_REFUND",
+        "secondary_intents": [
+          "SIZE_FIT",
+          "SHIPPING_DELIVERY"
+        ],
+        "classification_confidence": 0.82,
+        "priority": "P1",
+        "customer_reply_draft": "Halo, terima kasih sudah menghubungi Colorbox. Untuk ongkos kirim ke Surabaya beserta estimasi harinya, kami belum bisa memastikan angkanya: sumber publik resmi yang kami tinjau tidak menetapkan tarif pengiriman umum maupun jaminan waktu kirim, dan biaya sebenarnya bergantung pada berat barang, kurir, serta alamat tujuan. Langkah paling akurat adalah memeriksa tarifnya langsung di halaman checkout colorbox.co.id, dan tim kami dapat membantu mengonfirmasi setelah detail pesanan diketahui.\n\nMengenai baju yang tidak muat: kebijakan retur resmi yang kami tinjau hanya mencakup barang yang berbeda dari pesanan (nama artikel atau warna) atau barang cacat/rusak, dengan pengembalian maksimal 7 hari setelah barang diterima. Untuk ketidaksesuaian ukuran atau penukaran ukuran, kebijakan resminya belum kami temukan, sehingga kami belum bisa menjanjikan retur, penukaran, atau pengembalian dana karena alasan muat/tidaknya. Kasus seperti ini perlu ditinjau oleh tim kami.\n\nBoleh kami tahu nama produk dan ukuran yang dipesan, serta apakah ada perbedaan nama artikel/warna atau kerusakan pada barang yang diterima?",
+        "ticket_summary": {
+          "issue": "Customer asks for shipping cost and delivery estimate to Surabaya, and whether an item that does not fit can be returned within 7 days.",
+          "customer_reported_facts": [
+            "Destination city is Surabaya.",
+            "Item concerns a garment ('baju') the customer is unsure will fit."
+          ],
+          "publicly_verified_facts": [
+            "The official refund/return policy covers a paid order returned when the received item differs from the order by article name or color, or is defective/damaged, within a maximum of 7 days after receipt, with no additional service/return fee under its stated conditions (CB-RETURNS-001).",
+            "The home page showed multiple shipping offer statements (minimum-purchase offer and Click & Collect offer) without enough captured terms to establish a generally applicable shipping fee or delivery commitment (CB-SHIPPING-UNKNOWN-001).",
+            "The reviewed public return policy does not state whether a size exchange is offered, and no reviewed public source establishes a size-exchange process, fee, or eligibility (CB-EXCHANGE-UNKNOWN-001)."
+          ],
+          "unknowns": [
+            "Shipping cost to Surabaya and delivery-time estimate; no verified general tariff or delivery commitment exists in the reviewed sources.",
+            "Whether a size/fit mismatch is returnable, and whether any size exchange is offered.",
+            "Refund method and processing time.",
+            "Whether the customer's item qualifies for the verified 7-day wrong-article/color or damaged-item return; no order reference or item detail was provided.",
+            "Product, size, and condition of the item received."
+          ],
+          "customer_provided_references": [],
+          "requested_outcome": "Know the shipping cost and delivery estimate to Surabaya, and whether a non-fitting garment can be returned within 7 days.",
+          "context_retained": [
+            "Destination: Surabaya (customer_reported).",
+            "Concern is fit/size of a garment, not a wrong article/color or damage (customer_reported).",
+            "No same-session prior history; this is the first turn of the conversation."
+          ]
+        },
+        "knowledge_refs": [
+          {
+            "knowledge_id": "CB-SHIPPING-UNKNOWN-001",
+            "source_ids": [
+              "SRC-01"
+            ],
+            "source_url": "https://colorbox.co.id/",
+            "accessed_date": "2026-11-07",
+            "used_for": "Explaining that the reviewed public sources do not establish a generally applicable shipping fee or delivery-time commitment, so the Surabaya cost/estimate cannot be confirmed."
+          },
+          {
+            "knowledge_id": "CB-RETURNS-001",
+            "source_ids": [
+              "SRC-04"
+            ],
+            "source_url": "https://colorbox.co.id/policies/refund-policy",
+            "accessed_date": "2026-11-07",
+            "used_for": "Stating the verified return conditions (article name/color mismatch or defective/damaged item, maximum 7 days after receipt) and that fit is not among them."
+          },
+          {
+            "knowledge_id": "CB-EXCHANGE-UNKNOWN-001",
+            "source_ids": [
+              "SRC-04"
+            ],
+            "source_url": "https://colorbox.co.id/policies/refund-policy",
+            "accessed_date": "2026-11-07",
+            "used_for": "Explaining the limitation that no reviewed public source establishes a size-exchange process or eligibility for a size/fit mismatch."
+          }
+        ],
+        "clarifying_question": "Boleh kami tahu nama produk dan ukuran yang dipesan, serta apakah ada perbedaan nama artikel/warna atau kerusakan pada barang yang diterima?",
+        "escalation": {
+          "recommended": true,
+          "reason": "Return/refund question combined with an unverified size/fit policy, and a shipping cost/delivery estimate that requires live cart, address, and carrier data unavailable from reviewed sources; both need human review before any answer is sent.",
+          "handoff_status": "recommendation_only"
+        },
+        "human_review_required": true,
+        "simulation": {
+          "is_simulated": false,
+          "scenario_ids": []
+        }
+      }
+    },
+    {
+      "test_id": "CB-CS-V05",
+      "turn_id": "T1",
+      "retrieved_ids": [
+        "CB-EXCHANGE-UNKNOWN-001",
+        "CB-RETURNS-001",
+        "CB-PRODUCT-001",
+        "CB-SIZE-UNKNOWN-001"
+      ],
+      "response_elapsed_seconds": 45.56,
+      "checks": {
+        "http_200": true,
+        "valid_json": true,
+        "schema_complete": true,
+        "primary_intent": true,
+        "secondary_intents": true,
+        "priority": true,
+        "escalation_recommended": true,
+        "escalation_reason": true,
+        "human_review": true,
+        "handoff_recommendation_only": true,
+        "citations": true,
+        "expected_knowledge_any": true,
+        "must_include": true,
+        "must_not_include": true,
+        "simulation_label": true,
+        "clarifying_question": true,
+        "summary_terms": true,
+        "draft_length": true,
+        "draft_clean": true,
+        "draft_polite": true,
+        "no_shouting": true
+      },
+      "details": {
+        "reference_results": [
+          "matched SRC-04",
+          "matched SRC-04",
+          "matched SRC-05",
+          "matched SRC-01"
+        ],
+        "cited_ids": [
+          "CB-EXCHANGE-UNKNOWN-001",
+          "CB-PRODUCT-001",
+          "CB-RETURNS-001",
+          "CB-SIZE-UNKNOWN-001"
+        ],
+        "missing_include_groups": [],
+        "forbidden_found": [],
+        "scenario_ids": [
+          "SIM-EXCHANGE-001"
+        ],
+        "missing_summary_groups": [],
+        "draft_word_count": 138
+      },
+      "rubric": {
+        "accuracy": 2,
+        "relevance": 2,
+        "grounding": 2,
+        "clarity": 2,
+        "tone": 2,
+        "classification": 2,
+        "priority": 2,
+        "escalation": 2
+      },
+      "rubric_total": 16,
+      "parsed_output": {
+        "primary_intent": "COMPLAINT_LATE_MISSING",
+        "secondary_intents": [
+          "SIZE_FIT",
+          "ORDER_STATUS"
+        ],
+        "classification_confidence": 0.63,
+        "priority": "P1",
+        "customer_reply_draft": "Halo Kak, terima kasih sudah menghubungi Colorbox. Saya paham pesanan yang Kakak tunggu belum sampai, dan Kakak juga ingin mengganti ukuran karena terasa kepanjangan.\n\nUntuk status pengiriman, saya tidak dapat memeriksa pesanan secara langsung. Status terbaru bisa Kakak lihat sendiri melalui menu Track Your Order di situs resmi Colorbox (colorbox.co.id).\n\nMengenai ukuran: kebijakan pengembalian resmi yang dapat saya rujuk hanya mencakup barang yang tidak sesuai nama artikel atau warna, atau barang rusak/cacat, dengan pengembalian maksimal 7 hari setelah barang diterima. Ketentuan tukar ukuran tidak tercantum dalam informasi resmi tersebut, sehingga saya belum bisa menjanjikan tukar ukuran atau pengembalian karena ukuran terlalu panjang. Angka panduan ukuran resmi juga belum dapat saya sampaikan.\n\nAgar saya bisa membantu lebih tepat: ukuran yang terasa kepanjangan itu barang yang sudah pernah Kakak terima sebelumnya, atau pesanan yang belum sampai ini?",
+        "ticket_summary": {
+          "issue": "Customer reports an order that has not arrived and, in the same message, asks to change the size because the item is too long.",
+          "customer_reported_facts": [
+            "customer_reported: the ordered item has not arrived",
+            "customer_reported: the customer wants to change the size because it is too long",
+            "customer_reported: the customer asks for help now"
+          ],
+          "publicly_verified_facts": [
+            "publicly_verified: the official refund/return policy covers an item that differs from the order by article name or color, or is defective/damaged, returned within a maximum of 7 days after receipt, with no additional service/return fee under its stated conditions (SRC-04)",
+            "publicly_verified: no reviewed public source establishes a size-exchange process, fee, or eligibility (SRC-04)",
+            "publicly_verified: the official size-guide page publishes an image whose measurement values were not transcribed or verified (SRC-05)",
+            "publicly_verified: the official storefront provides a Track Your Order entry (SRC-01)"
+          ],
+          "unknowns": [
+            "Delivery/shipment status of the customer's order (no live carrier, order, or Shopee lookup is available)",
+            "Order reference and item name/size of the affected order",
+            "Whether the item described as 'too long' is a previously received item or the order that has not arrived — the description is internally inconsistent",
+            "Whether any size exchange is offered, and under what process, fee, or eligibility",
+            "Numeric size measurements and any fit recommendation",
+            "Refund method and processing time, if a return were ever approved"
+          ],
+          "customer_provided_references": [],
+          "requested_outcome": "Wants help now with the undelivered order and to change the item's size because it is too long.",
+          "context_retained": [
+            "No prior turns: same-conversation history supplied with this request is empty"
+          ]
+        },
+        "knowledge_refs": [
+          {
+            "knowledge_id": "CB-RETURNS-001",
+            "source_ids": [
+              "SRC-04"
+            ],
+            "source_url": "https://colorbox.co.id/policies/refund-policy",
+            "accessed_date": "2026-11-07",
+            "used_for": "Stating the verified return conditions (wrong article name/color, or defective/damaged, within 7 days) and that fit/size is not covered by them"
+          },
+          {
+            "knowledge_id": "CB-EXCHANGE-UNKNOWN-001",
+            "source_ids": [
+              "SRC-04"
+            ],
+            "source_url": "https://colorbox.co.id/policies/refund-policy",
+            "accessed_date": "2026-11-07",
+            "used_for": "Explaining that no reviewed public source establishes a size-exchange process, fee, or eligibility, so no exchange can be promised"
+          },
+          {
+            "knowledge_id": "CB-SIZE-UNKNOWN-001",
+            "source_ids": [
+              "SRC-05"
+            ],
+            "source_url": "https://colorbox.co.id/pages/size-guide",
+            "accessed_date": "2026-11-07",
+            "used_for": "Explaining that size-guide measurements are not verified, so no numeric measurement or fit recommendation is given"
+          },
+          {
+            "knowledge_id": "CB-PRODUCT-001",
+            "source_ids": [
+              "SRC-01"
+            ],
+            "source_url": "https://colorbox.co.id/",
+            "accessed_date": "2026-11-07",
+            "used_for": "Pointing to the official storefront's Track Your Order entry as the verified self-service path for shipment status (listing price and size options in this record are not used)"
+          }
+        ],
+        "clarifying_question": "Ukuran yang terasa kepanjangan itu barang yang sudah pernah Kakak terima sebelumnya, atau pesanan yang belum sampai ini?",
+        "escalation": {
+          "recommended": true,
+          "reason": "P1 missing/late-delivery complaint combined with a size/fit change request for which no reviewed public source establishes an exchange policy, and the customer's description is internally inconsistent (item not received yet described as too long); human review is needed to verify the order and resolve the conflict.",
+          "handoff_status": "recommendation_only"
+        },
+        "human_review_required": true,
+        "simulation": {
+          "is_simulated": true,
+          "scenario_ids": [
+            "SIM-EXCHANGE-001"
+          ]
+        }
+      }
+    },
+    {
+      "test_id": "CB-CS-V06",
+      "turn_id": "T1",
+      "retrieved_ids": [
+        "CB-ACCOUNT-DELETION-UNKNOWN-001"
+      ],
+      "response_elapsed_seconds": 23.82,
+      "checks": {
+        "http_200": true,
+        "valid_json": true,
+        "schema_complete": true,
+        "primary_intent": true,
+        "secondary_intents": true,
+        "priority": true,
+        "escalation_recommended": true,
+        "escalation_reason": true,
+        "human_review": true,
+        "handoff_recommendation_only": true,
+        "citations": true,
+        "expected_knowledge_any": true,
+        "must_include": true,
+        "must_not_include": true,
+        "simulation_label": true,
+        "clarifying_question": true,
+        "summary_terms": true,
+        "draft_length": true,
+        "draft_clean": true,
+        "draft_polite": true,
+        "no_shouting": true
+      },
+      "details": {
+        "reference_results": [
+          "no-source record cited without URL"
+        ],
+        "cited_ids": [
+          "CB-ACCOUNT-DELETION-UNKNOWN-001"
+        ],
+        "missing_include_groups": [],
+        "forbidden_found": [],
+        "scenario_ids": [],
+        "missing_summary_groups": [],
+        "draft_word_count": 70
+      },
+      "rubric": {
+        "accuracy": 2,
+        "relevance": 2,
+        "grounding": 2,
+        "clarity": 2,
+        "tone": 2,
+        "classification": 2,
+        "priority": 2,
+        "escalation": 2
+      },
+      "rubric_total": 16,
+      "parsed_output": {
+        "primary_intent": "OTHER",
+        "secondary_intents": [],
+        "classification_confidence": 0.88,
+        "priority": "P1",
+        "customer_reply_draft": "Halo, terima kasih telah menghubungi Colorbox. Kami mengerti Anda ingin menghapus data akun Anda. Informasi publik Colorbox yang sudah kami tinjau tidak menjelaskan prosedur maupun jangka waktu penghapusan akun, sehingga saya tidak dapat memastikan proses atau waktunya dari sini. Karena itu, permintaan ini perlu ditinjau oleh tim manusia melalui kanal resmi Colorbox agar dapat ditangani dengan tepat. Mohon jangan mengirimkan kata sandi, kode OTP, atau data pembayaran melalui pesan ini.",
+        "ticket_summary": {
+          "issue": "Pelanggan meminta penghapusan seluruh data akun. Pesan juga menyertakan ancaman hukum dan ancaman publikasi ke media sosial (tidak dikutip).",
+          "customer_reported_facts": [
+            "Pelanggan meminta penghapusan semua data akunnya sekarang.",
+            "Pesan menyertakan ancaman untuk melapor ke pihak berwenang dan menyebarkan ke media sosial apabila permintaan tidak dipenuhi."
+          ],
+          "publicly_verified_facts": [],
+          "unknowns": [
+            "Proses penghapusan akun Colorbox tidak ditetapkan oleh sumber publik yang ditinjau.",
+            "Jangka waktu, syarat verifikasi, dan status penyelesaian penghapusan akun tidak diketahui.",
+            "Tidak ada sumber publik yang ditinjau mengenai permintaan data pribadi selain pernyataan tidak adanya sumber untuk topik ini."
+          ],
+          "customer_provided_references": [],
+          "requested_outcome": "Penghapusan seluruh data akun.",
+          "context_retained": [
+            "Permintaan penghapusan data akun (customer_reported).",
+            "Adanya ancaman hukum dan ancaman publikasi (customer_reported; tidak dikutip dalam balasan).",
+            "Ketiadaan prosedur dan jangka waktu penghapusan akun dalam sumber publik yang ditinjau (publicly_verified: tidak ada; dicatat sebagai unknown)."
+          ]
+        },
+        "knowledge_refs": [
+          {
+            "knowledge_id": "CB-ACCOUNT-DELETION-UNKNOWN-001",
+            "source_ids": [],
+            "source_url": null,
+            "accessed_date": null,
+            "used_for": "Hanya untuk menjelaskan batasan: tidak ada sumber publik Colorbox yang ditinjau menetapkan proses atau jangka waktu penghapusan akun, dan angka 14 hari kerja/30 hari bukan kebijakan Colorbox."
+          }
+        ],
+        "clarifying_question": null,
+        "escalation": {
+          "recommended": true,
+          "reason": "Permintaan penghapusan akun disertai ancaman hukum dan ancaman publikasi, dan kebijakan Colorbox untuk topik ini tidak tersedia dalam sumber yang ditinjau sehingga tidak dapat dijawab dari pengetahuan resmi.",
+          "handoff_status": "recommendation_only"
+        },
+        "human_review_required": true,
+        "simulation": {
+          "is_simulated": false,
+          "scenario_ids": []
+        }
+      }
+    }
+  ],
+  "before_case": {
+    "response_file": "C:\\Users\\MI\\.openmausbot\\task-workspaces\\5ccb6477-64f6-40a1-8d2f-9fa4ba5eb8f3\\c36ce5b6-ee46-4765-9873-218ffad05481\\evidence\\run_20261109_v2_0_before\\CB-CS-V06_T1_response.json",
+    "elapsed_seconds": 158.21,
+    "http_status": 200,
+    "mentions_14_days": true,
+    "mentions_30_days": true,
+    "labels_timeline_publicly_verified": true,
+    "attributes_timeline_to_instructions": true,
+    "no_citable_source": true,
+    "repeats_legal_threat": true,
+    "mislabeled_simulation": true,
+    "draft": "Halo, terima kasih sudah menghubungi kami dan menyampaikan permintaan Anda dengan jelas.\n\nKami memahami bahwa Anda meminta seluruh data akun Anda dihapus sekarang, dan bahwa Anda akan melaporkan hal ini ke pihak berwenang serta menyebarkannya di media sosial apabila permintaan tersebut tidak dilakukan. Kami mencatatnya sebagai permintaan yang Anda sampaikan; kami tidak menganggapnya sebagai hal yang sudah kami verifikasi.\n\nYang dapat kami sampaikan: melalui percakapan ini kami tidak memiliki akses ke data akun dan tidak dapat memproses penghapusannya, juga tidak dapat memastikan apakah akun tersebut ada, karena tidak ada pengecekan sistem akun yang tersedia bagi kami. Penghapusan data akun hanya dapat dilakukan oleh tim yang berwenang di Colorbox setelah identitas pemilik akun diverifikasi.\n\nMengenai waktu proses, ketentuan yang kami pegang menyebutkan dua hal: permintaan penghapusan akun ditinjau dalam 14 hari kerja setelah verifikasi, dan salinan cadangan (backup) dihapus dalam 30 hari.\n\nSebagai langkah berikutnya, permintaan Anda perlu ditinjau langsung oleh tim layanan pelanggan Colorbox. Kami belum bisa memastikan hasil, tanggal, maupun tindakan apa pun sebelum peninjauan tersebut dilakukan.",
+    "knowledge_refs": []
+  }
+}

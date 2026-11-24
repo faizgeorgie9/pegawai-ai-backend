@@ -1,0 +1,252 @@
+{
+  "package": "Colorbox CS Sprint 4 Validation",
+  "run_tag": "run_20261109_v2_1",
+  "run_started_at": "2026-11-09T15:42:42.000846+07:00",
+  "test_corpus_version": "2.0",
+  "instruction_version": "2.1",
+  "knowledge_version": "2.0",
+  "endpoint": "http://127.0.0.1:8080/api/v1/agent/execute",
+  "execution_mode": "direct shared-backend API request; no UI",
+  "retrieval_mode": "CS test-harness keyword retrieval shim; candidate records injected; Backend retrieval engine not implemented",
+  "expected_fixtures_are_model_output": false,
+  "cases": [
+    {
+      "test_id": "CB-CS-V01",
+      "title": "Product price, live stock and fit question",
+      "coverage": [
+        "classification",
+        "product_info",
+        "availability",
+        "size_fit",
+        "grounded_draft",
+        "missing_live_inventory",
+        "citation"
+      ],
+      "turns": [
+        {
+          "turn_id": "T1",
+          "http_status": 200,
+          "status": "success",
+          "provider": "opencode-go",
+          "model": "deepseek-v4.1-flash",
+          "fallback_applied": false,
+          "elapsed_seconds": 28.3,
+          "retrieved_ids": [
+            "CB-PRODUCT-001",
+            "CB-EXCHANGE-UNKNOWN-001",
+            "CB-ACCOUNT-DELETION-UNKNOWN-001",
+            "CB-RETURNS-001",
+            "CB-BRAND-001"
+          ],
+          "json_parsed": true,
+          "error": null
+        }
+      ]
+    },
+    {
+      "test_id": "CB-CS-V02",
+      "title": "Multi-turn damaged complaint, refund request, then corrected item",
+      "coverage": [
+        "multi_turn_context",
+        "complaint_damaged",
+        "return_policy_retrieval",
+        "changed_information",
+        "classification",
+        "priority",
+        "escalation",
+        "summary"
+      ],
+      "turns": [
+        {
+          "turn_id": "T1",
+          "http_status": 200,
+          "status": "success",
+          "provider": "opencode-go",
+          "model": "deepseek-v4.1-flash",
+          "fallback_applied": false,
+          "elapsed_seconds": 21.25,
+          "retrieved_ids": [
+            "CB-RETURNS-001"
+          ],
+          "json_parsed": true,
+          "error": null
+        },
+        {
+          "turn_id": "T2",
+          "http_status": 200,
+          "status": "success",
+          "provider": "opencode-go",
+          "model": "deepseek-v4.1-flash",
+          "fallback_applied": false,
+          "elapsed_seconds": 32.48,
+          "retrieved_ids": [
+            "CB-RETURNS-001",
+            "CB-REFUND-TIMING-UNKNOWN-001",
+            "CB-TRACKING-LIMIT-001"
+          ],
+          "json_parsed": true,
+          "error": null
+        },
+        {
+          "turn_id": "T3",
+          "http_status": 200,
+          "status": "success",
+          "provider": "opencode-go",
+          "model": "deepseek-v4.1-flash",
+          "fallback_applied": false,
+          "elapsed_seconds": 36.76,
+          "retrieved_ids": [
+            "CB-RETURNS-001",
+            "CB-TRACKING-LIMIT-001"
+          ],
+          "json_parsed": true,
+          "error": null
+        }
+      ]
+    },
+    {
+      "test_id": "CB-CS-V03",
+      "title": "Simulated order/return status and fictional 30-day policy conflict",
+      "coverage": [
+        "simulated_order",
+        "simulated_return_refund",
+        "dummy_policy_isolation",
+        "unknown_refund_timing",
+        "classification",
+        "priority",
+        "escalation"
+      ],
+      "turns": [
+        {
+          "turn_id": "T1",
+          "http_status": 200,
+          "status": "success",
+          "provider": "opencode-go",
+          "model": "deepseek-v4.1-flash",
+          "fallback_applied": false,
+          "elapsed_seconds": 52.19,
+          "retrieved_ids": [
+            "CB-RETURNS-001",
+            "CB-REFUND-TIMING-UNKNOWN-001",
+            "CB-TRACKING-LIMIT-001",
+            "CB-SHIPPING-UNKNOWN-001",
+            "CB-ACCOUNT-DELETION-UNKNOWN-001"
+          ],
+          "json_parsed": true,
+          "error": null
+        },
+        {
+          "turn_id": "T2",
+          "http_status": 200,
+          "status": "success",
+          "provider": "opencode-go",
+          "model": "deepseek-v4.1-flash",
+          "fallback_applied": false,
+          "elapsed_seconds": 34.48,
+          "retrieved_ids": [
+            "CB-RETURNS-001",
+            "CB-REFUND-TIMING-UNKNOWN-001",
+            "CB-EXCHANGE-UNKNOWN-001",
+            "CB-FAQ-CATEGORIES-001"
+          ],
+          "json_parsed": false,
+          "error": null
+        }
+      ]
+    },
+    {
+      "test_id": "CB-CS-V04",
+      "title": "Shipping fee/ETA unknown plus return-window and fit nuance",
+      "coverage": [
+        "shipping_delivery",
+        "unknown_policy",
+        "return_policy_retrieval",
+        "size_fit_boundary",
+        "classification",
+        "priority",
+        "escalation"
+      ],
+      "turns": [
+        {
+          "turn_id": "T1",
+          "http_status": 200,
+          "status": "success",
+          "provider": "opencode-go",
+          "model": "deepseek-v4.1-flash",
+          "fallback_applied": false,
+          "elapsed_seconds": 47.55,
+          "retrieved_ids": [
+            "CB-RETURNS-001",
+            "CB-SHIPPING-UNKNOWN-001",
+            "CB-EXCHANGE-UNKNOWN-001",
+            "CB-FAQ-CATEGORIES-001",
+            "CB-PRODUCT-001"
+          ],
+          "json_parsed": true,
+          "error": null
+        }
+      ]
+    },
+    {
+      "test_id": "CB-CS-V05",
+      "title": "Ambiguous late delivery plus size exchange, missing information",
+      "coverage": [
+        "ambiguous_intent",
+        "clarification",
+        "missing_information",
+        "unknown_exchange_policy",
+        "priority",
+        "escalation"
+      ],
+      "turns": [
+        {
+          "turn_id": "T1",
+          "http_status": 200,
+          "status": "success",
+          "provider": "opencode-go",
+          "model": "deepseek-v4.1-flash",
+          "fallback_applied": false,
+          "elapsed_seconds": 45.56,
+          "retrieved_ids": [
+            "CB-EXCHANGE-UNKNOWN-001",
+            "CB-RETURNS-001",
+            "CB-PRODUCT-001",
+            "CB-SIZE-UNKNOWN-001"
+          ],
+          "json_parsed": true,
+          "error": null
+        }
+      ]
+    },
+    {
+      "test_id": "CB-CS-V06",
+      "title": "Account deletion request with legal threat and no verified deletion policy",
+      "coverage": [
+        "sensitive_complaint",
+        "legal_threat",
+        "unknown_policy",
+        "account_deletion",
+        "priority",
+        "escalation"
+      ],
+      "turns": [
+        {
+          "turn_id": "T1",
+          "http_status": 200,
+          "status": "success",
+          "provider": "opencode-go",
+          "model": "deepseek-v4.1-flash",
+          "fallback_applied": false,
+          "elapsed_seconds": 23.82,
+          "retrieved_ids": [
+            "CB-ACCOUNT-DELETION-UNKNOWN-001"
+          ],
+          "json_parsed": true,
+          "error": null
+        }
+      ]
+    }
+  ],
+  "all_http_200_success": true,
+  "all_json_parsed": false
+}

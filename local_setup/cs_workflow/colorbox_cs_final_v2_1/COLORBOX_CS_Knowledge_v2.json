@@ -1,0 +1,138 @@
+{
+  "package": "Colorbox CS Sprint 4 Validation",
+  "knowledge_version": "2.0",
+  "market_assumption": "Colorbox Indonesia, https://colorbox.co.id/",
+  "reviewed_at": "2026-11-07",
+  "provenance_note": "Every record below is limited to the Colorbox public pages in the source register. No PT AI Top Trends SOP, other-project FAQ, or model memory is Colorbox-authorized. Records marked unknown must be used only to explain a limitation.",
+  "records": [
+    {
+      "id": "CB-BRAND-001",
+      "kind": "brand",
+      "status": "verified_public",
+      "fact": "The reviewed storefront identifies itself as COLORBOX Indonesia and its footer names PT Delamibrands Kharisma Busana.",
+      "source_ids": ["SRC-01"],
+      "limitations": ["The project owner must confirm that Indonesia is the intended market."]
+    },
+    {
+      "id": "CB-CATALOG-001",
+      "kind": "product_categories",
+      "status": "verified_public",
+      "fact": "The official storefront displays categories including tops, dresses, bottoms, outerwear, sleepwear, underwear, and accessories.",
+      "source_ids": ["SRC-01"],
+      "limitations": ["Catalog categories and products can change."]
+    },
+    {
+      "id": "CB-PRODUCT-001",
+      "kind": "product_listing_sample",
+      "status": "verified_public_dynamic",
+      "fact": "On the review date, the official home page listed a Colorbox x Liunic Oversized Sweatshirt at IDR 249,900 with a displayed promotional price of IDR 239,900; the listing showed sizes S, M, L, and XL.",
+      "source_ids": ["SRC-01"],
+      "limitations": [
+        "Observed listing only; not a current-price guarantee.",
+        "Displayed size options do not establish stock or availability for any size.",
+        "No fit, fabric, or quality claim is supported by this record.",
+        "The linked product detail page returned HTTP 429 during source review; this fact is supported by the homepage listing only."
+      ]
+    },
+    {
+      "id": "CB-RETURNS-001",
+      "kind": "return_policy",
+      "status": "verified_public",
+      "fact": "The official refund/return policy says a paid order may be returned when the received item differs from the order by article name or color, or is defective/damaged, provided it is returned within a maximum of 7 days after receipt. The page states no additional service/return fee under its stated conditions.",
+      "source_ids": ["SRC-04"],
+      "limitations": [
+        "Does not establish refund processing time or payment method.",
+        "Does not guarantee eligibility or approval for an individual order.",
+        "Does not establish a size/fit return or a size exchange.",
+        "A human must verify the order and advise the actual process."
+      ]
+    },
+    {
+      "id": "CB-FAQ-CATEGORIES-001",
+      "kind": "faq_index",
+      "status": "verified_public_limited",
+      "fact": "The official FAQ page lists sections for ordering, products, shipping, returns, payments, and technical issues.",
+      "source_ids": ["SRC-03"],
+      "limitations": [
+        "The category answer pages exposed headings but their answer text was not extractable during this review.",
+        "Do not infer FAQ answers from category names."
+      ]
+    },
+    {
+      "id": "CB-SIZE-UNKNOWN-001",
+      "kind": "size_guide",
+      "status": "unknown_pending_cs_verification",
+      "fact": "The official size-guide page publishes an image, but its measurement values were not transcribed and verified for this package.",
+      "source_ids": ["SRC-05"],
+      "limitations": ["Do not give numeric measurements or a fit recommendation from this record."]
+    },
+    {
+      "id": "CB-SHIPPING-UNKNOWN-001",
+      "kind": "shipping_policy",
+      "status": "unknown_conflicting_public_copy",
+      "fact": "The home page displayed multiple shipping offer statements, including a minimum-purchase offer and a Click & Collect offer, without enough captured terms to establish a generally applicable shipping fee or delivery commitment.",
+      "source_ids": ["SRC-01"],
+      "limitations": [
+        "Do not quote a delivery fee, delivery date, or universal free-shipping rule.",
+        "Current cart/address terms require checking on the official site or human confirmation."
+      ]
+    },
+    {
+      "id": "CB-TRACKING-LIMIT-001",
+      "kind": "tracking_route",
+      "status": "verified_public_route_no_lookup",
+      "fact": "The home page exposes a Track Your Order entry point and indicates the order number can be found in email.",
+      "source_ids": ["SRC-01"],
+      "limitations": [
+        "This prototype cannot query tracking, orders, or customer accounts.",
+        "Never present a customer-provided or dummy status as a live lookup."
+      ]
+    },
+    {
+      "id": "CB-REFUND-TIMING-UNKNOWN-001",
+      "kind": "refund_processing",
+      "status": "unknown",
+      "fact": "No refund processing duration or refund method was established by the reviewed official public sources.",
+      "source_ids": ["SRC-04"],
+      "limitations": ["Do not promise a refund date, amount, method, or outcome."]
+    },
+    {
+      "id": "CB-EXCHANGE-UNKNOWN-001",
+      "kind": "size_exchange",
+      "status": "unknown_not_established",
+      "fact": "The reviewed public return policy does not state whether a size exchange is offered, and no reviewed public source establishes a size-exchange process, fee, or eligibility.",
+      "source_ids": ["SRC-04"],
+      "limitations": [
+        "Do not promise an exchange for a size or fit mismatch.",
+        "Do not treat the 7-day return condition for wrong article/color or damage as covering a size exchange."
+      ]
+    },
+    {
+      "id": "CB-ACCOUNT-DELETION-UNKNOWN-001",
+      "kind": "account_deletion",
+      "status": "unknown_no_public_source",
+      "fact": "No reviewed Colorbox public source establishes an account-deletion process, verification requirement, or timeline. The 14-working-day and 30-day figures circulating in other project material belong to a different company and are not Colorbox policy.",
+      "source_ids": [],
+      "limitations": [
+        "Do not state a deletion timeline, permanence guarantee, or completion status.",
+        "Do not claim a deletion request was received, started, forwarded, or completed.",
+        "Recommend human review through the official channel."
+      ]
+    }
+  ],
+  "provisional_assumptions": [
+    {
+      "id": "ASM-001",
+      "assumption": "The target market and response locale for this work package are Indonesia and Bahasa Indonesia.",
+      "approval": "pending project-owner confirmation",
+      "not_policy": true
+    },
+    {
+      "id": "ASM-002",
+      "assumption": "Priority labels P0-P3 in the instructions are proposed CS handling guidance for testing, not an existing Colorbox SLA.",
+      "approval": "pending CS-owner approval",
+      "not_policy": true
+    }
+  ],
+  "source_register": "COLORBOX_CS_Source_Register_v1.csv"
+}

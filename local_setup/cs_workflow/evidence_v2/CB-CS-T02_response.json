@@ -1,0 +1,26 @@
+{
+  "test_id": "CB-CS-T02",
+  "http_status": 200,
+  "elapsed_seconds": 15.95,
+  "body": {
+    "status": "success",
+    "session_id": "sess_71e835ca",
+    "customer_id": "colorbox_test_CB-CS-T02",
+    "department": "customer_support",
+    "agent_mode": "single",
+    "agent_count": 1,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback_applied": false,
+    "blocker_note": null,
+    "execution_time_seconds": 15.92,
+    "output": "{\n  \"primary_intent\": \"RETURN_REFUND\",\n  \"secondary_intents\": [\"COMPLAINT_DAMAGED\"],\n  \"classification_confidence\": 0.95,\n  \"priority\": \"P1\",\n  \"customer_reply_draft\": \"Halo, terima kasih sudah menyampaikan kondisi rok hitam yang Anda terima kemarin. Saya paham Anda ingin dana dikembalikan karena barang datang dalam kondisi rusak.\\n\\nSebagai gambaran, kebijakan resmi pengembalian Colorbox menyebutkan bahwa pesanan yang sudah dibayar dapat dikembalikan bila barang yang diterima tidak sesuai pesanan (nama artikel atau warna) atau dalam kondisi cacat/rusak, dengan pengembalian maksimal 7 hari setelah barang diterima, dan tidak ada biaya tambahan layanan/pengembalian pada kondisi yang disebutkan tersebut. Perlu saya sampaikan bahwa ini belum merupakan persetujuan untuk pesanan Anda: kelayakan dan prosesnya masih harus diperiksa oleh tim kami.\\n\\nSaya juga belum bisa memproses pengembalian dana secara langsung dari sini. Langkah berikutnya, mohon siapkan foto kondisi rok tersebut beserta nomor pesanan Anda agar tim kami dapat meninjaunya. Boleh dibantu mengirimkan foto dan nomor pesanannya?\",\n  \"ticket_summary\": {\n    \"issue\": \"Pelanggan melaporkan rok hitam diterima dalam kondisi rusak dan meminta pengembalian dana (refund).\",\n    \"customer_reported_facts\": [\n      \"Barang (rok hitam) rusak saat diterima.\",\n      \"Barang diterima kemarin (relatif terhadap tanggal uji 2026-11-07, yaitu 2026-11-06).\",\n      \"Pelanggan menginginkan uang kembali (refund).\",\n      \"Pelanggan meminta refund diproses.\"\n    ],\n    \"publicly_verified_facts\": [\n      \"Kebijakan resmi refund/pengembalian: pesanan yang sudah dibayar dapat dikembalikan bila barang tidak sesuai pesanan (nama artikel atau warna) atau cacat/rusak, maksimal 7 hari setelah diterima; tidak ada biaya tambahan layanan/pengembalian pada kondisi yang disebutkan (CB-RETURNS-001).\"\n    ],\n    \"unknowns\": [\n      \"Nomor/referensi pesanan belum diberikan.\",\n      \"Rincian kerusakan dan ada/tidaknya bukti foto belum tersedia.\",\n      \"Tidak dapat dipastikan apakah kondisi termasuk cacat/rusak atau ketidaksesuaian artikel/warna.\",\n      \"Kelayakan dan persetujuan pengembalian untuk pesanan ini belum diverifikasi.\",\n      \"Metode dan waktu proses pengembalian dana tidak diatur dalam sumber yang tersedia.\",\n      \"Status pembayaran pesanan tidak diketahui.\"\n    ],\n    \"customer_provided_references\": [],\n    \"requested_outcome\": \"Pengembalian dana (refund) untuk rok hitam yang dilaporkan rusak.\",\n    \"context_retained\": [\n      \"Produk terdampak: rok hitam (customer_reported).\",\n      \"Waktu terima: kemarin, 2026-11-06 (customer_reported).\",\n      \"Keluhan awal: barang rusak saat datang (customer_reported).\",\n      \"Klarifikasi sebelumnya telah dijawab pelanggan; topik tetap pada keluhan barang rusak dan permintaan refund.\"\n    ]\n  },\n  \"knowledge_refs\": [\n    {\n      \"knowledge_id\": \"CB-RETURNS-001\",\n      \"kind\": \"return_policy\",\n      \"status\": \"verified_public\",\n      \"source_ids\": [\"SRC-04\"],\n      \"source_url\": null,\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Dasar penyebutan syarat pengembalian (7 hari, kondisi rusak/tidak sesuai, tanpa biaya tambahan pada kondisi tersebut) dan batasannya (tanpa jaminan kelayakan, tanpa waktu/metode refund).\",\n      \"limitations\": [\n        \"Tidak menetapkan waktu proses refund atau metode pembayaran.\",\n        \"Tidak menjamin kelayakan atau persetujuan untuk pesanan tertentu.\",\n        \"Manusia harus memverifikasi pesanan dan menentukan proses sebenarnya.\"\n      ]\n    }\n  ],\n  \"clarifying_question\": \"Mohon kirimkan foto kondisi rok tersebut dan nomor pesanan Anda.\",\n  \"escalation\": {\n    \"recommended\": true,\n    \"reason\": \"Permintaan keputusan return/refund disertai keluhan barang rusak (P1); kelayakan, verifikasi pesanan, serta metode dan waktu refund tidak dapat ditentukan dari pengetahuan yang tersedia.\",\n    \"handoff_status\": \"recommendation_only\"\n  },\n  \"human_review_required\": true,\n  \"simulation\": {\n    \"is_simulated\": false,\n    \"scenario_ids\": []\n  }\n}",
+    "multi_agent_data": null,
+    "token_usage": {
+      "input_tokens": 16274,
+      "output_tokens": 2023,
+      "total_tokens": 18297
+    },
+    "timestamp": "2026-11-07T20:27:39+0700"
+  }
+}

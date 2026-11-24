@@ -1,0 +1,79 @@
+{
+  "test_id": "CB-CS-V02",
+  "turn_id": "T1",
+  "http_status": 200,
+  "elapsed_seconds": 21.25,
+  "parsed_output": {
+    "primary_intent": "COMPLAINT_DAMAGED",
+    "secondary_intents": [],
+    "classification_confidence": 0.9,
+    "priority": "P1",
+    "customer_reply_draft": "Halo, terima kasih sudah memberi tahu kami. Kami mencatat laporan Anda bahwa atasan yang diterima memiliki jahitan lepas dan ada noda. Boleh dibantu nomor pesanan beserta tanggal paket Anda terima, agar laporan ini bisa ditinjau lebih lanjut?\n\nSebagai informasi, kebijakan pengembalian resmi Colorbox menyebutkan bahwa pesanan yang sudah dibayar dapat dikembalikan apabila barang yang diterima berbeda dari pesanan (nama artikel atau warna) atau dalam kondisi rusak/cacat, dengan pengembalian maksimal 7 hari setelah barang diterima; halaman tersebut juga menyatakan tidak ada biaya layanan/pengembalian tambahan pada kondisi yang disebutkan. Untuk pesanan Anda, kelayakan dan prosesnya masih perlu diverifikasi terlebih dahulu.",
+    "ticket_summary": {
+      "issue": "Pelanggan melaporkan atasan yang diterima memiliki jahitan lepas dan noda (dugaan produk cacat/rusak).",
+      "customer_reported_facts": [
+        "Pelanggan menerima atasan dengan jahitan lepas.",
+        "Pelanggan menerima atasan dengan noda."
+      ],
+      "publicly_verified_facts": [
+        "Kebijakan refund/return resmi Colorbox: pesanan yang sudah dibayar dapat dikembalikan bila barang berbeda dari pesanan menurut nama artikel atau warna, atau rusak/cacat, maksimal 7 hari setelah barang diterima.",
+        "Halaman kebijakan menyatakan tidak ada biaya layanan/pengembalian tambahan pada kondisi yang disebutkan."
+      ],
+      "unknowns": [
+        "Nomor pesanan dan tanggal penerimaan barang belum diketahui.",
+        "Apakah kondisi barang memenuhi syarat pengembalian belum dapat dipastikan.",
+        "Waktu proses refund dan metode pengembalian dana tidak ditetapkan oleh sumber yang ditinjau.",
+        "Kebijakan pengembalian/exchange berdasarkan ukuran (size/fit) tidak terverifikasi."
+      ],
+      "customer_provided_references": [],
+      "requested_outcome": "Belum dinyatakan secara eksplisit; pelanggan melaporkan produk cacat dan tampaknya mengharapkan penyelesaian.",
+      "context_retained": [
+        "Item bermasalah: atasan (customer_reported).",
+        "Keluhan: jahitan lepas dan noda (customer_reported)."
+      ]
+    },
+    "knowledge_refs": [
+      {
+        "knowledge_id": "CB-RETURNS-001",
+        "source_ids": [
+          "SRC-04"
+        ],
+        "source_url": "https://colorbox.co.id/policies/refund-policy",
+        "accessed_date": "2026-11-07",
+        "used_for": "Menjelaskan ketentuan pengembalian untuk barang rusak/cacat dalam maksimal 7 hari setelah diterima dan pernyataan tidak ada biaya layanan/pengembalian tambahan pada kondisi tersebut."
+      }
+    ],
+    "clarifying_question": "Boleh dibantu nomor pesanan beserta tanggal paket Anda terima?",
+    "escalation": {
+      "recommended": true,
+      "reason": "Komplain barang rusak/cacat (jahitan lepas dan noda) memerlukan verifikasi pesanan dan tenggat 7 hari oleh manusia; sumber yang ditinjau tidak menetapkan kelayakan, keputusan, maupun proses pengembalian untuk kasus individual.",
+      "handoff_status": "recommendation_only"
+    },
+    "human_review_required": true,
+    "simulation": {
+      "is_simulated": false,
+      "scenario_ids": []
+    }
+  },
+  "raw_body": {
+    "status": "success",
+    "session_id": "sess_04a9711a",
+    "customer_id": "colorbox_v2_CB-CS-V02",
+    "department": "customer_support",
+    "agent_mode": "single",
+    "agent_count": 1,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback_applied": false,
+    "blocker_note": null,
+    "execution_time_seconds": 21.23,
+    "output": "{\n  \"primary_intent\": \"COMPLAINT_DAMAGED\",\n  \"secondary_intents\": [],\n  \"classification_confidence\": 0.9,\n  \"priority\": \"P1\",\n  \"customer_reply_draft\": \"Halo, terima kasih sudah memberi tahu kami. Kami mencatat laporan Anda bahwa atasan yang diterima memiliki jahitan lepas dan ada noda. Boleh dibantu nomor pesanan beserta tanggal paket Anda terima, agar laporan ini bisa ditinjau lebih lanjut?\\n\\nSebagai informasi, kebijakan pengembalian resmi Colorbox menyebutkan bahwa pesanan yang sudah dibayar dapat dikembalikan apabila barang yang diterima berbeda dari pesanan (nama artikel atau warna) atau dalam kondisi rusak/cacat, dengan pengembalian maksimal 7 hari setelah barang diterima; halaman tersebut juga menyatakan tidak ada biaya layanan/pengembalian tambahan pada kondisi yang disebutkan. Untuk pesanan Anda, kelayakan dan prosesnya masih perlu diverifikasi terlebih dahulu.\",\n  \"ticket_summary\": {\n    \"issue\": \"Pelanggan melaporkan atasan yang diterima memiliki jahitan lepas dan noda (dugaan produk cacat/rusak).\",\n    \"customer_reported_facts\": [\n      \"Pelanggan menerima atasan dengan jahitan lepas.\",\n      \"Pelanggan menerima atasan dengan noda.\"\n    ],\n    \"publicly_verified_facts\": [\n      \"Kebijakan refund/return resmi Colorbox: pesanan yang sudah dibayar dapat dikembalikan bila barang berbeda dari pesanan menurut nama artikel atau warna, atau rusak/cacat, maksimal 7 hari setelah barang diterima.\",\n      \"Halaman kebijakan menyatakan tidak ada biaya layanan/pengembalian tambahan pada kondisi yang disebutkan.\"\n    ],\n    \"unknowns\": [\n      \"Nomor pesanan dan tanggal penerimaan barang belum diketahui.\",\n      \"Apakah kondisi barang memenuhi syarat pengembalian belum dapat dipastikan.\",\n      \"Waktu proses refund dan metode pengembalian dana tidak ditetapkan oleh sumber yang ditinjau.\",\n      \"Kebijakan pengembalian/exchange berdasarkan ukuran (size/fit) tidak terverifikasi.\"\n    ],\n    \"customer_provided_references\": [],\n    \"requested_outcome\": \"Belum dinyatakan secara eksplisit; pelanggan melaporkan produk cacat dan tampaknya mengharapkan penyelesaian.\",\n    \"context_retained\": [\n      \"Item bermasalah: atasan (customer_reported).\",\n      \"Keluhan: jahitan lepas dan noda (customer_reported).\"\n    ]\n  },\n  \"knowledge_refs\": [\n    {\n      \"knowledge_id\": \"CB-RETURNS-001\",\n      \"source_ids\": [\n        \"SRC-04\"\n      ],\n      \"source_url\": \"https://colorbox.co.id/policies/refund-policy\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Menjelaskan ketentuan pengembalian untuk barang rusak/cacat dalam maksimal 7 hari setelah diterima dan pernyataan tidak ada biaya layanan/pengembalian tambahan pada kondisi tersebut.\"\n    }\n  ],\n  \"clarifying_question\": \"Boleh dibantu nomor pesanan beserta tanggal paket Anda terima?\",\n  \"escalation\": {\n    \"recommended\": true,\n    \"reason\": \"Komplain barang rusak/cacat (jahitan lepas dan noda) memerlukan verifikasi pesanan dan tenggat 7 hari oleh manusia; sumber yang ditinjau tidak menetapkan kelayakan, keputusan, maupun proses pengembalian untuk kasus individual.\",\n    \"handoff_status\": \"recommendation_only\"\n  },\n  \"human_review_required\": true,\n  \"simulation\": {\n    \"is_simulated\": false,\n    \"scenario_ids\": []\n  }\n}",
+    "multi_agent_data": null,
+    "token_usage": {
+      "input_tokens": 17531,
+      "output_tokens": 1973,
+      "total_tokens": 19504
+    },
+    "timestamp": "2026-11-09T15:43:31+0700"
+  }
+}

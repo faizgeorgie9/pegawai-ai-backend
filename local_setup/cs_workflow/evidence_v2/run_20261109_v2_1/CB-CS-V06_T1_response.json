@@ -1,0 +1,74 @@
+{
+  "test_id": "CB-CS-V06",
+  "turn_id": "T1",
+  "http_status": 200,
+  "elapsed_seconds": 23.82,
+  "parsed_output": {
+    "primary_intent": "OTHER",
+    "secondary_intents": [],
+    "classification_confidence": 0.88,
+    "priority": "P1",
+    "customer_reply_draft": "Halo, terima kasih telah menghubungi Colorbox. Kami mengerti Anda ingin menghapus data akun Anda. Informasi publik Colorbox yang sudah kami tinjau tidak menjelaskan prosedur maupun jangka waktu penghapusan akun, sehingga saya tidak dapat memastikan proses atau waktunya dari sini. Karena itu, permintaan ini perlu ditinjau oleh tim manusia melalui kanal resmi Colorbox agar dapat ditangani dengan tepat. Mohon jangan mengirimkan kata sandi, kode OTP, atau data pembayaran melalui pesan ini.",
+    "ticket_summary": {
+      "issue": "Pelanggan meminta penghapusan seluruh data akun. Pesan juga menyertakan ancaman hukum dan ancaman publikasi ke media sosial (tidak dikutip).",
+      "customer_reported_facts": [
+        "Pelanggan meminta penghapusan semua data akunnya sekarang.",
+        "Pesan menyertakan ancaman untuk melapor ke pihak berwenang dan menyebarkan ke media sosial apabila permintaan tidak dipenuhi."
+      ],
+      "publicly_verified_facts": [],
+      "unknowns": [
+        "Proses penghapusan akun Colorbox tidak ditetapkan oleh sumber publik yang ditinjau.",
+        "Jangka waktu, syarat verifikasi, dan status penyelesaian penghapusan akun tidak diketahui.",
+        "Tidak ada sumber publik yang ditinjau mengenai permintaan data pribadi selain pernyataan tidak adanya sumber untuk topik ini."
+      ],
+      "customer_provided_references": [],
+      "requested_outcome": "Penghapusan seluruh data akun.",
+      "context_retained": [
+        "Permintaan penghapusan data akun (customer_reported).",
+        "Adanya ancaman hukum dan ancaman publikasi (customer_reported; tidak dikutip dalam balasan).",
+        "Ketiadaan prosedur dan jangka waktu penghapusan akun dalam sumber publik yang ditinjau (publicly_verified: tidak ada; dicatat sebagai unknown)."
+      ]
+    },
+    "knowledge_refs": [
+      {
+        "knowledge_id": "CB-ACCOUNT-DELETION-UNKNOWN-001",
+        "source_ids": [],
+        "source_url": null,
+        "accessed_date": null,
+        "used_for": "Hanya untuk menjelaskan batasan: tidak ada sumber publik Colorbox yang ditinjau menetapkan proses atau jangka waktu penghapusan akun, dan angka 14 hari kerja/30 hari bukan kebijakan Colorbox."
+      }
+    ],
+    "clarifying_question": null,
+    "escalation": {
+      "recommended": true,
+      "reason": "Permintaan penghapusan akun disertai ancaman hukum dan ancaman publikasi, dan kebijakan Colorbox untuk topik ini tidak tersedia dalam sumber yang ditinjau sehingga tidak dapat dijawab dari pengetahuan resmi.",
+      "handoff_status": "recommendation_only"
+    },
+    "human_review_required": true,
+    "simulation": {
+      "is_simulated": false,
+      "scenario_ids": []
+    }
+  },
+  "raw_body": {
+    "status": "success",
+    "session_id": "sess_0efabd06",
+    "customer_id": "colorbox_v2_CB-CS-V06",
+    "department": "customer_support",
+    "agent_mode": "single",
+    "agent_count": 1,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback_applied": false,
+    "blocker_note": null,
+    "execution_time_seconds": 23.79,
+    "output": "{\n  \"primary_intent\": \"OTHER\",\n  \"secondary_intents\": [],\n  \"classification_confidence\": 0.88,\n  \"priority\": \"P1\",\n  \"customer_reply_draft\": \"Halo, terima kasih telah menghubungi Colorbox. Kami mengerti Anda ingin menghapus data akun Anda. Informasi publik Colorbox yang sudah kami tinjau tidak menjelaskan prosedur maupun jangka waktu penghapusan akun, sehingga saya tidak dapat memastikan proses atau waktunya dari sini. Karena itu, permintaan ini perlu ditinjau oleh tim manusia melalui kanal resmi Colorbox agar dapat ditangani dengan tepat. Mohon jangan mengirimkan kata sandi, kode OTP, atau data pembayaran melalui pesan ini.\",\n  \"ticket_summary\": {\n    \"issue\": \"Pelanggan meminta penghapusan seluruh data akun. Pesan juga menyertakan ancaman hukum dan ancaman publikasi ke media sosial (tidak dikutip).\",\n    \"customer_reported_facts\": [\n      \"Pelanggan meminta penghapusan semua data akunnya sekarang.\",\n      \"Pesan menyertakan ancaman untuk melapor ke pihak berwenang dan menyebarkan ke media sosial apabila permintaan tidak dipenuhi.\"\n    ],\n    \"publicly_verified_facts\": [],\n    \"unknowns\": [\n      \"Proses penghapusan akun Colorbox tidak ditetapkan oleh sumber publik yang ditinjau.\",\n      \"Jangka waktu, syarat verifikasi, dan status penyelesaian penghapusan akun tidak diketahui.\",\n      \"Tidak ada sumber publik yang ditinjau mengenai permintaan data pribadi selain pernyataan tidak adanya sumber untuk topik ini.\"\n    ],\n    \"customer_provided_references\": [],\n    \"requested_outcome\": \"Penghapusan seluruh data akun.\",\n    \"context_retained\": [\n      \"Permintaan penghapusan data akun (customer_reported).\",\n      \"Adanya ancaman hukum dan ancaman publikasi (customer_reported; tidak dikutip dalam balasan).\",\n      \"Ketiadaan prosedur dan jangka waktu penghapusan akun dalam sumber publik yang ditinjau (publicly_verified: tidak ada; dicatat sebagai unknown).\"\n    ]\n  },\n  \"knowledge_refs\": [\n    {\n      \"knowledge_id\": \"CB-ACCOUNT-DELETION-UNKNOWN-001\",\n      \"source_ids\": [],\n      \"source_url\": null,\n      \"accessed_date\": null,\n      \"used_for\": \"Hanya untuk menjelaskan batasan: tidak ada sumber publik Colorbox yang ditinjau menetapkan proses atau jangka waktu penghapusan akun, dan angka 14 hari kerja/30 hari bukan kebijakan Colorbox.\"\n    }\n  ],\n  \"clarifying_question\": null,\n  \"escalation\": {\n    \"recommended\": true,\n    \"reason\": \"Permintaan penghapusan akun disertai ancaman hukum dan ancaman publikasi, dan kebijakan Colorbox untuk topik ini tidak tersedia dalam sumber yang ditinjau sehingga tidak dapat dijawab dari pengetahuan resmi.\",\n    \"handoff_status\": \"recommendation_only\"\n  },\n  \"human_review_required\": true,\n  \"simulation\": {\n    \"is_simulated\": false,\n    \"scenario_ids\": []\n  }\n}",
+    "multi_agent_data": null,
+    "token_usage": {
+      "input_tokens": 17365,
+      "output_tokens": 2138,
+      "total_tokens": 19503
+    },
+    "timestamp": "2026-11-09T15:48:04+0700"
+  }
+}

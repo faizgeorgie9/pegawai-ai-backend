@@ -1,0 +1,115 @@
+{
+  "test_id": "CB-CS-V05",
+  "turn_id": "T1",
+  "http_status": 200,
+  "elapsed_seconds": 45.56,
+  "parsed_output": {
+    "primary_intent": "COMPLAINT_LATE_MISSING",
+    "secondary_intents": [
+      "SIZE_FIT",
+      "ORDER_STATUS"
+    ],
+    "classification_confidence": 0.63,
+    "priority": "P1",
+    "customer_reply_draft": "Halo Kak, terima kasih sudah menghubungi Colorbox. Saya paham pesanan yang Kakak tunggu belum sampai, dan Kakak juga ingin mengganti ukuran karena terasa kepanjangan.\n\nUntuk status pengiriman, saya tidak dapat memeriksa pesanan secara langsung. Status terbaru bisa Kakak lihat sendiri melalui menu Track Your Order di situs resmi Colorbox (colorbox.co.id).\n\nMengenai ukuran: kebijakan pengembalian resmi yang dapat saya rujuk hanya mencakup barang yang tidak sesuai nama artikel atau warna, atau barang rusak/cacat, dengan pengembalian maksimal 7 hari setelah barang diterima. Ketentuan tukar ukuran tidak tercantum dalam informasi resmi tersebut, sehingga saya belum bisa menjanjikan tukar ukuran atau pengembalian karena ukuran terlalu panjang. Angka panduan ukuran resmi juga belum dapat saya sampaikan.\n\nAgar saya bisa membantu lebih tepat: ukuran yang terasa kepanjangan itu barang yang sudah pernah Kakak terima sebelumnya, atau pesanan yang belum sampai ini?",
+    "ticket_summary": {
+      "issue": "Customer reports an order that has not arrived and, in the same message, asks to change the size because the item is too long.",
+      "customer_reported_facts": [
+        "customer_reported: the ordered item has not arrived",
+        "customer_reported: the customer wants to change the size because it is too long",
+        "customer_reported: the customer asks for help now"
+      ],
+      "publicly_verified_facts": [
+        "publicly_verified: the official refund/return policy covers an item that differs from the order by article name or color, or is defective/damaged, returned within a maximum of 7 days after receipt, with no additional service/return fee under its stated conditions (SRC-04)",
+        "publicly_verified: no reviewed public source establishes a size-exchange process, fee, or eligibility (SRC-04)",
+        "publicly_verified: the official size-guide page publishes an image whose measurement values were not transcribed or verified (SRC-05)",
+        "publicly_verified: the official storefront provides a Track Your Order entry (SRC-01)"
+      ],
+      "unknowns": [
+        "Delivery/shipment status of the customer's order (no live carrier, order, or Shopee lookup is available)",
+        "Order reference and item name/size of the affected order",
+        "Whether the item described as 'too long' is a previously received item or the order that has not arrived — the description is internally inconsistent",
+        "Whether any size exchange is offered, and under what process, fee, or eligibility",
+        "Numeric size measurements and any fit recommendation",
+        "Refund method and processing time, if a return were ever approved"
+      ],
+      "customer_provided_references": [],
+      "requested_outcome": "Wants help now with the undelivered order and to change the item's size because it is too long.",
+      "context_retained": [
+        "No prior turns: same-conversation history supplied with this request is empty"
+      ]
+    },
+    "knowledge_refs": [
+      {
+        "knowledge_id": "CB-RETURNS-001",
+        "source_ids": [
+          "SRC-04"
+        ],
+        "source_url": "https://colorbox.co.id/policies/refund-policy",
+        "accessed_date": "2026-11-07",
+        "used_for": "Stating the verified return conditions (wrong article name/color, or defective/damaged, within 7 days) and that fit/size is not covered by them"
+      },
+      {
+        "knowledge_id": "CB-EXCHANGE-UNKNOWN-001",
+        "source_ids": [
+          "SRC-04"
+        ],
+        "source_url": "https://colorbox.co.id/policies/refund-policy",
+        "accessed_date": "2026-11-07",
+        "used_for": "Explaining that no reviewed public source establishes a size-exchange process, fee, or eligibility, so no exchange can be promised"
+      },
+      {
+        "knowledge_id": "CB-SIZE-UNKNOWN-001",
+        "source_ids": [
+          "SRC-05"
+        ],
+        "source_url": "https://colorbox.co.id/pages/size-guide",
+        "accessed_date": "2026-11-07",
+        "used_for": "Explaining that size-guide measurements are not verified, so no numeric measurement or fit recommendation is given"
+      },
+      {
+        "knowledge_id": "CB-PRODUCT-001",
+        "source_ids": [
+          "SRC-01"
+        ],
+        "source_url": "https://colorbox.co.id/",
+        "accessed_date": "2026-11-07",
+        "used_for": "Pointing to the official storefront's Track Your Order entry as the verified self-service path for shipment status (listing price and size options in this record are not used)"
+      }
+    ],
+    "clarifying_question": "Ukuran yang terasa kepanjangan itu barang yang sudah pernah Kakak terima sebelumnya, atau pesanan yang belum sampai ini?",
+    "escalation": {
+      "recommended": true,
+      "reason": "P1 missing/late-delivery complaint combined with a size/fit change request for which no reviewed public source establishes an exchange policy, and the customer's description is internally inconsistent (item not received yet described as too long); human review is needed to verify the order and resolve the conflict.",
+      "handoff_status": "recommendation_only"
+    },
+    "human_review_required": true,
+    "simulation": {
+      "is_simulated": true,
+      "scenario_ids": [
+        "SIM-EXCHANGE-001"
+      ]
+    }
+  },
+  "raw_body": {
+    "status": "success",
+    "session_id": "sess_16e4d224",
+    "customer_id": "colorbox_v2_CB-CS-V05",
+    "department": "customer_support",
+    "agent_mode": "single",
+    "agent_count": 1,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback_applied": false,
+    "blocker_note": null,
+    "execution_time_seconds": 45.53,
+    "output": "{\n  \"primary_intent\": \"COMPLAINT_LATE_MISSING\",\n  \"secondary_intents\": [\"SIZE_FIT\", \"ORDER_STATUS\"],\n  \"classification_confidence\": 0.63,\n  \"priority\": \"P1\",\n  \"customer_reply_draft\": \"Halo Kak, terima kasih sudah menghubungi Colorbox. Saya paham pesanan yang Kakak tunggu belum sampai, dan Kakak juga ingin mengganti ukuran karena terasa kepanjangan.\\n\\nUntuk status pengiriman, saya tidak dapat memeriksa pesanan secara langsung. Status terbaru bisa Kakak lihat sendiri melalui menu Track Your Order di situs resmi Colorbox (colorbox.co.id).\\n\\nMengenai ukuran: kebijakan pengembalian resmi yang dapat saya rujuk hanya mencakup barang yang tidak sesuai nama artikel atau warna, atau barang rusak/cacat, dengan pengembalian maksimal 7 hari setelah barang diterima. Ketentuan tukar ukuran tidak tercantum dalam informasi resmi tersebut, sehingga saya belum bisa menjanjikan tukar ukuran atau pengembalian karena ukuran terlalu panjang. Angka panduan ukuran resmi juga belum dapat saya sampaikan.\\n\\nAgar saya bisa membantu lebih tepat: ukuran yang terasa kepanjangan itu barang yang sudah pernah Kakak terima sebelumnya, atau pesanan yang belum sampai ini?\",\n  \"ticket_summary\": {\n    \"issue\": \"Customer reports an order that has not arrived and, in the same message, asks to change the size because the item is too long.\",\n    \"customer_reported_facts\": [\n      \"customer_reported: the ordered item has not arrived\",\n      \"customer_reported: the customer wants to change the size because it is too long\",\n      \"customer_reported: the customer asks for help now\"\n    ],\n    \"publicly_verified_facts\": [\n      \"publicly_verified: the official refund/return policy covers an item that differs from the order by article name or color, or is defective/damaged, returned within a maximum of 7 days after receipt, with no additional service/return fee under its stated conditions (SRC-04)\",\n      \"publicly_verified: no reviewed public source establishes a size-exchange process, fee, or eligibility (SRC-04)\",\n      \"publicly_verified: the official size-guide page publishes an image whose measurement values were not transcribed or verified (SRC-05)\",\n      \"publicly_verified: the official storefront provides a Track Your Order entry (SRC-01)\"\n    ],\n    \"unknowns\": [\n      \"Delivery/shipment status of the customer's order (no live carrier, order, or Shopee lookup is available)\",\n      \"Order reference and item name/size of the affected order\",\n      \"Whether the item described as 'too long' is a previously received item or the order that has not arrived — the description is internally inconsistent\",\n      \"Whether any size exchange is offered, and under what process, fee, or eligibility\",\n      \"Numeric size measurements and any fit recommendation\",\n      \"Refund method and processing time, if a return were ever approved\"\n    ],\n    \"customer_provided_references\": [],\n    \"requested_outcome\": \"Wants help now with the undelivered order and to change the item's size because it is too long.\",\n    \"context_retained\": [\n      \"No prior turns: same-conversation history supplied with this request is empty\"\n    ]\n  },\n  \"knowledge_refs\": [\n    {\n      \"knowledge_id\": \"CB-RETURNS-001\",\n      \"source_ids\": [\"SRC-04\"],\n      \"source_url\": \"https://colorbox.co.id/policies/refund-policy\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Stating the verified return conditions (wrong article name/color, or defective/damaged, within 7 days) and that fit/size is not covered by them\"\n    },\n    {\n      \"knowledge_id\": \"CB-EXCHANGE-UNKNOWN-001\",\n      \"source_ids\": [\"SRC-04\"],\n      \"source_url\": \"https://colorbox.co.id/policies/refund-policy\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Explaining that no reviewed public source establishes a size-exchange process, fee, or eligibility, so no exchange can be promised\"\n    },\n    {\n      \"knowledge_id\": \"CB-SIZE-UNKNOWN-001\",\n      \"source_ids\": [\"SRC-05\"],\n      \"source_url\": \"https://colorbox.co.id/pages/size-guide\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Explaining that size-guide measurements are not verified, so no numeric measurement or fit recommendation is given\"\n    },\n    {\n      \"knowledge_id\": \"CB-PRODUCT-001\",\n      \"source_ids\": [\"SRC-01\"],\n      \"source_url\": \"https://colorbox.co.id/\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Pointing to the official storefront's Track Your Order entry as the verified self-service path for shipment status (listing price and size options in this record are not used)\"\n    }\n  ],\n  \"clarifying_question\": \"Ukuran yang terasa kepanjangan itu barang yang sudah pernah Kakak terima sebelumnya, atau pesanan yang belum sampai ini?\",\n  \"escalation\": {\n    \"recommended\": true,\n    \"reason\": \"P1 missing/late-delivery complaint combined with a size/fit change request for which no reviewed public source establishes an exchange policy, and the customer's description is internally inconsistent (item not received yet described as too long); human review is needed to verify the order and resolve the conflict.\",\n    \"handoff_status\": \"recommendation_only\"\n  },\n  \"human_review_required\": true,\n  \"simulation\": {\n    \"is_simulated\": true,\n    \"scenario_ids\": [\"SIM-EXCHANGE-001\"]\n  }\n}",
+    "multi_agent_data": null,
+    "token_usage": {
+      "input_tokens": 18437,
+      "output_tokens": 4456,
+      "total_tokens": 22893
+    },
+    "timestamp": "2026-11-09T15:47:40+0700"
+  }
+}

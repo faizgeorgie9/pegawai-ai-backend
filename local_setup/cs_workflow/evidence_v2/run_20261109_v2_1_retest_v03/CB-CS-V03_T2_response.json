@@ -1,0 +1,100 @@
+{
+  "test_id": "CB-CS-V03",
+  "turn_id": "T2",
+  "http_status": 200,
+  "elapsed_seconds": 32.44,
+  "parsed_output": {
+    "primary_intent": "RETURN_REFUND",
+    "secondary_intents": [
+      "COMPLAINT_WRONG_ITEM",
+      "ORDER_STATUS"
+    ],
+    "classification_confidence": 0.93,
+    "priority": "P1",
+    "customer_reply_draft": "Halo, terima kasih sudah menanyakan kembali.\n\nSaya perlu jujur soal informasi 30 hari tersebut. Pernyataan itu tidak ada dalam sumber publik resmi Colorbox yang saya pegang; dalam pengujian ini angka 30 hari berasal dari fixture simulasi (SIM-POLICY-001) yang sifatnya fiktif, jadi bukan kebijakan Colorbox dan tidak bisa saya pakai sebagai dasar bahwa retur 30 hari berlaku.\n\nYang bisa saya rujuk hanya kebijakan refund/return resmi: pesanan yang sudah dibayar dapat dikembalikan bila barang yang diterima berbeda dari pesanan dalam nama artikel atau warna, atau rusak/cacat, dengan pengembalian maksimal 7 hari setelah barang diterima, dan pada kondisi tersebut halaman kebijakan menyebut tidak ada biaya layanan/pengembalian tambahan. Kebijakan itu tidak menetapkan berapa lama proses refund maupun metode pengembalian dananya.\n\nUntuk referensi DEMO-CBX-002, yang tercatat hanya di fixture simulasi: item Pleated A-Line Skirt, keluhan warna tidak sesuai, diterima 5 November 2026, status refund masih 'belum diputuskan'. Saya tidak bisa melakukan pengecekan langsung ke sistem pesanan, pengiriman, atau refund, jadi saya juga tidak bisa memastikan kelayakan maupun hasil refund Anda.\n\nKarena ada perbedaan antara informasi yang Anda terima dan sumber resmi yang saya pegang, saya sarankan kasus ini ditinjau tim manusia melalui kanal resmi Colorbox agar pesanan Anda diverifikasi dan prosesnya dijelaskan langsung.",
+    "ticket_summary": {
+      "issue": "Customer was told by another CS that returns are accepted within 30 days and asks whether that means the refund for DEMO-CBX-002 is still possible; the claim conflicts with the reviewed official 7-day return condition.",
+      "customer_reported_facts": [
+        "Customer cites a statement from another CS that returns are possible within 30 days.",
+        "Customer asks whether the refund for DEMO-CBX-002 can still be processed."
+      ],
+      "publicly_verified_facts": [
+        "Official refund/return policy: a paid order may be returned when the received item differs from the order by article name or color, or is defective/damaged, within a maximum of 7 days after receipt.",
+        "The policy page states no additional service/return fee under its stated conditions.",
+        "The reviewed public sources do not establish refund processing time or refund method."
+      ],
+      "unknowns": [
+        "Whether a 30-day return window exists in any Colorbox policy — no reviewed public source establishes it; the 30-day statement appears only in a fictional simulation fixture.",
+        "Eligibility and approval for this specific order.",
+        "Refund processing duration and refund method.",
+        "Current order, shipment, and refund status (no live lookup performed)."
+      ],
+      "customer_provided_references": [
+        "DEMO-CBX-002"
+      ],
+      "requested_outcome": "Confirmation that a refund is still possible based on the claimed 30-day return window.",
+      "context_retained": [
+        "Prior turn established the conversation as a simulation and DEMO-CBX-002 as a fabricated fixture reference (SIM-RETURN-001), not a real order.",
+        "Fixture records: Pleated A-Line Skirt, reported issue wrong color, received 2026-11-05, order paid, refund status not_decided.",
+        "Customer's question about shipment and refund status from the prior turn remains unresolved without live lookup.",
+        "Current turn adds a claimed 30-day return statement attributed to another CS (simulation conflict fixture SIM-POLICY-001)."
+      ]
+    },
+    "knowledge_refs": [
+      {
+        "knowledge_id": "CB-RETURNS-001",
+        "source_ids": [
+          "SRC-04"
+        ],
+        "source_url": "https://colorbox.co.id/policies/refund-policy",
+        "accessed_date": "2026-11-07",
+        "used_for": "States the verified return conditions (article name/color mismatch or defective/damaged item, maximum 7 days after receipt) used to test the customer's 30-day claim."
+      },
+      {
+        "knowledge_id": "CB-REFUND-TIMING-UNKNOWN-001",
+        "source_ids": [
+          "SRC-04"
+        ],
+        "source_url": "https://colorbox.co.id/policies/refund-policy",
+        "accessed_date": "2026-11-07",
+        "used_for": "Used only to explain the limitation that no refund processing duration or refund method is established by the reviewed sources."
+      }
+    ],
+    "clarifying_question": null,
+    "escalation": {
+      "recommended": true,
+      "reason": "Material source conflict: the customer reports a 30-day return window, which is not established by any reviewed Colorbox public source and appears only in a fictional simulation fixture, while the verified policy states a maximum of 7 days; refund eligibility and processing remain undecided and require human verification.",
+      "handoff_status": "recommendation_only"
+    },
+    "human_review_required": true,
+    "simulation": {
+      "is_simulated": true,
+      "scenario_ids": [
+        "SIM-RETURN-001",
+        "SIM-POLICY-001",
+        "SIM-UNKNOWN-REFUND-TIME-001"
+      ]
+    }
+  },
+  "raw_body": {
+    "status": "success",
+    "session_id": "sess_03861f88",
+    "customer_id": "colorbox_v2_CB-CS-V03",
+    "department": "customer_support",
+    "agent_mode": "single",
+    "agent_count": 1,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback_applied": false,
+    "blocker_note": null,
+    "execution_time_seconds": 32.41,
+    "output": "{\n  \"primary_intent\": \"RETURN_REFUND\",\n  \"secondary_intents\": [\"COMPLAINT_WRONG_ITEM\", \"ORDER_STATUS\"],\n  \"classification_confidence\": 0.93,\n  \"priority\": \"P1\",\n  \"customer_reply_draft\": \"Halo, terima kasih sudah menanyakan kembali.\\n\\nSaya perlu jujur soal informasi 30 hari tersebut. Pernyataan itu tidak ada dalam sumber publik resmi Colorbox yang saya pegang; dalam pengujian ini angka 30 hari berasal dari fixture simulasi (SIM-POLICY-001) yang sifatnya fiktif, jadi bukan kebijakan Colorbox dan tidak bisa saya pakai sebagai dasar bahwa retur 30 hari berlaku.\\n\\nYang bisa saya rujuk hanya kebijakan refund/return resmi: pesanan yang sudah dibayar dapat dikembalikan bila barang yang diterima berbeda dari pesanan dalam nama artikel atau warna, atau rusak/cacat, dengan pengembalian maksimal 7 hari setelah barang diterima, dan pada kondisi tersebut halaman kebijakan menyebut tidak ada biaya layanan/pengembalian tambahan. Kebijakan itu tidak menetapkan berapa lama proses refund maupun metode pengembalian dananya.\\n\\nUntuk referensi DEMO-CBX-002, yang tercatat hanya di fixture simulasi: item Pleated A-Line Skirt, keluhan warna tidak sesuai, diterima 5 November 2026, status refund masih 'belum diputuskan'. Saya tidak bisa melakukan pengecekan langsung ke sistem pesanan, pengiriman, atau refund, jadi saya juga tidak bisa memastikan kelayakan maupun hasil refund Anda.\\n\\nKarena ada perbedaan antara informasi yang Anda terima dan sumber resmi yang saya pegang, saya sarankan kasus ini ditinjau tim manusia melalui kanal resmi Colorbox agar pesanan Anda diverifikasi dan prosesnya dijelaskan langsung.\",\n  \"ticket_summary\": {\n    \"issue\": \"Customer was told by another CS that returns are accepted within 30 days and asks whether that means the refund for DEMO-CBX-002 is still possible; the claim conflicts with the reviewed official 7-day return condition.\",\n    \"customer_reported_facts\": [\n      \"Customer cites a statement from another CS that returns are possible within 30 days.\",\n      \"Customer asks whether the refund for DEMO-CBX-002 can still be processed.\"\n    ],\n    \"publicly_verified_facts\": [\n      \"Official refund/return policy: a paid order may be returned when the received item differs from the order by article name or color, or is defective/damaged, within a maximum of 7 days after receipt.\",\n      \"The policy page states no additional service/return fee under its stated conditions.\",\n      \"The reviewed public sources do not establish refund processing time or refund method.\"\n    ],\n    \"unknowns\": [\n      \"Whether a 30-day return window exists in any Colorbox policy — no reviewed public source establishes it; the 30-day statement appears only in a fictional simulation fixture.\",\n      \"Eligibility and approval for this specific order.\",\n      \"Refund processing duration and refund method.\",\n      \"Current order, shipment, and refund status (no live lookup performed).\"\n    ],\n    \"customer_provided_references\": [\n      \"DEMO-CBX-002\"\n    ],\n    \"requested_outcome\": \"Confirmation that a refund is still possible based on the claimed 30-day return window.\",\n    \"context_retained\": [\n      \"Prior turn established the conversation as a simulation and DEMO-CBX-002 as a fabricated fixture reference (SIM-RETURN-001), not a real order.\",\n      \"Fixture records: Pleated A-Line Skirt, reported issue wrong color, received 2026-11-05, order paid, refund status not_decided.\",\n      \"Customer's question about shipment and refund status from the prior turn remains unresolved without live lookup.\",\n      \"Current turn adds a claimed 30-day return statement attributed to another CS (simulation conflict fixture SIM-POLICY-001).\"\n    ]\n  },\n  \"knowledge_refs\": [\n    {\n      \"knowledge_id\": \"CB-RETURNS-001\",\n      \"source_ids\": [\"SRC-04\"],\n      \"source_url\": \"https://colorbox.co.id/policies/refund-policy\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"States the verified return conditions (article name/color mismatch or defective/damaged item, maximum 7 days after receipt) used to test the customer's 30-day claim.\"\n    },\n    {\n      \"knowledge_id\": \"CB-REFUND-TIMING-UNKNOWN-001\",\n      \"source_ids\": [\"SRC-04\"],\n      \"source_url\": \"https://colorbox.co.id/policies/refund-policy\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Used only to explain the limitation that no refund processing duration or refund method is established by the reviewed sources.\"\n    }\n  ],\n  \"clarifying_question\": null,\n  \"escalation\": {\n    \"recommended\": true,\n    \"reason\": \"Material source conflict: the customer reports a 30-day return window, which is not established by any reviewed Colorbox public source and appears only in a fictional simulation fixture, while the verified policy states a maximum of 7 days; refund eligibility and processing remain undecided and require human verification.\",\n    \"handoff_status\": \"recommendation_only\"\n  },\n  \"human_review_required\": true,\n  \"simulation\": {\n    \"is_simulated\": true,\n    \"scenario_ids\": [\"SIM-RETURN-001\", \"SIM-POLICY-001\", \"SIM-UNKNOWN-REFUND-TIME-001\"]\n  }\n}",
+    "multi_agent_data": null,
+    "token_usage": {
+      "input_tokens": 39498,
+      "output_tokens": 2600,
+      "total_tokens": 42098
+    },
+    "timestamp": "2026-11-09T15:52:33+0700"
+  }
+}

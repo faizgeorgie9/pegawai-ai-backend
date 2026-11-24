@@ -1,0 +1,26 @@
+{
+  "test_id": "CB-CS-T01",
+  "http_status": 200,
+  "elapsed_seconds": 33.41,
+  "body": {
+    "status": "success",
+    "session_id": "sess_fa24c842",
+    "customer_id": "colorbox_test_CB-CS-T01",
+    "department": "customer_support",
+    "agent_mode": "single",
+    "agent_count": 1,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback_applied": false,
+    "blocker_note": null,
+    "execution_time_seconds": 33.3,
+    "output": "{\n  \"primary_intent\": \"PRODUCT_AVAILABILITY\",\n  \"secondary_intents\": [\n    \"PRODUCT_INFO\"\n  ],\n  \"classification_confidence\": 0.88,\n  \"priority\": \"P2\",\n  \"customer_reply_draft\": \"Halo, terima kasih sudah bertanya. Dari halaman resmi Colorbox yang kami tinjau pada 7 November 2026, Colorbox x Liunic Oversized Sweatshirt tercantum dengan harga IDR 249.900 dan harga promo IDR 239.900, dengan pilihan ukuran S, M, L, dan XL pada listing tersebut. Harga itu adalah catatan pada tanggal peninjauan, jadi belum tentu harga saat ini. Untuk ketersediaan ukuran M, kami belum bisa memastikan karena stok tidak dapat kami cek dari sini, dan tampilnya ukuran M pada listing tidak berarti ukuran itu tersedia. Langkah berikutnya: silakan cek langsung halaman resmi Colorbox di https://colorbox.co.id/ , dan pertanyaan stok ukuran M ini perlu dicek lebih lanjut oleh tim CS kami. Kami belum bisa menjanjikan ketersediaan ukuran M. (Draft internal; perlu tinjauan manusia sebelum dikirim.)\",\n  \"ticket_summary\": {\n    \"issue\": \"Pertanyaan harga dan ketersediaan ukuran M untuk Colorbox x Liunic Oversized Sweatshirt.\",\n    \"customer_reported_facts\": [],\n    \"publicly_verified_facts\": [\n      \"Pada 2026-11-07 halaman resmi Colorbox menampilkan Colorbox x Liunic Oversized Sweatshirt seharga IDR 249.900 dengan harga promo IDR 239.900.\",\n      \"Listing tersebut menampilkan pilihan ukuran S, M, L, dan XL.\",\n      \"Halaman resmi menyediakan entri Track Your Order dan teks banner pengiriman/Click & Collect.\"\n    ],\n    \"unknowns\": [\n      \"Ketersediaan/stok ukuran M tidak dapat dipastikan; pilihan ukuran pada listing bukan bukti stok.\",\n      \"Harga saat ini tidak dapat dijamin; data harga hanya observasi pada tanggal tinjauan.\",\n      \"Detail produk (bahan, ukuran pasti, kualitas) tidak didukung sumber mana pun; halaman detail produk mengembalikan HTTP 429 saat peninjauan sumber.\",\n      \"Status persetujuan CS formal untuk sumber masih tertunda (evidence captured; formal CS approval pending).\",\n      \"Tidak ada akses ke sistem inventori, order, atau kanal lain untuk verifikasi.\"\n    ],\n    \"customer_provided_references\": [],\n    \"requested_outcome\": \"Mengetahui harga Colorbox x Liunic Oversized Sweatshirt dan apakah ukuran M masih tersedia.\",\n    \"context_retained\": []\n  },\n  \"knowledge_refs\": [\n    {\n      \"knowledge_id\": \"CB-PRODUCT-001\",\n      \"source_ids\": [\n        \"SRC-01\"\n      ],\n      \"source_url\": \"https://colorbox.co.id/\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Harga yang tertera (IDR 249.900, promo IDR 239.900) dan pilihan ukuran S–XL pada listing, sekaligus dasar pernyataan bahwa stok ukuran M tidak dapat dipastikan.\"\n    }\n  ],\n  \"clarifying_question\": null,\n  \"escalation\": {\n    \"recommended\": true,\n    \"reason\": \"Jawaban ketersediaan ukuran M bergantung pada stok live yang tidak dapat diakses, sehingga diperlukan pengecekan inventori oleh manusia.\",\n    \"handoff_status\": \"recommendation_only\"\n  },\n  \"human_review_required\": true,\n  \"simulation\": {\n    \"is_simulated\": false,\n    \"scenario_ids\": []\n  }\n}",
+    "multi_agent_data": null,
+    "token_usage": {
+      "input_tokens": 16670,
+      "output_tokens": 1876,
+      "total_tokens": 18546
+    },
+    "timestamp": "2026-11-07T20:39:49+0700"
+  }
+}

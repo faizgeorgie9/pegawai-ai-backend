@@ -1,0 +1,26 @@
+{
+  "test_id": "CB-CS-T02",
+  "http_status": 200,
+  "elapsed_seconds": 103.49,
+  "body": {
+    "status": "success",
+    "session_id": "sess_fad1118f",
+    "customer_id": "colorbox_test_CB-CS-T02",
+    "department": "customer_support",
+    "agent_mode": "single",
+    "agent_count": 1,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback_applied": false,
+    "blocker_note": null,
+    "execution_time_seconds": 103.48,
+    "output": "{\n  \"primary_intent\": \"RETURN_REFUND\",\n  \"secondary_intents\": [\"COMPLAINT_DAMAGED\"],\n  \"classification_confidence\": 0.92,\n  \"priority\": \"P1\",\n  \"customer_reply_draft\": \"Terima kasih sudah menyampaikan hal ini, dan maaf atas ketidaknyamanan karena rok hitam yang Anda terima kemarin dilaporkan dalam kondisi rusak. Saya belum bisa memproses pengembalian dana langsung dari sini; permintaan Anda perlu ditinjau oleh tim terkait terlebih dahulu dan keputusannya belum dapat dipastikan sekarang. Sebagai informasi, halaman kebijakan resmi pengembalian/refund Colorbox menyatakan bahwa pesanan yang sudah dibayar dapat dikembalikan apabila barang yang diterima tidak sesuai pesanan (nama artikel atau warna) atau rusak/cacat, dengan batas maksimal 7 hari setelah barang diterima, dan pada halaman tersebut dinyatakan tidak ada biaya layanan/pengembalian tambahan sesuai ketentuan yang berlaku. Sebagai langkah berikutnya, mohon simpan barang tersebut beserta bukti pesanan Anda agar dapat diperiksa lebih lanjut.\",\n  \"ticket_summary\": {\n    \"issue\": \"Customer reports a black skirt arrived damaged (received yesterday) and asks for a monetary refund.\",\n    \"customer_reported_facts\": [\n      \"Item received was damaged on arrival (customer_reported)\",\n      \"Affected product: black skirt (customer_reported)\",\n      \"Item received yesterday, i.e. 2026-11-06 relative to test date 2026-11-07 (customer_reported)\",\n      \"Customer requests money back / refund (customer_reported)\"\n    ],\n    \"publicly_verified_facts\": [\n      \"Official refund/return policy: a paid order may be returned if the received item differs from the order by article name or color, or is defective/damaged, within a maximum of 7 days after receipt (SRC-04, accessed 2026-11-07)\",\n      \"The policy page states no additional service/return fee under its stated conditions (SRC-04, accessed 2026-11-07)\"\n    ],\n    \"unknowns\": [\n      \"Whether this specific order is eligible or approved for return/refund\",\n      \"Actual condition of the item; no photos or inspection evidence supplied\",\n      \"Refund processing time and refund payment method (not established by the policy page)\",\n      \"Order reference / proof of purchase not provided, so the order cannot be verified\"\n    ],\n    \"customer_provided_references\": [],\n    \"requested_outcome\": \"Refund of payment (uang kembali)\",\n    \"context_retained\": [\n      \"Turn 1: customer stated the item was damaged on arrival\",\n      \"Turn 2: assistant asked when it was received and which product was affected\",\n      \"Turn 3: customer answered black skirt, received yesterday, wants money back\",\n      \"Turn 4: customer asked for the refund to be processed\"\n    ]\n  },\n  \"knowledge_refs\": [\n    {\n      \"knowledge_id\": \"CB-RETURNS-001\",\n      \"source_ids\": [\"SRC-04\"],\n      \"source_url\": \"https://colorbox.co.id/policies/refund-policy\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Stating the verified return conditions (mismatched article/color or defective/damaged item, maximum 7 days after receipt) and that the page states no additional service/return fee under its conditions; also to frame that eligibility and process require human verification.\"\n    }\n  ],\n  \"clarifying_question\": null,\n  \"escalation\": {\n    \"recommended\": true,\n    \"reason\": \"Customer requests a refund decision for a damaged-item complaint; return/refund decisions and damaged-item complaints are P1 and cannot be decided within this CS draft scope, and order eligibility plus refund timing/method are unverified and not established by the supplied policy.\",\n    \"handoff_status\": \"recommendation_only\"\n  },\n  \"human_review_required\": true,\n  \"simulation\": {\n    \"is_simulated\": false,\n    \"scenario_ids\": []\n  }\n}",
+    "multi_agent_data": null,
+    "token_usage": {
+      "input_tokens": 16603,
+      "output_tokens": 2365,
+      "total_tokens": 18968
+    },
+    "timestamp": "2026-11-07T20:34:41+0700"
+  }
+}

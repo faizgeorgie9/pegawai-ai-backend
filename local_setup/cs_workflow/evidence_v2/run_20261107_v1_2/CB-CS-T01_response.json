@@ -1,0 +1,26 @@
+{
+  "test_id": "CB-CS-T01",
+  "http_status": 200,
+  "elapsed_seconds": 17.41,
+  "body": {
+    "status": "success",
+    "session_id": "sess_a4ced6a0",
+    "customer_id": "colorbox_test_CB-CS-T01",
+    "department": "customer_support",
+    "agent_mode": "single",
+    "agent_count": 1,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback_applied": false,
+    "blocker_note": null,
+    "execution_time_seconds": 17.33,
+    "output": "{\n  \"primary_intent\": \"PRODUCT_AVAILABILITY\",\n  \"secondary_intents\": [\"PRODUCT_INFO\"],\n  \"classification_confidence\": 0.95,\n  \"priority\": \"P2\",\n  \"customer_reply_draft\": \"Halo! Untuk Colorbox x Liunic Oversized Sweatshirt, pada tanggal peninjauan 7 November 2026 halaman utama resmi Colorbox menampilkan harga IDR 249.900 dengan harga promo IDR 239.900. Harga dan promo dapat berubah, jadi mohon dicek kembali di halaman produk colorbox.co.id sebelum membeli.\\n\\nUntuk ketersediaan ukuran M, saya belum bisa memastikannya. Pilihan ukuran S, M, L, dan XL yang tampil di halaman tidak menunjukkan stok, dan status stok hanya bisa dipastikan melalui pengecekan langsung di sistem toko, yang tidak saya akses dari sini. Langkah berikutnya: silakan buka halaman produk Colorbox x Liunic Oversized Sweatshirt di colorbox.co.id atau hubungi kanal resmi Colorbox untuk konfirmasi stok ukuran M.\",\n  \"ticket_summary\": {\n    \"issue\": \"Pertanyaan harga dan ketersediaan stok ukuran M untuk Colorbox x Liunic Oversized Sweatshirt.\",\n    \"customer_reported_facts\": [],\n    \"publicly_verified_facts\": [\n      \"Pada 2026-11-07 halaman utama resmi menampilkan Colorbox x Liunic Oversized Sweatshirt dengan harga IDR 249.900 dan harga promo IDR 239.900.\",\n      \"Listing menampilkan pilihan ukuran S, M, L, dan XL.\"\n    ],\n    \"unknowns\": [\n      \"Apakah harga/promo tersebut masih berlaku saat ini.\",\n      \"Ketersediaan stok ukuran M (pilihan ukuran yang tampil bukan bukti stok).\",\n      \"Halaman detail produk tidak dapat ditinjau (HTTP 429), sehingga detail resmi produk belum terverifikasi.\"\n    ],\n    \"customer_provided_references\": [],\n    \"requested_outcome\": \"Mengetahui harga dan apakah ukuran M masih tersedia.\",\n    \"context_retained\": []\n  },\n  \"knowledge_refs\": [\n    {\n      \"knowledge_id\": \"CB-PRODUCT-001\",\n      \"source_ids\": [\"SRC-01\"],\n      \"source_url\": \"https://colorbox.co.id/\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Harga tampil (IDR 249.900; promo IDR 239.900) dan pilihan ukuran S–XL pada listing, sekaligus dasar menyatakan stok tidak dapat dikonfirmasi.\"\n    }\n  ],\n  \"clarifying_question\": null,\n  \"escalation\": {\n    \"recommended\": true,\n    \"reason\": \"Pertanyaan ketersediaan ukuran M bergantung pada data stok live yang tidak tersedia pada sumber yang diberikan.\",\n    \"handoff_status\": \"recommendation_only\"\n  },\n  \"human_review_required\": true,\n  \"simulation\": {\n    \"is_simulated\": false,\n    \"scenario_ids\": []\n  }\n}",
+    "multi_agent_data": null,
+    "token_usage": {
+      "input_tokens": 16693,
+      "output_tokens": 1595,
+      "total_tokens": 18288
+    },
+    "timestamp": "2026-11-07T20:40:52+0700"
+  }
+}

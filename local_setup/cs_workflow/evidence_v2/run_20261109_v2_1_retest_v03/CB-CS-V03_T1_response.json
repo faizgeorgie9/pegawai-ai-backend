@@ -1,0 +1,102 @@
+{
+  "test_id": "CB-CS-V03",
+  "turn_id": "T1",
+  "http_status": 200,
+  "elapsed_seconds": 46.2,
+  "parsed_output": {
+    "primary_intent": "RETURN_REFUND",
+    "secondary_intents": [
+      "ORDER_STATUS"
+    ],
+    "classification_confidence": 0.9,
+    "priority": "P1",
+    "customer_reply_draft": "Halo, terima kasih sudah menghubungi kami. Saya bantu jelaskan untuk referensi pesanan DEMO-CBX-002.\n\nCatatan penting: percakapan ini adalah simulasi pengujian, dan DEMO-CBX-002 berasal dari fixture simulasi yang disediakan, bukan data pesanan nyata. Saya tidak dapat melakukan pengecekan langsung ke sistem pesanan, pelacakan pengiriman, akun, atau status refund.\n\nYang tercatat dalam fixture simulasi: untuk referensi DEMO-CBX-002 tidak ada catatan pengiriman (SIM-ORDER-002), sementara fixture lain (SIM-RETURN-001) mencatat item Pleated A-Line Skirt dengan keluhan warna tidak sesuai, diterima 5 November 2026, dan status refund masih 'belum diputuskan'. Itu data simulasi, bukan hasil pengecekan Colorbox.\n\nDari sumber publik resmi: halaman kebijakan refund/return Colorbox menyebutkan pesanan yang sudah dibayar dapat dikembalikan bila barang yang diterima berbeda dari pesanan dalam nama artikel atau warna, atau rusak/cacat, dengan pengembalian maksimal 7 hari setelah barang diterima, tanpa biaya layanan/pengembalian tambahan pada kondisi yang disebutkan. Halaman itu tidak menetapkan berapa lama proses refund maupun metode pengembalian dananya, jadi saya tidak bisa memastikan status, tanggal, atau hasil refund Anda. Kelayakan dan proses aktual untuk kasus ini perlu diverifikasi oleh tim manusia.\n\nLangkah berikutnya: Anda dapat memakai menu 'Track Your Order' di situs resmi colorbox.co.id dengan nomor pesanan yang tertera pada email konfirmasi Anda. Untuk keputusan refund, kami sarankan menghubungi kanal resmi Colorbox agar tim manusia dapat memverifikasi pesanan dan menjelaskan prosesnya.",
+    "ticket_summary": {
+      "issue": "Customer asks for shipment status and refund progress for reference DEMO-CBX-002 in an explicitly marked validation run; the reference matches supplied simulation fixtures.",
+      "customer_reported_facts": [
+        "Customer asks to check order DEMO-CBX-002 'here' and wants to know shipment status and refund status ('sudah diproses belum')."
+      ],
+      "publicly_verified_facts": [
+        "SRC-04: a paid order may be returned when the received item differs from the order by article name or color, or is defective/damaged, within a maximum of 7 days after receipt; no additional service/return fee is stated under those conditions.",
+        "SRC-01: the homepage exposes a 'Track Your Order' entry point and indicates the order number can be found in email.",
+        "SRC-04 does not establish refund processing duration, refund method, or approval for an individual order."
+      ],
+      "unknowns": [
+        "Live shipment status for the reference — no order/carrier lookup is possible and none was performed.",
+        "Whether a refund has been decided, processed, or paid; fixture SIM-RETURN-001 records refund_status 'not_decided'.",
+        "Refund processing time and refund method — not established by reviewed public sources.",
+        "Eligibility of this specific item/order under the return policy.",
+        "The supplied fixtures are internally inconsistent: SIM-ORDER-002 holds no shipment record for DEMO-CBX-002, while SIM-RETURN-001 records receipt of an item on 2026-11-05 for the same dummy reference."
+      ],
+      "customer_provided_references": [
+        "DEMO-CBX-002 (customer-provided reference; not proof of a real order)"
+      ],
+      "requested_outcome": "Confirmation of current shipment status and whether the refund has been processed.",
+      "context_retained": []
+    },
+    "knowledge_refs": [
+      {
+        "knowledge_id": "CB-RETURNS-001",
+        "source_ids": [
+          "SRC-04"
+        ],
+        "source_url": "https://colorbox.co.id/policies/refund-policy",
+        "accessed_date": "2026-11-07",
+        "used_for": "Stating the verified return conditions (article name/color mismatch, defective/damaged, max 7 days after receipt, no additional service/return fee under stated conditions) without confirming eligibility."
+      },
+      {
+        "knowledge_id": "CB-REFUND-TIMING-UNKNOWN-001",
+        "source_ids": [
+          "SRC-04"
+        ],
+        "source_url": "https://colorbox.co.id/policies/refund-policy",
+        "accessed_date": "2026-11-07",
+        "used_for": "Explaining the limitation that refund processing duration and refund method are not established by reviewed public sources; used only to state what cannot be confirmed."
+      },
+      {
+        "knowledge_id": "CB-TRACKING-LIMIT-001",
+        "source_ids": [
+          "SRC-01"
+        ],
+        "source_url": "https://colorbox.co.id/",
+        "accessed_date": "2026-11-07",
+        "used_for": "Pointing to the official 'Track Your Order' self-service entry with the order number from the confirmation email, and stating that no live tracking lookup is available here."
+      }
+    ],
+    "clarifying_question": null,
+    "escalation": {
+      "recommended": true,
+      "reason": "RETURN_REFUND intent sets P1 and escalation (refund decision cannot be given here; fixture SIM-RETURN-001 leaves refund_status 'not_decided'); additionally the supplied fixtures conflict (no shipment record in SIM-ORDER-002 versus recorded item receipt in SIM-RETURN-001) and reviewed public sources do not establish refund processing time or method, so a human must verify the order and explain the actual process.",
+      "handoff_status": "recommendation_only"
+    },
+    "human_review_required": true,
+    "simulation": {
+      "is_simulated": true,
+      "scenario_ids": [
+        "SIM-ORDER-002",
+        "SIM-RETURN-001"
+      ]
+    }
+  },
+  "raw_body": {
+    "status": "success",
+    "session_id": "sess_55574a68",
+    "customer_id": "colorbox_v2_CB-CS-V03",
+    "department": "customer_support",
+    "agent_mode": "single",
+    "agent_count": 1,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback_applied": false,
+    "blocker_note": null,
+    "execution_time_seconds": 45.9,
+    "output": "{\n  \"primary_intent\": \"RETURN_REFUND\",\n  \"secondary_intents\": [\"ORDER_STATUS\"],\n  \"classification_confidence\": 0.9,\n  \"priority\": \"P1\",\n  \"customer_reply_draft\": \"Halo, terima kasih sudah menghubungi kami. Saya bantu jelaskan untuk referensi pesanan DEMO-CBX-002.\\n\\nCatatan penting: percakapan ini adalah simulasi pengujian, dan DEMO-CBX-002 berasal dari fixture simulasi yang disediakan, bukan data pesanan nyata. Saya tidak dapat melakukan pengecekan langsung ke sistem pesanan, pelacakan pengiriman, akun, atau status refund.\\n\\nYang tercatat dalam fixture simulasi: untuk referensi DEMO-CBX-002 tidak ada catatan pengiriman (SIM-ORDER-002), sementara fixture lain (SIM-RETURN-001) mencatat item Pleated A-Line Skirt dengan keluhan warna tidak sesuai, diterima 5 November 2026, dan status refund masih 'belum diputuskan'. Itu data simulasi, bukan hasil pengecekan Colorbox.\\n\\nDari sumber publik resmi: halaman kebijakan refund/return Colorbox menyebutkan pesanan yang sudah dibayar dapat dikembalikan bila barang yang diterima berbeda dari pesanan dalam nama artikel atau warna, atau rusak/cacat, dengan pengembalian maksimal 7 hari setelah barang diterima, tanpa biaya layanan/pengembalian tambahan pada kondisi yang disebutkan. Halaman itu tidak menetapkan berapa lama proses refund maupun metode pengembalian dananya, jadi saya tidak bisa memastikan status, tanggal, atau hasil refund Anda. Kelayakan dan proses aktual untuk kasus ini perlu diverifikasi oleh tim manusia.\\n\\nLangkah berikutnya: Anda dapat memakai menu 'Track Your Order' di situs resmi colorbox.co.id dengan nomor pesanan yang tertera pada email konfirmasi Anda. Untuk keputusan refund, kami sarankan menghubungi kanal resmi Colorbox agar tim manusia dapat memverifikasi pesanan dan menjelaskan prosesnya.\",\n  \"ticket_summary\": {\n    \"issue\": \"Customer asks for shipment status and refund progress for reference DEMO-CBX-002 in an explicitly marked validation run; the reference matches supplied simulation fixtures.\",\n    \"customer_reported_facts\": [\n      \"Customer asks to check order DEMO-CBX-002 'here' and wants to know shipment status and refund status ('sudah diproses belum').\"\n    ],\n    \"publicly_verified_facts\": [\n      \"SRC-04: a paid order may be returned when the received item differs from the order by article name or color, or is defective/damaged, within a maximum of 7 days after receipt; no additional service/return fee is stated under those conditions.\",\n      \"SRC-01: the homepage exposes a 'Track Your Order' entry point and indicates the order number can be found in email.\",\n      \"SRC-04 does not establish refund processing duration, refund method, or approval for an individual order.\"\n    ],\n    \"unknowns\": [\n      \"Live shipment status for the reference — no order/carrier lookup is possible and none was performed.\",\n      \"Whether a refund has been decided, processed, or paid; fixture SIM-RETURN-001 records refund_status 'not_decided'.\",\n      \"Refund processing time and refund method — not established by reviewed public sources.\",\n      \"Eligibility of this specific item/order under the return policy.\",\n      \"The supplied fixtures are internally inconsistent: SIM-ORDER-002 holds no shipment record for DEMO-CBX-002, while SIM-RETURN-001 records receipt of an item on 2026-11-05 for the same dummy reference.\"\n    ],\n    \"customer_provided_references\": [\n      \"DEMO-CBX-002 (customer-provided reference; not proof of a real order)\"\n    ],\n    \"requested_outcome\": \"Confirmation of current shipment status and whether the refund has been processed.\",\n    \"context_retained\": []\n  },\n  \"knowledge_refs\": [\n    {\n      \"knowledge_id\": \"CB-RETURNS-001\",\n      \"source_ids\": [\"SRC-04\"],\n      \"source_url\": \"https://colorbox.co.id/policies/refund-policy\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Stating the verified return conditions (article name/color mismatch, defective/damaged, max 7 days after receipt, no additional service/return fee under stated conditions) without confirming eligibility.\"\n    },\n    {\n      \"knowledge_id\": \"CB-REFUND-TIMING-UNKNOWN-001\",\n      \"source_ids\": [\"SRC-04\"],\n      \"source_url\": \"https://colorbox.co.id/policies/refund-policy\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Explaining the limitation that refund processing duration and refund method are not established by reviewed public sources; used only to state what cannot be confirmed.\"\n    },\n    {\n      \"knowledge_id\": \"CB-TRACKING-LIMIT-001\",\n      \"source_ids\": [\"SRC-01\"],\n      \"source_url\": \"https://colorbox.co.id/\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Pointing to the official 'Track Your Order' self-service entry with the order number from the confirmation email, and stating that no live tracking lookup is available here.\"\n    }\n  ],\n  \"clarifying_question\": null,\n  \"escalation\": {\n    \"recommended\": true,\n    \"reason\": \"RETURN_REFUND intent sets P1 and escalation (refund decision cannot be given here; fixture SIM-RETURN-001 leaves refund_status 'not_decided'); additionally the supplied fixtures conflict (no shipment record in SIM-ORDER-002 versus recorded item receipt in SIM-RETURN-001) and reviewed public sources do not establish refund processing time or method, so a human must verify the order and explain the actual process.\",\n    \"handoff_status\": \"recommendation_only\"\n  },\n  \"human_review_required\": true,\n  \"simulation\": {\n    \"is_simulated\": true,\n    \"scenario_ids\": [\"SIM-ORDER-002\", \"SIM-RETURN-001\"]\n  }\n}",
+    "multi_agent_data": null,
+    "token_usage": {
+      "input_tokens": 19039,
+      "output_tokens": 3866,
+      "total_tokens": 22905
+    },
+    "timestamp": "2026-11-09T15:52:00+0700"
+  }
+}

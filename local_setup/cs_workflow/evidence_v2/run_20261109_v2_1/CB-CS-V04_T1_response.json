@@ -1,0 +1,103 @@
+{
+  "test_id": "CB-CS-V04",
+  "turn_id": "T1",
+  "http_status": 200,
+  "elapsed_seconds": 47.55,
+  "parsed_output": {
+    "primary_intent": "RETURN_REFUND",
+    "secondary_intents": [
+      "SIZE_FIT",
+      "SHIPPING_DELIVERY"
+    ],
+    "classification_confidence": 0.82,
+    "priority": "P1",
+    "customer_reply_draft": "Halo, terima kasih sudah menghubungi Colorbox. Untuk ongkos kirim ke Surabaya beserta estimasi harinya, kami belum bisa memastikan angkanya: sumber publik resmi yang kami tinjau tidak menetapkan tarif pengiriman umum maupun jaminan waktu kirim, dan biaya sebenarnya bergantung pada berat barang, kurir, serta alamat tujuan. Langkah paling akurat adalah memeriksa tarifnya langsung di halaman checkout colorbox.co.id, dan tim kami dapat membantu mengonfirmasi setelah detail pesanan diketahui.\n\nMengenai baju yang tidak muat: kebijakan retur resmi yang kami tinjau hanya mencakup barang yang berbeda dari pesanan (nama artikel atau warna) atau barang cacat/rusak, dengan pengembalian maksimal 7 hari setelah barang diterima. Untuk ketidaksesuaian ukuran atau penukaran ukuran, kebijakan resminya belum kami temukan, sehingga kami belum bisa menjanjikan retur, penukaran, atau pengembalian dana karena alasan muat/tidaknya. Kasus seperti ini perlu ditinjau oleh tim kami.\n\nBoleh kami tahu nama produk dan ukuran yang dipesan, serta apakah ada perbedaan nama artikel/warna atau kerusakan pada barang yang diterima?",
+    "ticket_summary": {
+      "issue": "Customer asks for shipping cost and delivery estimate to Surabaya, and whether an item that does not fit can be returned within 7 days.",
+      "customer_reported_facts": [
+        "Destination city is Surabaya.",
+        "Item concerns a garment ('baju') the customer is unsure will fit."
+      ],
+      "publicly_verified_facts": [
+        "The official refund/return policy covers a paid order returned when the received item differs from the order by article name or color, or is defective/damaged, within a maximum of 7 days after receipt, with no additional service/return fee under its stated conditions (CB-RETURNS-001).",
+        "The home page showed multiple shipping offer statements (minimum-purchase offer and Click & Collect offer) without enough captured terms to establish a generally applicable shipping fee or delivery commitment (CB-SHIPPING-UNKNOWN-001).",
+        "The reviewed public return policy does not state whether a size exchange is offered, and no reviewed public source establishes a size-exchange process, fee, or eligibility (CB-EXCHANGE-UNKNOWN-001)."
+      ],
+      "unknowns": [
+        "Shipping cost to Surabaya and delivery-time estimate; no verified general tariff or delivery commitment exists in the reviewed sources.",
+        "Whether a size/fit mismatch is returnable, and whether any size exchange is offered.",
+        "Refund method and processing time.",
+        "Whether the customer's item qualifies for the verified 7-day wrong-article/color or damaged-item return; no order reference or item detail was provided.",
+        "Product, size, and condition of the item received."
+      ],
+      "customer_provided_references": [],
+      "requested_outcome": "Know the shipping cost and delivery estimate to Surabaya, and whether a non-fitting garment can be returned within 7 days.",
+      "context_retained": [
+        "Destination: Surabaya (customer_reported).",
+        "Concern is fit/size of a garment, not a wrong article/color or damage (customer_reported).",
+        "No same-session prior history; this is the first turn of the conversation."
+      ]
+    },
+    "knowledge_refs": [
+      {
+        "knowledge_id": "CB-SHIPPING-UNKNOWN-001",
+        "source_ids": [
+          "SRC-01"
+        ],
+        "source_url": "https://colorbox.co.id/",
+        "accessed_date": "2026-11-07",
+        "used_for": "Explaining that the reviewed public sources do not establish a generally applicable shipping fee or delivery-time commitment, so the Surabaya cost/estimate cannot be confirmed."
+      },
+      {
+        "knowledge_id": "CB-RETURNS-001",
+        "source_ids": [
+          "SRC-04"
+        ],
+        "source_url": "https://colorbox.co.id/policies/refund-policy",
+        "accessed_date": "2026-11-07",
+        "used_for": "Stating the verified return conditions (article name/color mismatch or defective/damaged item, maximum 7 days after receipt) and that fit is not among them."
+      },
+      {
+        "knowledge_id": "CB-EXCHANGE-UNKNOWN-001",
+        "source_ids": [
+          "SRC-04"
+        ],
+        "source_url": "https://colorbox.co.id/policies/refund-policy",
+        "accessed_date": "2026-11-07",
+        "used_for": "Explaining the limitation that no reviewed public source establishes a size-exchange process or eligibility for a size/fit mismatch."
+      }
+    ],
+    "clarifying_question": "Boleh kami tahu nama produk dan ukuran yang dipesan, serta apakah ada perbedaan nama artikel/warna atau kerusakan pada barang yang diterima?",
+    "escalation": {
+      "recommended": true,
+      "reason": "Return/refund question combined with an unverified size/fit policy, and a shipping cost/delivery estimate that requires live cart, address, and carrier data unavailable from reviewed sources; both need human review before any answer is sent.",
+      "handoff_status": "recommendation_only"
+    },
+    "human_review_required": true,
+    "simulation": {
+      "is_simulated": false,
+      "scenario_ids": []
+    }
+  },
+  "raw_body": {
+    "status": "success",
+    "session_id": "sess_209ed278",
+    "customer_id": "colorbox_v2_CB-CS-V04",
+    "department": "customer_support",
+    "agent_mode": "single",
+    "agent_count": 1,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback_applied": false,
+    "blocker_note": null,
+    "execution_time_seconds": 47.52,
+    "output": "{\n  \"primary_intent\": \"RETURN_REFUND\",\n  \"secondary_intents\": [\"SIZE_FIT\", \"SHIPPING_DELIVERY\"],\n  \"classification_confidence\": 0.82,\n  \"priority\": \"P1\",\n  \"customer_reply_draft\": \"Halo, terima kasih sudah menghubungi Colorbox. Untuk ongkos kirim ke Surabaya beserta estimasi harinya, kami belum bisa memastikan angkanya: sumber publik resmi yang kami tinjau tidak menetapkan tarif pengiriman umum maupun jaminan waktu kirim, dan biaya sebenarnya bergantung pada berat barang, kurir, serta alamat tujuan. Langkah paling akurat adalah memeriksa tarifnya langsung di halaman checkout colorbox.co.id, dan tim kami dapat membantu mengonfirmasi setelah detail pesanan diketahui.\\n\\nMengenai baju yang tidak muat: kebijakan retur resmi yang kami tinjau hanya mencakup barang yang berbeda dari pesanan (nama artikel atau warna) atau barang cacat/rusak, dengan pengembalian maksimal 7 hari setelah barang diterima. Untuk ketidaksesuaian ukuran atau penukaran ukuran, kebijakan resminya belum kami temukan, sehingga kami belum bisa menjanjikan retur, penukaran, atau pengembalian dana karena alasan muat/tidaknya. Kasus seperti ini perlu ditinjau oleh tim kami.\\n\\nBoleh kami tahu nama produk dan ukuran yang dipesan, serta apakah ada perbedaan nama artikel/warna atau kerusakan pada barang yang diterima?\",\n  \"ticket_summary\": {\n    \"issue\": \"Customer asks for shipping cost and delivery estimate to Surabaya, and whether an item that does not fit can be returned within 7 days.\",\n    \"customer_reported_facts\": [\n      \"Destination city is Surabaya.\",\n      \"Item concerns a garment ('baju') the customer is unsure will fit.\"\n    ],\n    \"publicly_verified_facts\": [\n      \"The official refund/return policy covers a paid order returned when the received item differs from the order by article name or color, or is defective/damaged, within a maximum of 7 days after receipt, with no additional service/return fee under its stated conditions (CB-RETURNS-001).\",\n      \"The home page showed multiple shipping offer statements (minimum-purchase offer and Click & Collect offer) without enough captured terms to establish a generally applicable shipping fee or delivery commitment (CB-SHIPPING-UNKNOWN-001).\",\n      \"The reviewed public return policy does not state whether a size exchange is offered, and no reviewed public source establishes a size-exchange process, fee, or eligibility (CB-EXCHANGE-UNKNOWN-001).\"\n    ],\n    \"unknowns\": [\n      \"Shipping cost to Surabaya and delivery-time estimate; no verified general tariff or delivery commitment exists in the reviewed sources.\",\n      \"Whether a size/fit mismatch is returnable, and whether any size exchange is offered.\",\n      \"Refund method and processing time.\",\n      \"Whether the customer's item qualifies for the verified 7-day wrong-article/color or damaged-item return; no order reference or item detail was provided.\",\n      \"Product, size, and condition of the item received.\"\n    ],\n    \"customer_provided_references\": [],\n    \"requested_outcome\": \"Know the shipping cost and delivery estimate to Surabaya, and whether a non-fitting garment can be returned within 7 days.\",\n    \"context_retained\": [\n      \"Destination: Surabaya (customer_reported).\",\n      \"Concern is fit/size of a garment, not a wrong article/color or damage (customer_reported).\",\n      \"No same-session prior history; this is the first turn of the conversation.\"\n    ]\n  },\n  \"knowledge_refs\": [\n    {\n      \"knowledge_id\": \"CB-SHIPPING-UNKNOWN-001\",\n      \"source_ids\": [\"SRC-01\"],\n      \"source_url\": \"https://colorbox.co.id/\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Explaining that the reviewed public sources do not establish a generally applicable shipping fee or delivery-time commitment, so the Surabaya cost/estimate cannot be confirmed.\"\n    },\n    {\n      \"knowledge_id\": \"CB-RETURNS-001\",\n      \"source_ids\": [\"SRC-04\"],\n      \"source_url\": \"https://colorbox.co.id/policies/refund-policy\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Stating the verified return conditions (article name/color mismatch or defective/damaged item, maximum 7 days after receipt) and that fit is not among them.\"\n    },\n    {\n      \"knowledge_id\": \"CB-EXCHANGE-UNKNOWN-001\",\n      \"source_ids\": [\"SRC-04\"],\n      \"source_url\": \"https://colorbox.co.id/policies/refund-policy\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Explaining the limitation that no reviewed public source establishes a size-exchange process or eligibility for a size/fit mismatch.\"\n    }\n  ],\n  \"clarifying_question\": \"Boleh kami tahu nama produk dan ukuran yang dipesan, serta apakah ada perbedaan nama artikel/warna atau kerusakan pada barang yang diterima?\",\n  \"escalation\": {\n    \"recommended\": true,\n    \"reason\": \"Return/refund question combined with an unverified size/fit policy, and a shipping cost/delivery estimate that requires live cart, address, and carrier data unavailable from reviewed sources; both need human review before any answer is sent.\",\n    \"handoff_status\": \"recommendation_only\"\n  },\n  \"human_review_required\": true,\n  \"simulation\": {\n    \"is_simulated\": false,\n    \"scenario_ids\": []\n  }\n}",
+    "multi_agent_data": null,
+    "token_usage": {
+      "input_tokens": 62053,
+      "output_tokens": 4473,
+      "total_tokens": 66526
+    },
+    "timestamp": "2026-11-09T15:46:55+0700"
+  }
+}
