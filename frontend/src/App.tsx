@@ -255,7 +255,7 @@ function Shell({ authUser, onLogout }: { authUser: AuthUser; onLogout: () => voi
 
       <div className="toasts" aria-live="polite">
         {notifyAsk && (
-          <div className="toast ask">
+          <div className="toast toast-ask">
             <p>Mau diberi tahu saat pegawai selesai bekerja, walau tab ini tidak dibuka?</p>
             <div className="toast-actions">
               <button className="btn primary" onClick={() => answerNotify(true)}>
