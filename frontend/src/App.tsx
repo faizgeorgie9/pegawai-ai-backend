@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import Activity from './Activity'
 import { useActions } from './ActionCard'
 import { AgentDetail, AgentEdit, AgentList, AgentNew } from './Agents'
-import { useAdminMode } from './adminMode'
-import { ApiError, api, errText, isKeyError, onSessionEnd } from './bff'
+import { isAdminRole, setAuthRole, useAdminMode, useIsAdmin } from './adminMode'
+import { ApiError, api, errText, onSessionEnd } from './bff'
 import type { AuthUser } from './bff'
 import { ChatLayout, GroupLayout } from './ChatLayout'
 import Dashboard from './Dashboard'
@@ -24,6 +24,19 @@ import { BotAvatar, CLOSE, I, Icon, MENU, elapsed } from './ui'
 
 const TOKEN_KEY = 'pegawai_ai_token'
 const SESSION_ENDED = 'Sesi Anda berakhir, silakan masuk lagi.'
+// Routes behind the Admin sidebar group. A member is sent back to Beranda instead of seeing them.
+const ADMIN_ROUTES: Record<string, true> = {
+  marketing: true,
+  cs: true,
+  agen: true,
+  'agen-baru': true,
+  'agen-detail': true,
+  'agen-ubah': true,
+  tools: true,
+  'computer-use': true,
+  uji: true,
+  aktivitas: true,
+}
 
 const storedToken = () => {
   try {
@@ -38,11 +51,13 @@ function clearSession() {
   try {
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem('pegawai_ai_user') // cached profile from older builds; only the token is trusted now
+    localStorage.removeItem('pegawai-ai.admin-mode') // next admin login starts with the Admin group open again
     localStorage.removeItem('pa.lastBot')
     localStorage.removeItem('pa.lastGroup')
   } catch {
     /* private mode: nothing persisted */
   }
+  setAuthRole(null)
 }
 
 // The app is only mounted after the stored session is validated, so no data or event stream is fetched before login.
@@ -73,14 +88,15 @@ function AuthGate() {
     api.auth.me().then(
       (res) => {
         if (cancelled) return
+        setAuthRole(res.user.role)
         setUser(res.user)
         setBooting(false)
       },
       (e) => {
         if (cancelled) return
         setBooting(false)
-        // A key, network or server problem says nothing about the session: keep the token and show what happened.
-        if (!(e instanceof ApiError) || e.status === 0 || e.status >= 500 || isKeyError(e)) {
+        // A network or server problem says nothing about the session: keep the token and show what happened.
+        if (!(e instanceof ApiError) || e.status === 0 || e.status >= 500) {
           setNotice(errText(e))
           return
         }
@@ -101,6 +117,7 @@ function AuthGate() {
     } catch {
       /* private mode: the session lasts until reload */
     }
+    setAuthRole(next.role)
     setNotice('')
     go('/', true)
     setUser(next)
@@ -163,8 +180,14 @@ function Shell({ authUser, onLogout }: { authUser: AuthUser; onLogout: () => voi
   const route = useRoute()
   const { conn, toasts, dismissToast, notifyAsk, answerNotify } = useData()
   const [drawer, setDrawer] = useState(false)
+  const isAdmin = useIsAdmin()
 
   useEffect(() => setDrawer(false), [route])
+
+  // A member who reaches an admin route (old link, typed hash, restored tab) goes back to Beranda.
+  useEffect(() => {
+    if (!isAdmin && ADMIN_ROUTES[route.name]) go('/', true)
+  }, [route.name, isAdmin])
 
   // Phone drawer: focus moves into it when it opens; Escape closes it and gives focus back to the menu button.
   const menuBtn = useRef<HTMLButtonElement>(null)
@@ -214,19 +237,19 @@ function Shell({ authUser, onLogout }: { authUser: AuthUser; onLogout: () => voi
         )}
         {(route.name === 'bot' || route.name === 'chat') && <ChatLayout route={route} />}
         {(route.name === 'grup' || route.name === 'grup-list') && <GroupLayout route={route} />}
-        {route.name === 'aktivitas' && <Activity />}
+        {isAdmin && route.name === 'aktivitas' && <Activity />}
         {route.name === 'kanban' && <Kanban />}
         {route.name === 'home' && <Dashboard />}
-        {route.name === 'agen' && <AgentList />}
-        {route.name === 'agen-baru' && <AgentNew />}
-        {route.name === 'agen-detail' && <AgentDetail key={route.id} id={route.id} />}
-        {route.name === 'agen-ubah' && <AgentEdit key={route.id} id={route.id} />}
-        {(route.name === 'tools' || route.name === 'computer-use') && <Kemampuan tab={route.name} />}
+        {isAdmin && route.name === 'agen' && <AgentList />}
+        {isAdmin && route.name === 'agen-baru' && <AgentNew />}
+        {isAdmin && route.name === 'agen-detail' && <AgentDetail key={route.id} id={route.id} />}
+        {isAdmin && route.name === 'agen-ubah' && <AgentEdit key={route.id} id={route.id} />}
+        {isAdmin && (route.name === 'tools' || route.name === 'computer-use') && <Kemampuan tab={route.name} />}
         {route.name === 'aplikasi' && <AppsPage />}
         {route.name === 'pengetahuan' && <Pengetahuan />}
-        {route.name === 'marketing' && <Marketing />}
-        {route.name === 'cs' && <CS />}
-        {route.name === 'uji' && <Uji />}
+        {isAdmin && route.name === 'marketing' && <Marketing />}
+        {isAdmin && route.name === 'cs' && <CS />}
+        {isAdmin && route.name === 'uji' && <Uji />}
         {route.name === 'pengaturan' && <Settings section={route.section} />}
       </main>
 
@@ -267,7 +290,8 @@ function Shell({ authUser, onLogout }: { authUser: AuthUser; onLogout: () => voi
 }
 
 // ---------- sidebar ----------
-// Seven items for everyone; the Admin group (developer and QA screens) shows with admin mode. Admin routes open either way.
+// Seven items for everyone; the Admin group (developer and QA screens) belongs to admin roles and can be
+// decluttered with the Mode admin switch. Members are redirected away from those routes in Shell.
 function Sidebar({ route, authUser, onLogout, onClose }: { route: Route; authUser: AuthUser | null; onLogout: () => void; onClose: () => void }) {
   const { settings } = useData()
   const admin = useAdminMode()
@@ -341,7 +365,7 @@ function Sidebar({ route, authUser, onLogout, onClose }: { route: Route; authUse
           <div className="side-user">
             <div className="side-user-who">
               <b>{authUser.name}</b>
-              <small>{/^(owner|admin|super_?admin)$/i.test(authUser.role) ? 'Pemilik' : 'Staf'}{authUser.company ? ` · ${authUser.company}` : ''}</small>
+              <small>{isAdminRole(authUser.role) ? 'Pemilik' : 'Staf'}{authUser.company ? ` · ${authUser.company}` : ''}</small>
             </div>
             <button type="button" className="btn quiet-btn sm side-user-out" onClick={onLogout} title="Keluar dari akun">
               Keluar

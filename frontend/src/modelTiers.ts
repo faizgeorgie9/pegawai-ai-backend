@@ -49,7 +49,8 @@ function defaultProviders(cat: ModelCatalog | null): ModelCatalog['providers'] {
 // tier -> available "provider|model" keys, cheapest first
 export function tiersFrom(cat: ModelCatalog | null): Record<TierId, string[]> {
   const out: Record<TierId, { k: string; m: string }[]> = { hemat: [], seimbang: [], teliti: [] }
-  for (const p of defaultProviders(cat)) for (const m of p.models) out[tierOf(m)].push({ k: modelKey(p.slug, m), m })
+  // "~name" ids are moving aliases (e.g. ~moonshotai/kimi-latest); the BFF model validator rejects them, so never offer one
+  for (const p of defaultProviders(cat)) for (const m of p.models) if (!m.startsWith('~')) out[tierOf(m)].push({ k: modelKey(p.slug, m), m })
   const r = {} as Record<TierId, string[]>
   for (const t of TIERS) r[t.id] = out[t.id].sort((a, b) => price(a.m) - price(b.m)).map((x) => x.k)
   return r

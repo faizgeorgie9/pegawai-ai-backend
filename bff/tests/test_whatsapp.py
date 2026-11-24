@@ -1,11 +1,8 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from bff import config
 from bff.main import app
 from bff.whatsapp import WHATSAPP_VERIFY_TOKEN, classify_and_route, generate_cs_reply, parse_webhook_payload
-
-HEADERS = {"X-Pegawai-AI-Key": config.BFF_API_KEY}
 
 @pytest.fixture
 def anyio_backend():
@@ -82,7 +79,7 @@ async def test_whatsapp_webhook_verification():
         assert r2.status_code == 403
 
 @pytest.mark.anyio
-async def test_whatsapp_simulate_endpoint():
+async def test_whatsapp_simulate_endpoint(signed_in):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         # Standard query -> routes to Siti
@@ -91,7 +88,7 @@ async def test_whatsapp_simulate_endpoint():
             "customer_name": "Nadia",
             "message": "Halo kak, koleksi Colorbox x Liunic masih ready gak ya?"
         }
-        r = await ac.post("/api/whatsapp/simulate", json=payload, headers=HEADERS)
+        r = await ac.post("/api/whatsapp/simulate", json=payload, headers=signed_in)
         assert r.status_code == 200
         data = r.json()
         assert data["routed_bot"] == "siti"
@@ -104,7 +101,7 @@ async def test_whatsapp_simulate_endpoint():
             "customer_name": "Agus",
             "message": "Barang cacat dan robek parah, saya minta ganti rugi dan mau bicara dengan atasan!"
         }
-        r2 = await ac.post("/api/whatsapp/simulate", json=payload_esc, headers=HEADERS)
+        r2 = await ac.post("/api/whatsapp/simulate", json=payload_esc, headers=signed_in)
         assert r2.status_code == 200
         data2 = r2.json()
         assert data2["routed_bot"] == "hendra"
@@ -113,25 +110,25 @@ async def test_whatsapp_simulate_endpoint():
         assert data2["priority"] == "P1"
 
 @pytest.mark.anyio
-async def test_whatsapp_status_and_messages():
+async def test_whatsapp_status_and_messages(signed_in):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        r = await ac.get("/api/whatsapp/status", headers=HEADERS)
+        r = await ac.get("/api/whatsapp/status", headers=signed_in)
         assert r.status_code == 200
         st = r.json()
         assert st["status"] == "ready"
         assert st["primary_agent"]["id"] == "siti"
         assert st["escalation_agent"]["id"] == "hendra"
 
-        r_msgs = await ac.get("/api/whatsapp/messages", headers=HEADERS)
+        r_msgs = await ac.get("/api/whatsapp/messages", headers=signed_in)
         assert r_msgs.status_code == 200
         assert isinstance(r_msgs.json(), list)
 
 @pytest.mark.anyio
-async def test_tools_integrations_overview():
+async def test_tools_integrations_overview(signed_in):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        r = await ac.get("/api/tools/integrations", headers=HEADERS)
+        r = await ac.get("/api/tools/integrations", headers=signed_in)
         assert r.status_code == 200
         data = r.json()
         assert "tools" in data

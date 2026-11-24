@@ -1,10 +1,8 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from bff import config, telegram, memory_blueprint
+from bff import telegram, memory_blueprint
 from bff.main import app
-
-HEADERS = {"X-Pegawai-AI-Key": config.BFF_API_KEY}
 
 @pytest.fixture
 def anyio_backend():
@@ -188,11 +186,11 @@ def test_tenant_memory_isolation_and_threat_scenarios():
 # ==============================================================================
 
 @pytest.mark.anyio
-async def test_api_telegram_and_memory_blueprint_endpoints():
+async def test_api_telegram_and_memory_blueprint_endpoints(signed_in):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         # 1. GET /api/telegram/status
-        r_tg_stat = await ac.get("/api/telegram/status", headers=HEADERS)
+        r_tg_stat = await ac.get("/api/telegram/status", headers=signed_in)
         assert r_tg_stat.status_code == 200
         tg_stat = r_tg_stat.json()
         assert "supported_commands" in tg_stat
@@ -204,7 +202,7 @@ async def test_api_telegram_and_memory_blueprint_endpoints():
             "sender_name": "Andi",
             "chat_id": 999111222
         }
-        r_sim = await ac.post("/api/telegram/simulate", json=sim_payload, headers=HEADERS)
+        r_sim = await ac.post("/api/telegram/simulate", json=sim_payload, headers=signed_in)
         assert r_sim.status_code == 200
         sim_data = r_sim.json()
         assert sim_data["ok"] is True
@@ -212,7 +210,7 @@ async def test_api_telegram_and_memory_blueprint_endpoints():
         assert "retur" in sim_data["agent_reply"].lower()
 
         # 3. GET /api/memory/blueprint
-        r_blue = await ac.get("/api/memory/blueprint", headers=HEADERS)
+        r_blue = await ac.get("/api/memory/blueprint", headers=signed_in)
         assert r_blue.status_code == 200
         blue_data = r_blue.json()
         assert "layers" in blue_data
@@ -220,14 +218,14 @@ async def test_api_telegram_and_memory_blueprint_endpoints():
         assert len(blue_data["candidates_benchmark"]) == 7
 
         # 4. GET /api/memory/layers
-        r_layers = await ac.get("/api/memory/layers", headers=HEADERS)
+        r_layers = await ac.get("/api/memory/layers", headers=signed_in)
         assert r_layers.status_code == 200
         l_data = r_layers.json()
         assert l_data["status_summary"]["layer_1_session"] == "AVAILABLE"
         assert l_data["status_summary"]["layer_5_long_term"] == "PLANNED"
 
         # 5. POST /api/memory/tenant/validate-isolation
-        r_iso = await ac.post("/api/memory/tenant/validate-isolation", json={}, headers=HEADERS)
+        r_iso = await ac.post("/api/memory/tenant/validate-isolation", json={}, headers=signed_in)
         assert r_iso.status_code == 200
         iso_data = r_iso.json()
         assert iso_data["isolation_verified"] is True

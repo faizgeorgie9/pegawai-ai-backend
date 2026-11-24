@@ -1,11 +1,9 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from bff import auth, config, db, kb, master_template, mcp_privileges, memory_blueprint, telegram
+from bff import auth, db, kb, master_template, mcp_privileges, memory_blueprint, telegram
 from bff.errors import ApiError
 from bff.main import app
-
-HEADERS = {"X-Pegawai-AI-Key": config.BFF_API_KEY}
 
 @pytest.fixture
 def anyio_backend():
@@ -27,7 +25,8 @@ async def test_auth_full_security_matrix(monkeypatch):
         "role": "owner",
         "company": "Colorbox",
         "plan_id": "bisnis",
-        "is_active": True
+        "is_active": True,
+        "token_version": 0,
     }
 
     async def mock_q1(sql, *params):
@@ -36,7 +35,7 @@ async def test_auth_full_security_matrix(monkeypatch):
             if email_param == "demo@colorbox.co.id":
                 return demo_user
             return None
-        if "WHERE id =" in sql:
+        if "where id = %s" in sql.lower():
             return demo_user
         return None
 
@@ -170,7 +169,7 @@ def test_hermes_config_and_master_template_validation():
 # ==============================================================================
 
 @pytest.mark.anyio
-async def test_telegram_webhook_execution(monkeypatch):
+async def test_telegram_webhook_execution(monkeypatch, signed_in):
     """Verifies Telegram webhook secret validation and command dispatching."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -186,7 +185,7 @@ async def test_telegram_webhook_execution(monkeypatch):
         sim_res = await client.post(
             "/api/telegram/simulate",
             json={"chat_id": 99887766, "text": "/status", "bot_id": "siti"},
-            headers=HEADERS
+            headers=signed_in
         )
         assert sim_res.status_code == 200
         sim_data = sim_res.json()

@@ -1,16 +1,29 @@
 """Live CS corpus V01-V06 through a running BFF (port 8090) and Hermes gateway. Costs tokens: skipped by default.
-Run: uv run pytest -m live            (one case: uv run pytest -m live -k V01)"""
+Run: LIVE_EMAIL=... LIVE_PASSWORD=... uv run pytest -m live
+(one case: uv run pytest -m live -k V01)"""
 import json
+import os
 import time
 
 import httpx
 import pytest
 
-from bff import config, knowledge
+from bff import knowledge
 
 pytestmark = pytest.mark.live
 BASE = "http://127.0.0.1:8090/api"
 CASES = json.loads((knowledge.CS_DIR / "COLORBOX_CS_Test_Corpus_v2.json").read_text(encoding="utf-8"))["cases"]
+
+
+@pytest.fixture(scope="module")
+def headers() -> dict[str, str]:
+    """The live BFF only accepts a real user session now; credentials come from the environment, never the repo."""
+    email, password = os.environ.get("LIVE_EMAIL"), os.environ.get("LIVE_PASSWORD")
+    if not email or not password:
+        pytest.skip("set LIVE_EMAIL and LIVE_PASSWORD to run the live corpus")
+    r = httpx.post(f"{BASE}/auth/login", json={"email": email, "password": password}, timeout=15)
+    r.raise_for_status()
+    return {"Authorization": f"Bearer {r.json()['token']}"}
 
 
 def run_turn(c: httpx.Client, text: str, session_id: str | None, test_mode: bool) -> dict:
@@ -28,8 +41,8 @@ def run_turn(c: httpx.Client, text: str, session_id: str | None, test_mode: bool
 
 
 @pytest.mark.parametrize("case", CASES, ids=[c["test_id"][-3:] for c in CASES])
-def test_case(case):
-    with httpx.Client(base_url=BASE, headers={"X-Pegawai-AI-Key": config.BFF_API_KEY}, timeout=30) as c:
+def test_case(case, headers):
+    with httpx.Client(base_url=BASE, headers=headers, timeout=30) as c:
         sid = None
         for turn in case["turns"]:
             exp = turn["expected"]

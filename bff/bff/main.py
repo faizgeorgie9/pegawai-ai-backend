@@ -1,6 +1,5 @@
 """Pegawai AI BFF: FastAPI app. Run: uv run uvicorn bff.main:app --port 8090 (binds 127.0.0.1)."""
 import asyncio
-import hmac
 import json
 import time
 from typing import Optional
@@ -15,7 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import actions, apps, auth, bots, bridge, catalog, config, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, master_template, mcp_privileges, memory, memory_blueprint, product_images, scheduler, sequences, settings, tasks, telegram, usage, whatsapp
+from . import actions, apps, auth, bots, bridge, catalog, connections, costs, db, engine, evaluations, groups, harden, hermes, integrations, kb, master_template, mcp_privileges, memory, memory_blueprint, product_images, scheduler, sequences, settings, tasks, telegram, usage, whatsapp
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -25,6 +24,7 @@ bridge_app = bridge.BridgeApp(bridge.build())  # MCP tools for the Hermes agents
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    auth.validate_config()  # no signing secret: fail at startup, never fall back to another key
     bridge.ensure_key()
     await asyncio.to_thread(bridge.ensure_registered)
     await db.open_pool()
@@ -48,20 +48,24 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Pegawai AI BFF", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
-_current_user_var: ContextVar[str] = ContextVar("current_user", default="default")
+_current_user_var: ContextVar[str | None] = ContextVar("current_user", default=None)
 
 
 @app.middleware("http")
 async def auth_context_middleware(request: Request, call_next):
-    auth_header = request.headers.get("Authorization")
-    user_id = "default"
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ", 1)[1]
+    """Put the token's subject into the request context. Routes decide whether they require it.
+
+    A missing, broken or expired token leaves the context empty; `current_user()` then refuses with 401
+    instead of quietly working as the `default` tenant. Routes on `api` verify the session against the
+    database through require_user().
+    """
+    user_id = None
+    token = auth.bearer_token(request.headers.get("Authorization"))
+    if token:
         try:
-            payload = auth.decode_token(token)
-            user_id = payload.get("sub", "default")
-        except Exception:
-            pass
+            user_id = auth.decode_token(token).get("sub")
+        except ApiError:
+            user_id = None
     token_reset = _current_user_var.set(user_id)
     try:
         response = await call_next(request)
@@ -91,19 +95,27 @@ async def _boom(_: Request, e: Exception):
     return JSONResponse({"error": "Terjadi kesalahan di server"}, status_code=500)
 
 
-def require_key(x_pegawai_ai_key: str | None = Header(default=None)) -> None:
-    if not config.BFF_API_KEY or not x_pegawai_ai_key or not hmac.compare_digest(
-            x_pegawai_ai_key.encode(), config.BFF_API_KEY.encode()):
-        raise ApiError(401, "Kunci akses tidak valid")
+async def require_user(authorization: str | None = Header(default=None)) -> str:
+    """Every `api` route: a valid, still-active session. Missing/expired/logged-out tokens get 401."""
+    user = await auth.authenticate_header(authorization)
+    _current_user_var.set(user["id"])
+    return user["id"]
 
 
 def current_user() -> str:
-    """Returns the authenticated user ID extracted from Bearer token, or 'default' fallback."""
-    return _current_user_var.get()
+    """The logged-in user id of this request. No identity is a 401, never a silent default tenant."""
+    user_id = _current_user_var.get()
+    if not user_id:
+        raise ApiError(401, "Silakan login terlebih dahulu untuk membuka halaman ini.")
+    return user_id
 
 
+# Public endpoints, by design: health, login, register (403 unless ALLOW_REGISTER), logout (best effort),
+# product images (an <img> cannot send an Authorization header; the name is whitelisted), the WhatsApp and
+# Telegram webhooks (they check their own verify/secret token), and the Google OAuth callback (the browser
+# arrives from Google without our header; the single-use `state` row identifies the user).
 public = APIRouter(prefix="/api")
-api = APIRouter(prefix="/api", dependencies=[Depends(require_key)])
+api = APIRouter(prefix="/api", dependencies=[Depends(require_user)])
 
 
 # ---------- Authentication Endpoints (Sprint 5) ----------
@@ -130,24 +142,22 @@ async def auth_register(request: Request):
     return JSONResponse(res)
 
 
-@public.get("/auth/me")
-async def auth_me(request: Request):
-    """Retrieve current authenticated user profile using Bearer token."""
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise ApiError(401, "Kredensial login tidak valid atau belum login")
-    token = auth_header.split(" ", 1)[1]
-    payload = auth.decode_token(token)
-    user_id = payload.get("sub")
-    user = await auth.get_user_by_id(user_id)
+@api.get("/auth/me")
+async def auth_me():
+    """Retrieve current authenticated user profile. The token must still be the session in the database."""
+    user = await auth.get_user_by_id(current_user())
     if not user:
-        raise ApiError(404, "Data pengguna tidak ditemukan")
+        raise ApiError(401, "Sesi Anda sudah berakhir. Silakan login kembali.")
     return JSONResponse(jsonable_encoder({"ok": True, "user": user}))
 
 
 @public.post("/auth/logout")
-async def auth_logout():
-    """Client-side logout acknowledgement."""
+async def auth_logout(request: Request):
+    """End this account's sessions: logout bumps the user's token version, so old tokens stop working."""
+    try:
+        await auth.revoke_session(request.headers.get("Authorization"))
+    except ApiError:
+        pass  # an already-invalid token has no session left to revoke; the browser clears its copy anyway
     return JSONResponse({"ok": True, "message": "Berhasil logout"})
 
 
@@ -734,12 +744,12 @@ async def connections_start(provider: str):
     return await connections.start(current_user(), provider)
 
 
-@api.get("/connections/{family}/callback")
+@public.get("/connections/{family}/callback")
 async def connections_callback(family: str, request: Request):
-    """The provider sends the browser here after consent (through the same proxy as the app, so the key header is present)."""
+    """Google sends the browser here without our session header; the single-use state row names the user."""
     if family != "google":
         raise ApiError(404, "Tidak ditemukan")
-    return RedirectResponse(await connections.callback(current_user(), family, dict(request.query_params)), status_code=303)
+    return RedirectResponse(await connections.callback(None, family, dict(request.query_params)), status_code=303)
 
 
 @api.delete("/connections/{provider}", status_code=204)
@@ -841,8 +851,9 @@ async def whatsapp_webhook_verify(request: Request):
     if mode or token or challenge:
         verified_challenge = whatsapp.verify_token(mode, token, challenge)
         return PlainTextResponse(verified_challenge)
-    
-    # If opened directly in browser without handshake query parameters:
+
+    # The browser status page: not part of Meta's handshake, so it needs a real session.
+    await auth.authenticate_header(request.headers.get("Authorization"))
     conn = await whatsapp.get_evolution_connection_state()
     return {
         "status": "active",
@@ -871,8 +882,9 @@ async def whatsapp_webhook_post(request: Request):
         if msg_id and whatsapp.is_duplicate_message(msg_id):
             log.info("Skipping duplicate WhatsApp message_id: %s from %s", msg_id, m.get("sender"))
             continue
+        owner = await auth.service_user(m.get("bot_id"))
         res = await whatsapp.route_and_process_message(
-            user_id="default",
+            user_id=owner,
             sender=m["sender"],
             customer_name=m["customer_name"],
             message=m["message"],
@@ -931,7 +943,6 @@ async def whatsapp_toggle_takeover(request: Request):
         return {"status": "ok", "sender": sender, "action": "resumed"}
 
 
-@public.get("/whatsapp/qr")
 @api.get("/whatsapp/qr")
 async def whatsapp_get_qr(request: Request, format: str | None = None):
     """Retrieve WhatsApp QR code for Evolution API connection."""
@@ -1045,7 +1056,6 @@ async def whatsapp_get_qr(request: Request, format: str | None = None):
     return HTMLResponse(content=html)
 
 
-@public.get("/whatsapp/connection")
 @api.get("/whatsapp/connection")
 async def whatsapp_get_connection():
     """Inspect live connection state from Evolution API."""
@@ -1410,7 +1420,6 @@ async def update_bot_permissions_endpoint(bot_id: str, request: Request):
 # ---------- telegram routing & webhook (Sprint 5 Day 4) ----------
 
 @public.post("/telegram/webhook")
-@api.post("/telegram/webhook")
 async def telegram_webhook_endpoint(
     request: Request,
     x_telegram_bot_api_secret_token: Optional[str] = Header(None, alias="X-Telegram-Bot-Api-Secret-Token")
@@ -1421,7 +1430,6 @@ async def telegram_webhook_endpoint(
 
 
 @public.post("/telegram/webhook/{bot_id}")
-@api.post("/telegram/webhook/{bot_id}")
 async def telegram_webhook_bot_endpoint(
     bot_id: str,
     request: Request,
@@ -1436,7 +1444,6 @@ async def telegram_webhook_bot_endpoint(
     return await telegram.process_telegram_update(b, x_telegram_bot_api_secret_token)
 
 
-@public.get("/telegram/status")
 @api.get("/telegram/status")
 async def telegram_status_endpoint():
     """Inspect Telegram Bot webhook configuration, active sessions, and status."""

@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import type { ReactNode } from 'react'
 import { api, errText } from './bff'
 import type { Money, MonthUsage, Security as SecurityData } from './bff'
-import { setAdminMode, useAdminMode } from './adminMode'
+import { setAdminMode, useAdminMode, useIsAdmin } from './adminMode'
 import { useData } from './data'
 import { markNamed } from './Onboarding'
 import { toolsetText } from './ui-extra'
@@ -83,6 +83,7 @@ function useSave() {
 // ---------- Umum ----------
 function General() {
   const admin = useAdminMode()
+  const isAdmin = useIsAdmin()
   const { settings } = useData()
   const { save, problem } = useSave()
   const [name, setName] = useState(settings.company_name)
@@ -142,12 +143,14 @@ function General() {
           </button>
         </div>
       </Row>
-      <Row title="Mode admin" hint="Tampilkan halaman dan rincian teknis untuk admin.">
-        <label className="set-check">
-          <input type="checkbox" checked={admin} onChange={(e) => setAdminMode(e.target.checked)} />
-          <span>{admin ? 'Nyala' : 'Mati'}</span>
-        </label>
-      </Row>
+      {isAdmin && (
+        <Row title="Mode admin" hint="Sembunyikan halaman dan rincian teknis dari menu. Akun staf selalu memakai tampilan sederhana.">
+          <label className="set-check">
+            <input type="checkbox" checked={admin} onChange={(e) => setAdminMode(e.target.checked)} />
+            <span>{admin ? 'Nyala' : 'Mati'}</span>
+          </label>
+        </Row>
+      )}
       {problem}
     </div>
   )

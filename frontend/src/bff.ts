@@ -29,9 +29,7 @@ function fallbackMessage(status: number): string {
 
 // ---- session ----
 // A token the BFF rejects ends the session wherever the call was made; the app listens once and returns to login.
-// A BFF-key failure is a deployment problem, not an expired session, and keeps its own message.
 const sessionEnded = new Set<() => void>()
-const KEY_PROBLEM = /kunci (akses|bff)/i
 const AUTH_ENTRY: Record<string, true> = { '/auth/login': true, '/auth/register': true, '/auth/logout': true }
 
 export function onSessionEnd(fn: () => void): () => void {
@@ -39,15 +37,41 @@ export function onSessionEnd(fn: () => void): () => void {
   return () => void sessionEnded.delete(fn)
 }
 
-export const isKeyError = (e: unknown) => e instanceof ApiError && e.status === 401 && KEY_PROBLEM.test(e.message)
+// Only when this browser still holds the token the rejected request used: a late reply after logout must
+// not revive the expired-session notice.
+function endSession(token: string) {
+  if (!token) return
+  try {
+    if (localStorage.getItem('pegawai_ai_token') === token) sessionEnded.forEach((fn) => fn())
+  } catch {
+    /* private mode: nothing to end */
+  }
+}
+
+function sessionToken(): string {
+  try {
+    return localStorage.getItem('pegawai_ai_token') ?? ''
+  } catch {
+    return '' // private mode: send the request without a token
+  }
+}
+
+// Downloads keep the token out of the URL (a link would leak it into history and proxy logs).
+async function blobFetch(path: string, notFound: string): Promise<Blob> {
+  const token = sessionToken()
+  let res: Response
+  try {
+    res = await fetch(BASE + path, { headers: token ? { Authorization: `Bearer ${token}` } : undefined })
+  } catch {
+    throw new ApiError('Server belum terjangkau. Pastikan BFF menyala, lalu coba lagi.')
+  }
+  if (res.status === 401) endSession(token)
+  if (!res.ok) throw new ApiError(res.status === 404 ? notFound : fallbackMessage(res.status), res.status)
+  return res.blob()
+}
 
 async function call<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
-  let token = ''
-  try {
-    token = localStorage.getItem('pegawai_ai_token') ?? ''
-  } catch {
-    /* private mode: send the request without a token */
-  }
+  const token = sessionToken()
   let res: Response
   try {
     const headers: Record<string, string> = {}
@@ -75,15 +99,7 @@ async function call<T>(method: string, path: string, body?: unknown, signal?: Ab
       /* empty or non-JSON error body */
     }
     const msg = typeof j.error === 'string' && j.error ? j.error : fallbackMessage(res.status)
-    if (res.status === 401 && !KEY_PROBLEM.test(msg) && !AUTH_ENTRY[path]) {
-      // Only when this browser still holds the token the rejected request used: a late reply after logout
-      // must not revive the expired-session notice.
-      try {
-        if (token && localStorage.getItem('pegawai_ai_token') === token) sessionEnded.forEach((fn) => fn())
-      } catch {
-        /* private mode: nothing to end */
-      }
-    }
+    if (res.status === 401 && !AUTH_ENTRY[path]) endSession(token)
     // 402 = plan limit reached. The BFF message says which limit; the plan UI is hidden, so never offer an upgrade button.
     throw new ApiError(msg, res.status, res.status !== 402 && j.upgrade === true)
   }
@@ -969,17 +985,8 @@ export const api = {
   kbDelete: (id: string) => call<void>('DELETE', `/kb/items/${enc(id)}`),
   kbRefresh: (id: string) => call<KbItem>('POST', `/kb/items/${enc(id)}/refresh`),
   kbText: (id: string) => call<{ text: string; truncated: boolean }>('GET', `/kb/${enc(id)}/text`),
-  // original file as a Blob (a plain link cannot be used: the key never goes into a URL)
-  kbFile: async (id: string): Promise<Blob> => {
-    let res: Response
-    try {
-      res = await fetch(`${BASE}/kb/${enc(id)}/file`)
-    } catch {
-      throw new ApiError('Server belum terjangkau. Pastikan BFF menyala, lalu coba lagi.')
-    }
-    if (!res.ok) throw new ApiError(res.status === 404 ? 'Berkas asli tidak tersimpan.' : fallbackMessage(res.status), res.status)
-    return res.blob()
-  },
+  // original file as a Blob (a plain link cannot be used: the token never goes into a URL)
+  kbFile: (id: string): Promise<Blob> => blobFetch(`/kb/${enc(id)}/file`, 'Berkas asli tidak tersimpan.'),
   actions: (pendingOnly = false) => call<PendingAction[]>('GET', `/actions${pendingOnly ? '?status=pending' : ''}`),
   approveAction: (id: string) => call<PendingAction>('POST', `/actions/${enc(id)}/approve`),
   rejectAction: (id: string) => call<PendingAction>('POST', `/actions/${enc(id)}/reject`),
@@ -1007,16 +1014,7 @@ export const api = {
   toolsIntegrations: () => call<ToolsIntegrationsResult>('GET', '/tools/integrations'),
   notionStatus: () => call<{ status: 'connected' | 'not_connected'; waiting: boolean }>('GET', '/connections/notion/status'),
   notionStart: () => call<{ url?: string; opened?: boolean }>('POST', '/connections/notion/start'),
-  exportHistory: async (): Promise<Blob> => {
-    let res: Response
-    try {
-      res = await fetch(BASE + '/export/history')
-    } catch {
-      throw new ApiError('Server belum terjangkau. Pastikan BFF menyala, lalu coba lagi.')
-    }
-    if (!res.ok) throw new ApiError(fallbackMessage(res.status), res.status)
-    return res.blob()
-  },
+  exportHistory: (): Promise<Blob> => blobFetch('/export/history', 'Riwayat belum tersedia.'),
   me: async () => toMe(await call<Raw>('GET', '/me')),
   plans: async () => list(await call('GET', '/plans')).map(toPlan),
   setPlan: (plan_id: string) => call<unknown>('PUT', '/me/plan', { plan_id }),
@@ -1160,39 +1158,84 @@ export const api = {
 }
 
 // ---- SSE ----
-// EventSource reconnects by itself (the server sends retry: 3000 and event ids). `onState('retry')` fires on every
-// error so the UI can show "Menyambung ulang…"; when the browser gives up (readyState CLOSED, e.g. after a 5xx on the
-// first request) we reopen after 3 s ourselves. Returns a function that closes it for good.
+// EventSource cannot send an Authorization header, and the BFF now refuses anonymous streams. This reader
+// speaks the same protocol over fetch (event:/data:/retry:, keepalive comments) with the bearer token.
+// It reconnects every 3 s like EventSource did; `onState('retry')` fires on every error so the UI can show
+// "Menyambung ulang…". Returns a function that closes it for good.
 export type SseState = 'open' | 'retry'
 export function subscribe(path: string, on: Record<string, (data: Raw) => void>, onState?: (s: SseState) => void): () => void {
-  let es: EventSource | null = null
-  let timer = 0
   let closed = false
-  const open = () => {
-    es = new EventSource(BASE + path)
-    es.onopen = () => onState?.('open')
-    es.onerror = () => {
-      if (closed) return
-      onState?.('retry')
-      if (es?.readyState === EventSource.CLOSED) timer = window.setTimeout(open, 3000)
+  let timer = 0
+  let ctrl: AbortController | null = null
+
+  const dispatch = (frame: string) => {
+    let event = 'message'
+    const data: string[] = []
+    for (const line of frame.split(/\r?\n/)) {
+      if (!line || line.startsWith(':')) continue // keepalive comment
+      if (line.startsWith('event:')) event = line.slice(6).trim()
+      else if (line.startsWith('data:')) data.push(line.slice(5).replace(/^ /, ''))
     }
-    for (const [name, fn] of Object.entries(on)) {
-      es.addEventListener(name, (e) => {
-        let d: Raw
-        try {
-          d = JSON.parse((e as MessageEvent<string>).data) as Raw
-        } catch {
-          return // keepalive or partial frame
-        }
-        fn(d)
+    if (!data.length) return
+    let payload: Raw
+    try {
+      payload = JSON.parse(data.join('\n')) as Raw
+    } catch {
+      return // partial frame
+    }
+    on[event]?.(payload)
+  }
+
+  const open = async () => {
+    if (closed) return
+    let token = ''
+    try {
+      token = localStorage.getItem('pegawai_ai_token') ?? ''
+    } catch {
+      /* private mode: the stream will be refused, and the login screen is the right place */
+    }
+    ctrl = new AbortController()
+    try {
+      const res = await fetch(BASE + path, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        signal: ctrl.signal,
+        cache: 'no-store',
       })
+      if (res.status === 401) {
+        onState?.('retry')
+        endSession(token)
+        return // the app is going back to login; do not reconnect as an anonymous reader
+      }
+      if (!res.ok || !res.body) throw new Error(`stream ${res.status}`)
+      onState?.('open')
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
+      while (!closed) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        for (;;) {
+          const end = /\r?\n\r?\n/.exec(buf)
+          if (!end) break
+          dispatch(buf.slice(0, end.index))
+          buf = buf.slice(end.index + end[0].length)
+        }
+      }
+      if (closed) return
+      throw new Error('stream closed')
+    } catch {
+      if (closed || ctrl?.signal.aborted) return
+      onState?.('retry')
+      timer = window.setTimeout(() => void open(), 3000)
     }
   }
-  open()
+
+  void open()
   return () => {
     closed = true
     window.clearTimeout(timer)
-    es?.close()
+    ctrl?.abort()
   }
 }
 
