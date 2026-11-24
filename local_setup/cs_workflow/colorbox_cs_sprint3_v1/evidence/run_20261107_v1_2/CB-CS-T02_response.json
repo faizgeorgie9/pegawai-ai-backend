@@ -1,0 +1,26 @@
+{
+  "test_id": "CB-CS-T02",
+  "http_status": 200,
+  "elapsed_seconds": 17.41,
+  "body": {
+    "status": "success",
+    "session_id": "sess_6f86f39e",
+    "customer_id": "colorbox_test_CB-CS-T02",
+    "department": "customer_support",
+    "agent_mode": "single",
+    "agent_count": 1,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback_applied": false,
+    "blocker_note": null,
+    "execution_time_seconds": 17.4,
+    "output": "{\n  \"primary_intent\": \"RETURN_REFUND\",\n  \"secondary_intents\": [\n    \"COMPLAINT_DAMAGED\"\n  ],\n  \"classification_confidence\": 0.94,\n  \"priority\": \"P1\",\n  \"customer_reply_draft\": \"Terima kasih atas informasinya. Saya paham rok hitam yang Anda terima kemarin rusak dan Anda ingin uang kembali. Menurut halaman kebijakan resmi, barang dapat dikembalikan maksimal 7 hari setelah diterima jika rusak atau berbeda dari pesanan, dan halaman tersebut menyebut tidak ada biaya layanan/pengembalian tambahan dalam kondisi yang ditetapkan. Untuk permintaan uang kembali, tim kami perlu memeriksa pesanan dan menentukan proses yang berlaku. Boleh bantu sertakan nomor pesanan Anda?\",\n  \"ticket_summary\": {\n    \"issue\": \"Pelanggan meminta refund untuk rok hitam yang dilaporkan rusak saat diterima.\",\n    \"customer_reported_facts\": [\n      \"Rok hitam dilaporkan rusak saat datang.\",\n      \"Barang diterima kemarin menurut pelanggan.\",\n      \"Pelanggan ingin uang kembali.\"\n    ],\n    \"publicly_verified_facts\": [\n      \"Halaman kebijakan resmi menyatakan barang dapat dikembalikan maksimal 7 hari setelah diterima jika rusak/defektif atau berbeda dari pesanan.\",\n      \"Halaman kebijakan menyebut tidak ada biaya layanan/pengembalian tambahan dalam kondisi yang ditetapkan.\"\n    ],\n    \"unknowns\": [\n      \"Nomor pesanan belum diberikan.\",\n      \"Kondisi kerusakan belum diverifikasi.\",\n      \"Kelayakan refund untuk pesanan ini belum ditentukan.\",\n      \"Metode dan waktu pengembalian dana tidak tercakup dalam sumber.\"\n    ],\n    \"customer_provided_references\": [],\n    \"requested_outcome\": \"Uang kembali (refund).\",\n    \"context_retained\": [\n      \"Pelanggan sebelumnya menyebut barang rusak saat datang.\",\n      \"Produk yang terdampak: rok hitam.\",\n      \"Barang diterima kemarin menurut pelanggan.\",\n      \"Pelanggan tetap meminta uang kembali.\"\n    ]\n  },\n  \"knowledge_refs\": [\n    {\n      \"knowledge_id\": \"CB-RETURNS-001\",\n      \"source_ids\": [\n        \"SRC-04\"\n      ],\n      \"source_url\": \"https://colorbox.co.id/policies/refund-policy\",\n      \"accessed_date\": \"2026-11-07\",\n      \"used_for\": \"Batas pengembalian 7 hari untuk barang rusak/berbeda dan pernyataan tidak ada biaya tambahan dalam kondisi yang ditetapkan; sumber tidak menetapkan waktu atau metode refund.\"\n    }\n  ],\n  \"clarifying_question\": \"Boleh bantu sertakan nomor pesanan Anda?\",\n  \"escalation\": {\n    \"recommended\": true,\n    \"reason\": \"Permintaan refund atas barang yang dilaporkan rusak (P1) memerlukan verifikasi pesanan dan keputusan manusia; sumber tidak mencakup kelayakan individual, metode, atau waktu pengembalian dana.\",\n    \"handoff_status\": \"recommendation_only\"\n  },\n  \"human_review_required\": true,\n  \"simulation\": {\n    \"is_simulated\": false,\n    \"scenario_ids\": []\n  }\n}",
+    "multi_agent_data": null,
+    "token_usage": {
+      "input_tokens": 16659,
+      "output_tokens": 1934,
+      "total_tokens": 18593
+    },
+    "timestamp": "2026-11-07T20:41:09+0700"
+  }
+}

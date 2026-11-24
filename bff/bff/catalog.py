@@ -80,6 +80,9 @@ async def sync() -> int:
 def _tsquery(text: str) -> str | None:
     """OR of the meaningful words (letters and digits only, so the string is safe for to_tsquery)."""
     words = dict.fromkeys(w for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) >= 3 and w not in _STOP)
+    for word in list(words):
+        if word.endswith("s") and len(word) >= 5:
+            words.setdefault(word[:-1], None)
     return " | ".join(list(words)[:40]) or None
 
 

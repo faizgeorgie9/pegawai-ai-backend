@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://colorbox.co.id/schemas/cs-draft-v1.json",
+  "title": "Colorbox CS internal draft result",
+  "description": "Business contract for a draft-only CS result. This schema does not authorize sending, case assignment, lookup, or transactions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "primary_intent",
+    "secondary_intents",
+    "classification_confidence",
+    "priority",
+    "customer_reply_draft",
+    "ticket_summary",
+    "knowledge_refs",
+    "clarifying_question",
+    "escalation",
+    "human_review_required",
+    "simulation"
+  ],
+  "properties": {
+    "primary_intent": {
+      "enum": [
+        "PRODUCT_INFO",
+        "PRODUCT_AVAILABILITY",
+        "SIZE_FIT",
+        "SHIPPING_DELIVERY",
+        "CLICK_COLLECT",
+        "ORDER_PROCESS",
+        "ORDER_STATUS",
+        "COMPLAINT_DAMAGED",
+        "COMPLAINT_WRONG_ITEM",
+        "COMPLAINT_LATE_MISSING",
+        "RETURN_REFUND",
+        "PAYMENT",
+        "WEBSITE_TECHNICAL",
+        "OTHER",
+        "AMBIGUOUS"
+      ]
+    },
+    "secondary_intents": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "PRODUCT_INFO",
+          "PRODUCT_AVAILABILITY",
+          "SIZE_FIT",
+          "SHIPPING_DELIVERY",
+          "CLICK_COLLECT",
+          "ORDER_PROCESS",
+          "ORDER_STATUS",
+          "COMPLAINT_DAMAGED",
+          "COMPLAINT_WRONG_ITEM",
+          "COMPLAINT_LATE_MISSING",
+          "RETURN_REFUND",
+          "PAYMENT",
+          "WEBSITE_TECHNICAL",
+          "OTHER",
+          "AMBIGUOUS"
+        ]
+      }
+    },
+    "classification_confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "priority": {
+      "enum": ["P0", "P1", "P2", "P3"]
+    },
+    "customer_reply_draft": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ticket_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issue",
+        "customer_reported_facts",
+        "publicly_verified_facts",
+        "unknowns",
+        "customer_provided_references",
+        "requested_outcome",
+        "context_retained"
+      ],
+      "properties": {
+        "issue": {"type": "string"},
+        "customer_reported_facts": {"type": "array", "items": {"type": "string"}},
+        "publicly_verified_facts": {"type": "array", "items": {"type": "string"}},
+        "unknowns": {"type": "array", "items": {"type": "string"}},
+        "customer_provided_references": {"type": "array", "items": {"type": "string"}},
+        "requested_outcome": {"type": "string"},
+        "context_retained": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "knowledge_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["knowledge_id", "source_ids", "source_url", "accessed_date", "used_for"],
+        "properties": {
+          "knowledge_id": {"type": "string", "minLength": 1},
+          "source_ids": {"type": "array", "items": {"type": "string"}},
+          "source_url": {"type": "string", "format": "uri"},
+          "accessed_date": {"type": "string", "format": "date"},
+          "used_for": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "clarifying_question": {
+      "type": ["string", "null"]
+    },
+    "escalation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recommended", "reason", "handoff_status"],
+      "properties": {
+        "recommended": {"type": "boolean"},
+        "reason": {"type": "string"},
+        "handoff_status": {"const": "recommendation_only"}
+      }
+    },
+    "human_review_required": {
+      "const": true
+    },
+    "simulation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["is_simulated", "scenario_ids"],
+      "properties": {
+        "is_simulated": {"type": "boolean"},
+        "scenario_ids": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

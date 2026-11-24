@@ -1,0 +1,39 @@
+{
+  "chart_id": "CB-SIZE-GUIDE-001",
+  "brand": "Colorbox",
+  "captured_on": "2026-11-12",
+  "source_url": "https://colorbox.co.id/pages/size-guide",
+  "image_url": "https://cdn.shopify.com/s/files/1/0423/9120/8086/files/Size_Guidline_4.png?v=1668075684",
+  "alpha_sizes": {
+    "heading": "Ukuran Badan Dalam cm",
+    "measurement_basis": "body",
+    "units": "cm",
+    "sizes": [
+      {"size": "XS", "bust": [78, 82], "waist": [60, 64], "hip": [88, 92], "inseam_cm": 69},
+      {"size": "S", "bust": [82, 86], "waist": [64, 68], "hip": [92, 96], "inseam_cm": 69},
+      {"size": "M", "bust": [86, 90], "waist": [68, 72], "hip": [96, 100], "inseam_cm": 69},
+      {"size": "L", "bust": [90, 94], "waist": [72, 76], "hip": [100, 104], "inseam_cm": 69},
+      {"size": "XL", "bust": [94, 98], "waist": [76, 80], "hip": [104, 108], "inseam_cm": 69}
+    ]
+  },
+  "denim_sizes": {
+    "heading": "Ukuran Denim Dalam cm",
+    "units": "cm",
+    "measurement_basis": "unspecified in source chart; not used for automatic matching",
+    "sizes": [
+      {"size": "24", "waist_cm": 62, "hip_cm": 86},
+      {"size": "25", "waist_cm": 64.5, "hip_cm": 88.5},
+      {"size": "26", "waist_cm": 67, "hip_cm": 91},
+      {"size": "27", "waist_cm": 69.5, "hip_cm": 93.5},
+      {"size": "28", "waist_cm": 72, "hip_cm": 96},
+      {"size": "29", "waist_cm": 74.5, "hip_cm": 98.5},
+      {"size": "30", "waist_cm": 77, "hip_cm": 101}
+    ]
+  },
+  "limitations": [
+    "The source page shows a general brand size guide, not a confirmed product-specific fit guarantee.",
+    "The denim table does not state whether waist and hip values are body or garment measurements.",
+    "The guide does not provide verified matching data for underwear, footwear, belts, one-size items, or products whose listed size labels are outside its tables.",
+    "A size recommendation is informational and does not guarantee fit or current size availability."
+  ]
+}

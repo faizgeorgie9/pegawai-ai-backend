@@ -214,3 +214,8 @@ td.st-col { min-width: 170px; }
   .set-ctl .field { min-width: 0; }
   .set-inline input { flex: 1; width: auto; }
 }
+
+/* Knowledge uploads and Drive connections: forms wrap instead of overflowing the settings column. */
+.set-inline { flex-wrap: wrap; align-items: center; }
+.set-inline input[type="file"] { width: auto; max-width: 100%; }
+.set-doc .set-inline input:not([type="file"]) { flex: 1 1 220px; width: auto; }

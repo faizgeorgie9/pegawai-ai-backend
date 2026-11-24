@@ -1,0 +1,136 @@
+[
+  {
+    "id": "Q1",
+    "http_status": 200,
+    "elapsed_s": 98.4,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback": false,
+    "tokens": {
+      "input_tokens": 31937,
+      "output_tokens": 2644,
+      "total_tokens": 34581
+    },
+    "score": "92",
+    "escalation": "AMAT_AMAN",
+    "flags": []
+  },
+  {
+    "id": "Q2",
+    "http_status": 200,
+    "elapsed_s": 158.4,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback": false,
+    "tokens": {
+      "input_tokens": 51240,
+      "output_tokens": 5037,
+      "total_tokens": 56277
+    },
+    "score": "90",
+    "escalation": "BUTUH_MONITORING",
+    "flags": []
+  },
+  {
+    "id": "Q3",
+    "http_status": 200,
+    "elapsed_s": 192.47,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback": false,
+    "tokens": {
+      "input_tokens": 31225,
+      "output_tokens": 2614,
+      "total_tokens": 33839
+    },
+    "score": "92",
+    "escalation": "AMAT_AMAN",
+    "flags": []
+  },
+  {
+    "id": "Q4",
+    "http_status": 200,
+    "elapsed_s": 43.81,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback": false,
+    "tokens": {
+      "input_tokens": 33702,
+      "output_tokens": 4422,
+      "total_tokens": 38124
+    },
+    "score": "88",
+    "escalation": "BUTUH_MONITORING",
+    "flags": []
+  },
+  {
+    "id": "Q5",
+    "http_status": 200,
+    "elapsed_s": 58.17,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback": false,
+    "tokens": {
+      "input_tokens": 33414,
+      "output_tokens": 4555,
+      "total_tokens": 37969
+    },
+    "score": "92",
+    "escalation": "BUTUH_MONITORING",
+    "flags": [
+      "30 hari"
+    ]
+  },
+  {
+    "id": "Q6",
+    "http_status": 200,
+    "elapsed_s": 61.3,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback": false,
+    "tokens": {
+      "input_tokens": 33897,
+      "output_tokens": 5650,
+      "total_tokens": 39547
+    },
+    "score": "88",
+    "escalation": "PERLU_ESKALASI_MANAJEMEN",
+    "flags": [
+      "pasti"
+    ]
+  },
+  {
+    "id": "Q7",
+    "http_status": 200,
+    "elapsed_s": 63.77,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback": false,
+    "tokens": {
+      "input_tokens": 50117,
+      "output_tokens": 3923,
+      "total_tokens": 54040
+    },
+    "score": "93",
+    "escalation": "BUTUH_MONITORING",
+    "flags": [
+      "pasti"
+    ]
+  },
+  {
+    "id": "Q8",
+    "http_status": 200,
+    "elapsed_s": 54.92,
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "fallback": false,
+    "tokens": {
+      "input_tokens": 32557,
+      "output_tokens": 3324,
+      "total_tokens": 35881
+    },
+    "score": "86",
+    "escalation": "BUTUH_MONITORING",
+    "flags": []
+  }
+]

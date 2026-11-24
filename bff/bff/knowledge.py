@@ -27,7 +27,7 @@ HUB_ACCESSED = "2026-11-09"
 SIM_CLASS = "Dummy / Simulated Data"
 
 TEAM_WORKFLOW = {"marketing": "marketing", "customer_support": "cs"}
-PRODUCT_NOTE = ("Data katalog publik (Colorbox Collection, SRC-02 Hub) yang diamati 9 November 2026. Harga dan pilihan "
+PRODUCT_NOTE = ("Data katalog publik (Colorbox Collection, SRC-02 Hub) dengan tanggal pengamatan per baris. Harga dan pilihan "
                 "bisa berubah dan stok TIDAK diketahui. Jangan menjanjikan ketersediaan. Jika bertentangan dengan "
                 "catatan pengetahuan, sebutkan konflik itu dan rekomendasikan tinjauan manusia.")
 
@@ -116,9 +116,12 @@ def _rp(n: int) -> str:
 def _product_lines(products: list[dict]) -> str:
     out = []
     for p in products:
-        price = _rp(p["price"]) + (f" (sebelumnya {_rp(p['price_original'])})" if p["price_original"] else "")
+        price = _rp(p["price"])
+        if p["price_original"] and p["price_original"] > p["price"]:
+            price += f" (sebelumnya {_rp(p['price_original'])})"
+        detail = f" | detail: {p['details']}" if p.get("details") else ""
         out.append(f"- {p['name']} | {p['category']} | {price} | warna: {', '.join(p['colors'])} | "
-                   f"ukuran: {', '.join(p['sizes'])} | {p['url']} | diamati {p['accessed_date']}")
+                   f"ukuran: {', '.join(p['sizes'])} | {p['url']} | diamati {p['accessed_date']}{detail}")
     return "\n".join(out)
 
 

@@ -1,0 +1,21 @@
+source_id,source_name,file_id,used_by,status,limitation
+SRC-K-01,Agent Marketing,1fkZF_lzsi0F92RrdBFW53OBLD1zui61c,MKT-01 MKT-07,available,catalog-level role descriptions only
+SRC-K-02,Agent List,1B4RP3ojhKfUTmMTiC-4HvPuq-uH9ILKz,MKT-01 MKT-07,available,catalog-level role descriptions only
+SRC-K-03,"Aldi - Market Research Strategist",1jZ7wXWMH9uwxACqXJWmDN9EsLcs7N5rn,MKT-01 MKT-05,available,adapted for marketing strategy and lead research
+SRC-K-04,"Bram - Direct Response Marketer",1GA6S5x5ZqKq-a0TkyapR605908vBMVPd,MKT-01 MKT-04 MKT-05 MKT-06,available,adapted for offer and response copy patterns
+SRC-K-05,"Rifqy Yusuf - SEO Specialist",1ylop2xz-MFRd_tKoJ6cuLpMSCKg3p4TV,MKT-02,available,optional prompt files referenced by dossier not supplied
+SRC-K-06,"Farid - Meta Ads Media Buyer",1S2leChQ79iEetdmSjqtIVq1-IWXE3ZnG,MKT-03 MKT-05 MKT-07,available,ads permissions must honor PAUSED-only creation
+SRC-K-07,"Meda - Meta Andromeda 2.0 Strategist",1Bho_zAzv9ocvOt50ZPBKlKMcRchFoNCu,MKT-01 MKT-03 MKT-07,available,thin dossier; MKT-01 behavior adapted from Bimo
+SRC-K-08,"Raka - Ad Clone Specialist",15nroa2MGQ-EEGA7piJas1lPHojhe2HMm,MKT-03,available,requires active backend and both confirmation gates
+SRC-K-09,"Maya - Ebook & Content Writer",14-UFndrdjI__3Gtb8n50QmbzDkb8Aq5_,MKT-04,available,adapted from staged content workflow
+SRC-K-10,"Sari - Meta Sales Copywriter",1rkDC4qLlhO2aZ4XDV5jeoDlt53JNXaoI,MKT-03 MKT-04 MKT-05 MKT-06,available,adapted for conversion copy blocks
+SRC-K-11,"Vera - Landing Page Builder",1DZtB3Sy-R7ug4Rq2mlm7SPbTn-84QSpb,MKT-05,available,publish/human gate required
+SRC-K-12,"Bimo - AI Project Manager",16D9Zd3wKyPcja-Xs8KCk6LxA0w2hzWpm,MKT-01 MKT-03 MKT-07,available,board and ai_result patterns used
+SRC-K-13,"Zara - Ad Script Specialist",1DhhryZcbiT7DuTl6g5ySz7WOQL-gFH2z,MKT-03 MKT-06,available,adapted for short script structure
+SRC-S-01,CS-01 approved pilot,N/A,all roles,pattern accepted,format and depth pattern only not production approval
+SRC-S-02,Master catalog Doc 2kzn5r6w-5998,2kzn5r6w-5998,all roles,blocked,HTTP 403
+SRC-S-03,Task Pegawai AI Template Profile PDF,N/A,all roles,missing,depth standard unverified
+SRC-S-04,SPRINT5_BACKLOG_DISPOSITION_REGISTER,N/A,review packet,available,sanitized backlog evidence only
+SRC-S-05,DAY4_5_WHATSAPP_VALIDATION_REPORT,N/A,review packet,available,sanitized test evidence only
+SRC-S-06,COLORBOX_CS_Handoff_v2_1,N/A,backend frontend handoff,available,demonstrates handoff structure not approval
+SRC-S-07,COLORBOX_CS_Package_Index_v2_1,N/A,review packet,available,evidence inventory

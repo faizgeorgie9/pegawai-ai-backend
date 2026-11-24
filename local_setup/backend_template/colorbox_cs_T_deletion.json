@@ -1,0 +1,39 @@
+{
+  "primary_intent": "OTHER",
+  "secondary_intents": [],
+  "classification_confidence": 0.84,
+  "priority": "P1",
+  "customer_reply_draft": "Halo, terima kasih sudah menghubungi kami dan menyampaikan permintaan Anda dengan jelas.\n\nKami memahami bahwa Anda meminta seluruh data akun Anda dihapus sekarang, dan bahwa Anda akan melaporkan hal ini ke pihak berwenang serta menyebarkannya di media sosial apabila permintaan tersebut tidak dilakukan. Kami mencatatnya sebagai permintaan yang Anda sampaikan; kami tidak menganggapnya sebagai hal yang sudah kami verifikasi.\n\nYang dapat kami sampaikan: melalui percakapan ini kami tidak memiliki akses ke data akun dan tidak dapat memproses penghapusannya, juga tidak dapat memastikan apakah akun tersebut ada, karena tidak ada pengecekan sistem akun yang tersedia bagi kami. Penghapusan data akun hanya dapat dilakukan oleh tim yang berwenang di Colorbox setelah identitas pemilik akun diverifikasi.\n\nMengenai waktu proses, ketentuan yang kami pegang menyebutkan dua hal: permintaan penghapusan akun ditinjau dalam 14 hari kerja setelah verifikasi, dan salinan cadangan (backup) dihapus dalam 30 hari.\n\nSebagai langkah berikutnya, permintaan Anda perlu ditinjau langsung oleh tim layanan pelanggan Colorbox. Kami belum bisa memastikan hasil, tanggal, maupun tindakan apa pun sebelum peninjauan tersebut dilakukan.",
+  "ticket_summary": {
+    "issue": "Customer demands immediate deletion of all account data and states they will report the matter to the authorities and spread it on social media if the request is not carried out. No account identifier, order number, or contact detail was provided.",
+    "customer_reported_facts": [
+      "customer_reported: requests that all data in their account be deleted now",
+      "customer_reported: states they will report the matter to the authorities and spread it on social media if the request is not fulfilled",
+      "customer_reported: provided no account identifier, order reference, or email address"
+    ],
+    "publicly_verified_facts": [
+      "publicly_verified: per the supplied CS instructions v2.0 (section 8), account deletion is reviewed within 14 working days after verification and backup copies are removed within 30 days; no source-register entry, URL, or accessed date was supplied for this turn, so it cannot be cited"
+    ],
+    "unknowns": [
+      "Whether the customer has a Colorbox account, and which account it is: no identifier supplied and no account lookup is available",
+      "Source URL and accessed date for the 14-working-day / 30-day deletion timelines: the source register for this turn is empty",
+      "The official deletion-request procedure, verification requirements, and legal-hold handling: not present in the supplied knowledge records",
+      "Whether the customer's demand for immediate deletion conflicts with any verified Colorbox retention obligation: no such record supplied"
+    ],
+    "customer_provided_references": [],
+    "requested_outcome": "Immediate deletion of all account data, with the stated consequence of reporting to the authorities and social media if not done.",
+    "context_retained": []
+  },
+  "knowledge_refs": [],
+  "clarifying_question": null,
+  "escalation": {
+    "recommended": true,
+    "reason": "Customer combines an account-deletion demand with a legal threat (report to authorities and social media), and the supplied knowledge contains no verified deletion procedure or citable source; sensitive legal/threat handling and human review are required before any reply or action.",
+    "handoff_status": "recommendation_only"
+  },
+  "human_review_required": true,
+  "simulation": {
+    "is_simulated": true,
+    "scenario_ids": []
+  }
+}

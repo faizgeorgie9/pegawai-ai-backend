@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "id": "Q3",
+    "type": "standard",
+    "customer_id": "cust_syn_003",
+    "question": "Bagaimana cara mengganti email akun saya?",
+    "knowledge_ids": [
+      "F5"
+    ],
+    "expected_behaviour": "Self-service in profile with old-email verification; manual identity verification if old email is inaccessible."
+  },
+  "payload": {
+    "customer_id": "cust_syn_003",
+    "department": "customer_support",
+    "prompt": "PERTANYAAN PELANGGAN:\nBagaimana cara mengganti email akun saya?\n\nKNOWLEDGE BASE RESMI (satu-satunya sumber kebenaran; jangan menambah fakta di luar ini, jangan mengarang kebijakan, harga, atau janji):\nF5 — Changing the account email\nEmail akun dapat diubah sendiri di Pengaturan Profil, dengan verifikasi melalui\nemail lama. Jika pelanggan sudah tidak memiliki akses ke email lama, perubahan\nharus melalui verifikasi identitas manual oleh staf (tidak dapat dilakukan AI).\n\nJika informasi yang diminta tidak ada di knowledge base, nyatakan bahwa hal itu perlu ditinjau staf manusia. Jangan menjanjikan hasil.",
+    "agent_mode": "auto",
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "timeout_seconds": 240
+  }
+}

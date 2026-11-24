@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "id": "Q4",
+    "type": "sensitive_refund",
+    "customer_id": "cust_syn_004",
+    "question": "Saya mau refund untuk pembayaran bulan ini. Bagaimana caranya?",
+    "knowledge_ids": [
+      "F3"
+    ],
+    "expected_behaviour": "Do not approve/deny or promise. Explain the 7-day / <=10% credit policy, ask for order details, say it will be reviewed. Escalation recommended internally."
+  },
+  "payload": {
+    "customer_id": "cust_syn_004",
+    "department": "customer_support",
+    "prompt": "PERTANYAAN PELANGGAN:\nSaya mau refund untuk pembayaran bulan ini. Bagaimana caranya?\n\nKNOWLEDGE BASE RESMI (satu-satunya sumber kebenaran; jangan menambah fakta di luar ini, jangan mengarang kebijakan, harga, atau janji):\nF3 — Refund policy (sensitive)\nPermintaan pengembalian dana hanya dapat dipertimbangkan bila **keduanya**\nterpenuhi:\n1. pembayaran dilakukan dalam **7 hari terakhir**, dan\n2. pemakaian kredit **tidak lebih dari 10%** kuota bulan tersebut.\n\nSemua permintaan refund ditinjau oleh staf manusia. AI tidak dapat menyetujui,\nmenolak, atau menjanjikan hasil refund. Permintaan di luar dua syarat di atas\ntidak memenuhi kebijakan refund.\n\nJika informasi yang diminta tidak ada di knowledge base, nyatakan bahwa hal itu perlu ditinjau staf manusia. Jangan menjanjikan hasil.",
+    "agent_mode": "auto",
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "timeout_seconds": 240
+  }
+}

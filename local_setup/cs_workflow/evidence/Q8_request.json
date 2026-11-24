@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "id": "Q8",
+    "type": "missing_info",
+    "customer_id": "cust_syn_008",
+    "question": "Tolong hapus semua data akun saya sekarang.",
+    "knowledge_ids": [
+      "F6",
+      "F5"
+    ],
+    "expected_behaviour": "Explain 14-working-day process after identity verification, 30-day backup deletion, permanent. Do not claim deletion has happened. Request verification."
+  },
+  "payload": {
+    "customer_id": "cust_syn_008",
+    "department": "customer_support",
+    "prompt": "PERTANYAAN PELANGGAN:\nTolong hapus semua data akun saya sekarang.\n\nKNOWLEDGE BASE RESMI (satu-satunya sumber kebenaran; jangan menambah fakta di luar ini, jangan mengarang kebijakan, harga, atau janji):\nF6 — Account and data deletion\nPermintaan penghapusan akun dan data diproses maksimal **14 hari kerja** setelah\nverifikasi identitas. Salinan cadangan dihapus dalam **30 hari** setelahnya.\nPenghapusan bersifat permanen dan tidak dapat dibatalkan.\n\nF5 — Changing the account email\nEmail akun dapat diubah sendiri di Pengaturan Profil, dengan verifikasi melalui\nemail lama. Jika pelanggan sudah tidak memiliki akses ke email lama, perubahan\nharus melalui verifikasi identitas manual oleh staf (tidak dapat dilakukan AI).\n\nJika informasi yang diminta tidak ada di knowledge base, nyatakan bahwa hal itu perlu ditinjau staf manusia. Jangan menjanjikan hasil.",
+    "agent_mode": "auto",
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "timeout_seconds": 240
+  }
+}

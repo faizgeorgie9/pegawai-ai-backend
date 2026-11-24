@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "id": "Q7",
+    "type": "policy_difference",
+    "customer_id": "cust_syn_007",
+    "question": "Kami pelanggan Enterprise. Apakah kami otomatis mendapat jaminan respons maksimal 1 jam?",
+    "knowledge_ids": [
+      "F11",
+      "F1"
+    ],
+    "expected_behaviour": "No public 1-hour SLA; Enterprise SLA is per contract. Refer to the contract, do not invent a guarantee."
+  },
+  "payload": {
+    "customer_id": "cust_syn_007",
+    "department": "customer_support",
+    "prompt": "PERTANYAAN PELANGGAN:\nKami pelanggan Enterprise. Apakah kami otomatis mendapat jaminan respons maksimal 1 jam?\n\nKNOWLEDGE BASE RESMI (satu-satunya sumber kebenaran; jangan menambah fakta di luar ini, jangan mengarang kebijakan, harga, atau janji):\nF11 — Enterprise SLA and contracts\nPaket Enterprise menggunakan SLA dan harga yang disepakati di kontrak masing-masing\npelanggan. Tidak ada SLA publik (misalnya jaminan respons 1 jam) yang berlaku umum\nuntuk semua pelanggan Enterprise.\n\nF1 — Support channels and hours\nDukungan tersedia 24/7 melalui email support@aitoptrends.example dan chat di\ndashboard. Tidak ada dukungan telepon. Waktu respons pertama untuk pertanyaan\nFAQ adalah di bawah 15 detik (otomatis), dan penyelesaian pertanyaan umum\nditargetkan di bawah 5 menit.\n\nJika informasi yang diminta tidak ada di knowledge base, nyatakan bahwa hal itu perlu ditinjau staf manusia. Jangan menjanjikan hasil.",
+    "agent_mode": "auto",
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "timeout_seconds": 240
+  }
+}

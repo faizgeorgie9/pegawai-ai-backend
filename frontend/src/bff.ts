@@ -28,13 +28,14 @@ function fallbackMessage(status: number): string {
 }
 
 async function call<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  const form = typeof FormData !== 'undefined' && body instanceof FormData
   let res: Response
   try {
     res = await fetch(BASE + path, {
       method,
       signal,
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: body === undefined || form ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : form ? (body as FormData) : JSON.stringify(body),
     })
   } catch (e) {
     if (signal?.aborted) throw e
@@ -131,6 +132,44 @@ export interface Security {
 export interface KnowledgeInfo {
   retention_days: number
   docs: { id: string; title: string; workflow: string; version: string | null; date: string | null; files: { name: string; title: string }[] }[]
+}
+// A document or website the workspace uploaded as extra evidence for CS/Marketing runs.
+export interface KnowledgeSource {
+  id: string
+  scope: string
+  kind: 'file' | 'website'
+  title: string
+  url: string | null
+  filename: string | null
+  mime: string | null
+  size_bytes: number | null
+  created_at: string
+}
+export interface KnowledgeMatch {
+  source_id: string
+  title: string
+  kind: string
+  url: string | null
+  created_at: string | null
+  chunk: number
+  score: number
+  text: string
+}
+// One Google Drive spreadsheet per kind. `write_ready` says whether order append can work.
+export interface DataConnection {
+  id: string
+  kind: 'stock' | 'orders'
+  url: string
+  spreadsheet_id: string
+  gid: string | null
+  tab: string | null
+  header: string[] | null
+  status: 'unverified' | 'verified' | 'error'
+  detail: string | null
+  webhook_url: string | null
+  created_at: string
+  updated_at: string
+  sample?: string[][]
 }
 export interface Template {
   id: string
@@ -533,6 +572,32 @@ export const api = {
   models: () => call<ModelCatalog>('GET', '/models'),
   security: () => call<Security>('GET', '/settings/security'),
   knowledge: () => call<KnowledgeInfo>('GET', '/settings/knowledge'),
+  knowledgeSources: async (scope?: string): Promise<KnowledgeSource[]> =>
+    (await call<{ sources: KnowledgeSource[] }>('GET', `/knowledge/sources${q({ scope })}`)).sources ?? [],
+  addKnowledgeFile: (file: File, title: string, scope: string) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    if (title.trim()) fd.append('title', title.trim())
+    fd.append('scope', scope)
+    return call<KnowledgeSource & { pages: number | null; chars: number }>('POST', '/knowledge/sources', fd)
+  },
+  addKnowledgeWebsite: (url: string, title: string, scope: string) =>
+    call<KnowledgeSource & { chars: number }>('POST', '/knowledge/sources/website', { url, title, scope }),
+  deleteKnowledgeSource: (id: string) => call<void>('DELETE', `/knowledge/sources/${enc(id)}`),
+  searchKnowledge: async (text: string, scope: string): Promise<KnowledgeMatch[]> =>
+    (await call<{ matches: KnowledgeMatch[] }>('GET', `/knowledge/search${q({ q: text, scope })}`)).matches ?? [],
+  dataConnections: () =>
+    call<{ write_ready: boolean; connections: DataConnection[] }>('GET', '/data/connections'),
+  saveDataConnection: (kind: 'stock' | 'orders', url: string, tab: string, webhookUrl = '') =>
+    call<DataConnection>('PUT', `/data/connections/${kind}`, { url, tab, webhook_url: webhookUrl }),
+  verifyDataConnection: (kind: 'stock' | 'orders') =>
+    call<DataConnection>('POST', `/data/connections/${kind}/verify`),
+  deleteDataConnection: (kind: 'stock' | 'orders') => call<void>('DELETE', `/data/connections/${kind}`),
+  stockLookup: (text: string) =>
+    call<{ items: { sku?: string; name?: string; stock?: string; price?: string; row: Record<string, string> }[]; header: string[]; rows: number }>(
+      'GET', `/data/stock${q({ q: text })}`),
+  createOrder: (values: Record<string, string | number>) =>
+    call<{ tab: string; updated_range: string | null; updated_rows: number; row: string[] }>('POST', '/data/orders', { values }),
   exportHistory: async (): Promise<Blob> => {
     let res: Response
     try {

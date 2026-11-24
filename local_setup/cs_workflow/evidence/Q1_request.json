@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "id": "Q1",
+    "type": "standard",
+    "customer_id": "cust_syn_001",
+    "question": "Berapa harga paket Bisnis dan apa saja yang saya dapatkan?",
+    "knowledge_ids": [
+      "F2",
+      "F8"
+    ],
+    "expected_behaviour": "Quote Rp1.499.000/bulan, 5 akun, 3.000 kredit, API included. No invented extras."
+  },
+  "payload": {
+    "customer_id": "cust_syn_001",
+    "department": "customer_support",
+    "prompt": "PERTANYAAN PELANGGAN:\nBerapa harga paket Bisnis dan apa saja yang saya dapatkan?\n\nKNOWLEDGE BASE RESMI (satu-satunya sumber kebenaran; jangan menambah fakta di luar ini, jangan mengarang kebijakan, harga, atau janji):\nF2 — Plans and pricing (monthly)\n- **Starter:** Rp499.000/bulan — 1 akun pengguna, 500 kredit/bulan, tanpa akses API.\n- **Bisnis:** Rp1.499.000/bulan — 5 akun pengguna, 3.000 kredit/bulan, termasuk akses API.\n- **Enterprise:** harga dan cakupan disepakati per kontrak; tidak ada harga publik.\n\nSemua harga belum termasuk PPN. Tidak ada biaya aktivasi.\n\nF8 — API access by plan\nAkses API hanya tersedia pada paket **Bisnis** dan **Enterprise**. Paket Starter\ntidak memiliki akses API.\n\nJika informasi yang diminta tidak ada di knowledge base, nyatakan bahwa hal itu perlu ditinjau staf manusia. Jangan menjanjikan hasil.",
+    "agent_mode": "auto",
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "timeout_seconds": 240
+  }
+}

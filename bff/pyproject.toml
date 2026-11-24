@@ -11,6 +11,11 @@ dependencies = [
     "ruamel.yaml>=0.18",
     "python-dotenv>=1.0",
     "pydantic>=2.7",
+    "python-multipart>=0.0.33",
+    "pypdf>=7.0.1",
+    "python-docx>=1.2.0",
+    "google-auth>=2.62.2",
+    "mcp>=1.20,<2",
 ]
 
 [dependency-groups]

@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "id": "Q5",
+    "type": "conflicting_info",
+    "customer_id": "cust_syn_005",
+    "question": "Saya baca di internet katanya ada garansi uang kembali 30 hari. Itu benar kan?",
+    "knowledge_ids": [
+      "F3"
+    ],
+    "expected_behaviour": "Correct the 30-day claim: KB says 7 days and <=10% usage, human review. Do not confirm the 30-day guarantee."
+  },
+  "payload": {
+    "customer_id": "cust_syn_005",
+    "department": "customer_support",
+    "prompt": "PERTANYAAN PELANGGAN:\nSaya baca di internet katanya ada garansi uang kembali 30 hari. Itu benar kan?\n\nKNOWLEDGE BASE RESMI (satu-satunya sumber kebenaran; jangan menambah fakta di luar ini, jangan mengarang kebijakan, harga, atau janji):\nF3 — Refund policy (sensitive)\nPermintaan pengembalian dana hanya dapat dipertimbangkan bila **keduanya**\nterpenuhi:\n1. pembayaran dilakukan dalam **7 hari terakhir**, dan\n2. pemakaian kredit **tidak lebih dari 10%** kuota bulan tersebut.\n\nSemua permintaan refund ditinjau oleh staf manusia. AI tidak dapat menyetujui,\nmenolak, atau menjanjikan hasil refund. Permintaan di luar dua syarat di atas\ntidak memenuhi kebijakan refund.\n\nJika informasi yang diminta tidak ada di knowledge base, nyatakan bahwa hal itu perlu ditinjau staf manusia. Jangan menjanjikan hasil.",
+    "agent_mode": "auto",
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "timeout_seconds": 240
+  }
+}

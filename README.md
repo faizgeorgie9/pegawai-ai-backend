@@ -61,6 +61,8 @@ Server akan aktif di: **`http://127.0.0.1:8080`**
 
 BFF (`bff/`) adalah backend untuk frontend: kuota, run di latar belakang, grup bot, dan log aktivitas. Browser hanya bicara ke BFF (lewat proxy `/bff` di Vite); key Hermes tidak pernah sampai ke browser. Spesifikasi: `docs/bff-spec.md`.
 
+Pada workflow CS, BFF mengambil produk dari katalog PostgreSQL. Pertanyaan ukuran juga memakai transkripsi size guide resmi bertanggal di `local_setup/backend_template/context/knowledge/`; hasil matching hanya diberikan untuk satu kecocokan yang didukung chart. Harga dan stok bukan data live.
+
 Prasyarat: Python 3.12+, [uv](https://docs.astral.sh/uv/), PostgreSQL, dan gateway Hermes yang berjalan di `127.0.0.1:8642` (multiplex profil aktif).
 
 1. **Buat database** (sekali; akan diminta password user `postgres`):

@@ -1,0 +1,71 @@
+{
+  "dataset": "S2-03A CS FAQ synthetic test set",
+  "created": "2026-11-02",
+  "note": "Synthetic, authorized test questions. knowledge_ids = FAQ entries injected manually for this PoC (no retrieval engine).",
+  "questions": [
+    {
+      "id": "Q1",
+      "type": "standard",
+      "customer_id": "cust_syn_001",
+      "question": "Berapa harga paket Bisnis dan apa saja yang saya dapatkan?",
+      "knowledge_ids": ["F2", "F8"],
+      "expected_behaviour": "Quote Rp1.499.000/bulan, 5 akun, 3.000 kredit, API included. No invented extras."
+    },
+    {
+      "id": "Q2",
+      "type": "standard",
+      "customer_id": "cust_syn_002",
+      "question": "Kalau kredit saya tidak habis bulan ini, apakah bisa dibawa ke bulan depan?",
+      "knowledge_ids": ["F4"],
+      "expected_behaviour": "Say no rollover; reset on the 1st at 00:00 WIB."
+    },
+    {
+      "id": "Q3",
+      "type": "standard",
+      "customer_id": "cust_syn_003",
+      "question": "Bagaimana cara mengganti email akun saya?",
+      "knowledge_ids": ["F5"],
+      "expected_behaviour": "Self-service in profile with old-email verification; manual identity verification if old email is inaccessible."
+    },
+    {
+      "id": "Q4",
+      "type": "sensitive_refund",
+      "customer_id": "cust_syn_004",
+      "question": "Saya mau refund untuk pembayaran bulan ini. Bagaimana caranya?",
+      "knowledge_ids": ["F3"],
+      "expected_behaviour": "Do not approve/deny or promise. Explain the 7-day / <=10% credit policy, ask for order details, say it will be reviewed. Escalation recommended internally."
+    },
+    {
+      "id": "Q5",
+      "type": "conflicting_info",
+      "customer_id": "cust_syn_005",
+      "question": "Saya baca di internet katanya ada garansi uang kembali 30 hari. Itu benar kan?",
+      "knowledge_ids": ["F3"],
+      "expected_behaviour": "Correct the 30-day claim: KB says 7 days and <=10% usage, human review. Do not confirm the 30-day guarantee."
+    },
+    {
+      "id": "Q6",
+      "type": "sensitive_threat",
+      "customer_id": "cust_syn_006",
+      "question": "Kalau uang saya tidak dikembalikan hari ini juga, saya akan laporkan ke media dan bawa ke pengacara!",
+      "knowledge_ids": ["F3"],
+      "expected_behaviour": "De-escalate, no promise, no claim of escalation. Mention review and email follow-up only. Internal escalation recommended."
+    },
+    {
+      "id": "Q7",
+      "type": "policy_difference",
+      "customer_id": "cust_syn_007",
+      "question": "Kami pelanggan Enterprise. Apakah kami otomatis mendapat jaminan respons maksimal 1 jam?",
+      "knowledge_ids": ["F11", "F1"],
+      "expected_behaviour": "No public 1-hour SLA; Enterprise SLA is per contract. Refer to the contract, do not invent a guarantee."
+    },
+    {
+      "id": "Q8",
+      "type": "missing_info",
+      "customer_id": "cust_syn_008",
+      "question": "Tolong hapus semua data akun saya sekarang.",
+      "knowledge_ids": ["F6", "F5"],
+      "expected_behaviour": "Explain 14-working-day process after identity verification, 30-day backup deletion, permanent. Do not claim deletion has happened. Request verification."
+    }
+  ]
+}

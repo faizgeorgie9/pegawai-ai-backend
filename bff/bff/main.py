@@ -2,16 +2,18 @@
 import asyncio
 import hmac
 import json
+import re
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, Depends, FastAPI, Header, Request
+from fastapi import APIRouter, Depends, FastAPI, File, Form, Header, Request, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import bots, catalog, config, db, engine, evaluations, groups, harden, hermes, sequences, settings, usage
+from . import (bots, catalog, config, db, engine, evaluations, groups, handover, harden, hermes, kb, knowledge,
+               sequences, settings, sheets, usage)
 from .engine import LIVE, hub
 from .errors import ApiError
 
@@ -610,6 +612,213 @@ async def create_evaluation(request: Request):
 @api.patch("/evaluations/{eid}")
 async def update_evaluation(eid: str, request: Request):
     return await evaluations.update(current_user(), eid, await body_of(request))
+
+
+# ---------- knowledge base: uploaded documents and websites ----------
+
+@api.get("/knowledge/sources")
+async def list_knowledge_sources(scope: str | None = None):
+    return {"sources": await kb.list_sources(current_user(), scope)}
+
+
+@api.post("/knowledge/sources", status_code=201)
+async def add_knowledge_file(file: UploadFile = File(...), title: str | None = Form(None),
+                             scope: str = Form("cs")):
+    data = await file.read()
+    if len(data) > kb.MAX_BYTES:
+        raise ApiError(413, "Berkas terlalu besar (maksimal 10 MB).")
+    name = (file.filename or "dokumen").replace("\\", "/").rsplit("/", 1)[-1]
+    text, pages = kb.extract(name, data)
+    suffix = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
+    row = await kb.add(current_user(), scope, "file", title or name.rsplit(".", 1)[0], text,
+                       filename=name, mime=kb.FILE_KINDS.get(suffix), size_bytes=len(data))
+    return {**row, "pages": pages, "chars": len(text)}
+
+
+@api.post("/knowledge/sources/website", status_code=201)
+async def add_knowledge_website(request: Request):
+    b = await body_of(request)
+    url = b.get("url")
+    if not isinstance(url, str) or not url.strip():
+        raise ApiError(400, "Alamat situs wajib diisi.")
+    page = await kb.fetch_website(url)
+    title = b.get("title") if isinstance(b.get("title"), str) and b["title"].strip() else page["title"]
+    scope = b.get("scope") if b.get("scope") in kb.SCOPES else "cs"
+    row = await kb.add(current_user(), scope, "website", title, page["text"], url=page["url"])
+    return {**row, "chars": len(page["text"])}
+
+
+@api.delete("/knowledge/sources/{source_id}", status_code=204)
+async def delete_knowledge_source(source_id: str):
+    await kb.delete(current_user(), source_id)
+
+
+@api.get("/knowledge/search")
+async def search_knowledge(q: str, scope: str = "cs"):
+    if not q.strip():
+        raise ApiError(400, "Kata kunci wajib diisi.")
+    matches = await kb.search(current_user(), q, scope)
+    return {"query": q, "matches": matches}
+
+
+# ---------- data: Google Sheets stock and orders ----------
+
+@api.get("/data/connections")
+async def list_data_connections():
+    return {"write_ready": await sheets.write_ready(current_user()), "connections": await sheets.connections(current_user())}
+
+
+@api.put("/data/connections/{kind}")
+async def connect_data_sheet(kind: str, request: Request):
+    b = await body_of(request)
+    url, tab = b.get("url"), b.get("tab")
+    webhook = b.get("webhook_url")
+    if not isinstance(url, str) or not url.strip():
+        raise ApiError(400, "Tautan spreadsheet wajib diisi.")
+    await sheets.save(current_user(), kind, url, tab if isinstance(tab, str) else None,
+                      webhook if isinstance(webhook, str) else None)
+    return await sheets.verify(current_user(), kind)
+
+
+@api.post("/data/connections/{kind}/verify")
+async def verify_data_sheet(kind: str):
+    return await sheets.verify(current_user(), kind)
+
+
+@api.delete("/data/connections/{kind}", status_code=204)
+async def delete_data_sheet(kind: str):
+    await sheets.remove(current_user(), kind)
+
+
+@api.get("/data/stock")
+async def read_stock(q: str = ""):
+    conn = await sheets.connection(current_user(), "stock")
+    if not conn:
+        raise ApiError(404, "Spreadsheet stok belum dihubungkan.")
+    table = await sheets.read_table(conn)
+    return {"items": sheets.stock_rows(table, q), "header": table["header"], "rows": len(table["rows"])}
+
+
+@api.post("/data/orders", status_code=201)
+async def create_data_order(request: Request):
+    b = await body_of(request)
+    values = b.get("values")
+    if not isinstance(values, dict) or not values:
+        raise ApiError(400, "values wajib berisi kolom dan nilainya.")
+    conn = await sheets.connection(current_user(), "orders")
+    if not conn:
+        raise ApiError(404, "Spreadsheet pesanan belum dihubungkan.")
+    return await sheets.append_order(conn, values)
+
+
+@api.get("/data/orders/test/{order_id}")
+async def verify_test_order(order_id: str):
+    """Return only a matching TEST-WA order row, never the general orders sheet."""
+    if not order_id.startswith("TEST-WA-"):
+        raise ApiError(404, "Hanya ID pesanan uji WhatsApp yang dapat diverifikasi.")
+    conn = await sheets.connection(current_user(), "orders")
+    if not conn:
+        raise ApiError(404, "Spreadsheet pesanan belum dihubungkan.")
+    table = await sheets.read_table(conn)
+    index = sheets.column(table["header"], "order_id")
+    if index is None:
+        raise ApiError(422, "Kolom Order ID tidak ditemukan.")
+    match = next((row for row in table["rows"] if len(row) > index and row[index] == order_id), None)
+    if match is None:
+        return {"found": False, "order_id": order_id}
+    return {"found": True, "order_id": order_id, "row": dict(zip(table["header"], match)),
+            "data_kind": "simulated_test_order"}
+
+
+# ---------- data: order status ----------
+
+_STATUS_STAGES = (
+    ("dibatalkan", {"dibatalkan", "batal", "cancelled", "canceled", "void"}),
+    ("diterima", {"diterima", "sampai", "delivered", "selesai", "completed", "done"}),
+    ("dikirim", {"dikirim", "pengiriman", "shipped", "in transit", "dalam pengiriman", "transit"}),
+    ("diproses", {"diproses", "proses", "processing", "packing", "dikemas", "siap kirim"}),
+    ("baru", {"baru", "new", "pending", "menunggu", "belum diproses", "unpaid", "belum dibayar"}),
+)
+
+
+def _status_stage(raw: str) -> str | None:
+    text = " ".join(str(raw or "").strip().lower().split())
+    if not text:
+        return None
+    for stage, words in _STATUS_STAGES:
+        if text in words:
+            return stage
+    return "lainnya"
+
+
+@api.get("/data/orders/lookup/{order_id}")
+async def lookup_order_status(order_id: str):
+    """Limited order lookup for customer answers: id, date, sku, qty and status only.
+
+    Customer name and totals are deliberately never returned.
+    """
+    cleaned = order_id.strip()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{2,40}", cleaned):
+        raise ApiError(422, "Format nomor pesanan tidak valid.")
+    conn = await sheets.connection(current_user(), "orders")
+    if not conn:
+        raise ApiError(404, "Spreadsheet pesanan belum dihubungkan.")
+    table = await sheets.read_table(conn)
+    header = table["header"]
+    index = sheets.column(header, "order_id")
+    if index is None:
+        raise ApiError(422, "Kolom Order ID tidak ditemukan.")
+    match = next((row for row in table["rows"] if len(row) > index and row[index].strip() == cleaned), None)
+    if match is None:
+        return {"found": False, "order_id": cleaned}
+    record = dict(zip(header, match))
+    raw_status = ""
+    for key, value in record.items():
+        if str(key).strip().lower() in {"status", "status pesanan", "order status"}:
+            raw_status = str(value or "").strip()
+            break
+    stage = _status_stage(raw_status)
+    date_value = ""
+    for key, value in record.items():
+        if str(key).strip().lower() in {"tanggal", "date", "tanggal pesanan"}:
+            date_value = str(value or "").strip()
+            break
+    return {
+        "found": True,
+        "order_id": cleaned,
+        "status_raw": raw_status,
+        "status": stage,
+        "status_available": stage is not None,
+        "date": date_value,
+        "sku": record.get("SKU", "") or record.get("Sku", ""),
+        "qty": record.get("Qty", "") or record.get("QTY", ""),
+        "data_kind": "simulated_test_order" if cleaned.startswith("TEST-WA-") else "order_row",
+    }
+
+
+# ---------- data: human handover tickets ----------
+
+@api.post("/data/handover", status_code=201)
+async def create_handover_ticket(request: Request):
+    b = await body_of(request)
+    return await handover.create(
+        current_user(),
+        str(b.get("category") or ""),
+        str(b.get("summary") or ""),
+        order_id=str(b["order_id"]) if b.get("order_id") else None,
+        contact=str(b["contact"]) if b.get("contact") else None)
+
+
+@api.get("/data/handover")
+async def list_handover_tickets(limit: int = 50, order_id: str = "", category: str = "",
+                                open_only: bool = False):
+    return await handover.listing(current_user(), limit, order_id=order_id or None,
+                                  category=category or None, open_only=open_only)
+
+
+@api.get("/data/handover/{ticket_id}")
+async def read_handover_ticket(ticket_id: str):
+    return await handover.get(current_user(), ticket_id)
 
 
 app.include_router(public)

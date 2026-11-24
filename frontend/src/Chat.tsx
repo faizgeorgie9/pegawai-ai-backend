@@ -151,7 +151,8 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail }: { bot: 
     const a: ChatMessage = { key: newKey('a'), role: 'assistant', content: '', reasoning: '', tools: [] }
     setMessages((cur) => [...cur, u, a])
     try {
-      const r = await api.startRun(bot.id, text, sidRef.current)
+      const ctx = bot.team === 'customer_support' ? { workflow: 'cs' as const } : undefined
+      const r = await api.startRun(bot.id, text, sidRef.current, undefined, ctx)
       if (!sidRef.current && r.session_id) {
         sidRef.current = r.session_id
         ownSid.current = r.session_id

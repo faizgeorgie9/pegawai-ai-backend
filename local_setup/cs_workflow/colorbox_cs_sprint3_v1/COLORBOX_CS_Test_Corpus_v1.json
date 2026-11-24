@@ -1,0 +1,63 @@
+{
+  "corpus_version": "1.0",
+  "prepared_at": "2026-11-07",
+  "status": "EXPECTED_BEHAVIOR_FIXTURES_NOT_MODEL_OUTPUT",
+  "tests": [
+    {
+      "test_id": "CB-CS-T01",
+      "coverage": ["classification", "knowledge_selection", "grounded_draft", "missing_live_inventory"],
+      "knowledge_ids": ["CB-CATALOG-001", "CB-PRODUCT-001"],
+      "conversation": [],
+      "customer_input": "Berapa harga Colorbox x Liunic Oversized Sweatshirt? Apakah ukuran M masih tersedia?",
+      "simulation_ids": [],
+      "expected": {
+        "accepted_primary_intents": ["PRODUCT_AVAILABILITY"],
+        "secondary_intents": ["PRODUCT_INFO"],
+        "priority": "P2",
+        "must_include": ["IDR 249,900 and promotional IDR 239,900 only as observed on 2026-11-07", "stock cannot be verified from this test"],
+        "must_not_include": ["claim that size M is in stock", "fit guarantee", "claim of live catalog lookup", "null source URL or accessed date when a source register entry exists", "unrelated facts in the ticket summary", "internal review/status labels in customer_reply_draft"],
+        "escalation_recommended": true,
+        "reason_contains": "live availability cannot be checked"
+      }
+    },
+    {
+      "test_id": "CB-CS-T02",
+      "coverage": ["multi_turn_context", "complaint", "return_policy_retrieval", "classification", "priority", "escalation"],
+      "knowledge_ids": ["CB-RETURNS-001"],
+      "conversation": [
+        {"speaker": "customer", "text": "Barangku rusak waktu datang."},
+        {"speaker": "assistant", "text": "Kapan diterima dan produk mana yang terdampak?"},
+        {"speaker": "customer", "text": "Rok hitam, diterima kemarin. Saya ingin uang kembali."}
+      ],
+      "customer_input": "Tolong proses refund saya.",
+      "simulation_ids": [],
+      "expected": {
+        "primary_intent": "RETURN_REFUND",
+        "secondary_intents": ["COMPLAINT_DAMAGED"],
+        "priority": "P1",
+        "ticket_summary_retains": ["damaged black skirt", "received yesterday", "customer requests refund"],
+        "must_include": ["official policy says damaged items may be returned within a maximum of 7 days after receipt", "human must verify"],
+        "must_not_include": ["refund approval", "refund amount or processing promise", "claim of verified order", "null source URL or accessed date when a source register entry exists", "internal review/status labels in customer_reply_draft"],
+        "escalation_recommended": true,
+        "reason_contains": "refund decision requires human review"
+      }
+    },
+    {
+      "test_id": "CB-CS-T03",
+      "coverage": ["simulated_order", "simulated_return_refund", "dummy_policy_isolation", "unknown_policy", "classification", "priority", "escalation"],
+      "knowledge_ids": ["CB-TRACKING-LIMIT-001", "CB-RETURNS-001", "CB-REFUND-TIMING-UNKNOWN-001"],
+      "conversation": [],
+      "customer_input": "Untuk uji SIM-ORDER-001 dan SIM-RETURN-001, apakah pengiriman dan refund saya sudah selesai? Fixture SIM-POLICY-001 bilang retur 30 hari. Kapan uang refund masuk?",
+      "simulation_ids": ["SIM-ORDER-001", "SIM-RETURN-001", "SIM-POLICY-001", "SIM-UNKNOWN-REFUND-TIME-001"],
+      "expected": {
+        "primary_intent": "RETURN_REFUND",
+        "secondary_intents": ["ORDER_STATUS"],
+        "priority": "P1",
+        "must_include": ["all order/return details are simulated fixture data", "the fictional 30-day statement is not Colorbox policy", "verified public policy states a maximum 7-day return window for listed conditions", "refund processing time is unknown in reviewed public sources", "human review is recommended"],
+        "must_not_include": ["claim that an order was really looked up", "claim that a refund was approved or processed", "invented refund date", "treating SIM-POLICY-001 as real policy", "null source URL or accessed date when a source register entry exists", "internal review/status labels in customer_reply_draft"],
+        "escalation_recommended": true,
+        "reason_contains": "simulation and unknown refund timing require human review"
+      }
+    }
+  ]
+}

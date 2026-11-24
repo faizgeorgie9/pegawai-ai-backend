@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "id": "Q2",
+    "type": "standard",
+    "customer_id": "cust_syn_002",
+    "question": "Kalau kredit saya tidak habis bulan ini, apakah bisa dibawa ke bulan depan?",
+    "knowledge_ids": [
+      "F4"
+    ],
+    "expected_behaviour": "Say no rollover; reset on the 1st at 00:00 WIB."
+  },
+  "payload": {
+    "customer_id": "cust_syn_002",
+    "department": "customer_support",
+    "prompt": "PERTANYAAN PELANGGAN:\nKalau kredit saya tidak habis bulan ini, apakah bisa dibawa ke bulan depan?\n\nKNOWLEDGE BASE RESMI (satu-satunya sumber kebenaran; jangan menambah fakta di luar ini, jangan mengarang kebijakan, harga, atau janji):\nF4 — Credit reset and rollover\nKredit direset pada tanggal 1 setiap bulan pukul 00:00 WIB. Sisa kredit **tidak\ndapat dibawa** (no rollover) ke bulan berikutnya. Kredit tidak dapat dipindahtangankan.\n\nJika informasi yang diminta tidak ada di knowledge base, nyatakan bahwa hal itu perlu ditinjau staf manusia. Jangan menjanjikan hasil.",
+    "agent_mode": "auto",
+    "provider": "opencode-go",
+    "model": "deepseek-v4.1-flash",
+    "timeout_seconds": 240
+  }
+}

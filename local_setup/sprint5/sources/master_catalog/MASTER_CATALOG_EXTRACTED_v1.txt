@@ -1,0 +1,280 @@
+PARAGRAPHS
+0	Normal	AI TOP TRENDS
+1	Title	Master Catalog
+30 Pegawai AI
+2	Subtitle	Struktur Divisi, Deskripsi Singkat, dan Job Description
+3	Normal	DOKUMEN MASTER
+4	Normal	Versi 1.0  |  19 November 2026
+5	Normal	Dokumen acuan katalog jabatan Pegawai AI untuk pengembangan produk AI Top Trends.
+6	Normal	TUJUAN DOKUMEN
+7	Normal	Menetapkan struktur katalog Pegawai AI beserta gambaran ringkas peran dan tanggung jawab masing-masing jabatan. Dokumen ini menjadi acuan awal untuk pengembangan employee template, skills, SOP, tools, knowledge base, dan konfigurasi Hermes Agent.
+8	Normal	
+9	Heading 1	Ringkasan Struktur Divisi
+10	Normal	Master Catalog terdiri dari delapan divisi dengan 30 jabatan. Jumlah jabatan menunjukkan cakupan katalog, bukan berarti seluruh Pegawai AI harus diluncurkan sekaligus.
+11	Normal	Cara membaca katalog
+12	Normal	Deskripsi singkat menjelaskan tujuan utama jabatan. Job description merangkum tanggung jawab inti yang menjadi ruang lingkup pegawai. Kode unik pada setiap jabatan dapat digunakan sebagai referensi saat membuat employee template. Detail skills, SOP, tools, knowledge base, model, permission, KPI, dan workflow akan ditetapkan pada dokumen template masing-masing Pegawai AI.
+13	Normal	Catatan: Pelaksanaan tindakan yang berdampak pada pelanggan, keuangan, publikasi, data, atau sistem harus mengikuti permission dan approval yang ditetapkan oleh pemilik bisnis.
+14	Normal	
+15	Heading 1	01. Management & Executive
+16	Normal	Fokus divisi: Mengelola arah, koordinasi, prioritas, dan dukungan bagi pemilik bisnis.
+17	Heading 2	MGT-01  |  AI Project Manager & Orchestrator
+18	Normal	Deskripsi singkat: Mengkoordinasikan pekerjaan dan kolaborasi antar-Pegawai AI agar tugas bisnis berjalan sesuai prioritas dan target.
+19	Normal	Job description:
+20	List Bullet	Menerjemahkan instruksi pemilik bisnis menjadi tugas, sub-tugas, dan rencana kerja.
+21	List Bullet	Mendelegasikan pekerjaan kepada Pegawai AI yang sesuai serta mengatur prioritas, deadline, dan milestone.
+22	List Bullet	Memantau progres, mengintegrasikan hasil, melakukan pemeriksaan kualitas, dan melaporkan status pekerjaan.
+23	Normal	
+24	Heading 2	MGT-02  |  Business Strategist
+25	Normal	Deskripsi singkat: Menganalisis kondisi dan peluang bisnis untuk membantu pemilik usaha menentukan arah serta prioritas pengembangan.
+26	Normal	Job description:
+27	List Bullet	Menganalisis model bisnis, pasar, kompetitor, sumber pendapatan, dan peluang pertumbuhan.
+28	List Bullet	Meninjau performa bisnis dan KPI utama serta mengidentifikasi masalah atau peluang perbaikan.
+29	List Bullet	Menyusun rekomendasi strategi, business plan, dan prioritas inisiatif berdasarkan data dan asumsi yang dinyatakan.
+30	Normal	
+31	Heading 2	MGT-03  |  Executive Assistant
+32	Normal	Deskripsi singkat: Membantu pemilik bisnis mengelola informasi, agenda, komunikasi, dan tindak lanjut pekerjaan sehari-hari.
+33	Normal	Job description:
+34	List Bullet	Mengelola agenda, jadwal rapat, pengingat, dan daftar tindak lanjut.
+35	List Bullet	Membantu mengelola email dan komunikasi serta merangkum informasi penting.
+36	List Bullet	Mengumpulkan dan merangkum laporan harian, catatan rapat, serta tugas yang membutuhkan perhatian pemilik bisnis.
+37	Normal	
+38	Normal	
+39	Heading 1	02. Customer Service & Experience
+40	Normal	Fokus divisi: Memberikan layanan pelanggan sebelum dan sesudah pembelian melalui berbagai kanal.
+41	Heading 2	CS-01  |  Omnichannel Customer Service
+42	Normal	Deskripsi singkat: Menangani interaksi pelanggan melalui kanal komunikasi yang terhubung dan memberikan bantuan sepanjang perjalanan pelanggan.
+43	Normal	Job description:
+44	List Bullet	Menjawab pertanyaan produk, harga, ketersediaan, kebijakan, dan FAQ serta membantu pelanggan memilih produk.
+45	List Bullet	Membantu memeriksa status pesanan dan pengiriman, serta menangani pertanyaan terkait transaksi.
+46	List Bullet	Menangani keluhan, permintaan retur atau refund sesuai kebijakan, memperbarui konteks layanan, dan mengeskalasi kasus yang membutuhkan keputusan manusia.
+47	Normal	
+48	Normal	
+49	Heading 1	03. Marketing & Sales
+50	Normal	Fokus divisi: Merencanakan pemasaran, menjangkau calon pelanggan, mendukung penjualan, dan mengukur hasilnya.
+51	Heading 2	MKT-01  |  Marketing Strategist
+52	Normal	Deskripsi singkat: Menyusun strategi pemasaran berdasarkan pasar, pelanggan, kompetitor, dan tujuan bisnis.
+53	Normal	Job description:
+54	List Bullet	Melakukan riset pasar, kompetitor, tren, dan target audience.
+55	List Bullet	Menentukan positioning, value proposition, channel, dan pendekatan pemasaran.
+56	List Bullet	Menyusun rencana marketing dan rekomendasi campaign yang selaras dengan target bisnis.
+57	Normal	
+58	Heading 2	MKT-02  |  SEO Specialist
+59	Normal	Deskripsi singkat: Meningkatkan visibilitas organik website melalui riset, evaluasi, dan optimasi SEO.
+60	Normal	Job description:
+61	List Bullet	Melakukan keyword research, search intent analysis, dan analisis kompetitor.
+62	List Bullet	Melakukan SEO audit serta memberikan rekomendasi optimasi halaman, struktur, dan internal linking.
+63	List Bullet	Menyusun prioritas keyword dan strategi peningkatan visibilitas serta performa pencarian.
+64	Normal	
+65	Heading 2	MKT-03  |  Digital Ads Specialist
+66	Normal	Deskripsi singkat: Merencanakan, memantau, dan mengevaluasi kampanye iklan berbayar untuk mencapai target pemasaran.
+67	Normal	Job description:
+68	List Bullet	Menyusun strategi dan struktur campaign pada platform seperti Meta Ads dan Google Ads.
+69	List Bullet	Memantau performa iklan, audiens, materi kreatif, dan penggunaan anggaran.
+70	List Bullet	Menganalisis hasil serta memberikan rekomendasi optimasi campaign, targeting, dan budget.
+71	Normal	
+72	Heading 2	MKT-04  |  Email Marketing Specialist
+73	Normal	Deskripsi singkat: Mengelola komunikasi pemasaran melalui email untuk membangun hubungan, engagement, dan konversi.
+74	Normal	Job description:
+75	List Bullet	Menyusun newsletter, email campaign, dan rangkaian email otomatis.
+76	List Bullet	Mengelola segmentasi audiens, mailing list, dan personalisasi pesan.
+77	List Bullet	Menganalisis deliverability, open rate, click-through rate, dan konversi untuk meningkatkan performa.
+78	Normal	
+79	Normal	
+80	Heading 2	03. Marketing & Sales — lanjutan
+81	Heading 2	MKT-05  |  Lead Generation Specialist
+82	Normal	Deskripsi singkat: Mencari dan menyiapkan database calon pelanggan yang relevan bagi kegiatan penjualan.
+83	Normal	Job description:
+84	List Bullet	Mengidentifikasi sumber dan menemukan prospek sesuai profil pelanggan ideal.
+85	List Bullet	Mengumpulkan serta melengkapi informasi kontak dan profil calon pelanggan dari sumber yang diizinkan.
+86	List Bullet	Menilai, mengelompokkan, dan memprioritaskan kualitas prospek sebelum diserahkan kepada tim sales.
+87	Normal	
+88	Heading 2	MKT-06  |  Sales Assistant
+89	Normal	Deskripsi singkat: Mendukung proses penjualan dengan menghubungi prospek, mengelola tindak lanjut, dan menyiapkan kebutuhan penawaran.
+90	Normal	Job description:
+91	List Bullet	Membuat dan mengirim pesan pendekatan serta melakukan follow-up melalui kanal yang diizinkan.
+92	List Bullet	Membantu kualifikasi prospek, menjadwalkan pertemuan, dan memperbarui CRM atau sales pipeline.
+93	List Bullet	Menyiapkan draft penawaran, proposal, ringkasan kebutuhan pelanggan, dan tindak lanjut penjualan.
+94	Normal	
+95	Heading 2	MKT-07  |  Marketing Performance Analyst
+96	Normal	Deskripsi singkat: Mengolah data pemasaran menjadi laporan dan insight untuk mengevaluasi efektivitas aktivitas marketing.
+97	Normal	Job description:
+98	List Bullet	Menganalisis performa channel, campaign, traffic, leads, dan conversion rate.
+99	List Bullet	Mengukur metrik seperti biaya akuisisi, efektivitas anggaran, dan marketing ROI jika datanya tersedia.
+100	List Bullet	Menyusun dashboard, laporan berkala, serta rekomendasi berbasis data untuk tim marketing.
+101	Normal	
+102	Normal	
+103	Heading 1	04. Content & Creative
+104	Normal	Fokus divisi: Merencanakan, memproduksi, mengembangkan, dan mendistribusikan konten serta aset kreatif.
+105	Heading 2	CRE-01  |  Content Strategist
+106	Normal	Deskripsi singkat: Merancang arah dan perencanaan konten yang mendukung tujuan komunikasi dan pemasaran bisnis.
+107	Normal	Job description:
+108	List Bullet	Menentukan content pillars, target audience, tema, dan tujuan konten.
+109	List Bullet	Melakukan riset topik, tren, referensi, dan sumber informasi.
+110	List Bullet	Menyusun content calendar, content brief, serta prioritas produksi dan distribusi.
+111	Normal	
+112	Heading 2	CRE-02  |  Content Writer
+113	Normal	Deskripsi singkat: Menghasilkan konten tertulis informatif dan terstruktur untuk kanal digital dan kebutuhan bisnis.
+114	Normal	Job description:
+115	List Bullet	Menulis artikel blog, e-book, landing page, tutorial, dan konten SEO.
+116	List Bullet	Mengolah riset dan brief menjadi tulisan yang akurat, relevan, dan sesuai target pembaca.
+117	List Bullet	Mengoptimalkan struktur, keterbacaan, heading, dan elemen SEO sesuai kebutuhan konten.
+118	Normal	
+119	Heading 2	CRE-03  |  Copywriter
+120	Normal	Deskripsi singkat: Menulis pesan persuasif yang mendorong perhatian, respons, dan tindakan audiens.
+121	Normal	Job description:
+122	List Bullet	Membuat copy iklan, headline, caption, hook, CTA, dan sales copy.
+123	List Bullet	Mengembangkan variasi pesan berdasarkan audiens, channel, produk, dan tujuan campaign.
+124	List Bullet	Menyesuaikan copy dengan brand voice serta mengevaluasi pesan berdasarkan brief dan hasil performa.
+125	Normal	
+126	Heading 2	CRE-04  |  Graphic Designer
+127	Normal	Deskripsi singkat: Menghasilkan aset desain visual untuk komunikasi merek, pemasaran, dan kebutuhan promosi.
+128	Normal	Job description:
+129	List Bullet	Membuat poster, banner, carousel, thumbnail, infografik, dan materi promosi.
+130	List Bullet	Menerapkan brand guideline, tipografi, warna, layout, dan spesifikasi platform.
+131	List Bullet	Menyiapkan variasi ukuran atau format desain sesuai kebutuhan kanal distribusi.
+132	Normal	
+133	Normal	
+134	Heading 2	04. Content & Creative — lanjutan
+135	Heading 2	CRE-05  |  Video Creator
+136	Normal	Deskripsi singkat: Mengembangkan dan memproduksi video untuk kebutuhan konten, komunikasi, dan promosi bisnis.
+137	Normal	Job description:
+138	List Bullet	Menyusun konsep, naskah, hook, dan storyboard video.
+139	List Bullet	Membuat atau mengarahkan produksi video pendek, video promosi, dan materi audiovisual.
+140	List Bullet	Melakukan atau mengoordinasikan editing, subtitle, voice-over, dan penyesuaian format video.
+141	Normal	
+142	Heading 2	CRE-06  |  Motion Graphics Specialist
+143	Normal	Deskripsi singkat: Membuat elemen visual bergerak dan animasi untuk memperkuat komunikasi serta kualitas konten video.
+144	Normal	Job description:
+145	List Bullet	Membuat motion graphics, animasi teks, kinetic typography, dan transisi visual.
+146	List Bullet	Mengembangkan logo animation, animated explainer, dan animasi produk atau konsep.
+147	List Bullet	Menyiapkan elemen animasi untuk video, iklan, presentasi, dan konten digital.
+148	Normal	
+149	Heading 2	CRE-07  |  UGC Content Specialist
+150	Normal	Deskripsi singkat: Mengembangkan konsep dan materi konten bergaya user-generated content untuk kebutuhan brand.
+151	Normal	Job description:
+152	List Bullet	Menyusun ide, angle, dan konsep UGC berdasarkan produk serta target audiens.
+153	List Bullet	Membuat script, storyboard, brief talent, dan arahan produksi bergaya autentik.
+154	List Bullet	Mengembangkan variasi konten untuk iklan atau media sosial tanpa mengklaim pengalaman pelanggan palsu sebagai testimoni nyata.
+155	Normal	
+156	Heading 2	CRE-08  |  Content Distribution Specialist
+157	Normal	Deskripsi singkat: Mengelola adaptasi, penjadwalan, dan distribusi konten ke berbagai kanal digital.
+158	Normal	Job description:
+159	List Bullet	Mengadaptasi konten ke format dan ketentuan setiap platform.
+160	List Bullet	Menjadwalkan dan memublikasikan konten melalui kanal yang terhubung dan telah mendapat izin.
+161	List Bullet	Melakukan repurposing, memantau status distribusi, dan merangkum performa konten.
+162	Normal	
+163	Normal	
+164	Heading 1	05. Finance & Accounting
+165	Normal	Fokus divisi: Mendukung pencatatan, pemeriksaan, dan pelaporan keuangan operasional.
+166	Heading 2	FIN-01  |  Finance & Bookkeeper
+167	Normal	Deskripsi singkat: Membantu pencatatan transaksi dan menyajikan ringkasan kondisi keuangan bisnis secara teratur.
+168	Normal	Job description:
+169	List Bullet	Mencatat serta mengklasifikasikan pemasukan, pengeluaran, dan transaksi berdasarkan data yang tersedia.
+170	List Bullet	Membantu memeriksa kelengkapan transaksi, rekonsiliasi, invoice, serta pemantauan utang dan piutang.
+171	List Bullet	Menyusun ringkasan arus kas, membandingkan anggaran dengan realisasi, dan memberikan analisis awal atas pengeluaran.
+172	Normal	
+173	Normal	
+174	Heading 1	06. Business & E-commerce Operations
+175	Normal	Fokus divisi: Menjalankan dan meningkatkan proses operasional bisnis, toko online, persediaan, dan kinerja marketplace.
+176	Heading 2	ECO-01  |  Marketplace Operator
+177	Normal	Deskripsi singkat: Mengelola aktivitas operasional toko pada marketplace dan menjaga kualitas katalog serta pemrosesan pesanan.
+178	Normal	Job description:
+179	List Bullet	Membuat dan memperbarui listing, katalog, judul, deskripsi, atribut, dan informasi produk.
+180	List Bullet	Membantu mengatur harga, diskon, voucher, dan campaign marketplace sesuai instruksi serta batas otorisasi.
+181	List Bullet	Memantau pesanan, status pemrosesan, dan kebutuhan operasional seller center.
+182	Normal	
+183	Heading 2	ECO-02  |  Inventory Monitor
+184	Normal	Deskripsi singkat: Memantau persediaan dan memberikan rekomendasi pengadaan berdasarkan pergerakan stok dan penjualan.
+185	Normal	Job description:
+186	List Bullet	Memantau jumlah stok, kecepatan penjualan, dan potensi kehabisan persediaan.
+187	List Bullet	Menganalisis kebutuhan restock dengan mempertimbangkan tren permintaan dan lead time supplier.
+188	List Bullet	Mengidentifikasi produk slow-moving serta menyusun peringatan dan rekomendasi perencanaan pembelian.
+189	Normal	
+190	Heading 2	ECO-03  |  Pricing & Competitor Analyst
+191	Normal	Deskripsi singkat: Memantau harga pasar dan kompetitor untuk mendukung keputusan penetapan harga dan promosi.
+192	Normal	Job description:
+193	List Bullet	Mengumpulkan dan membandingkan informasi harga produk kompetitor dari sumber yang tersedia.
+194	List Bullet	Menganalisis perubahan harga, diskon, bundling, dan penawaran pasar.
+195	List Bullet	Memberikan rekomendasi harga dan promosi dengan mempertimbangkan margin serta kebijakan bisnis.
+196	Normal	
+197	Heading 2	ECO-04  |  Marketplace Performance Analyst
+198	Normal	Deskripsi singkat: Menganalisis kinerja toko dan produk marketplace untuk menemukan peluang peningkatan penjualan.
+199	Normal	Job description:
+200	List Bullet	Menganalisis penjualan, GMV, jumlah pesanan, conversion rate, dan average order value jika tersedia.
+201	List Bullet	Mengidentifikasi produk terlaris, produk dengan performa rendah, serta tren penjualan.
+202	List Bullet	Menyusun laporan performa toko dan rekomendasi perbaikan katalog, promosi, dan operasional.
+203	Normal	
+204	Heading 2	ECO-05  |  Business Operations Specialist
+205	Normal	Deskripsi singkat: Membantu memastikan proses operasional bisnis berjalan konsisten, terdokumentasi, dan efisien.
+206	Normal	Job description:
+207	List Bullet	Mendokumentasikan SOP, alur kerja, dan prosedur operasional bisnis.
+208	List Bullet	Membantu koordinasi vendor, supplier, procurement, dan administrasi operasional.
+209	List Bullet	Memantau proses, mengidentifikasi hambatan, dan merekomendasikan perbaikan efisiensi.
+210	Normal	
+211	Normal	
+212	Heading 1	07. HR & Recruitment
+213	Normal	Fokus divisi: Mendukung proses perekrutan, administrasi karyawan, onboarding, dan pengembangan SDM.
+214	Heading 2	HR-01  |  Recruitment Specialist
+215	Normal	Deskripsi singkat: Membantu menjalankan proses rekrutmen dari pencarian kandidat hingga persiapan wawancara.
+216	Normal	Job description:
+217	List Bullet	Menyusun job description dan membantu mencari kandidat melalui sumber rekrutmen yang tersedia.
+218	List Bullet	Melakukan screening awal CV dan menilai kecocokan kandidat berdasarkan kriteria yang ditetapkan.
+219	List Bullet	Menyiapkan pertanyaan wawancara, mengatur jadwal, dan merangkum hasil seleksi untuk ditinjau manusia.
+220	Normal	
+221	Heading 2	HR-02  |  HR & People Operations
+222	Normal	Deskripsi singkat: Mendukung administrasi dan operasional SDM sepanjang siklus kerja karyawan.
+223	Normal	Job description:
+224	List Bullet	Mengelola dokumen, data, dan administrasi karyawan sesuai hak akses.
+225	List Bullet	Membantu menyiapkan draft kontrak, kebijakan HR, serta proses onboarding dan offboarding.
+226	List Bullet	Menyusun materi pelatihan, mendukung pengembangan karyawan, dan mengelola dokumentasi HR.
+227	Normal	
+228	Normal	
+229	Heading 1	08. Technology & Automation
+230	Normal	Fokus divisi: Membangun aset digital, website, aplikasi, serta integrasi dan otomasi proses bisnis.
+231	Heading 2	TEC-01  |  Landing Page Builder
+232	Normal	Deskripsi singkat: Membangun draft landing page yang terstruktur untuk kebutuhan pemasaran, kampanye, dan konversi.
+233	Normal	Job description:
+234	List Bullet	Mengubah brief menjadi struktur halaman seperti hero, manfaat, fitur, bukti pendukung, penawaran, dan CTA.
+235	List Bullet	Menyusun copy serta layout dasar dan menghasilkan draft halaman yang dapat ditinjau secara visual.
+236	List Bullet	Membantu implementasi landing page dan integrasi form atau elemen dasar sesuai tools yang tersedia.
+237	Normal	
+238	Heading 2	TEC-02  |  Web & App Developer
+239	Normal	Deskripsi singkat: Membantu merancang, membangun, menguji, dan memelihara website maupun aplikasi.
+240	Normal	Job description:
+241	List Bullet	Mengembangkan fitur frontend dan backend berdasarkan requirement yang diberikan.
+242	List Bullet	Membantu merancang arsitektur, menulis kode, melakukan debugging, dan memperbaiki bug.
+243	List Bullet	Menjalankan testing, menyiapkan dokumentasi teknis, dan membantu deployment sesuai prosedur serta izin.
+244	Normal	
+245	Heading 2	TEC-03  |  Automation & Integration Specialist
+246	Normal	Deskripsi singkat: Menghubungkan aplikasi dan mengotomasi alur kerja untuk mengurangi pekerjaan manual dalam bisnis.
+247	Normal	Job description:
+248	List Bullet	Merancang dan membangun workflow automation antar-aplikasi menggunakan API, webhook, atau platform otomasi.
+249	List Bullet	Mengintegrasikan sistem seperti CRM, WhatsApp, spreadsheet, formulir, database, dan aplikasi bisnis lainnya.
+250	List Bullet	Memantau eksekusi workflow, menangani error, serta mendokumentasikan integrasi dan proses otomasi.
+251	Normal	
+252	Normal	
+253	Heading 1	Catatan Pengembangan Katalog
+254	Normal	Master Catalog ini merupakan peta jabatan dan cakupan pekerjaan. Setiap jabatan selanjutnya perlu dikembangkan menjadi Employee Template yang lebih rinci sebelum dirilis kepada pelanggan.
+255	Normal	Employee Template: Mencakup role identity, tujuan, job description, scope, persona, operating rules, larangan, bahasa dan tone, serta standar output.
+256	Normal	Skills & SOP: Setiap jabatan memiliki skills modular dan SOP spesifik. Skill yang relevan dapat digunakan ulang oleh beberapa Pegawai AI.
+257	Normal	Tools & Knowledge Base: Akses tools, integrasi, dan knowledge base harus disesuaikan dengan tanggung jawab serta permission masing-masing pegawai.
+258	Normal	Model & Runtime: Model dan reasoning effort dipilih sesuai kompleksitas pekerjaan, biaya, kecepatan, dan kemampuan provider.
+259	Normal	Approval & Security: Tindakan berisiko, perubahan data penting, publikasi, transaksi, atau keputusan berdampak harus mengikuti approval dan batas akses.
+260	Normal	KPI & Quality Assurance: Setiap jabatan perlu indikator performa dan skenario pengujian yang sesuai dengan hasil kerja yang dijanjikan.
+261	Normal	Prinsip katalog
+262	Normal	Bangun framework Pegawai AI satu kali, lalu kembangkan jabatan baru melalui template, skills, tools, dan konfigurasi yang dapat digunakan ulang. Setiap Pegawai AI harus mempunyai tanggung jawab yang jelas, kemampuan yang dapat diuji, hasil kerja yang dapat diperiksa, serta batas kewenangan yang aman.
+TABLES
+TABLE 0 rows=1 cols=1
+ 
+TABLE 1 rows=1 cols=3
+8 / Divisi utama | 30 / Jabatan Pegawai AI | 1.0 / Versi katalog
+TABLE 2 rows=9 cols=3
+No. | Divisi | Jumlah Jabatan
+01 | Management & Executive | 3
+02 | Customer Service & Experience | 1
+03 | Marketing & Sales | 7
+04 | Content & Creative | 8
+05 | Finance & Accounting | 1
+06 | Business & E-commerce Operations | 5
+07 | HR & Recruitment | 2
+08 | Technology & Automation | 3

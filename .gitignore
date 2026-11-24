@@ -27,6 +27,20 @@ dist/
 temp_usage_*.json
 *.tmp
 *.log
+*.bak
+*.bak-*
+.pytest_cache/
+.mypy_cache/
+
+# Local runtime (temp Postgres + helper scripts, never commit)
+.pgdata/
+.pgvenv/
+.pptenv/
+pg_uri.txt
+pg_serve.*
+setup_bots_local.py
+*.err
+*_log.txt
 
 # IDE & Editor Settings
 .vscode/

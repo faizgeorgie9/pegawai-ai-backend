@@ -1,12 +1,14 @@
 """Run engine (stage 2): starts Hermes runs, consumes their event stream, stores results, fans events out."""
 import asyncio
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
+from datetime import date
 
 import httpx
 
-from . import catalog, cs_schema, db, hermes, knowledge, settings, versions
+from . import catalog, cs_schema, db, hermes, kb, knowledge, retrieval, settings, sheets, versions
 from .errors import ApiError
 from .redact import redact
 
@@ -202,12 +204,81 @@ def infer_origin(group_id: str | None, workflow: str | None) -> dict:
     return {"type": "group" if group_id else workflow or "chat"}
 
 
+def _merge_local_products(text: str, products: list[dict]) -> list[dict]:
+    """Blend the curated local snapshot with the Postgres catalog.
+
+    For a named product the database hit leads; for category browsing the curated snapshot leads so
+    well-classified items with detail text come first. Duplicates are dropped by name.
+    """
+    try:
+        local = retrieval.catalog_products(text, limit=5)
+    except ApiError:
+        return products
+    if not local:
+        return products
+    query = " ".join(re.findall(r"[a-z0-9]+", text.lower()))
+    db_exact = any(
+        (name := " ".join(re.findall(r"[a-z0-9]+", str(p.get("name", "")).lower()))) and name in query
+        for p in products
+    )
+    lead, tail = (products, local) if db_exact else (local, products)
+    merged, seen = [], set()
+    for product in [*lead, *tail]:
+        name = str(product.get("name", "")).strip().casefold()
+        if name in seen:
+            continue
+        merged.append(product)
+        seen.add(name)
+        if len(merged) >= 5:
+            break
+    return merged
+
+
 async def workflow_context(bot: dict, workflow: str, stage: str | None, test_mode: bool, text: str,
                            ins: str | None) -> tuple[str, dict]:
     """The BFF retrieves before the run: knowledge bundle of the bot's team plus up to 5 catalog products.
     Returns (instructions, context for start_run)."""
     products = await catalog.search_products(text, limit=5)
+    if workflow == "cs":
+        products = _merge_local_products(text, products)
     ins, refs, meta = knowledge.build_context(bot["team"], workflow, ins, products, test_mode and workflow == "cs")
+    if workflow == "cs":
+        recommendation_guidance = retrieval.product_recommendation_guidance(text)
+        if recommendation_guidance:
+            ins = f"{ins}\n\n{recommendation_guidance}"
+        size_context, size_ref = retrieval.size_matching_context(text, products)
+        if size_context and size_ref:
+            ins = f"{ins}\n\n{size_context}"
+            refs.append(size_ref)
+        if test_mode and sheets.wants_stock_lookup(text):
+            user_id = bot.get("user_id")
+            conn = await sheets.connection(user_id, "stock") if user_id else None
+            if conn:
+                table = await sheets.read_table(conn)
+                stock_context = sheets.demo_stock_context(table, text)
+                if stock_context:
+                    ins = f"{ins}\n\n{stock_context}"
+                    refs.append({
+                        "type": "spreadsheet",
+                        "id": conn["id"],
+                        "title": "Demo stock spreadsheet",
+                        "classification": "Simulated Data",
+                        "source_id": None,
+                        "url": conn["url"],
+                        "accessed_date": date.today().isoformat(),
+                    })
+            else:
+                ins = (
+                    f"{ins}\n\n## Demo stock lookup unavailable\n"
+                    "No stock spreadsheet is connected for this test. Do not claim a stock level or availability."
+                )
+    uploaded, uploaded_refs = ("", [])
+    if bot.get("user_id"):
+        uploaded, uploaded_refs = await kb.context_for(
+            bot["user_id"], text, "marketing" if workflow == "marketing" else "cs")
+    if uploaded:
+        ins = f"{ins}\n\n{uploaded}"
+        refs.extend(uploaded_refs)
     return ins, {**meta, "stage": stage.strip() if stage else None, "test_mode": test_mode, "context_refs": refs}
 
 

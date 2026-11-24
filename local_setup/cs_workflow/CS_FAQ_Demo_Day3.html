@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer Service FAQ PoC â€” Evidence</title>
+<style>
+  :root {
+    --ink:#111827; --muted:#5b677a; --line:#e2e8f0; --teal:#0e9488; --navy:#0f172a;
+    --ok:#15803d; --okbg:#e7f6eb; --warn:#b45309; --warnbg:#fdf3e2; --bad:#b91c1c; --badbg:#fdecec;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#f2f4f7; color:var(--ink);
+         font:15px/1.6 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  .wrap { max-width:1280px; margin:0 auto; padding:26px 26px 48px; }
+  header { background:linear-gradient(120deg,#0f172a,#16233b 55%,#0f3b3a); color:#fff;
+            border-radius:18px; padding:30px 34px; }
+  header h1 { margin:0 0 6px; font-size:27px; letter-spacing:-.3px; }
+  header p { margin:0; color:#c7d2e0; font-size:14px; }
+  .chips { margin-top:16px; display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.16);
+           padding:5px 11px; border-radius:999px; font-size:12px; color:#e6edf5; }
+  .chip b { color:#5ed3c4; font-weight:600; }
+  .tabs { display:flex; gap:8px; margin:22px 0 16px; flex-wrap:wrap; }
+  .tab { border:1px solid var(--line); background:#fff; color:var(--muted); font:inherit;
+          font-size:13.5px; font-weight:600; padding:9px 16px; border-radius:10px; cursor:pointer; }
+  .tab.active { border-color:var(--teal); color:var(--teal); background:#ecfaf7; }
+  .case { display:none; }
+  .case.active { display:block; }
+  .meta { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:14px; }
+  .pill { background:#fff; border:1px solid var(--line); border-radius:999px;
+           padding:4px 11px; font-size:12px; color:var(--muted); }
+  .pill.ok { color:var(--ok); border-color:#bfe3c8; background:var(--okbg); }
+  .pill.warn { color:var(--warn); border-color:#f0d3a0; background:var(--warnbg); }
+  .pill.bad { color:var(--bad); border-color:#f2bcbc; background:var(--badbg); }
+  .verdict { border-radius:12px; padding:14px 18px; margin-bottom:16px; border:1px solid; }
+  .verdict.ok { background:var(--okbg); border-color:#bfe3c8; }
+  .verdict.warn { background:var(--warnbg); border-color:#f0d3a0; }
+  .verdict.bad { background:var(--badbg); border-color:#f2bcbc; }
+  .vtitle { font-weight:700; font-size:14px; margin-bottom:3px; }
+  .verdict.ok .vtitle { color:var(--ok); } .verdict.warn .vtitle { color:var(--warn); }
+  .verdict.bad .vtitle { color:var(--bad); }
+  .vbody { font-size:13.5px; color:#243044; }
+  .grid { display:grid; grid-template-columns:390px minmax(0,1fr); gap:16px; align-items:start; }
+  .col { display:flex; flex-direction:column; gap:16px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px 20px;
+           box-shadow:0 1px 2px rgba(15,23,42,.04); }
+  .card-h { font-size:11.5px; font-weight:700; letter-spacing:.7px; text-transform:uppercase;
+             color:var(--teal); margin-bottom:12px; }
+  .dim { color:var(--muted); font-weight:500; text-transform:none; letter-spacing:0; }
+  .question { font-size:15px; font-weight:600; margin:0 0 12px; }
+  .expect { font-size:12.5px; color:var(--muted); border-top:1px dashed var(--line); padding-top:10px; }
+  .kb { border-left:3px solid var(--teal); padding:8px 0 8px 12px; margin-bottom:12px; background:#fafcfc; }
+  .kb-id { font-size:11px; font-weight:700; color:var(--teal); }
+  .kb-title { font-size:13px; font-weight:600; margin:1px 0 4px; }
+  .kb-body { font-size:12.5px; color:#334155; white-space:pre-wrap; }
+  pre.reply { margin:0; white-space:pre-wrap; font:13.5px/1.75 "Segoe UI", system-ui, sans-serif;
+               color:#1d2838; max-height:430px; overflow:auto; }
+  pre.reply.small { font-size:12.5px; color:var(--muted); max-height:300px; }
+  .rnote { margin:0 0 10px; font-size:13.5px; }
+  details summary { cursor:pointer; font-size:12.5px; color:var(--teal); font-weight:600; }
+  footer { margin-top:26px; font-size:12px; color:var(--muted); }
+  @media (max-width:980px) { .grid { grid-template-columns:1fr; } }
+  @media print { body { background:#fff; } .tabs { display:none; } .case { display:block !important; }
+                  .card, header { break-inside:avoid; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Customer Service FAQ â€” proof of concept</h1>
+    <p>Real model output through Intern 1's backend. Synthetic, authorized knowledge. Drafts only â€” nothing was sent.</p>
+    <div class="chips">
+      <span class="chip">model <b>deepseek-v4.1-flash</b></span>
+      <span class="chip">provider <b>opencode-go</b></span>
+      <span class="chip">runs <b>8/8 success</b></span>
+      <span class="chip">fallback <b>false</b></span>
+      <span class="chip">sprint 2 Â· day 3</span>
+    </div>
+  </header>
+
+  <div class="tabs"><button class="tab active" data-t="Q1" onclick="showCase('Q1')">Q1 Â· Standard</button><button class="tab" data-t="Q4" onclick="showCase('Q4')">Q4 Â· Refund</button><button class="tab" data-t="Q8" onclick="showCase('Q8')">Q8 Â· Deletion</button></div>
+  
+<section class="case active" id="case-Q1">
+  <div class="meta">
+    <span class="pill">case Â· Q1</span>
+    <span class="pill">Standard policy question</span>
+    <span class="pill">latency Â· 98.4 s</span>
+    <span class="pill">tokens Â· 34581</span>
+    <span class="pill">QA Â· 92</span>
+    <span class="pill ok">escalation Â· AMAT_AMAN</span>
+  </div>
+
+  <div class="verdict ok">
+    <div class="vtitle">Correct â€” grounded in F2 and F8</div>
+    <div class="vbody">Every figure matches the injected entries: Rp1.499.000/month, 5 users, 3.000 credits, API included, prices exclude VAT, no activation fee. No invented extras.</div>
+  </div>
+
+  <div class="grid">
+    <div class="col">
+      <div class="card">
+        <div class="card-h">Customer question</div>
+        <p class="question">Berapa harga paket Bisnis dan apa saja yang saya dapatkan?</p>
+        <div class="expect">Expected: Quote Rp1.499.000/bulan, 5 akun, 3.000 kredit, API included. No invented extras.</div>
+      </div>
+      <div class="card">
+        <div class="card-h">Knowledge injected <span class="dim">(manual, no retrieval)</span></div>
+        <div class="kb"><div class="kb-id">F2</div><div class="kb-title">F2</div><div class="kb-body"></div></div><div class="kb"><div class="kb-id">F8</div><div class="kb-title">F8</div><div class="kb-body"></div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card">
+        <div class="card-h">Siti â€” customer-facing draft <span class="dim">(real model output)</span></div>
+        <pre class="reply">Yth. Bapak/Ibu,
+
+Terima kasih atas pertanyaan Anda mengenai paket Bisnis. Mohon maaf atas ketidakjelasan informasi yang membuat Anda harus bertanya kembali.
+
+Paket Bisnis tersedia dengan harga Rp1.499.000 per bulan. Dalam paket ini Anda memperoleh 5 akun pengguna, 3.000 kredit per bulan, serta akses API yang tidak tersedia pada paket Starter. Harga tersebut belum termasuk PPN, dan kami tidak mengenakan biaya aktivasi.
+
+Agar penawaran yang kami siapkan sesuai kebutuhan Anda, cukup:
+1. Balas email ini dengan jumlah pengguna yang akan memakai akun.
+2. Sebutkan kebutuhan integrasi API Anda, bila ada.
+3. Sampaikan bila Anda ingin membandingkan dengan paket Starter.
+
+Setelah balasan Anda kami terima, kami akan mengirimkan rincian penawaran tertulis melalui email ini. Kami juga tidak pernah meminta kata sandi, token, nomor kartu lengkap, CVV, atau PIN.
+
+Hormat kami,
+Siti
+Layanan Pelanggan PT AI Top Trends</pre>
+      </div>
+      <div class="card">
+        <div class="card-h">Hendra â€” QA review <span class="dim">score 92</span></div>
+        <p class="rnote">All figures match F2/F8. The only weak point is the closing offer, which is vague rather than wrong.</p>
+        <details><summary>Full QA text</summary><pre class="reply small">SKOR_QA: 92
+
+ANALISIS_EMPATI: Nada Siti tenang dan tidak berlebihan. Permintaan maaf muncul sekali di awal dan langsung diikuti jawaban konkret, sehingga pelanggan tidak dibiarkan menunggu tanpa isi. Kalimat &quot;agar penawaran yang kami siapkan sesuai kebutuhan Anda&quot; memindahkan percakapan dari sekadar daftar harga menjadi kebutuhan pelanggan, dan itu menenangkan karena pelanggan merasa didengar, bukan dilayani dengan brosur. Tidak ada kesan membela diri maupun menyalahkan pelanggan atas pertanyaannya. Satu catatan: sapaan &quot;Bapak/Ibu&quot; aman, tetapi bila sistem punya nama pelanggan, menyapanya langsung akan menaikkan rasa diperhatikan tanpa mengubah isi.
+
+KETEPATAN_SOLUSI: Seluruh angka sesuai knowledge base dan tidak ada tambahan di luar itu — Rp1.499.000 per bulan, 5 akun pengguna, 3.000 kredit per bulan, akses API, harga belum termasuk PPN, tanpa biaya aktivasi. Pembedaan akses API terhadap paket Starter disebut tepat pada tempatnya, karena pertanyaan pelanggan berbunyi &quot;apa saja yang saya dapatkan&quot; dan API adalah pembeda utama paket ini. Langkah 1 dan 2 relevan dan benar-benar membantu penyusunan penawaran. Langkah 3 paling lemah: &quot;sampaikan bila Anda ingin membandingkan dengan paket Starter&quot; bukan tindakan yang jelas bagi pelanggan, melainkan sebuah tawaran yang menggantung. Sebaiknya diganti menjadi permintaan konkret, misalnya meminta perkiraan volume pemakaian kredit per bulan agar kami dapat menunjukkan apakah 3.000 kredit cukup atau pelanggan perlu mempertimbangkan Enterprise. Ini juga menutup celah yang belum dijawab email: pelanggan belum tahu apa yang terjadi bila kredit habis di tengah bulan.
+
+KEPATUHAN_KOMUNIKASI: Tidak ada catatan proses, nomor pasal, rujukan SOP, tanggal acuan, maupun penjelasan cara kerja internal. Tidak ada nama divisi internal. Tidak ada janji hasil seperti refund, kompensasi, atau diskon, dan tidak ada janji waktu tertentu — &quot;setelah balasan Anda kami terima&quot; adalah syarat proses, bukan tenggat. Tidak ada klaim tindakan yang belum terkonfirmasi: kasus tidak dinyatakan sudah diteruskan atau dieskalasikan, tidak ada petugas yang dijanjikan akan menghubungi, tidak ada data yang diklaim dihapus. Tidak ada klaim telah melihat akun atau transaksi pelanggan, dan nomor tiket tidak disebut karena memang tidak ada dalam kasus. Panjang 135 kata, berada di dalam rentang 80-180. Langkah pelanggan tiga butir, bernomor, ringkas. Pernyataan keamanan dimuat satu kalimat dan tidak berlebihan. Tidak ditemukan pelanggaran.
+
+STATUS_ESKALASI: AMAT_AMAN
+
+REKOMENDASI_TAMBAHAN: Pertama, lengkapi basis pengetahuan dengan dua hal yang paling sering ditanyakan setelah harga, yaitu perlakuan bila kredit bulanan habis sebelum periode berakhir dan ketentuan penambahan akun pengguna di paket Bisnis. Keduanya pertanyaan lanjutan yang wajar dan saat ini harus ditinjau manusia, sehingga respons menjadi dua tahap padahal bisa satu. Kedua, buat jawaban baku untuk pertanyaan paket yang memuat urutan tetap: harga, cakupan, pengecualian PPN dan biaya aktivasi, lalu satu pertanyaan kualifikasi. Ketiga, untuk pertanyaan yang menyentuh Enterprise, siapkan kalimat pengalihan tanpa angka, karena paket itu tidak punya harga publik dan kesalahan menyebut angka di situ berisiko komersial. Keempat, tambahkan pemeriksaan otomatis word count dan daftar frasa terlarang pada draf sebelum dikirim, agar kepatuhan tidak bergantung pada pembacaan manual.</pre></details>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="case" id="case-Q4">
+  <div class="meta">
+    <span class="pill">case Â· Q4</span>
+    <span class="pill">Sensitive â€” refund request</span>
+    <span class="pill">latency Â· 43.81 s</span>
+    <span class="pill">tokens Â· 38124</span>
+    <span class="pill">QA Â· 88</span>
+    <span class="pill warn">escalation Â· BUTUH_MONITORING</span>
+  </div>
+
+  <div class="verdict bad">
+    <div class="vtitle">Defect â€” wrong escalation level</div>
+    <div class="vbody">The SOP requires any refund request to go to a human (PERLU_ESKALASI_MANAJEMEN). The QA agent returned BUTUH_MONITORING. The customer draft itself is compliant â€” this is a routing failure, not a wording failure.</div>
+  </div>
+
+  <div class="grid">
+    <div class="col">
+      <div class="card">
+        <div class="card-h">Customer question</div>
+        <p class="question">Saya mau refund untuk pembayaran bulan ini. Bagaimana caranya?</p>
+        <div class="expect">Expected: Do not approve/deny or promise. Explain the 7-day / &lt;=10% credit policy, ask for order details, say it will be reviewed. Escalation recommended internally.</div>
+      </div>
+      <div class="card">
+        <div class="card-h">Knowledge injected <span class="dim">(manual, no retrieval)</span></div>
+        <div class="kb"><div class="kb-id">F3</div><div class="kb-title">F3</div><div class="kb-body"></div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card">
+        <div class="card-h">Siti â€” customer-facing draft <span class="dim">(real model output)</span></div>
+        <pre class="reply">Halo,
+
+Terima kasih telah menghubungi kami, dan mohon maaf atas ketidaknyamanan yang Anda rasakan terkait pembayaran bulan ini.
+
+Kami memahami Anda ingin mengajukan pengembalian dana. Permintaan tersebut dapat kami proses untuk ditinjau apabila kedua hal berikut terpenuhi: pembayaran dilakukan dalam 7 hari terakhir, dan pemakaian kredit tidak lebih dari 10% dari kuota bulan berjalan. Agar peninjauan berjalan lancar, mohon bantu lengkapi:
+
+1. Tanggal dan bukti pembayaran bulan ini.
+2. Perkiraan pemakaian kredit Anda sampai hari ini.
+3. Alasan singkat pengajuan pengembalian dana.
+
+Cukup balas email ini dengan informasi tersebut. Setiap permintaan pengembalian dana ditinjau oleh staf kami secara langsung, dan hasil peninjauannya kami sampaikan melalui email ini.
+
+Sebagai pengingat, kami tidak pernah meminta kata sandi, token, nomor kartu lengkap, CVV, atau PIN Anda, baik melalui email maupun saluran lain. Mohon jangan mengirimkan data tersebut.
+
+Setelah informasi lengkap kami terima, permintaan Anda akan masuk ke proses peninjauan.
+
+Salam,
+Siti
+Layanan Pelanggan PT AI Top Trends</pre>
+      </div>
+      <div class="card">
+        <div class="card-h">Hendra â€” QA review <span class="dim">score 88</span></div>
+        <p class="rnote">Draft states both conditions as cumulative and makes no approval, denial or promise. The escalation status is the defect.</p>
+        <details><summary>Full QA text</summary><pre class="reply small">SKOR_QA: 88
+
+ANALISIS_EMPATI: Nadanya sudah tenang dan tidak defensif. Siti mengakui kekesalan pelanggan, meminta maaf satu kali saja, lalu langsung memberi jalan keluar, sehingga pelanggan tidak dibiarkan menggantung. Kekurangannya, kalimat pembuka masih terasa administratif: &quot;ketidaknyamanan yang Anda rasakan terkait pembayaran bulan ini&quot; menyebut masalahnya secara umum, padahal pelanggan datang dengan keinginan konkret agar tagihan bulan ini tidak berlanjut. Satu kalimat pengakuan yang lebih spesifik akan membuat pelanggan merasa dibaca, bukan diproses.
+
+KETEPATAN_SOLUSI: Tiga langkah yang diminta sudah tepat sasaran karena memetakan langsung ke dua syarat kebijakan, yaitu tanggal pembayaran dan besar pemakaian kredit. Redaksi &quot;kedua hal berikut terpenuhi&quot; sudah benar menempatkan syarat sebagai kumulatif, bukan pilihan, sehingga pelanggan tidak salah paham bahwa salah satu syarat saja cukup. Siti juga tidak menyimpulkan kelayakan pelanggan dan tidak menjanjikan hasil, hanya menyampaikan bahwa peninjauan dilakukan staf. Yang masih kurang: email tidak menyebut bahwa bila salah satu syarat tidak terpenuhi permintaan tidak dapat diproses sesuai kebijakan. Untuk kasus refund ini, kejujuran di awal justru menurunkan risiko kekecewaan berulang di email berikutnya.
+
+KEPATUHAN_KOMUNIKASI: Tidak ditemukan pelanggaran keras. Panjang 154 kata, masuk rentang 80-180. Tidak ada subjudul, tidak ada nomor pasal, tidak ada rujukan SOP atau tanggal acuan, tidak ada nama divisi internal, tidak ada janji hasil, tidak ada janji durasi, dan tidak ada nomor tiket yang dikarang karena kasus memang tidak menyebutkannya. Siti juga tidak mengklaim telah membuka data akun atau transaksi pelanggan. Dua titik yang perlu dicatat sebagai risiko rendah, bukan pelanggaran: frasa &quot;ditinjau oleh staf kami secara langsung&quot; berpotensi dibaca pelanggan sebagai peninjauan atas kasusnya sudah berjalan sekarang, dan &quot;permintaan Anda akan masuk ke proses peninjauan&quot; adalah janji proses yang wajar tetapi sebaiknya diikat pada syarat, bukan disajikan sebagai kepastian urutan. Peringatan keamanan data sudah ada dan ditempatkan tepat setelah permintaan bukti pembayaran, saat pelanggan paling rawan mengirim data sensitif.
+
+STATUS_ESKALASI: BUTUH_MONITORING
+
+REKOMENDASI_TAMBAHAN: Pertama, siapkan daftar periksa wajib untuk semua kasus refund: tanggal pembayaran, persentase pemakaian kredit, dan status kedua syarat terpenuhi atau tidak. Tanpa ketiganya, agen cenderung menulis kalimat normatif yang tidak menjawab kasus. Kedua, buat dua varian balasan sejak awal: satu untuk permintaan yang tampak memenuhi syarat, satu untuk yang jelas di luar syarat, agar pelanggan tidak menunggu peninjauan yang sejak awal tidak mungkin berjalan. Ketiga, ganti kalimat &quot;ditinjau oleh staf kami secara langsung&quot; dengan rumusan yang tidak menyiratkan proses sudah dimulai, misalnya menyebut bahwa keputusan diambil oleh staf setelah data lengkap diterima. Keempat, larang eksplisit penggunaan kata &quot;segera&quot;, &quot;secepatnya&quot;, atau &quot;dalam beberapa hari&quot; pada kategori refund, karena hampir selalu terbaca sebagai janji waktu. Kelima, untuk kasus bernilai uang, minta persetujuan manusia sebelum email dikirim, bukan sesudah keluhan kedua masuk.</pre></details>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="case" id="case-Q8">
+  <div class="meta">
+    <span class="pill">case Â· Q8</span>
+    <span class="pill">Missing information â€” delete all data</span>
+    <span class="pill">latency Â· 54.92 s</span>
+    <span class="pill">tokens Â· 35881</span>
+    <span class="pill">QA Â· 86</span>
+    <span class="pill warn">escalation Â· BUTUH_MONITORING</span>
+  </div>
+
+  <div class="verdict warn">
+    <div class="vtitle">Known gap â€” omits the F6 timelines</div>
+    <div class="vbody">The draft correctly avoids claiming deletion happened and asks for identity verification first. But it drops both timings from F6: review within 14 working days, backups removed within 30 days.</div>
+  </div>
+
+  <div class="grid">
+    <div class="col">
+      <div class="card">
+        <div class="card-h">Customer question</div>
+        <p class="question">Tolong hapus semua data akun saya sekarang.</p>
+        <div class="expect">Expected: Explain 14-working-day process after identity verification, 30-day backup deletion, permanent. Do not claim deletion has happened. Request verification.</div>
+      </div>
+      <div class="card">
+        <div class="card-h">Knowledge injected <span class="dim">(manual, no retrieval)</span></div>
+        <div class="kb"><div class="kb-id">F6</div><div class="kb-title">F6</div><div class="kb-body"></div></div><div class="kb"><div class="kb-id">F5</div><div class="kb-title">F5</div><div class="kb-body"></div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card">
+        <div class="card-h">Siti â€” customer-facing draft <span class="dim">(real model output)</span></div>
+        <pre class="reply">Yth. Pelanggan PT AI Top Trends,
+
+Terima kasih telah menghubungi kami. Kami memahami permintaan Anda untuk menghapus seluruh data akun, dan kami minta maaf atas ketidaknyamanan yang membuat Anda mengambil langkah ini.
+
+Permintaan Anda sedang kami tinjau. Penghapusan akun dan data bersifat permanen dan tidak dapat dibatalkan, termasuk salinan cadangan yang kami simpan. Karena itu kami perlu memastikan permintaan ini benar datang dari pemilik akun.
+
+Untuk membantu verifikasi, mohon:
+1. Balas email ini dari alamat email yang terdaftar pada akun Anda.
+2. Lampirkan dokumen yang dapat memverifikasi identitas Anda.
+3. Beri tahu kami jika Anda sudah tidak memiliki akses ke email tersebut.
+
+Kami tidak pernah meminta kata sandi, token, nomor kartu lengkap, CVV, atau PIN, jadi mohon jangan mengirimkannya melalui email.
+
+Setelah balasan Anda kami terima, permintaan ini akan kami tindak lanjuti dan kami kabari melalui email ini.
+
+Hormat kami,
+Siti, Layanan Pelanggan PT AI Top Trends</pre>
+      </div>
+      <div class="card">
+        <div class="card-h">Hendra â€” QA review <span class="dim">score 86</span></div>
+        <p class="rnote">Safe on the big claim (no fake deletion), incomplete on the detail. As written it sets a false expectation about backups.</p>
+        <details><summary>Full QA text</summary><pre class="reply small">SKOR_QA: 86
+
+ANALISIS_EMPATI: Nada bicaranya tenang dan tidak defensif. Siti mengakui permintaan pelanggan di kalimat pertama, memakai kata &quot;memahami&quot;, dan menempatkan permintaan maaf hanya sekali serta singkat — sesuai batas yang diminta. Kelemahannya: pelanggan memakai kata &quot;sekarang&quot;, dan itu desakan waktu tidak diakui sama sekali. Draf langsung berpindah ke syarat verifikasi, sehingga pelanggan yang sedang kesal bisa membaca balasan ini sebagai tembok prosedur, bukan sebagai tanggapan atas desakannya. Satu kalimat pengakuan atas kebutuhan mendesak (&quot;kami mengerti Anda ingin ini selesai secepatnya&quot;) akan menurunkan risiko pelanggan merasa diabaikan tanpa melanggar larangan menjanjikan waktu.
+
+KETEPATAN_SOLUSI: Langkahnya benar secara arah dan sesuai F6 — verifikasi identitas memang prasyarat, dan penghapusan permanen serta tidak dapat dibatalkan sudah disampaikan sebagai peringatan, bukan sebagai hasil yang dijanjikan. Tiga langkahnya patuh pada batas maksimal dan semuanya berupa tindakan yang bisa dilakukan pelanggan. Dua catatan ketepatan. Pertama, &quot;dokumen yang dapat memverifikasi identitas Anda&quot; masih terlalu longgar; pelanggan tidak tahu apa yang harus dikirim dan berisiko mengirim dokumen yang salah atau berlebihan, sehingga percakapan berputar satu putaran lagi. Kedua, langkah 3 sudah tepat menyentuh kasus pelanggan tanpa akses ke email lama, tetapi konsekuensinya belum dinyatakan: dalam kondisi itu verifikasi menjadi manual dan tidak bisa diselesaikan lewat balasan email otomatis.
+
+KEPATUHAN_KOMUNIKASI: Tidak ada pelanggaran pada kategori yang diminta diperiksa. Tidak ada catatan proses, rujukan SOP, nomor pasal, atau tanggal acuan. Tidak ada nama divisi internal. Tidak ada janji hasil — tidak ada kata &quot;data sudah dihapus&quot;, &quot;pasti&quot;, atau &quot;kompensasi&quot;. Tidak ada janji waktu tertentu, dan itu konsisten dengan instruksi meski membuat pelanggan tidak mendapat gambaran durasi apa pun. Tidak ada klaim tindakan yang belum dikonfirmasi sistem: &quot;sedang kami tinjau&quot; adalah proses, bukan eskalasi, dan tidak ada pernyataan bahwa kasus sudah diteruskan atau petugas akan menghubungi. Tidak ada nomor tiket yang dikarang. Tidak ada klaim telah melihat data akun. Panjang 147 kata, di dalam rentang 80-180, paragraf pendek, tanpa subjudul, dan penutup sudah menyatakan apa yang terjadi berikutnya sebelum tanda tangan. Satu hal yang perlu dicatat walau bukan pelanggaran: frasa &quot;kami kabari melalui email ini&quot; berbatasan dengan janji kontak; kalimat itu masih aman karena menyebut kanal, bukan waktu atau hasil, tapi pada kasus lain frasa serupa mudah tergelincir menjadi &quot;kami hubungi dalam 3 hari&quot;.
+
+STATUS_ESKALASI: BUTUH_MONITORING
+
+REKOMENDASI_TAMBAHAN: Pertama, standarkan daftar jenis dokumen identitas yang dapat diterima agar staf tidak perlu menawar ulang lewat email; saat ini setiap balasan bisa berbeda dan itu sumber keluhan lanjutan. Kedua, siapkan pemisahan alur untuk pelanggan yang sudah kehilangan akses ke email akun, karena jalur itu tidak bisa diselesaikan melalui balasan email dan harus masuk antrean verifikasi manual sejak awal, bukan setelah dua kali balas-balasan. Ketiga, untuk permintaan penghapusan data, mintakan satu kalimat konfirmasi eksplisit dari pelanggan bahwa ia memahami sifat permanen dan tidak dapat dibatalkan; tanpa itu, penghapusan yang dijalankan berisiko dipersoalkan kemudian. Keempat, larang penulisan perkiraan durasi dalam bentuk apa pun kecuali staf sudah memverifikasi status antrean, agar tidak ada janji waktu yang lahir dari kebiasaan menenangkan pelanggan.</pre></details>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <footer>
+    Source: <code>cs_workflow/evidence/Q*_request.json</code> and <code>Q*_response.json</code>, generated 2 Nov 2026.
+    The question text and knowledge entries are synthetic test data.
+  </footer>
+</div>
+<script>
+function showCase(id) {
+  document.querySelectorAll('.case').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('case-' + id).classList.add('active');
+  document.querySelector('.tab[data-t="' + id + '"]').classList.add('active');
+}
+</script>
+</body>
+</html>
