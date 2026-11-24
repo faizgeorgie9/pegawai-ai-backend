@@ -197,3 +197,100 @@ Ekspektasi setelah #1 diperbaiki: permintaan tanpa token → **401**, bukan daft
 - `docs-kaf/sprint5/keputusan-scope-hari3.md` — item FE yang ditunda karena kontrak di atas.
 - `docs-kaf/sprint5/telegram-dan-memori-ux.md` — kebutuhan Telegram/memori dan opsi isolasi.
 - ClickUp Backend Sprint 5 (`local://s5-others.md`): Hari 1 auth/deploy/security, Hari 2 KB/MCP/WhatsApp, Hari 3 config/Master Template, Hari 4 Telegram/memori, Hari 5 QA.
+
+---
+
+## 7. Status perbaikan Kritis 1 & 2 + menu Admin (25 November 2026)
+
+Bagian ini menggantikan "ekspektasi" di §3. Semua perubahan ada di `feat/frontend-prototype`, belum
+dideploy ke VPS. Rencana deploy persis ada di `docs-kaf/sprint5/deploy-auth.md`.
+
+### 7.1 `/api/*` sekarang benar-benar butuh sesi
+
+- Router `api` memakai dependency `require_user`: token hilang, rusak, kedaluwarsa, akun nonaktif, atau
+  token dari sesi yang sudah logout → **401** `{"error": "<pesan Indonesia>"}`.
+- Middleware tidak lagi mengisi `"default"`; `current_user()` melempar 401 bila tidak ada identitas.
+  Tidak ada lagi jalur "token rusak = tenant admin".
+- `X-Pegawai-AI-Key` **tidak dipakai route mana pun**. `require_key` dihapus. `BFF_API_KEY` hanya tinggal
+  untuk proxy Vite saat pengembangan; Nginx harus berhenti menyuntiknya (langkah deploy terpisah).
+- Endpoint publik beserta alasannya ada di `deploy-auth.md` §2: health, login, register (tertutup),
+  logout, gambar produk, webhook WhatsApp/Telegram (cek secret masing-masing), dan callback OAuth Google
+  (identitas diambil dari baris `oauth_states.state` sekali pakai).
+- Duplikat dekorator publik pada `/whatsapp/qr`, `/whatsapp/connection`, `/telegram/status` dihapus;
+  halaman status `GET /whatsapp/webhook` tanpa parameter `hub.*` kini butuh login.
+
+### 7.2 `JWT_SECRET` terpisah dari `BFF_API_KEY`
+
+- `auth._get_secret()` hanya memakai `config.JWT_SECRET`; tidak ada fallback ke `BFF_API_KEY` atau nilai
+  hardcoded.
+- Startup (`lifespan`) memanggil `auth.validate_config()` dan **gagal jelas** bila `JWT_SECRET` kosong,
+  kurang dari 32 karakter, atau sama dengan `BFF_API_KEY`.
+- Konsekuensi rotasi/pengenalan: semua token lama tidak berlaku; pengguna login sekali lagi. Disengaja.
+
+### 7.3 Logout menginvalidasi token
+
+- Migrasi baru `022_users_token_version.sql` (aditif): `users.token_version integer not null default 0`.
+- Setiap token membawa klaim `tv`. `POST /api/auth/logout` menaikkan `token_version` user; token dengan
+  versi lama → 401 di semua route, termasuk `/api/auth/me`.
+- Logout tanpa token tetap `200` (idempoten); browser tetap membersihkan salinannya.
+- Catatan: logout mengeluarkan **semua** sesi akun itu (bukan hanya tab yang logout). Ini keputusan sadar
+  untuk kesederhanaan; bila nanti perlu per-perangkat, ganti ke `jti` denylist.
+
+### 7.4 Registrasi tertutup
+
+- `config.ALLOW_REGISTER` default `false` (env `ALLOW_REGISTER=true` untuk membuka).
+- `POST /api/auth/register` → **403**
+  `"Pendaftaran akun baru belum dibuka. Hubungi administrator perusahaan Anda untuk dibuatkan akun."`
+- Tab "Daftar" di UI masih ada; server yang menolak dengan pesan jelas. Menyembunyikan tab butuh
+  endpoint konfigurasi publik dan itu pekerjaan FE terpisah.
+
+### 7.5 Identitas pemanggil internal (tidak ada lagi `default` kebetulan)
+
+| Pemanggil | Sebelum | Sekarang |
+|---|---|---|
+| MCP bridge (`bridge._user()`) untuk Drive/Gmail/KB/task | `current_user()` = `default` | `BridgeApp` membaca `X-Pegawai-Bot` → `bots.user_id` lewat `auth.service_user()`; ContextVar per request |
+| Webhook WhatsApp (`POST /api/whatsapp/webhook`) | hardcoded `user_id="default"` | `auth.service_user(bot_id)`; tanpa bot: `SERVICE_USER_ID`, lalu admin/owner tertua yang aktif |
+| Scheduler / group loop / task worker | sudah memakai `user_id` dari baris DB | tidak berubah |
+| Telegram handler | tidak menyentuh data pengguna | tidak berubah (secret webhook tetap) |
+| Callback OAuth Google | `current_user()` (selalu `default` saat redirect) | user dari baris `oauth_states` sekali pakai |
+
+`auth.service_user()` tidak pernah mengembalikan `"default"` karena hardcode; ia membaca DB dan melempar
+500 bila tidak ada pemilik sama sekali. `SERVICE_USER_ID` adalah override eksplisit (nama env saja,
+nilainya di `.env` server).
+
+### 7.6 Frontend: menu Admin dari role, bukan localStorage
+
+- `adminMode.ts` menyimpan role akun dari `/auth/me`. `isAdminRole` menerima
+  `owner|admin|super_admin`(case-insensitive).
+- Grup **Admin** muncul otomatis untuk role itu; `pegawai-ai.admin-mode` sekarang hanya sakelar
+  declutter (default **nyala**, `'0'` = admin menyembunyikannya). Untuk staf sakelar tidak ditampilkan
+  dan `useAdminMode()` selalu `false`.
+- Logout menghapus `pegawai-ai.admin-mode`, token, `pa.lastBot`, `pa.lastGroup`, dan role di memori.
+- Route Admin (`marketing`, `cs`, `agen*`, `tools`, `computer-use`, `uji`, `aktivitas`) tidak dirender
+  untuk non-admin dan hash-nya dialihkan ke Beranda.
+- SSE: `EventSource` tidak bisa mengirim header `Authorization`, sehingga `/api/events` dan stream run
+  akan 401. `subscribe()` di `bff.ts` diganti pembaca SSE berbasis `fetch` (Bearer, parse `event:`/
+  `data:`, reconnect 3 detik, 401 → `onSessionEnd`). Kontrak pemanggil tidak berubah.
+
+### 7.7 Bukti lokal
+
+- `cd bff && uv run pytest -q --basetemp=../../.pytest-tmp -p no:cacheprovider`:
+  **367 lulus, 63 dilewati, 6 deselected** (sebelumnya 357 lulus). 9 tes baru di
+  `tests/test_auth_enforcement.py` + 1 tes identitas MCP di `tests/test_bridge.py`.
+- `cd frontend && npm run build` (termasuk `tsc --noEmit`): lulus.
+- Browser lokal (Vite 5173 + BFF 8090):
+  - admin login → grup Admin langsung terlihat (tanpa mengubah Pengaturan);
+  - logout → login lagi → grup Admin tetap muncul, old token → **401**;
+  - staf (`cs@colorbox.co.id`) → tanpa grup Admin, `#/agen` dialihkan ke Beranda, sakelar Mode admin
+    tidak ada;
+  - Chat, Jadwal & tugas, Pengetahuan (11 item), dan Ingatan Rian memuat data;
+  - `curl` tanpa token ke `/api/bots` → **401** `{"error":"Silakan login terlebih dahulu..."}`;
+  - `/api/product-images/...` tetap **200**.
+- Migrasi 022 terpasang di DB lokal (`token_version` ada, 22 migrasi).
+
+### 7.8 Yang belum ditutup
+
+- Signature WhatsApp POST (Meta `X-Hub-Signature-256` / Evolution `apikey`) belum diverifikasi.
+- Rate limit login belum ada.
+- Deploy Nginx (menghapus `X-Pegawai-AI-Key`) belum dijalankan; lihat `deploy-auth.md`.
+- Isolasi tenant/data demo (temuan #3) tidak berubah.

@@ -12,6 +12,7 @@ import os
 import re
 import secrets
 import shutil
+from contextvars import ContextVar
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -21,7 +22,7 @@ from ruamel.yaml import YAML
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from . import actions, config, db, integrations, kb, mcp_privileges
+from . import actions, auth, config, db, integrations, kb, mcp_privileges
 from .errors import ApiError
 
 log = logging.getLogger("bff.bridge")
@@ -44,8 +45,24 @@ KB_SEARCH_MAX = 5
 KB_SNIPPET = 400
 
 
+_owner_var: ContextVar[str | None] = ContextVar("bridge_owner", default=None)
+
+
+async def resolve_owner(bot_id: str | None = None) -> str:
+    """The real user a tool call belongs to: the owner of the bot Hermes is running as.
+
+    `X-Pegawai-Bot` names the profile, which is the bot id; the bridge resolves its owner per request so a
+    tool never writes into another tenant. Falls back to an explicit service user / the oldest admin only
+    when the profile has no bot row.
+    """
+    return await auth.service_user(bot_id)
+
+
 def _user() -> str:
-    from .main import current_user  # late import: main imports this module
+    owner = _owner_var.get()
+    if owner:
+        return owner
+    from .main import current_user  # late import: main imports this module; direct calls can carry a session
     return current_user()
 
 
@@ -461,12 +478,25 @@ class BridgeApp:
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
             expected = os.environ.get(ENV_KEY, "").strip()
-            got = {k.lower(): v for k, v in scope["headers"]}.get(b"authorization", b"").decode("latin-1")
+            headers = {k.lower(): v for k, v in scope["headers"]}
+            got = headers.get(b"authorization", b"").decode("latin-1")
             ok = bool(expected) and hmac.compare_digest(got.encode(), f"Bearer {expected}".encode())
             if not _loopback(scope) or not ok:
                 status, msg = (403, "Forbidden") if not _loopback(scope) else (401, "Unauthorized")
                 await JSONResponse({"error": msg}, status_code=status)(scope, receive, send)
                 return
+            bot = headers.get(BOT_HEADER.lower().encode(), b"").decode("latin-1").strip().lower()
+            try:
+                owner = await resolve_owner(bot or None)
+            except ApiError as e:
+                await JSONResponse({"error": e.message}, status_code=e.status)(scope, receive, send)
+                return
+            reset = _owner_var.set(owner)
+            try:
+                await self.inner(scope, receive, send)
+            finally:
+                _owner_var.reset(reset)
+            return
         await self.inner(scope, receive, send)
 
     def route(self) -> Route:

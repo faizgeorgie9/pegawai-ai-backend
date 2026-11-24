@@ -620,3 +620,252 @@ Semua berkas ada di `docs-kaf/sprint5/` (1280×800 kecuali yang ditandai 375).
 2. **Dua defect FE baru** harus diperbaiki sebelum demo: kartu Gmail rusak (FE-1) dan pilihan ketelitian mati (FE-2); satu defect perilaku (FE-3, kartu tidak menyegar setelah simpan).
 3. **Blocker BE tetap**: API terbuka tanpa token (B-1), logout no-op (B-2), tidak ada hapus tugas (B-3), latensi ± 6,5 dtk (B-4). Empat hal ini yang membuat demo belum bisa disebut aman dan nyaman, bukan alur UI-nya.
 4. **Item yang ditunda tidak diklaim selesai** — daftarnya ada di §17.
+
+---
+
+## Uji ulang setelah perbaikan
+
+**Ringkasan**
+
+- Dijalankan **25 November 2026, 00.26–00.36 WIB (24 Nov 2026, 17.26–17.36 UTC)** terhadap aplikasi live
+  `https://139.190.107.151.sslip.io/demo/` — **setelah** deploy rilis **`775783d`** (lihat `audit-vps.md` §14).
+- Build yang diuji: `assets/index-aDJo1iqq.js` (`e828d284…`) + `assets/index-8hSpk8Z5.css` (`9023cf85…`) +
+  `index.html` (`47fc3629…`) — ketiganya byte-identik dengan hasil `npm run build` lokal dari commit `775783d`.
+- Metode sama seperti uji Hari 5: Chromium headless, viewport 1280×800 dan 375×812, akun `admin@pegawai.ai`
+  (peran `admin`), **mode admin mati**, sesi login baru lewat form (bukan token lama).
+- Batasan: **tidak ada** run LLM, tidak ada tugas dibuat/dibatalkan, tidak ada OAuth, tidak ada perubahan
+  KB/sambungan/setelan. Satu-satunya tulisan adalah `PATCH /api/bots/siti` untuk menguji lalu memulihkan
+  warna dan tingkat ketelitian Siti (± 6 panggilan tulis, semuanya dikembalikan).
+- Sanitasi: tidak ada token, kata sandi, atau email yang dicetak di dokumen ini.
+
+| # | Retest | Verdict |
+|---|---|---|
+| FE-1 | Kartu Gmail di "Aplikasi lain" (1280 & 375) | **PASS** |
+| FE-2 | Pilihan Tingkat ketelitian aktif, ubah → simpan → pulihkan | **PARTIAL** — pilihan aktif dan "Hemat & cepat" tersimpan 200; "Seimbang" ditolak **400 "Model tidak valid"** (temuan baru BE-11) |
+| FE-3 | Kartu menyegar tanpa muat ulang setelah Simpan | **PASS** |
+| FE-5 | Tombol konfirmasi Batalkan bergaya berbahaya | **PASS** |
+
+---
+
+### 1. FE-1 — kartu Gmail di "Aplikasi lain"
+
+`#/aplikasi`, katalog 39 aplikasi pada bagian "Aplikasi lain".
+
+| Ukuran | Lebar kartu | Kolom judul (`.app-card-head`) | Kolom aksi (`.app-card-act`) | Tumpang tindih | Overflow horizontal |
+|---|---|---|---|---|---|
+| 1280×800 | 319 px | **183 px** | 100 px | **tidak** | 0 |
+| 375×812 | 343 px | **207 px** | 100 px | **tidak** | 0 |
+
+Sebelumnya kolom judul menyusut menjadi **1 px** sehingga "Gmail" terlipat satu huruf per baris. Kini judul
+satu baris, ikon Gmail utuh, deskripsi terpotong rapi 2 baris, dan tautan **Cara kerja tombol draf** pindah
+ke barisnya sendiri di bawah deskripsi (bukan lagi di kolom aksi). Bukti:
+`live-retest-fe1-gmail-1280.png`, `live-retest-fe1-gmail-375.png`.
+
+### 2. FE-2 — pilihan "Tingkat ketelitian" di dialog Atur
+
+Dialog **Atur Siti** sekarang menampilkan 4 baris pilihan (dulu ketiga tier `disabled`):
+
+| Pilihan | Status | Catatan |
+|---|---|---|
+| Ikuti bawaan | aktif | nilai awal Siti (`model:null`, `provider:null`) |
+| Hemat & cepat | **aktif** | satu-satunya model berharga ≤ $1,5 di rute ini: `deepseek-v4.1-flash` |
+| Seimbang | **aktif** | 461 model (harga tak dikenal dianggap $3) |
+| Paling teliti | `disabled` | tier kosong: tidak ada model berharga > $6 di katalog `opencode-zen` — dinonaktifkan by design (bukan FE-2 kambuh) |
+
+**Alur yang diminta (ubah → simpan → pulihkan):**
+
+| Langkah | Permintaan | Status | Hasil |
+|---|---|---|---|
+| Pilih **Hemat & cepat** → Simpan | `PATCH /bff/api/bots/siti` body `{"provider":"opencode-zen","model":"deepseek-v4.1-flash"}` | **200** | Kartu langsung menampilkan "Hemat & cepat" tanpa muat ulang |
+| Pulihkan **Ikuti bawaan** → Simpan | `{"provider":null,"model":null}` | **200** | Kartu kembali "Ikuti bawaan"; server `model:null`, `provider:null` |
+| Pilih **Seimbang** → Simpan | `{"provider":"opencode-zen","model":"~moonshotai/kimi-latest"}` | **400** | Banner merah **"Model tidak valid"**; tidak ada yang tersimpan |
+
+Bukti: `live-retest-fe2-tier-1280.png` (4 pilihan, dua aktif), `live-retest-fe2-tier-saved-1280.png`
+(kartu "Hemat & cepat"), `live-retest-fe2-seimbang-gagal-1280.png` (banner 400).
+
+**Akar masalah "Seimbang" (temuan baru BE-11, rinci di `audit-vps.md` §14.8):** katalog `opencode-zen`
+memuat 462 model, **19 di antaranya alias berawalan `~`** (`~moonshotai/kimi-latest`, …). `tiersFrom()`
+mengambil model median per tier; median tier `seimbang` kebetulan salah satu alias itu, sedangkan validator
+backend (`bff/settings.py`, `^[\w.:/@+-]{1,120}$`) menolak karakter `~`. Jadi UI menawarkan pilihan yang
+pasti gagal. Perbaikan yang disarankan: izinkan `~` di validator backend, **atau** buang id berawalan `~`
+di `tiersFrom()` (diverifikasi: 443 id sisanya lolos validator dan median tier `seimbang` menjadi
+`openai/gpt-5.5`). Ini **bukan** cacat tata letak atau logika gating FE-2 yang sudah diperbaiki.
+
+**Verdict:** PARTIAL — kontrol sudah bisa dipakai (tidak lagi mati total) dan tersimpan untuk salah satu
+tier, tetapi alur "ubah ke tier lain → simpan" belum 100% andal sampai BE-11 diputuskan.
+
+### 3. FE-3 — kartu menyegar tanpa muat ulang
+
+| Langkah | Permintaan | Status | Hasil teramati |
+|---|---|---|---|
+| Pilih **Hijau toska** → Simpan | `PATCH /api/bots/siti` `{"color":"teal"}` | **200** | Tanpa reload: kartu "Bisa Anda ubah" → **Hijau toska**, titik warna toska, avatar `--bot: var(--c-teal)` |
+| Pilih **Biru langit** → Simpan | `{"color":"sky"}` | **200** | Tanpa reload: kartu → **Biru langit**, avatar `--bot: var(--c-sky)` |
+
+Tidak ada muat ulang di antara kedua langkah. Bukti: `live-retest-fe3-warna-tersimpan-1280.png`
+(kartu + avatar toska), `live-retest-nilai-dipulihkan-1280.png` (kembali biru langit, ketelitian "Ikuti bawaan").
+
+### 4. FE-5 — tombol berbahaya pada konfirmasi Batalkan tugas
+
+Kartu di kolom **Antre** → menu ⋯ (**Pilihan lain**) → **Batalkan** membuka dialog "Yakin?":
+
+| Tombol | Kelas | Warna latar | Warna teks |
+|---|---|---|---|
+| Batal | `btn outline` | transparan | rgb(21,23,28) |
+| **Batalkan** | **`btn danger`** | **rgb(196,36,42)** | putih |
+
+Dialog ditutup lewat **Batal** (tidak ada tugas yang dibatalkan). Papan setelah uji tidak berubah:
+Antre **4**, Dikerjakan **0**, Perlu Anda **3**, Selesai **0**, Arsip **2**. Bukti:
+`live-retest-fe5-konfirmasi-batalkan-1280.png`.
+
+### 5. Konsol, jaringan, dan pemulihan
+
+- Konsol: 0 error halaman. Satu-satunya entri `requestfailed` adalah `GET /bff/api/events: net::ERR_ABORTED`
+  saat pindah halaman (penutupan stream SSE, disengaja). Tidak ada respons 5xx selama uji.
+- Permintaan tulis selama uji: 2× `PATCH` 400 (Seimbang, ditolak) + 4× `PATCH` 200
+  (`model` Hemat, `model` kembali null, `color` teal, `color` sky). Tidak ada `POST` tugas, tidak ada `DELETE`.
+
+| Nilai | Sebelum uji | Sesudah uji | Verifikasi |
+|---|---|---|---|
+| Warna Siti | `sky` ("Biru langit") | **`sky`** | `GET /api/bots/siti` → `color:"sky"`; kartu "Biru langit" |
+| Model/provider Siti | `null` / `null` ("Ikuti bawaan") | **`null` / `null`** | `GET /api/bots/siti` → `model:null, provider:null` |
+| Papan tugas | Antre 4 / Dikerjakan 0 / Perlu Anda 3 / Selesai 0 / Arsip 2 | **sama** | `GET /api/tasks/board` |
+| Sambungan | gdrive `connected`, gmail `disconnected` | **sama** | `GET /api/connections` |
+
+### 6. Indeks tangkapan layar (retest)
+
+| Berkas | Isi |
+|---|---|
+| `live-retest-fe1-gmail-1280.png` | Kartu Gmail utuh di "Aplikasi lain" @1280 |
+| `live-retest-fe1-gmail-375.png` | Kartu Gmail utuh @375 (tanpa overflow) |
+| `live-retest-fe2-tier-1280.png` | Dialog Atur: 4 pilihan ketelitian, "Hemat & cepat" + "Seimbang" aktif |
+| `live-retest-fe2-tier-saved-1280.png` | Kartu setelah simpan: "Tingkat ketelitian · Hemat & cepat" tanpa reload |
+| `live-retest-fe2-seimbang-gagal-1280.png` | Bukti BE-11: banner merah "Model tidak valid" saat memilih Seimbang |
+| `live-retest-fe3-warna-tersimpan-1280.png` | Bukti FE-3: warna + avatar toska tampil tanpa muat ulang |
+| `live-retest-fe5-konfirmasi-batalkan-1280.png` | Tombol **Batalkan** merah (`btn danger`) di dialog "Yakin?" |
+| `live-retest-nilai-dipulihkan-1280.png` | Keadaan akhir: "Biru langit" + "Ikuti bawaan" (semua nilai dipulihkan) |
+
+---
+
+## Uji setelah kunci akses
+
+**Ringkasan**
+
+- Dijalankan **25 November 2026, 01.37–01.53 WIB (24 Nov 2026, 18.37–18.53 UTC)** di aplikasi live
+  `https://139.190.107.151.sslip.io/demo/`, **setelah** deploy rilis **`ebf0e72`** (lihat `audit-vps.md` §15):
+  semua route `/api` wajib login, dan Nginx tidak lagi menyuntikkan `X-Pegawai-AI-Key`.
+- Build yang dinilai: `assets/index-B4csrld4.js` (`38c94966…`), `assets/index-8hSpk8Z5.css` (`9023cf85…`),
+  `index.html` (`323ea785…`) — ketiganya **byte-identik** dengan hasil `npm run build` lokal dari commit
+  `ebf0e72`. Bundle lama `index-aDJo1iqq.js` sudah dihapus (404).
+- Metode: Chromium headless (viewport 1706×960, `deviceScaleFactor 1`), sesi baru lewat form login; akun
+  `admin@pegawai.ai` (peran `admin`) dan `cs@colorbox.co.id` (peran `cs`). Kata sandi demo diambil dari
+  `bff/migrations/020_auth_users.sql` dan **tidak ditulis** di dokumen ini.
+- **Sanitasi:** token disamarkan `<jwt>`; tidak ada kata sandi, token, atau kunci yang dicetak. Pesan uji
+  yang dikirim ke agen: "Balas satu kata: oke" (admin) dan satu pertanyaan katalog untuk uji Telegram.
+- **Verdict:** semua alur yang diuji **PASS**; satu penyimpangan rencana dicatat di §3 (rian sudah dihapus).
+
+| # | Uji | Verdict |
+|---|---|---|
+| 1 | Sesi lama ditolak, login baru berhasil | **PASS** |
+| 2 | Grup menu **Admin** langsung terlihat setelah login (tanpa mengubah Pengaturan) | **PASS** |
+| 3 | Chat: riwayat termuat, kirim pesan → balasan, hapus topik | **PASS** (dengan catatan: rian sudah soft-delete sejak 18 Nov) |
+| 4 | Keluar → login lagi → grup Admin tetap muncul | **PASS** |
+| 5 | Akun staf: tanpa grup Admin, `#/agen` dialihkan ke Beranda | **PASS** |
+| 6 | Telegram: balasan agen nyata (produk + harga + ukuran) | **PASS** (lihat §4) |
+| 7 | Konsol & permintaan gagal selama uji | **PASS** (0 error konsol, 0 `requestfailed`) |
+| 8 | Log server selama jendela uji | **PASS** (0 respons 5xx) |
+
+### 1. Login dan tampilan sesi lama
+
+Membuka `/demo/` tanpa sesi menampilkan form **Masuk** dengan banner kuning:
+
+> Sesi Anda berakhir, silakan masuk lagi.
+
+Ini perilaku yang diinginkan: token lama (ditandatangani `BFF_API_KEY`) ditolak `401`, frontend membersihkan
+sesi dan menampilkan penjelasan yang tenang. Login `admin@pegawai.ai` → **200**, langsung masuk Beranda;
+tidak ada 401 berulang di jaringan setelah token baru dipakai.
+Bukti: `live-auth-01-login.png`.
+
+### 2. Grup Admin langsung terlihat
+
+Setelah login (tanpa membuka Pengaturan, tanpa mengubah sakelar apa pun) sidebar memuat grup **Admin**:
+Marketing (formulir), Layanan pelanggan, Agen, Kemampuan, Evaluasi, Aktivitas — di samping tujuh menu biasa.
+Tidak ada kedipan "memuat" yang menahan grup ini. Bukti: `live-auth-02-admin-langsung.png`.
+
+### 3. Chat: riwayat, balasan, hapus topik
+
+| Langkah | Hasil |
+|---|---|
+| Buka **Chat** | 7 pegawai aktif tampil (Siti, Hendra, Bimo, Meda, Raka, Bram, Vina); riwayat Siti termuat ("Belum ada percakapan dengan Siti."), tanpa "Menyambung ulang…" terus-menerus |
+| Kirim "Balas satu kata: oke" ke Siti | pesan tampil; indikator bekerja/berpikir; balasan **"oke"** datang ±13 detik lewat SSE ber-Bearer |
+| Riwayat | topik "Balas satu kata oke" muncul, waktu "baru saja" |
+| Hapus topik | hover → tombol **Hapus topik** → dialog "Hapus topik “Balas satu kata oke”? Hanya topik ini yang dihapus…" → **Hapus topik**; setelah muat ulang riwayat kosong lagi |
+
+Bukti: `live-auth-03-chat-balasan.png`, `live-auth-04-topik-dihapus.png`.
+
+**Catatan rencana uji:** permintaan awal adalah mengirim pesan ke **rian**. `rian` (bersama `budi` dan
+`diana`) sudah **soft-delete sejak 18 November 2026**, jadi tidak muncul di UI maupun `GET /api/bots`
+(7 aktif dari 10 baris). Uji dialihkan ke **Siti**; tidak ada pegawai yang dipulihkan atau diubah untuk uji.
+
+### 4. Telegram — agen nyata, bukan template
+
+Uji tanpa akun Telegram nyata: satu panggilan terautentikasi `POST /api/telegram/simulate` (chat fiktif
+`999888111`, `bot_id` `siti`) dengan pertanyaan
+**"Berapa harga Hoodie terbaru dan ukurannya apa saja?"**. Waktu **37 detik**, `HTTP 200`,
+`status: message_routed`, balasan **1.350 karakter**.
+
+Kutipan balasan (dipotong; isi tidak diubah):
+
+> Halo Kak, terima kasih sudah bertanya ya. Berikut item berjenis hoodie yang terlihat di katalog resmi
+> Colorbox saat data kami diamati pada 9 November 2026:
+> 1. Embroidered Long Sleeve Hoodie (Outerwear & Jackets), warna TAUPE — Rp 149.900 (harga sebelumnya
+>    Rp 229.900), ukuran tertera L, M, S, XL
+> 2. Long Sleeve Hoodie Cardigan (Knitwear & Sweaters), warna LT. BEIGE — Rp 249.900, ukuran tertera L, M, S, XL
+> 3. Long Sleeve Hoodie Cardigan (Knitwear & Sweaters), warna GREY — Rp 249.900, ukuran tertera L, M, S, XL
+> 4. Zipped Up Hoodie Knit Jacket (Knitwear & Sweaters), warna DARK GREEN — Rp 259.900, ukuran tertera L, M, S, XL
+> … Sleeveless Ruched Top with Hoodie, warna PLUM — Rp 65.900 (harga sebelumnya Rp 99.900) dengan ukuran tertera L, M, S, XL …
+> Colorbox x Liunic Oversized Sweatshirt — Rp 249.900 (promo Rp 239.900), ukuran S, M, L, XL …
+> harga di atas adalah harga yang kami catat pada tanggal pengamatan dan bisa berubah.
+
+Balasan memuat produk, harga, dan ukuran nyata dari katalog Colorbox — bukti run Hermes sungguhan lewat
+`engine.chat_turn` (bukan balasan template kata kunci).
+
+Pembersihan: sesi `tg-999888111-edcecc56` dihapus lewat API (`DELETE …/sessions/…` → **204**); baris
+`telegram_chats` (tanpa endpoint API) dihapus dengan satu `DELETE` SQL. Setelah itu `chat_sessions` uji = 0
+dan `telegram_chats` = 0. Pengiriman ke chat fiktif dijawab Telegram **400** (wajar) dan tidak memengaruhi run.
+
+### 5. Admin setelah keluar-masuk, dan akun staf
+
+| Skenario | Hasil |
+|---|---|
+| **Keluar** dari akun admin, login lagi | grup **Admin tetap muncul** tanpa mengubah Pengaturan — preferensi mode admin dibersihkan saat logout |
+| Login `cs@colorbox.co.id` (staf) | sidebar hanya 7 menu biasa; **tidak ada grup Admin**, tidak ada sakelar "Mode admin" |
+| Staf membuka `#/agen` | dialihkan ke `#/` (Beranda), bukan halaman kosong/error |
+
+Bukti: `live-auth-05-staf-tanpa-admin.png`.
+
+### 6. Konsol, jaringan, dan log server
+
+| Aspek | Hasil |
+|---|---|
+| Konsol browser (login → Beranda → Chat) | **0 error**, 0 `pageerror` |
+| Permintaan gagal (`requestfailed`) | **0** |
+| Nginx access log, jendela 01.36–01.55 WIB | 200 ×140, 401 ×24 (uji tanpa token), 403 ×4 (registrasi & verify WA), 405 ×2 (GET webhook Telegram), 400 ×2 (JSON rusak & kirim Telegram ke chat fiktif), 204 ×2, 304 ×2, 202 ×1, 404 ×1 (bundle lama) — **0 respons 5xx** di seluruh `access.log` |
+| Journal BFF sejak restart | bersih dari `traceback`/`exception`/`critical`; hanya baris `400 Bad Request` Telegram untuk chat uji fiktif |
+
+### 7. Indeks tangkapan layar
+
+| Berkas | Isi |
+|---|---|
+| `live-auth-01-login.png` | Form Masuk dengan banner "Sesi Anda berakhir, silakan masuk lagi." |
+| `live-auth-02-admin-langsung.png` | Beranda admin: grup **Admin** sudah terlihat tanpa mengubah Pengaturan |
+| `live-auth-03-chat-balasan.png` | Chat Siti: pesan uji, balasan "oke", riwayat "Balas satu kata oke" |
+| `live-auth-04-topik-dihapus.png` | Setelah topik dihapus dan halaman dimuat ulang: "Belum ada percakapan dengan Siti." |
+| `live-auth-05-staf-tanpa-admin.png` | Akun staf: sidebar tanpa grup Admin, berada di Beranda setelah `#/agen` dialihkan |
+
+### 8. Yang tidak diuji di bagian ini
+
+- Tidak ada akun Telegram nyata, WhatsApp nyata, OAuth, atau KB upload baru.
+- Tidak ada perubahan pegawai, warna, model, tugas, atau sambungan.
+- Satu-satunya tulisan data: satu topik chat uji (dihapus), sesi Telegram uji (dihapus), dan
+  `users.token_version` yang naik karena login/logout verifikasi (disengaja; semua pengguna login sekali).
+

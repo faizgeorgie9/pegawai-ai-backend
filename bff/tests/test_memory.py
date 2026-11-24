@@ -34,6 +34,8 @@ def owned(monkeypatch, allowed="rian"):
         return {"id": bot_id, "user_id": user_id}
 
     monkeypatch.setattr(main.bots, "get_bot", get_bot)
+    # These tests call the handlers directly, without the api router's session dependency.
+    monkeypatch.setattr(main, "current_user", lambda: "default")
 
 
 # ---------- format ----------

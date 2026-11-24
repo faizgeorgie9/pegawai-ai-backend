@@ -134,21 +134,26 @@ async def start(user_id: str, provider: str) -> dict:
 # ---------- callback ----------
 
 
-async def _take_state(user_id: str, family: str, state: str | None) -> dict | None:
-    """Single use: the row is deleted whether or not it is valid. Valid = known, not expired, this user, this OAuth family."""
+async def _take_state(user_id: str | None, family: str, state: str | None) -> dict | None:
+    """Single use: the row is deleted whether or not it is valid. Valid = known, not expired, this OAuth
+    family; when `user_id` is given (tests, in-app calls) it must match the row's user. The public callback
+    passes None and takes the identity from the unguessable state itself."""
     if not state:
         return None
     row = await db.q1("delete from oauth_states where state_hash = %s returning *", _hash(state))
-    if not row or row["expires_at"] < _now() or row["user_id"] != user_id or PROVIDERS.get(row["provider"], ("",))[0] != family:  # .get: a pending state from the removed Notion flow
+    if not row or row["expires_at"] < _now() or PROVIDERS.get(row["provider"], ("",))[0] != family:  # .get: a pending state from the removed Notion flow
+        return None
+    if user_id is not None and row["user_id"] != user_id:
         return None
     return row
 
 
-async def callback(user_id: str, family: str, params: dict) -> str:
+async def callback(user_id: str | None, family: str, params: dict) -> str:
     """Finish a consent and return the app address to send the browser back to (query: connect=ok|error, app, reason)."""
     row = await _take_state(user_id, family, params.get("state"))
     if not row:
         return app_url({"connect": "error", "reason": "state"})
+    user_id = row["user_id"]
     provider = row["provider"]
     fail = lambda reason: app_url({"connect": "error", "app": provider, "reason": reason})  # noqa: E731
     if params.get("error") or not params.get("code"):

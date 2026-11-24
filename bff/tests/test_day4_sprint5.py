@@ -1,10 +1,8 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from bff import config, telegram, memory_blueprint
+from bff import telegram, memory_blueprint
 from bff.main import app
-
-HEADERS = {"X-Pegawai-AI-Key": config.BFF_API_KEY}
 
 @pytest.fixture
 def anyio_backend():
@@ -41,66 +39,55 @@ def test_telegram_message_splitting_under_4096_chars():
     assert f"({len(chunks_long)}/{len(chunks_long)})" in chunks_long[-1]
 
 
-def test_telegram_command_handling():
-    chat_id = 123456789
-    telegram.reset_chat_session(chat_id)
+@pytest.mark.anyio
+async def test_telegram_command_handling(monkeypatch):
+    """Commands read and write the persisted chat state; /agent only accepts the owner's existing bots."""
+    state = telegram.ChatState(123456789, "user_owner",
+                               {"id": "siti", "name": "Siti", "team": "customer_support"}, "tg-123-abc")
 
-    # /start
-    is_cmd, text = telegram.handle_telegram_command("/start", "", chat_id)
+    async def list_bots(_owner):
+        return [{"id": "siti", "name": "Siti"}, {"id": "bram", "name": "Bram"}]
+
+    async def get_bot(_owner, bot_id):
+        return {"id": bot_id, "name": bot_id.title(), "team": "marketing"}
+
+    saves = []
+
+    async def save_chat(*args):
+        saves.append(args)
+
+    monkeypatch.setattr(telegram.bots, "list_bots", list_bots)
+    monkeypatch.setattr(telegram.bots, "get_bot", get_bot)
+    monkeypatch.setattr(telegram, "_save_chat", save_chat)
+
+    is_cmd, text = await telegram.handle_telegram_command("/start", "", state)
     assert is_cmd is True
-    assert "Selamat datang di Pegawai AI" in text
-    assert "Siti" in text
-    assert "Bram" in text
+    assert "Siti" in text and "Bram" in text
 
-    # /help
-    is_cmd, text_help = telegram.handle_telegram_command("/help", "", chat_id)
+    is_cmd, text_help = await telegram.handle_telegram_command("/help", "", state)
     assert is_cmd is True
-    assert "Panduan Penggunaan" in text_help
+    assert "Panduan" in text_help
 
-    # /status
-    is_cmd, text_status = telegram.handle_telegram_command("/status", "", chat_id)
+    is_cmd, text_status = await telegram.handle_telegram_command("/status", "", state)
     assert is_cmd is True
-    assert str(chat_id) in text_status
-    assert "siti" in text_status.lower()
+    assert "Siti" in text_status
 
-    # /agent bram
-    is_cmd, text_agent = telegram.handle_telegram_command("/agent", "bram", chat_id)
+    is_cmd, text_agent = await telegram.handle_telegram_command("/agent", "bram", state)
     assert is_cmd is True
     assert "Bram" in text_agent
-    assert telegram.get_chat_active_bot(chat_id) == "bram"
+    assert state.bot_id == "bram"
+    assert state.session_id is None  # another employee starts a fresh conversation
+    assert saves[-1][1:] == ("user_owner", "bram", None)
 
-    # /reset
-    is_cmd, text_reset = telegram.handle_telegram_command("/reset", "", chat_id)
+    is_cmd, text_invalid = await telegram.handle_telegram_command("/agent", "tidak-ada", state)
     assert is_cmd is True
-    assert "direset" in text_reset
-    assert telegram.get_chat_active_bot(chat_id) == "siti"
+    assert "tidak tersedia" in text_invalid
+    assert state.bot_id == "bram"
 
-
-@pytest.mark.anyio
-async def test_process_telegram_update_routing_and_cs_knowledge():
-    chat_id = 987654321
-    telegram.reset_chat_session(chat_id)
-
-    # Test CS SOP: Penukaran Ukuran (Size Exchange)
-    update = {
-        "update_id": 9901,
-        "message": {
-            "message_id": 101,
-            "chat": {"id": chat_id},
-            "from": {"id": chat_id, "first_name": "Rina"},
-            "text": "Halo kak, kalau baju saya kebesaran bisa tukar ukuran langsung gak?"
-        }
-    }
-    res = await telegram.process_telegram_update(update, telegram.TELEGRAM_WEBHOOK_SECRET)
-    assert res["ok"] is True
-    assert res["status"] == "message_routed"
-    assert res["bot_id"] == "siti"
-    assert "tidak dapat melayani penukaran ukuran" in res["agent_reply"]
-    assert "retur" in res["agent_reply"]
-
-    # Test duplicate update is ignored
-    dup_res = await telegram.process_telegram_update(update, telegram.TELEGRAM_WEBHOOK_SECRET)
-    assert dup_res["status"] == "duplicate_ignored"
+    is_cmd, text_reset = await telegram.handle_telegram_command("/reset", "", state)
+    assert is_cmd is True
+    assert "Percakapan baru" in text_reset
+    assert saves[-1][1:] == ("user_owner", "bram", None)
 
 
 # ==============================================================================
@@ -188,31 +175,42 @@ def test_tenant_memory_isolation_and_threat_scenarios():
 # ==============================================================================
 
 @pytest.mark.anyio
-async def test_api_telegram_and_memory_blueprint_endpoints():
+async def test_api_telegram_and_memory_blueprint_endpoints(signed_in, monkeypatch):
+    async def fake_state(chat_id, _forced_bot_id=None):
+        return telegram.ChatState(chat_id, "user_owner",
+                                  {"id": "siti", "name": "Siti", "team": "customer_support"}, None)
+
+    async def fake_turn(_state, _text):
+        return "Balasan agen untuk pengujian."
+
+    monkeypatch.setattr(telegram, "_resolve_chat", fake_state)
+    monkeypatch.setattr(telegram, "_agent_turn", fake_turn)
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         # 1. GET /api/telegram/status
-        r_tg_stat = await ac.get("/api/telegram/status", headers=HEADERS)
+        r_tg_stat = await ac.get("/api/telegram/status", headers=signed_in)
         assert r_tg_stat.status_code == 200
         tg_stat = r_tg_stat.json()
         assert "supported_commands" in tg_stat
         assert "/start" in tg_stat["supported_commands"]
 
-        # 2. POST /api/telegram/simulate
+        # 2. POST /api/telegram/simulate (agent path stubbed: this checks the endpoint plumbing)
         sim_payload = {
             "text": "Halo, bagaimana syarat retur barang?",
             "sender_name": "Andi",
             "chat_id": 999111222
         }
-        r_sim = await ac.post("/api/telegram/simulate", json=sim_payload, headers=HEADERS)
+        r_sim = await ac.post("/api/telegram/simulate", json=sim_payload, headers=signed_in)
         assert r_sim.status_code == 200
         sim_data = r_sim.json()
         assert sim_data["ok"] is True
         assert sim_data["status"] == "message_routed"
-        assert "retur" in sim_data["agent_reply"].lower()
+        assert sim_data["bot_id"] == "siti"
+        assert sim_data["agent_reply"] == "Balasan agen untuk pengujian."
 
         # 3. GET /api/memory/blueprint
-        r_blue = await ac.get("/api/memory/blueprint", headers=HEADERS)
+        r_blue = await ac.get("/api/memory/blueprint", headers=signed_in)
         assert r_blue.status_code == 200
         blue_data = r_blue.json()
         assert "layers" in blue_data
@@ -220,14 +218,14 @@ async def test_api_telegram_and_memory_blueprint_endpoints():
         assert len(blue_data["candidates_benchmark"]) == 7
 
         # 4. GET /api/memory/layers
-        r_layers = await ac.get("/api/memory/layers", headers=HEADERS)
+        r_layers = await ac.get("/api/memory/layers", headers=signed_in)
         assert r_layers.status_code == 200
         l_data = r_layers.json()
         assert l_data["status_summary"]["layer_1_session"] == "AVAILABLE"
         assert l_data["status_summary"]["layer_5_long_term"] == "PLANNED"
 
         # 5. POST /api/memory/tenant/validate-isolation
-        r_iso = await ac.post("/api/memory/tenant/validate-isolation", json={}, headers=HEADERS)
+        r_iso = await ac.post("/api/memory/tenant/validate-isolation", json={}, headers=signed_in)
         assert r_iso.status_code == 200
         iso_data = r_iso.json()
         assert iso_data["isolation_verified"] is True

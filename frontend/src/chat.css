@@ -311,8 +311,13 @@ textarea ~ .counter { align-self: flex-end; }
 .toast { pointer-events: auto; display: flex; align-items: center; gap: 4px; padding: 6px 6px 6px 14px; background: var(--text); color: var(--ground); border-radius: var(--radius-card); box-shadow: 0 8px 28px rgba(0, 0, 0, .25); animation: rise var(--m-panel) var(--ease); } /* taste-skill-ignore: floats: menu, popover, composer list, toast, dialog */
 .toast .icon-btn { color: inherit; opacity: .7; }
 .toast .icon-btn:hover { background: rgba(255, 255, 255, .15); color: inherit; opacity: 1; }
+/* on chat pages the bottom-right corner holds the composer's Kirim button: float toasts above it */
+body:has(.composer-wrap) .toasts { bottom: 160px; }
 .toast-main { flex: 1; padding: 8px 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
-.toast.ask { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 14px; }
+/* not ".ask": workspace.css .ask (CS form) also matched and painted the toast light while its text stayed light */
+.toast.toast-ask { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 14px; }
+.toast .btn.primary { background: var(--ground); color: var(--text); border-color: transparent; }
+.toast .btn.primary:hover:not(:disabled) { background: var(--surface); }
 .toast-actions { display: flex; gap: 8px; }
 .toast .btn { height: 32px; font-size: 13px; }
 .toast .btn.quiet-btn:hover { background: rgba(255, 255, 255, .15); }

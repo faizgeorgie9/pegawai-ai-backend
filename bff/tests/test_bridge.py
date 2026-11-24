@@ -25,6 +25,14 @@ def app(monkeypatch):
     return bridge.BridgeApp(bridge.build())
 
 
+@pytest.fixture(autouse=True)
+def bridge_owner(monkeypatch):
+    """The bridge resolves each MCP request to a bot owner; unit tests have no bot table."""
+    async def owner(_bot=None):
+        return "default"
+    monkeypatch.setattr(bridge, "resolve_owner", owner)
+
+
 def client_for(app, host="127.0.0.1", **kw):
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app, client=(host, 5000)), **kw)
 
@@ -125,15 +133,34 @@ def test_harden_keeps_pegawai(tmp_path, monkeypatch):
 
 # ---------- Drive tools (Google mocked with respx; the token comes from a stub) ----------
 
-def call_tool(app, name, args):
+def call_tool(app, name, args, extra_headers=None):
     app = bridge.BridgeApp(bridge.build())  # a session manager runs once per app, so each call gets its own
     async def call():
-        http = client_for(app, headers={"Authorization": f"Bearer {KEY}"})
+        http = client_for(app, headers={"Authorization": f"Bearer {KEY}", **(extra_headers or {})})
         async with streamable_http_client(URL, http_client=http) as (r, w, _):
             async with ClientSession(r, w) as s:
                 await s.initialize()
                 return (await s.call_tool(name, args)).content[0].text
     return run_with_manager(app, call)
+
+
+def test_tool_runs_as_the_bot_owner_not_the_default_tenant(monkeypatch, app):
+    """X-Pegawai-Bot names the profile; the bridge must use that bot's owner for Drive/KB/task tools."""
+    seen = []
+
+    async def resolve(bot=None):
+        seen.append(bot)
+        return "user_owner"
+
+    async def search(user_id, text, limit, bot_id=None):
+        return [{"name": "katalog.md", "text": f"pemilik={user_id}"}]
+
+    monkeypatch.setattr(bridge, "resolve_owner", resolve)
+    monkeypatch.setattr(kb, "search", search)
+    app = bridge.BridgeApp(bridge.build())
+    out = call_tool(app, "kb_search", {"query": "kaos"}, {"X-Pegawai-Bot": "mira"})
+    assert seen and set(seen) == {"mira"}
+    assert "pemilik=user_owner" in out
 
 
 @pytest.fixture

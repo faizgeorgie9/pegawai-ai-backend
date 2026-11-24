@@ -1,10 +1,8 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from bff import config, master_template, kb, mcp_privileges
+from bff import master_template, kb, mcp_privileges
 from bff.main import app
-
-HEADERS = {"X-Pegawai-AI-Key": config.BFF_API_KEY}
 
 @pytest.fixture
 def anyio_backend():
@@ -153,18 +151,18 @@ async def test_update_bot_permissions_round_trip():
 # ==============================================================================
 
 @pytest.mark.anyio
-async def test_api_master_templates_endpoints():
+async def test_api_master_templates_endpoints(signed_in):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         # GET /api/templates/master
-        r = await ac.get("/api/templates/master", headers=HEADERS)
+        r = await ac.get("/api/templates/master", headers=signed_in)
         assert r.status_code == 200
         data = r.json()
         assert isinstance(data, list)
         assert len(data) >= 7
         
         # GET /api/templates/master/CRE-01
-        r_det = await ac.get("/api/templates/master/CRE-01", headers=HEADERS)
+        r_det = await ac.get("/api/templates/master/CRE-01", headers=signed_in)
         assert r_det.status_code == 200
         det = r_det.json()
         assert det["id"] == "CRE-01"
@@ -179,20 +177,20 @@ async def test_api_master_templates_endpoints():
                 "target_audience": "Pasien acne & anti-aging"
             }
         }
-        r_render = await ac.post("/api/templates/render", json=render_payload, headers=HEADERS)
+        r_render = await ac.post("/api/templates/render", json=render_payload, headers=signed_in)
         assert r_render.status_code == 200
         rend = r_render.json()
         assert "GlowLab Aesthetic" in rend["rendered_files"]["SOUL.md"]
         
         # GET /api/hermes/config-mapping
-        r_map = await ac.get("/api/hermes/config-mapping", headers=HEADERS)
+        r_map = await ac.get("/api/hermes/config-mapping", headers=signed_in)
         assert r_map.status_code == 200
         m = r_map.json()
         assert "spec" in m
         assert "user.md" in m["spec"]["documented_architecture_gaps"]
         
         # GET /api/bots/siti/permissions
-        r_perm = await ac.get("/api/bots/siti/permissions", headers=HEADERS)
+        r_perm = await ac.get("/api/bots/siti/permissions", headers=signed_in)
         assert r_perm.status_code == 200
         p = r_perm.json()
         assert p["bot_id"] == "siti"

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ApiError, api, errText, isKeyError } from './bff'
+import { ApiError, api, errText } from './bff'
 import type { AuthUser } from './bff'
 
 interface LoginModalProps {
@@ -62,7 +62,7 @@ export function LoginModal({ onSuccess, notice }: LoginModalProps) {
           : await api.auth.register(name.trim(), mail, password, company.trim() || undefined)
       onSuccess(res.user, res.token)
     } catch (err) {
-      setError(err instanceof ApiError && err.status === 401 && !isKeyError(err) ? 'Email atau kata sandi salah.' : errText(err))
+      setError(err instanceof ApiError && err.status === 401 ? 'Email atau kata sandi salah.' : errText(err))
     } finally {
       setLoading(false)
     }

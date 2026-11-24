@@ -8,7 +8,15 @@ ROOT = Path(__file__).resolve().parent.parent  # bff/
 load_dotenv(ROOT / ".env")
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
+# Dev proxy key, no longer used by any /api route. Kept for the Vite proxy during the transition.
 BFF_API_KEY = os.environ.get("BFF_API_KEY", "")
+# Signs the login token. Must be its own random value (32+ chars), never reused from BFF_API_KEY.
+JWT_SECRET = os.environ.get("JWT_SECRET", "").strip()
+# Registration is closed unless an operator explicitly opens it.
+ALLOW_REGISTER = os.environ.get("ALLOW_REGISTER", "").strip().lower() in {"1", "true", "yes", "on"}
+# Identity for service calls that have no user token (WhatsApp/Telegram webhooks): an explicit user id
+# when the deployment has one; otherwise the owner of the bot from the database, then the oldest admin.
+SERVICE_USER_ID = os.environ.get("SERVICE_USER_ID", "").strip()
 HERMES_API_URL = os.environ.get("HERMES_API_URL", "http://127.0.0.1:8642").rstrip("/")
 HERMES_HOME = Path(os.environ.get("HERMES_HOME") or (Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "hermes"))
 HERMES_BIN = os.environ.get("HERMES_BIN") or shutil.which("hermes") or "hermes"
