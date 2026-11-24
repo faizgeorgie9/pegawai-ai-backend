@@ -1545,7 +1545,9 @@ def stream_opencode_chat(
     Returns (content, reasoning, usage_dict, was_cancelled).
     """
     api_key = _get_opencode_key()
-    base_url = os.environ.get("OPENCODE_ZEN_BASE_URL", "https://opencode.ai/zen/v1").rstrip("/")
+    base_url = os.environ.get("OPENCODE_ZEN_BASE_URL", "https://opencode.ai/zen/go/v1").rstrip("/")
+    if base_url.endswith("/zen/v1"):
+        base_url = "https://opencode.ai/zen/go/v1"
     url = f"{base_url}/chat/completions"
 
     payload: Dict[str, Any] = {
@@ -1558,14 +1560,16 @@ def stream_opencode_chat(
     if reasoning_effort:
         payload["reasoning_effort"] = reasoning_effort
 
-    def _open(pl: Dict[str, Any]):
+    def _open(pl: Dict[str, Any], target_url: str = url):
+        session_hdr = f"hermes-{hashlib.md5(api_key.encode()).hexdigest()[:10]}"
         req = urllib.request.Request(
-            url,
+            target_url,
             data=json.dumps(pl, ensure_ascii=False).encode("utf-8"),
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {api_key}",
                 "User-Agent": "PegawaiAI/2.0 (Windows NT 10.0; Win64; x64)",
+                "x-opencode-session": session_hdr,
             },
         )
         return urllib.request.urlopen(req, timeout=timeout)
@@ -1582,6 +1586,14 @@ def stream_opencode_chat(
         if e.code == 400 and "reasoning_effort" in payload:
             payload.pop("reasoning_effort", None)
             resp_ctx = _open(payload)
+        elif (e.code == 402 or e.code == 400) and "/zen/go/v1" in url:
+            # Fallback to standard zen endpoint if Go returns error
+            fallback_url = url.replace("/zen/go/v1", "/zen/v1")
+            resp_ctx = _open(payload, target_url=fallback_url)
+        elif (e.code == 402 or e.code == 400) and "/zen/v1" in url:
+            # Fallback to Go endpoint if standard returns 402
+            fallback_url = url.replace("/zen/v1", "/zen/go/v1")
+            resp_ctx = _open(payload, target_url=fallback_url)
         else:
             err_body = ""
             try:

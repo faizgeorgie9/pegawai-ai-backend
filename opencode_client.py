@@ -40,13 +40,16 @@ def call_opencode_chat(
     Uses 8192 max_tokens so reasoning (CoT) and complete final answer never get truncated.
     """
     api_key = get_opencode_key()
-    base_url = os.environ.get("OPENCODE_ZEN_BASE_URL", "https://opencode.ai/zen/v1").rstrip("/")
+    base_url = os.environ.get("OPENCODE_ZEN_BASE_URL", "https://opencode.ai/zen/go/v1").rstrip("/")
+    if base_url.endswith("/zen/v1"):
+        base_url = "https://opencode.ai/zen/go/v1"
     url = f"{base_url}/chat/completions"
     
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}",
-        "User-Agent": "PegawaiAI/2.0 (Windows NT 10.0; Win64; x64)"
+        "User-Agent": "PegawaiAI/2.0 (Windows NT 10.0; Win64; x64)",
+        "x-opencode-session": "hermes-default-session"
     }
     
     sys_content = system_prompt or (
