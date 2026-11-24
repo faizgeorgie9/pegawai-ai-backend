@@ -1,126 +1,209 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Colorbox Carousel Live Preview — NEW ARRIVALS</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-    body { background: #0f172a; color: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
-    header { text-align: center; margin-bottom: 30px; max-width: 600px; }
-    .badge { display: inline-block; padding: 6px 14px; border-radius: 999px; background: #eb4e62; color: white; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 12px; }
-    h1 { font-size: 26px; margin-bottom: 8px; }
-    p.desc { color: #94a3b8; font-size: 15px; line-height: 1.5; }
-    .feed-container { width: 100%; max-width: 500px; background: #1e293b; border-radius: 20px; padding: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 1px solid #334155; }
-    .account-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding: 0 4px; }
-    .profile { display: flex; align-items: center; gap: 10px; }
-    .avatar { width: 36px; height: 36px; border-radius: 50%; background: #eb4e62; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; color: white; }
-    .acc-name { font-size: 14px; font-weight: 600; color: white; }
-    .acc-sub { font-size: 11px; color: #94a3b8; }
-    .carousel-stage { position: relative; width: 100%; aspect-ratio: 4 / 5; border-radius: 12px; overflow: hidden; background: #000; }
-    .slides-wrapper { display: flex; width: 500%; height: 100%; transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); }
-    .slide-item { width: 20%; height: 100%; position: relative; }
-    .slide-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 50%; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.2); color: white; font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; transition: all 0.2s; }
-    .nav-btn:hover { background: #eb4e62; border-color: #eb4e62; }
-    .prev-btn { left: 12px; }
-    .next-btn { right: 12px; }
-    .dots-nav { display: flex; justify-content: center; gap: 6px; margin-top: 14px; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: #475569; transition: all 0.2s; cursor: pointer; }
-    .dot.active { background: #eb4e62; width: 22px; border-radius: 4px; }
-    .action-bar { display: flex; justify-content: space-between; align-items: center; padding: 12px 4px 6px 4px; color: #f8fafc; font-size: 20px; }
-    .action-left { display: flex; gap: 16px; }
-    .action-icon { cursor: pointer; transition: transform 0.15s; }
-    .action-icon:hover { transform: scale(1.15); color: #eb4e62; }
-    .caption-box { padding: 6px 4px; font-size: 13px; line-height: 1.5; color: #cbd5e1; }
-    .caption-box b { color: white; margin-right: 6px; }
-    .tags { color: #38bdf8; font-size: 12px; margin-top: 6px; }
-    footer { margin-top: 35px; text-align: center; color: #64748b; font-size: 13px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Colorbox Editorial Fashion Lookbook — Sunset Club Graphic Tee</title>
+<style>
+  :root {
+    --cbx-pink: #d81b60;
+    --cbx-pink-light: #fff0f5;
+    --cbx-pink-border: #f8bbd0;
+    --cbx-dark: #2d2d34;
+    --cbx-yellow: #fed330;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #fdf6f8; color: #2d2d34; margin: 0; padding: 35px 25px;
+  }
+  .container { max-width: 1280px; margin: 0 auto; }
+  
+  .header-box {
+    background: #ffffff; border-radius: 24px; padding: 34px 40px;
+    box-shadow: 0 6px 25px rgba(216, 27, 96, 0.08); margin-bottom: 35px;
+    border: 1.5px solid #ffd6e2;
+  }
+  h1 {
+    color: var(--cbx-pink); margin: 0 0 10px; font-size: 28px; font-weight: 900;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .subtitle { color: #5f5d6b; font-size: 15px; margin: 0 0 18px; line-height: 1.65; }
+  
+  .pill-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .pill {
+    background: var(--cbx-pink-light); color: var(--cbx-pink);
+    padding: 7px 16px; border-radius: 20px; font-size: 13px; font-weight: 700;
+    border: 1px solid var(--cbx-pink-border);
+  }
+  .pill-accent { background: #fff9db; color: #b7791f; border-color: #fce588; }
+  
+  /* Section Title */
+  .section-title {
+    font-size: 20px; font-weight: 800; color: #2d2d34; margin: 30px 0 18px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  
+  /* Carousel Grid */
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 22px; margin-bottom: 40px;
+  }
+  .card {
+    background: #ffffff; border-radius: 20px; overflow: hidden;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.06); border: 1.5px solid #ffe4ed;
+    transition: all 0.28s ease; display: flex; flex-direction: column;
+  }
+  .card:hover {
+    transform: translateY(-8px); box-shadow: 0 14px 30px rgba(216, 27, 96, 0.18);
+    border-color: var(--cbx-pink);
+  }
+  .card img {
+    width: 100%; height: auto; aspect-ratio: 4/5; object-fit: cover; display: block;
+    background: #f8f6f4;
+  }
+  .card-body { padding: 18px 20px; flex: 1; display: flex; flex-direction: column; }
+  .card-num {
+    font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
+    color: var(--cbx-pink); text-transform: uppercase; margin-bottom: 4px;
+  }
+  .card-title { font-size: 15px; font-weight: 800; color: #2d2d34; margin-bottom: 8px; }
+  .card-desc { font-size: 13px; color: #6e6e78; line-height: 1.5; margin-bottom: 12px; }
+  .tag-badge {
+    margin-top: auto; display: inline-block; background: #fff0f5; color: #d81b60;
+    padding: 4px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 700;
+  }
+
+  /* Video UGC Section */
+  .video-container {
+    background: #ffffff; border-radius: 24px; padding: 34px 40px;
+    box-shadow: 0 6px 25px rgba(216, 27, 96, 0.08); border: 1.5px solid #ffd6e2;
+    display: flex; gap: 40px; flex-wrap: wrap; align-items: flex-start;
+  }
+  .video-frame {
+    width: 320px; max-width: 100%; flex-shrink: 0;
+  }
+  video {
+    width: 100%; border-radius: 20px; border: 3px solid var(--cbx-pink);
+    box-shadow: 0 10px 30px rgba(216, 27, 96, 0.22); display: block;
+  }
+  .video-info { flex: 1; min-width: 300px; }
+  .video-info h2 { color: var(--cbx-pink); margin-top: 0; font-size: 22px; font-weight: 800; }
+  .video-notes { font-size: 14px; color: #555361; line-height: 1.65; margin-bottom: 18px; }
+  .code-caption {
+    background: #fff8fa; border: 1.5px dashed #f48fb1; border-radius: 14px;
+    padding: 18px 22px; font-size: 13.5px; color: #3b3a42; line-height: 1.6;
+    white-space: pre-wrap; font-family: inherit;
+  }
+</style>
 </head>
 <body>
-  <header>
-    <div class="badge">LOOKBOOK FEED 4:5 — COLORBOX AI</div>
-    <h1>Colorbox Carousel Live Preview</h1>
-    <p class="desc">NEW ARRIVALS • Spotlight Drop:
-Off Shoulder Mini Balloon Dress!<br><span style="color: #cbd5e1; font-size: 13px;">Gaya: Playful, Y2K-inspired, scrapbook street style (@colorbox standard)</span></p>
-  </header>
-
-  <div class="feed-container">
-    <div class="account-bar">
-      <div class="profile">
-        <div class="avatar">CB</div>
-        <div>
-          <div class="acc-name">colorboxindonesia</div>
-          <div class="acc-sub">Sponsored • Never Just One Thing</div>
-        </div>
-      </div>
-      <div style="font-size: 20px; cursor: pointer;">•••</div>
-    </div>
-
-    <div class="carousel-stage">
-      <button class="nav-btn prev-btn" id="prevBtn" onclick="moveSlide(-1)">&#10094;</button>
-      <div class="slides-wrapper" id="slidesWrapper">
-        <div class="slide-item"><img src="slide_1_cover_hero.png" alt="Slide 1"></div>
-        <div class="slide-item"><img src="slide_2_hero_top.png" alt="Slide 2"></div>
-        <div class="slide-item"><img src="slide_3_bottom_pairing.png" alt="Slide 3"></div>
-        <div class="slide-item"><img src="slide_4_accessories_flatlay.png" alt="Slide 4"></div>
-        <div class="slide-item"><img src="slide_5_outro_cta.png" alt="Slide 5"></div>
-      </div>
-      <button class="nav-btn next-btn" id="nextBtn" onclick="moveSlide(1)">&#10095;</button>
-    </div>
-
-    <div class="dots-nav">
-      <div class="dot active" onclick="goToSlide(0)"></div>
-      <div class="dot" onclick="goToSlide(1)"></div>
-      <div class="dot" onclick="goToSlide(2)"></div>
-      <div class="dot" onclick="goToSlide(3)"></div>
-      <div class="dot" onclick="goToSlide(4)"></div>
-    </div>
-
-    <div class="action-bar">
-      <div class="action-left">
-        <span class="action-icon">&#9825;</span>
-        <span class="action-icon">&#128172;</span>
-        <span class="action-icon">&#10148;</span>
-      </div>
-      <span class="action-icon">&#128278;</span>
-    </div>
-
-    <div class="caption-box">
-      <p><b>colorboxindonesia</b> NEW ARRIVALS: Spotlight Drop:
-Off Shoulder Mini Balloon Dress!✨ Gak perlu pusing lagi pilih outfit besok pagi, padu padan resmi Colorbox ini siap bikin kamu tampil standout tapi tetap super comfy seharian! 💖</p>
-      <div class="tags">#ColorboxIndonesia #NeverJustOneThing #CampusOOTD #GenZStyle #ColorboxBabes</div>
+<div class="container">
+  
+  <div class="header-box">
+    <h1>✨ Colorbox Editorial Fashion Lookbook & Animated Wardrobe Reel</h1>
+    <p class="subtitle">
+      Hasil perombakan total prompt bot dan pipeline rendering visual: <b>100% Mengacu pada referensi estetika modern Instagram</b> (tanpa crop kotak jadul, tanpa grid kaku, menjaga rasio aspek asli produk 100% proporsional, dan menghadirkan estetika Cozy Fur Flatlay, Pinterest Moodboard Grid, On-Model Detail Zoom Callouts, Ambient Boutique, serta Interactive Colorbox Wardrobe).
+    </p>
+    <div class="pill-row">
+      <span class="pill">🌸 Produk Asli: Oversized Graphic Tee Lt. Pink (Rp 99.900)</span>
+      <span class="pill">📸 Anti-Jadul: Editorial Lookbook, Bukan Grid Brosur Kaku</span>
+      <span class="pill">📐 Strict Aspect Ratio: 100% Proporsional Bebas Distorsi</span>
+      <span class="pill-accent">⭐ 5 Gaya Estetika Modern Terverifikasi</span>
+      <span class="pill">💃 Model Perempuan Asli Colorbox</span>
+      <span class="pill">🎬 Animated Wardrobe UGC Video 9:16</span>
     </div>
   </div>
 
-  <footer>
-    Dirender otomatis oleh 5 AI Agents (Bimo, Meda, Raka, Bram, Vina) via Pegawai AI Engine (model: openai/gpt-image-2 via OpenCode Zen).
-  </footer>
+  <div class="section-title">📸 5-Slide Carousel Instagram Feed (Rasio 4:5 Portrait — 1080x1350 px)</div>
+  <div class="grid">
+    <!-- Slide 1 -->
+    <div class="card">
+      <a href="slide_1_cover_hero.png" target="_blank"><img src="slide_1_cover_hero.png" alt="Slide 1"></a>
+      <div class="card-body">
+        <div class="card-num">Slide 1 • Hero Cover</div>
+        <div class="card-title">Aesthetic Cozy Fur Flatlay</div>
+        <div class="card-desc">Produk kaos Colorbox pink dilipat rapi di atas karpet bulu cream dengan pencahayaan golden-hour hangat, bayangan daun palem alami, kacamata wireframe retro, dan vas bunga kering.</div>
+        <div class="tag-badge">SESUAI FOTO 2 • ASBHOEL STYLE</div>
+      </div>
+    </div>
 
-  <script>
-    let currentSlide = 0;
-    const totalSlides = 5;
-    const wrapper = document.getElementById("slidesWrapper");
-    const dots = document.querySelectorAll(".dot");
+    <!-- Slide 2 -->
+    <div class="card">
+      <a href="slide_2_hero_top.png" target="_blank"><img src="slide_2_hero_top.png" alt="Slide 2"></a>
+      <div class="card-body">
+        <div class="card-num">Slide 2 • Styling Moodboard</div>
+        <div class="card-title">Split Editorial + Pinterest Grid</div>
+        <div class="card-desc">Atas: Foto model lifestyle sinematik ("Jakarta* Styled"). Bawah: Clean Pinterest moodboard flatlay (T-shirt pink, iced coffee, kacamata oval 90s, AirPods Max, rok denim, slouchy bag, ballet flats).</div>
+        <div class="tag-badge">SESUAI FOTO 5 • PINTEREST AESTHETIC</div>
+      </div>
+    </div>
 
-    function updateCarousel() {
-      wrapper.style.transform = `translateX(-${currentSlide * 20}%)`;
-      dots.forEach((d, idx) => {
-        if (idx === currentSlide) d.classList.add("active");
-        else d.classList.remove("active");
-      });
-    }
+    <!-- Slide 3 -->
+    <div class="card">
+      <a href="slide_3_bottom_pairing.png" target="_blank"><img src="slide_3_bottom_pairing.png" alt="Slide 3"></a>
+      <div class="card-body">
+        <div class="card-num">Slide 3 • Product Details</div>
+        <div class="card-title">On-Model Detail Zoom Callouts</div>
+        <div class="card-desc">Foto model outdoor di bawah sinar matahari alami dengan 4 kotak zoom kuning presisi terhubung garis tipis (close-up senyum & anting, sablon Miami beach, ribbed collar & sleeve, denim waistband).</div>
+        <div class="tag-badge">SESUAI FOTO 3 • COLORBOX OFFICIAL POST</div>
+      </div>
+    </div>
 
-    function moveSlide(dir) {
-      currentSlide = (currentSlide + dir + totalSlides) % totalSlides;
-      updateCarousel();
-    }
+    <!-- Slide 4 -->
+    <div class="card">
+      <a href="slide_4_accessories_layering.png" target="_blank"><img src="slide_4_accessories_layering.png" alt="Slide 4"></a>
+      <div class="card-body">
+        <div class="card-num">Slide 4 • Location Shoot</div>
+        <div class="card-title">Editorial Ambient Boutique</div>
+        <div class="card-desc">Model Colorbox di dalam boutique studio keramik antik bernuansa artistik dengan pencahayaan chiaroscuro dramatis, tipografi editorial elegan, dan tonal warna hangat berkelas.</div>
+        <div class="tag-badge">SESUAI FOTO 4 • CERAMIC STUDIO AMBIENT</div>
+      </div>
+    </div>
 
-    function goToSlide(idx) {
-      currentSlide = idx;
-      updateCarousel();
-    }
-  </script>
+    <!-- Slide 5 -->
+    <div class="card">
+      <a href="slide_5_outro_cta.png" target="_blank"><img src="slide_5_outro_cta.png" alt="Slide 5"></a>
+      <div class="card-body">
+        <div class="card-num">Slide 5 • Interactive Outro</div>
+        <div class="card-title">Colorbox Paper-Doll Wardrobe</div>
+        <div class="card-desc">Lemari vintage pink khas Colorbox dengan stiker pakaian bergaris tepi putih (white sticker edge) dan bayangan halus, dihiasi bintang pastel dan polling voting interaktif komunitas.</div>
+        <div class="tag-badge">SESUAI FOTO 1 & VIDEO WARDROBE</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Video Section -->
+  <div class="video-container">
+    <div class="video-frame">
+      <video controls autoplay loop muted playsinline>
+        <source src="ugc_video.mp4" type="video/mp4">
+        <source src="ugc_video.webm" type="video/webm">
+        Browser Anda tidak mendukung pemutaran video.
+      </video>
+    </div>
+    <div class="video-info">
+      <h2>🎬 Video UGC Reels / TikTok Vertikal 9:16 (CRE-04)</h2>
+      <p class="video-notes">
+        <b>Konsep Animasi Lemari Interaktif (Sesuai Video Instagram Resmi Colorbox):</b><br>
+        1. <b>Detik 00–03:</b> Pintu lemari vintage pink Colorbox berayun terbuka dalam perspektif 3D, memunculkan stiker pakaian (Pink Graphic Tee & Double Breasted Crop Jacket) yang meluncur dinamis dengan efek bouncy dan kelap-kelip bintang pastel.<br>
+        2. <b>Detik 03–06:</b> Potongan pakaian bertransisi halus menjadi model perempuan asli Colorbox yang sedang fit-check memperagakan outfit secara stylish dengan senyuman ceria.<br>
+        3. <b>Fitur Overlay:</b> Dilengkapi dynamic heart counter (+24.8K ❤️), audio ticker ("Colorbox • Sunset Club Original Audio"), dan caption chic minimalis.
+      </p>
+      
+      <div class="code-caption">
+<b>Caption Rekomendasi Instagram:</b>
+Your next outfit is waiting in the wardrobe. 👀
+Tinggal pilih pieces favoritmu, and make it your own! ✨
+
+Oversized Miami Sunset Club Tee + Layered Duo.
+Which piece caught your eye first? 💖
+
+#colorbox #colorboxbabes #ootd #graphictee #lookbook #mixandmatch
+      </div>
+    </div>
+  </div>
+
+</div>
 </body>
 </html>

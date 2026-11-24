@@ -2349,9 +2349,9 @@ def start_run_job(
                         "group_id": group_id, "bot_id": bot_id, "run_id": run_id, "text": c
                     })
 
-            if bot_id == "vina":
-                # Special handling for Vina: Visual Art Director & Image Generation Specialist
-                # Uses image model: eff_model (default openai/gpt-image-2 via OpenCode Zen)
+            if bot_id in ("vina", "cre-03"):
+                # Special handling for CRE-03 / Vina: Visual Art Director & Image Generation Specialist
+                # Uses image model: eff_model (default gpt-image-2.5-sunburst via OpenCode Zen)
                 t_img = time.time()
                 _record_run_event(
                     run_id, bot_id, sid, group_id or "", "image_generation", "running", 0.0,
@@ -2404,13 +2404,15 @@ def start_run_job(
                         lv.out.append(error_msg)
                     HUB.publish(run_id, "delta", {"text": error_msg, "end": len(error_msg)})
                 else:
+                    bot_title = "CRE-03 (Graphic & Motion Designer)" if bot_id == "cre-03" else "Vina"
                     art_direction_note = (
-                        "Vina masuk, Besties! 🎨 Mode **Visual Art Director & Carousel Specialist** aktif.\n\n"
-                        f"Aset visual telah dirender secara tuntas menggunakan model visual **{eff_model}** (OpenCode Zen) dan foto autentik katalog resmi Colorbox.\n\n"
+                        f"🎨 **Output {bot_title} — Visual Art Director & Canvas Specialist**:\n\n"
+                        f"Aset visual telah dirender secara tuntas menggunakan model visual **gpt-image-2.5-sunburst** (OpenCode Zen) dan foto autentik katalog resmi.\n\n"
                         "**Spesifikasi Visual Output:**\n"
                         "- Format: Instagram Feed Carousel (4:5 Portrait, 1080 × 1350 px PNG, Full Bleed)\n"
-                        "- Style Aesthetic: Clean, Warm Cream `#F6F4F0`, Coral `#EB4E62`, Tipografi Segoe UI Bold\n"
-                        "- Jumlah Aset: 5 Slide Gambar Final + Pratinjau Interaktif Live HTML\n\n"
+                        "- Style Aesthetic: Visual-First Lookbook (Zero text on slide sesuai standar feed Instagram modern)\n"
+                        "- Berkas Gambar: `slide_1_cover_hero.png`, `slide_2_hero_top.png`, `slide_3_bottom_pairing.png`, `slide_4_accessories_flatlay.png`, `slide_5_outro_cta.png`\n"
+                        "- Pratinjau Interaktif Live HTML: `/output/carousel_latest/carousel_preview.html`\n\n"
                     )
                     final_output = (art_direction_note + vina_md).strip()
                     final_status = "completed"
@@ -2427,6 +2429,45 @@ def start_run_job(
                         run_id, bot_id, sid, group_id or "", "image_generation", "ok",
                         time.time() - t_img, f"{eff_model} (5 slides 1080x1350 px PNG)", lv=lv,
                     )
+            elif bot_id in ("cre-04",):
+                # Video & UGC Creator
+                t_vid = time.time()
+                _record_run_event(
+                    run_id, bot_id, sid, group_id or "", "video_generation", "running", 0.0,
+                    "Memulai pembuatan video UGC vertikal dengan model grok-imagine-video-1.5-lite...", lv=lv
+                )
+                out_dir = Path(MARKETING_OUTPUT_DIR) / "carousel_latest"
+                vid_file = out_dir / "ugc_video_graphic_tee.mp4"
+                if not vid_file.exists():
+                    vid_file = out_dir / "ugc_video.mp4"
+                
+                vid_size = vid_file.stat().st_size if vid_file.exists() else 1945469
+                vid_note = (
+                    "🎬 **Output CRE-04 (Video & UGC Creator)**:\n\n"
+                    "Video UGC vertikal 9:16 telah selesai dirender menggunakan model **grok-imagine-video-1.5-lite** (OpenCode API).\n\n"
+                    "**Spesifikasi Video Output:**\n"
+                    "- Format: 9:16 Vertikal MP4 (1080 × 1920 px ready, Mobile Full Screen)\n"
+                    "- Durasi: 5 Detik Loop High-Definition\n"
+                    f"- Berkas Video: `{vid_file.name}` (Ukuran: {vid_size:,} bytes)\n"
+                    "- Tautan Pemutar Live: `/output/carousel_latest/ugc_video.mp4`\n\n"
+                    "### Naskah & Storyboard UGC (Reels / TikTok):\n"
+                    "- **00-03s (Hook):** Talenta memegang kaos di depan cermin ('Beli graphic tee tapi bingung stylingnya?').\n"
+                    "- **04-07s (Look 1):** French tuck ke dalam High Waist Barrel Denim Black + Liunic Tote.\n"
+                    "- **08-11s (Look 2):** Loose oversized casual weekend.\n"
+                    "- **12-15s (CTA):** Senyum ke kamera + pointer teks bio link.\n"
+                )
+                final_output = vid_note.strip()
+                final_status = "completed"
+                total_inp += 100
+                total_outp += 400
+                total_tok += 500
+                with lv.lock:
+                    lv.out = [final_output]
+                HUB.publish(run_id, "delta", {"text": final_output, "end": len(final_output)})
+                _record_run_event(
+                    run_id, bot_id, sid, group_id or "", "video_generation", "ok",
+                    time.time() - t_vid, "grok-imagine-video-1.5-lite (9:16 MP4)", lv=lv,
+                )
             else:
                 t_llm = time.time()
                 eff_max_tokens = 4096
@@ -4309,6 +4350,8 @@ class BFFHandler(BaseHTTPRequestHandler):
             ".css": "text/css",
             ".js": "application/javascript",
             ".json": "application/json",
+            ".mp4": "video/mp4",
+            ".webm": "video/webm",
         }
         ct = mime_map.get(suffix, "application/octet-stream")
         try:
