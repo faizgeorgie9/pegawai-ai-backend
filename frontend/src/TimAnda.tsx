@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useIsAdmin } from './adminMode'
 import { useData } from './data'
 import { agenPath, botPath } from './router'
 import { BotAvatar, botColor, roleLabel } from './ui'
@@ -7,6 +8,7 @@ import { Empty, statusText } from './ui-extra'
 // Beranda's employee list: who works for this business, what they are doing, and the two things a user does with them.
 export function TimAnda() {
   const { bots, loadState, setDialog } = useData()
+  const canCreate = useIsAdmin()
   const [showAll, setShowAll] = useState(false)
 
   if (loadState === 'error' && bots.length === 0) return null
@@ -28,10 +30,16 @@ export function TimAnda() {
       </header>
       {bots.length === 0 ? (
         <Empty title="Belum ada pegawai AI">
-          <p className="team-empty">Buat pegawai pertama Anda untuk mulai mendelegasikan pekerjaan.</p>
-          <a className="btn primary" href="#/agen/baru">
-            Pegawai baru
-          </a>
+          {canCreate ? (
+            <>
+              <p className="team-empty">Buat pegawai pertama Anda untuk mulai mendelegasikan pekerjaan.</p>
+              <a className="btn primary" href="#/agen/baru">
+                Pegawai baru
+              </a>
+            </>
+          ) : (
+            <p className="team-empty">Minta pemilik akun membuatkan pegawai AI untuk Anda.</p>
+          )}
         </Empty>
       ) : (
         <>

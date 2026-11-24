@@ -23,6 +23,19 @@ export const elapsed = (epoch: number, now: number) => {
   return s < 60 ? `${s} dtk` : `${Math.floor(s / 60)} mnt ${s % 60} dtk`
 }
 
+// Layout switches that differ by viewport (not just how a control looks): the initial value is read synchronously, then kept in step.
+export function useMedia(q: string) {
+  const [on, setOn] = useState(() => window.matchMedia(q).matches)
+  useEffect(() => {
+    const m = window.matchMedia(q)
+    const f = () => setOn(m.matches)
+    m.addEventListener('change', f)
+    setOn(m.matches)
+    return () => m.removeEventListener('change', f)
+  }, [q])
+  return on
+}
+
 // A bot's colour arrives as a name (the BFF's palette) or a hex string. Names map to the --c-* tokens (styles.css), which differ per theme.
 export const COLORS: Record<string, string> = Object.fromEntries(['amber', 'teal', 'indigo', 'sky', 'rose', 'green', 'red', 'slate'].map((c) => [c, `var(--c-${c})`]))
 export const botColor = (b?: Pick<Bot, 'color'>) => (b ? (COLORS[b.color.toLowerCase()] ?? (/^#[0-9a-f]{3,8}$/i.test(b.color) ? b.color : 'var(--c-slate)')) : 'var(--c-slate)')
@@ -102,11 +115,30 @@ export const DOTS = 'M12 6h.01M12 12h.01M12 18h.01'
 export const CHEVRON = 'M9 6l6 6-6 6'
 
 // Native <dialog>: focus trap, Esc and inert background come from the browser. Full screen under 640 px (CSS).
+// Initial focus: the marked control if there is one, else the first control after the header (never the close button).
 export function Dialog({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     const d = ref.current
-    if (d && !d.open) d.showModal()
+    if (!d) return
+    if (!d.open) d.showModal()
+    const inHead = (el: Element | null) => !!el?.closest('.dlg-head')
+    const usable = () => [...d.querySelectorAll<HTMLElement>('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter((el) => !el.hasAttribute('disabled') && el.getClientRects().length > 0)
+    const marked = () => [...d.querySelectorAll<HTMLElement>('[data-autofocus]')].find((el) => !el.hasAttribute('disabled') && el.getClientRects().length > 0)
+    const first = marked() ?? usable().find((el) => !inHead(el))
+    first?.focus()
+    // Some bodies load their fields after opening (Atur): focus the marked control, else the first body control, once it renders —
+    // unless the reader has already moved the caret somewhere else.
+    const obs = new MutationObserver(() => {
+      const cur = document.activeElement
+      if (cur !== first && cur !== d && cur !== document.body && !inHead(cur)) return obs.disconnect()
+      const next = marked() ?? usable().find((el) => !inHead(el))
+      if (!next) return
+      next.focus()
+      obs.disconnect()
+    })
+    obs.observe(d, { childList: true, subtree: true })
+    return () => obs.disconnect()
   }, [])
   return (
     <dialog ref={ref} className="dlg" data-wide={wide || undefined} onClose={onClose} onClick={(e) => e.target === ref.current && ref.current?.close()}>
@@ -156,6 +188,7 @@ export function ThinkingBlock({ text, running, seconds, defaultOpen }: { text: s
   return (
     <div className="thinking" data-running={running || undefined}>
       <button type="button" className="thinking-head" aria-expanded={open} onClick={() => setOpen(!open)}>
+        {sum && <span className="admin-tag">Admin</span>}
         <span className="thinking-label">{running ? (sum ? `Sedang berpikir: ${sum}` : 'Sedang berpikir…') : sum || title}</span>
         <span className="thinking-chev" aria-hidden="true">
           <Icon d="M6 9l6 6 6-6" size={14} />

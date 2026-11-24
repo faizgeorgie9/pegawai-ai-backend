@@ -17,20 +17,58 @@
 
 /* Agent header above each stage: tinted avatar so the initials keep readable contrast in both themes */
 .ws-agent-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s-2) var(--s-4); margin-bottom: var(--s-4); padding: var(--s-3) var(--s-4); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--raised); }
+.ws-agent-head .ws-row { align-items: flex-start; }
+.ws-agent-head .ws-row-tight { flex-wrap: wrap; }
 .ws-agent-head .ws-row-tight > b { font-size: 15px; }
 .ws-agent-av { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border: 2px solid var(--agent-c); border-radius: 50%; background: color-mix(in srgb, var(--agent-c) 16%, var(--surface)); color: var(--text); font-size: 13px; font-weight: 700; }
 .ws-agent-model { text-align: right; }
+.ws-agent select { min-width: 220px; max-width: 100%; }
 
-/* Catalog suggestions under "Produk acuan" */
-.cat-pick { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-2); }
-.cat-chips { display: flex; flex-wrap: wrap; gap: var(--s-2); max-height: 156px; overflow-y: auto; }
-.cat-chip { height: auto; min-height: 32px; padding: var(--s-1) var(--s-3); border: 1px solid transparent; font-size: 12px; text-align: left; white-space: normal; cursor: pointer; }
-.cat-chip:not(.ok) { border-color: var(--control); }
+/* Marketing stage 1: six columns so Tujuan/Produk span the row and the three short fields share one.
+   The old auto-fill grid made a third column with a hole under "Tujuan kampanye". */
+.mk-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--s-4); }
+.mk-grid > .field { grid-column: span 2; }
+.mk-grid > .pp { grid-column: span 6; }
+.mk-grid > .mk-span-2 { grid-column: span 2; }
+.mk-grid > .mk-span-6 { grid-column: span 6; }
+.field > label { font-size: 13px; font-weight: 500; }
+.mk-form-intro { display: grid; gap: var(--s-1); justify-items: start; }
+.mk-form-intro .btn.link { min-height: 24px; }
+.mk-h3 { font-size: 16px; margin: var(--s-4) 0 var(--s-2); }
+.mk-review-notes { margin-top: 8px; }
+.mk-img-miss { display: grid; place-items: center; aspect-ratio: 4 / 5; padding: var(--s-3); background: var(--raised); color: var(--muted); border-radius: var(--radius-control); font-size: 13px; text-align: center; }
+.mk-img-miss.md-img-miss { display: block; aspect-ratio: auto; min-height: 120px; }
+
+/* Marketing stepper: one scrolling row on a phone, the connector line stays between steps. */
+.mk-stepper { display: flex; padding: var(--s-2) 0; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.mk-stepper::-webkit-scrollbar { display: none; }
+.mk-stepper li { position: relative; flex: 1 1 0; min-width: 88px; scroll-snap-align: center; }
+.mk-stepper li + li::before { content: ""; position: absolute; top: calc(var(--s-3) + 13px); right: 50%; width: 100%; height: 2px; background: var(--border); }
+.mk-stepper li[data-link="done"]::before { background: var(--st-done); }
+.mk-stepper button { position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; gap: var(--s-1); padding: var(--s-3) var(--s-1) var(--s-2); border: 0; border-radius: var(--radius-control); background: transparent; color: var(--faint); font-size: var(--t-small); font-weight: 500; text-align: center; cursor: pointer; }
+.mk-stepper button:hover { color: var(--text); }
+.mk-stepper button[data-done], .mk-stepper button[aria-current="step"] { color: var(--text); }
+.mk-stepper button[aria-current="step"] { font-weight: 600; }
+.mk-stepper .step-n { position: relative; z-index: 1; display: inline-grid; place-items: center; flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--surface); border: 2px solid var(--control); color: var(--muted); font-size: 12px; font-weight: 500; }
+.mk-stepper button[data-done] .step-n { background: var(--st-done); border-color: var(--st-done); color: var(--on-accent); }
+.mk-stepper button[aria-current="step"] .step-n { outline: 2px solid var(--st-run); outline-offset: 2px; }
+.mk-stepper button[aria-current="step"]:not([data-done]) .step-n { border-color: var(--text); color: var(--text); }
 
 /* Phones: every control on the admin screens reaches 40 px */
 @media (max-width: 640px) {
+  .mk-grid { grid-template-columns: minmax(0, 1fr); }
+  .mk-grid > .field, .mk-grid > .pp, .mk-grid > .mk-span-2, .mk-grid > .mk-span-6 { grid-column: span 1; }
+  .mk-stepper li { flex: 0 0 auto; min-width: 88px; }
+  .mk-stepper button { padding: var(--s-2) var(--s-1); font-size: 12px; }
+  .mk-form-intro .btn.link { min-height: 40px; align-items: center; }
+  .decision-btn { min-height: 40px; }
+  .ws-agent-head { align-items: flex-start; }
+  .ws-agent-head .ws-row { flex-wrap: wrap; }
+  .ws-agent-head .ws-row-tight { width: 100%; }
   .ws-agent-model { text-align: left; }
-  .ws .btn, .ws select, .ws input:not([type="checkbox"]):not([type="radio"]), .ws .seg button, .ws .cat-chip, .ws .ws-switch, .tab-body .btn,
+  .ws-agent { flex-wrap: wrap; width: 100%; }
+  .ws-agent select { min-width: 0; width: 100%; }
+  .ws .btn, .ws select, .ws input:not([type="checkbox"]):not([type="radio"]), .ws .seg button, .ws .ws-switch, .tab-body .btn,
   .act-page .btn, .act-page select, .act-page .sum-btn { min-height: 40px; }
   .ws .seg button { height: 40px; }
   .ws .ws-switch { display: inline-flex; align-items: center; gap: var(--s-2); }

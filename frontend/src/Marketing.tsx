@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { useAdminMode } from './adminMode'
 import { useData } from './data'
 import type { Bot } from './bff'
+import ProductPicker from './ProductPicker'
 import { AnswerDetails, MarketingCard, Provenance } from './ResultCards'
 import { instructionsFor, parseMarketing, stripBlock } from './results'
 import { LiveDraft } from './LiveSteps'
 import type { ContextRef, MarketingKind, MarketingResult, Parsed } from './results'
 import { useRun } from './useRun'
-import { ErrorLine, I, Icon } from './ui'
-import { Empty, Loading, Opt, PageHead } from './ui-extra'
+import { Dialog, ErrorLine, I, Icon } from './ui'
+import { Empty, Loading, PageHead } from './ui-extra'
 import { ConfirmSwitch, OpenInChat, RunBar, Switch, hhmm, teamBots } from './ws-common'
 
 const STAGES = [
@@ -59,14 +61,6 @@ const AGENTS: AgentInfo[] = [
   { id: 'human', name: 'Anda', role: 'Pemeriksa akhir', tagline: 'Memeriksa kepatuhan katalog resmi dan memberi persetujuan', badgeColor: 'var(--c-green)', modelInfo: 'Diperiksa manusia' },
 ]
 
-const CAROUSEL_SLIDES = [
-  { n: 1, title: 'Slide 1: Pembuka', desc: 'Effortless Campus Rebel · Formula OOTD Ngampus Standout', img: '/output/carousel_latest/slide_1_cover_hero.png' },
-  { n: 2, title: 'Slide 2: Atasan', desc: 'Contrast Stitch Chambray Shirt (Rp 140.900) · Dark Blue', img: '/output/carousel_latest/slide_2_hero_top.png' },
-  { n: 3, title: 'Slide 3: Bawahan', desc: 'High Waist Barrel Denim Pants (Rp 329.900) · Black', img: '/output/carousel_latest/slide_3_bottom_pairing.png' },
-  { n: 4, title: 'Slide 4: Aksesori', desc: 'Colorbox x Liunic Ecru Tote & Layering Advice', img: '/output/carousel_latest/slide_4_accessories_flatlay.png' },
-  { n: 5, title: 'Slide 5: Ajakan', desc: 'Temukan Fit Favoritmu di colorbox.co.id #NeverJustOneThing', img: '/output/carousel_latest/slide_5_outro_cta.png' },
-]
-
 interface Output {
   id: string
   stage: number
@@ -87,7 +81,7 @@ const blankForm = {
   product: '',
   channel: '',
   contentType: '',
-  count: '',
+  count: '5',
   audience: '',
   tone: '',
   keyMessage: '',
@@ -116,21 +110,6 @@ const COLORBOX_SAMPLE: Form = {
   unknowns: 'Pilihan varian warna tambahan di luar katalog resmi',
 }
 
-const VERIFIED_CATALOG_SUGGESTIONS = [
-  { name: 'Oversize Long Sleeve Checks Blazer', price: 'Rp 299.900', color: 'DUSTY OLIVE' },
-  { name: 'Double Breasted Crop Jacket', price: 'Rp 329.900', color: 'LT. GREY' },
-  { name: 'Contrast Detail Denim Jacket', price: 'Rp 359.900', color: 'DARK BROWN' },
-  { name: 'Oversize Collared Leather Jacket', price: 'Rp 599.900', color: 'DARK RED' },
-  { name: 'Bubble Hem Long Sleeve Hoodie', price: 'Rp 299.900', color: 'ECRU' },
-  { name: 'Suede Mini Skirt', price: 'Rp 249.900', color: 'NAVY' },
-  { name: 'Jeans with Overlap Micro Skirt Details', price: 'Rp 237.528', color: 'DARK NAVY' },
-  { name: 'Wide Leg Drawstring Pants', price: 'Rp 199.900', color: 'NAVY' },
-  { name: 'Denim Sling Bag', price: 'Rp 129.900', color: 'DENIM' },
-  { name: 'Lace Sneakers', price: 'Rp 299.900', color: 'NAVY' },
-  { name: 'Contrast Stitch Chambray Shirt', price: 'Rp 140.900', color: 'DARK BLUE' },
-  { name: 'High Waist Barrel Denim Pants', price: 'Rp 329.900', color: 'BLACK' },
-]
-
 const FIELDS: [keyof Form, string][] = [
   ['audience', 'Target audiens & demografi'],
   ['tone', 'Brand voice & nada bahasa'],
@@ -149,14 +128,31 @@ const FIELD_LABELS: Partial<Record<keyof Form, string>> = {
   cta: 'Ajakan bertindak',
 }
 
+// Real design output only: markdown images the agent wrote (stage 3 in the UI). Never a hard-coded sample path.
+const MD_IMAGE = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g
+function imagesFrom(outs: Output[]): { src: string; alt: string }[] {
+  const seen = new Set<string>()
+  const list: { src: string; alt: string }[] = []
+  for (const o of outs) {
+    if (o.stage !== 2) continue
+    for (const m of o.text.matchAll(MD_IMAGE)) {
+      const src = m[2]
+      if (seen.has(src) || !/^(https?:\/\/|\/)/i.test(src)) continue
+      seen.add(src)
+      list.push({ src, alt: m[1] || `Gambar ${list.length + 1}` })
+    }
+  }
+  return list.slice(0, 5)
+}
+
 function validate(f: Form): Partial<Record<keyof Form, string>> {
   const e: Partial<Record<keyof Form, string>> = {}
   if (!f.objective.trim()) e.objective = 'Tujuan kampanye wajib diisi.'
-  if (!f.product.trim()) e.product = 'Produk atau topik wajib diisi.'
+  if (!f.product.trim()) e.product = 'Produk acuan wajib diisi. Pilih dari katalog atau tulis sendiri.'
   if (!f.channel) e.channel = 'Pilih kanal media sosial.'
   if (!f.contentType) e.contentType = 'Pilih tipe format konten.'
   const n = Number(f.count)
-  if (!f.count.trim()) e.count = 'Jumlah slide/output wajib diisi.'
+  if (!f.count.trim()) e.count = 'Jumlah slide wajib diisi.'
   else if (!Number.isInteger(n) || n < 1 || n > 10) e.count = 'Isi angka bulat 1 sampai 10.'
   return e
 }
@@ -217,6 +213,7 @@ export default function Marketing() {
 
 function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) => void }) {
   const run = useRun(leadBot.id)
+  const admin = useAdminMode()
   const [structured, setStructured] = useState(false)
   const [stage, setStage] = useState(0)
   const [form, setForm] = useState<Form>(blankForm)
@@ -227,18 +224,20 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
   const sidRef = useRef('')
   const counts = useRef<Record<number, number>>({})
   const [last, setLast] = useState<(() => void) | null>(null)
+  const stepperRef = useRef<HTMLOListElement>(null)
+  const [confirmAll, setConfirmAll] = useState(false)
 
   // Auto-cascade execution state
   const [cascading, setCascading] = useState(false)
   const [cascadeMsg, setCascadeMsg] = useState('')
 
-  // Human Review State (Stage 5)
+  // Human Review State (Stage 5): nothing is checked before there is a result to check.
   const [checklist, setChecklist] = useState({
-    catalogFact: true,
-    noFabricHallucination: true,
-    ratio45: true,
-    brandTone: true,
-    officialCTA: true,
+    catalogFact: false,
+    noFabricHallucination: false,
+    ratio45: false,
+    brandTone: false,
+    officialCTA: false,
   })
   const [decision, setDecision] = useState<'pending' | 'approved' | 'revision' | 'rejected'>('pending')
   const [reviewNotes, setReviewNotes] = useState('')
@@ -249,6 +248,12 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
   useEffect(() => {
     onDirty(hasWork)
   }, [hasWork, onDirty])
+
+  // On a phone the six stages are one scrolling row: keep the current one in view.
+  useEffect(() => {
+    if (!window.matchMedia('(max-width: 640px)').matches) return
+    stepperRef.current?.querySelector<HTMLElement>('[aria-current="step"]')?.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }, [stage])
 
   const stageDone = (i: number) => {
     if (i < 4) return outs.some((o) => o.stage === i)
@@ -298,7 +303,13 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
   function submitBrief(e: React.FormEvent) {
     e.preventDefault()
     setTried(true)
-    if (Object.keys(errs).length || run.busy) return
+    const invalid = validate(form)
+    if (Object.keys(invalid).length) {
+      const first = (['objective', 'product', 'channel', 'contentType', 'count'] as (keyof Form)[]).find((k) => invalid[k])
+      if (first) window.requestAnimationFrame(() => document.getElementById(`mk-${first}`)?.focus())
+      return
+    }
+    if (run.busy) return
     void executeAgent(0, 'cre-01', briefPrompt(form), 'Strategi & Konsep')
   }
 
@@ -318,6 +329,16 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
     const prompt =
       'Video & UGC Creator (@videougc / CRE-04), kembangkan konsep video vertikal 9:16 (durasi 15-30 detik) untuk Reels/TikTok/Shorts. Susun storyboard visual dinamis, panduan talent kreator UGC (try-on shot list produk Colorbox resmi, ekspresi natural, framing vertikal), narasi percakapan santai, dan kurasi audio trending serta audio pacing/SFX. Serahkan seluruh materi lengkap ke @contentstrategist (CRE-01) dan Tim Reviewer Manusia.'
     void executeAgent(3, 'cre-04', prompt, 'Video Vertikal & UGC')
+  }
+
+  // Four paid agent runs start from one click: ask first.
+  function askRunAll() {
+    if (!run.busy && !cascading) setConfirmAll(true)
+  }
+
+  function startRunAll() {
+    setConfirmAll(false)
+    void runAutoCascade()
   }
 
   async function runAutoCascade() {
@@ -378,6 +399,9 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
   const inStage = outs.filter((o) => o.stage === stage)
   const shown = outs.find((o) => o.id === view && o.stage === stage) ?? inStage[inStage.length - 1]
   const currentAgent = AGENTS[stage]
+  const displayName = currentAgent.name.replace(/\s*\([^)]*\)\s*$/, '')
+  const stageImages = imagesFrom(outs)
+  const allChecked = Object.values(checklist).every(Boolean)
   const revCount = (o: Output) => `v${o.n}`
   const meta = (o: Output) => `${o.agentName} · ${revCount(o)} · ${hhmm(o.at)}`
 
@@ -393,7 +417,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
       )}
 
       {/* Stepper with 6 Stages */}
-      <ol className="stepper" aria-label="Tahap kerja alur marketing">
+      <ol className="mk-stepper" aria-label="Tahap kerja alur marketing" ref={stepperRef}>
         {STAGES.map((_, i) => (
           <li key={STAGE_LABELS[i]} data-link={i > 0 && stageDone(i - 1) ? 'done' : undefined}>
             <button
@@ -432,7 +456,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
         </div>
       )}
 
-      <div className="ws-grid" data-solo={outs.length === 0 || undefined}>
+      <div className="ws-grid" data-solo={inStage.length === 0 || undefined}>
         <div className="ws-main">
           {/* Agent Badge Header for current Stage */}
           <div className="ws-agent-head">
@@ -442,67 +466,48 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
               </span>
               <div>
                 <div className="ws-row ws-row-tight">
-                  <b>{currentAgent.name}</b>
+                  <b title={currentAgent.name}>{displayName}</b>
                   <span className="pill">{currentAgent.role}</span>
                 </div>
                 <small className="quiet">{currentAgent.tagline}</small>
               </div>
             </div>
-            <span className="quiet small ws-agent-model">
-              Model AI: <b>{currentAgent.modelInfo}</b>
-            </span>
+            {admin && currentAgent.modelInfo !== 'Diperiksa manusia' && (
+              <span className="quiet small ws-agent-model">
+                <span className="admin-tag">Admin</span> Model AI: <b>{currentAgent.modelInfo}</b>
+              </span>
+            )}
           </div>
 
           {/* Stage 0: Strategi & Distribusi (CRE-01) */}
           {stage === 0 && (
             <form className="ws-form" onSubmit={submitBrief} noValidate>
-              <div className="ws-form-head">
+              <div className="mk-form-intro">
                 <h2>1. Strategi dan perencanaan distribusi (CRE-01 Content Strategist)</h2>
-                <button type="button" className="btn soft" onClick={() => setForm(COLORBOX_SAMPLE)}>
-                  Isi contoh Colorbox
+                <button type="button" className="btn link" onClick={() => setForm(COLORBOX_SAMPLE)}>
+                  Isi contoh Colorbox (untuk mencoba)
                 </button>
               </div>
 
-              <div className="fgrid">
-                <Field label="Tujuan kampanye" err={tried ? errs.objective : ''}>
+              <div className="mk-grid">
+                <Field className="mk-span-6" id="mk-objective" label="Tujuan kampanye" err={tried ? errs.objective : ''}>
                   <input
+                    id="mk-objective"
                     value={form.objective}
                     onChange={(e) => setForm({ ...form, objective: e.target.value })}
                     aria-invalid={tried && !!errs.objective}
-                    placeholder="Contoh: Inspirasi pakaian kuliah yang santai tapi rapi di Instagram"
+                    aria-describedby={tried && errs.objective ? 'mk-objective-err' : undefined}
+                    placeholder="Contoh: inspirasi gaya kuliah di Instagram"
                   />
                 </Field>
-                <Field label="Produk acuan (katalog resmi, 1.216 produk)" err={tried ? errs.product : ''}>
-                  <input
-                    value={form.product}
-                    onChange={(e) => setForm({ ...form, product: e.target.value })}
-                    aria-invalid={tried && !!errs.product}
-                    placeholder="Contoh: Oversize Long Sleeve Checks Blazer (Rp 299.900)"
-                  />
-                  <div className="cat-pick">
-                    <div className="quiet small ws-row ws-row-tight">
-                      <Icon d={I.check} size={14} />
-                      <span>Produk dari katalog resmi. Klik untuk memakai sebagai acuan.</span>
-                    </div>
-                    <div className="cat-chips">
-                      {VERIFIED_CATALOG_SUGGESTIONS.map((item) => (
-                        <button
-                          key={item.name}
-                          type="button"
-                          className={form.product.includes(item.name) ? 'pill ok cat-chip' : 'pill cat-chip'}
-                          onClick={() => setForm({ ...form, product: `${item.name} (${item.price} - ${item.color})` })}
-                        >
-                          {item.name} · {item.price}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </Field>
-                <Field label="Kanal media sosial" err={tried ? errs.channel : ''}>
+                <ProductPicker id="mk-product" value={form.product} onChange={(v) => setForm({ ...form, product: v })} error={tried ? errs.product : ''} />
+                <Field className="mk-span-2" id="mk-channel" label="Kanal media sosial" err={tried ? errs.channel : ''}>
                   <select
+                    id="mk-channel"
                     value={form.channel}
                     onChange={(e) => setForm({ ...form, channel: e.target.value })}
                     aria-invalid={tried && !!errs.channel}
+                    aria-describedby={tried && errs.channel ? 'mk-channel-err' : undefined}
                   >
                     <option value="">Pilih kanal</option>
                     {CHANNELS.map((c) => (
@@ -510,11 +515,13 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                     ))}
                   </select>
                 </Field>
-                <Field label="Format konten" err={tried ? errs.contentType : ''}>
+                <Field className="mk-span-2" id="mk-contentType" label="Format konten" err={tried ? errs.contentType : ''}>
                   <select
+                    id="mk-contentType"
                     value={form.contentType}
                     onChange={(e) => setForm({ ...form, contentType: e.target.value })}
                     aria-invalid={tried && !!errs.contentType}
+                    aria-describedby={tried && errs.contentType ? 'mk-contentType-err' : undefined}
                   >
                     <option value="">Pilih format</option>
                     {CONTENT_TYPES.map((c) => (
@@ -524,13 +531,14 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                     ))}
                   </select>
                 </Field>
-                <Field label="Jumlah slide/output" err={tried ? errs.count : ''}>
+                <Field className="mk-span-2" id="mk-count" label="Jumlah slide" hint="Isi 1 sampai 10." err={tried ? errs.count : ''}>
                   <input
+                    id="mk-count"
                     inputMode="numeric"
                     value={form.count}
                     onChange={(e) => setForm({ ...form, count: e.target.value })}
                     aria-invalid={tried && !!errs.count}
-                    placeholder="5"
+                    aria-describedby={tried && errs.count ? 'mk-count-hint mk-count-err' : 'mk-count-hint'}
                   />
                 </Field>
               </div>
@@ -539,24 +547,29 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                 <summary>Pengaturan tambahan (audiens, nada bahasa, ajakan, dll.)</summary>
                 <div className="fgrid opts-body">
                   {FIELDS.map(([k, l]) => (
-                    <Field key={k} label={FIELD_LABELS[k] ?? l}>
-                      <input value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
+                    <Field key={k} id={`mk-${k}`} label={FIELD_LABELS[k] ?? l}>
+                      <input id={`mk-${k}`} value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
                     </Field>
                   ))}
                 </div>
               </details>
 
               {tried && Object.keys(errs).length > 0 && (
-                <p className="field-err" role="alert">
+                <p className="field-err" id="mk-err-summary" role="alert" tabIndex={-1}>
                   Lengkapi {Object.keys(errs).length} kolom wajib di atas sebelum mengirim brief.
                 </p>
               )}
 
               <div className="form-actions ws-actions">
-                <button className="btn primary" type="submit" disabled={run.busy || cascading}>
+                <button
+                  className="btn primary"
+                  type="submit"
+                  disabled={run.busy || cascading}
+                  aria-describedby={tried && Object.keys(errs).length > 0 ? 'mk-err-summary' : undefined}
+                >
                   Kirim brief ke Content Strategist
                 </button>
-                <button type="button" className="btn soft" disabled={run.busy || cascading} onClick={runAutoCascade}>
+                <button type="button" className="btn soft" disabled={run.busy || cascading} onClick={askRunAll}>
                   Jalankan semua langkah (4 Pegawai AI)
                 </button>
               </div>
@@ -575,7 +588,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                 <button className="btn primary" disabled={run.busy || cascading} onClick={callCopywriter}>
                   Minta naskah dan caption
                 </button>
-                <button type="button" className="btn soft" disabled={run.busy || cascading} onClick={runAutoCascade}>
+                <button type="button" className="btn soft" disabled={run.busy || cascading} onClick={askRunAll}>
                   Jalankan semua langkah (4 Pegawai AI)
                 </button>
               </div>
@@ -602,32 +615,29 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                 <button className="btn primary" disabled={run.busy || cascading} onClick={callMotionDesigner}>
                   {run.busy && stage === 2 ? 'Sedang merancang visual...' : 'Minta desain visual & gambar'}
                 </button>
-                <a
-                  href="/output/carousel_latest/carousel_preview.html"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn soft"
-                >
-                  Lihat pratinjau carousel
-                </a>
-                <button type="button" className="btn soft" disabled={run.busy || cascading} onClick={runAutoCascade}>
+                <button type="button" className="btn soft" disabled={run.busy || cascading} onClick={askRunAll}>
                   Jalankan semua langkah (4 Pegawai AI)
                 </button>
               </div>
 
-              {/* Display Carousel Cards */}
-              <h3 style={{ fontSize: 16, marginTop: 16, marginBottom: 8 }}>5 gambar carousel (1080 × 1350 px)</h3>
-              <div className="carousel-grid">
-                {CAROUSEL_SLIDES.map((s) => (
-                  <div key={s.n} className="carousel-card">
-                    <img src={s.img} alt={s.title} className="carousel-img" />
-                    <div className="carousel-card-body">
-                      <b>{s.title}</b>
-                      <small>{s.desc}</small>
-                    </div>
+              {/* Only images the agent actually produced: a sample path used to 404 on every slide. */}
+              {stageImages.length > 0 ? (
+                <>
+                  <h3 className="mk-h3">Gambar carousel (1080 × 1350 px)</h3>
+                  <div className="carousel-grid">
+                    {stageImages.map((s) => (
+                      <div key={s.src} className="carousel-card">
+                        <PreviewImage src={s.src} alt={s.alt} />
+                        <div className="carousel-card-body">
+                          <b>{s.alt}</b>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </>
+              ) : (
+                <Empty title="Belum ada gambar">Klik tombol di atas untuk membuat desain. Gambar yang dihasilkan muncul di sini.</Empty>
+              )}
             </div>
           )}
 
@@ -643,7 +653,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                 <button className="btn primary" disabled={run.busy || cascading} onClick={callVideoUgc}>
                   Minta storyboard video & panduan UGC
                 </button>
-                <button type="button" className="btn soft" disabled={run.busy || cascading} onClick={runAutoCascade}>
+                <button type="button" className="btn soft" disabled={run.busy || cascading} onClick={askRunAll}>
                   Jalankan semua langkah (4 Pegawai AI)
                 </button>
               </div>
@@ -655,7 +665,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
             <div className="human-review-card">
               <div className="ws-row ws-row-split">
                 <div>
-                  <h2 className="tight">5. Pemeriksaan dan persetujuan Anda (Quality Gate)</h2>
+                  <h2 className="tight">5. Periksa dan setujui</h2>
                   <p className="quiet tight">
                     Periksa hasil akhir sebelum carousel dijadwalkan atau diterbitkan di Instagram Colorbox.
                   </p>
@@ -676,30 +686,23 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                 </span>
               </div>
 
-              {/* Visual Presentation */}
+              {/* Only real result images, never the old sample campaign's files. */}
               <div className="ws-block">
-                <div className="ws-row ws-row-split">
-                  <b className="small">Pratinjau 5 gambar (4:5):</b>
-                  <a
-                    href="/output/carousel_latest/carousel_preview.html"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn soft"
-                  >
-                    Buka pratinjau layar penuh
-                  </a>
-                </div>
-                <div className="carousel-grid">
-                  {CAROUSEL_SLIDES.map((s) => (
-                    <div key={s.n} className="carousel-card">
-                      <img src={s.img} alt={s.title} className="carousel-img" />
-                      <div className="carousel-card-body">
-                        <b>{s.title}</b>
-                        <small>{s.desc}</small>
+                <b className="small">Pratinjau gambar (4:5)</b>
+                {stageImages.length > 0 ? (
+                  <div className="carousel-grid">
+                    {stageImages.map((s) => (
+                      <div key={s.src} className="carousel-card">
+                        <PreviewImage src={s.src} alt={s.alt} />
+                        <div className="carousel-card-body">
+                          <b>{s.alt}</b>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <Empty title="Belum ada gambar untuk diperiksa">Jalankan tahap Desain grafis dulu.</Empty>
+                )}
               </div>
 
               {/* Quality Checklist */}
@@ -763,15 +766,16 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
               </div>
 
               {/* Review Notes */}
-              <label className="field" style={{ marginTop: 8 }}>
-                <span>Catatan untuk tim</span>
+              <div className="field mk-review-notes">
+                <label htmlFor="mk-review-notes">Catatan untuk tim</label>
                 <textarea
+                  id="mk-review-notes"
                   rows={3}
                   value={reviewNotes}
                   onChange={(e) => setReviewNotes(e.target.value)}
                   placeholder="Tulis catatan persetujuan atau poin revisi untuk pegawai AI..."
                 />
-              </label>
+              </div>
 
               {/* Decision Buttons */}
               <div>
@@ -781,6 +785,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                     type="button"
                     className="decision-btn"
                     data-selected={decision === 'approved' ? 'approved' : undefined}
+                    disabled={outs.length === 0 || !allChecked}
                     onClick={() => handleDecision('approved')}
                   >
                     Setujui
@@ -789,6 +794,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                     type="button"
                     className="decision-btn"
                     data-selected={decision === 'revision' ? 'revision' : undefined}
+                    disabled={outs.length === 0}
                     onClick={() => handleDecision('revision')}
                   >
                     Minta revisi
@@ -797,11 +803,15 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                     type="button"
                     className="decision-btn"
                     data-selected={decision === 'rejected' ? 'rejected' : undefined}
+                    disabled={outs.length === 0}
                     onClick={() => handleDecision('rejected')}
                   >
                     Tolak
                   </button>
                 </div>
+                <p className="quiet small" aria-live="polite">
+                  Setujui aktif setelah semua 5 poin diperiksa.
+                </p>
               </div>
 
               {/* Approval Banner */}
@@ -847,6 +857,13 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
           {!run.busy &&
             (shown ? (
               <OutputView o={shown} meta={meta(shown)} />
+            ) : stage === 4 ? (
+              <Empty title="Belum ada hasil di tahap Persetujuan">
+                <p>Selesaikan tahap sebelumnya dulu.</p>
+                <button type="button" className="btn soft sm" onClick={() => setStage(2)}>
+                  Ke tahap Desain grafis
+                </button>
+              </Empty>
             ) : stage > 0 || !run.error ? (
               <Empty title={`Belum ada hasil di tahap ${STAGE_LABELS[stage]}`}>
                 {stage === 0
@@ -886,8 +903,9 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
       </div>
 
       <details className="opts">
-        <summary>Pengaturan tambahan</summary>
+        <summary>Catatan tambahan tim</summary>
         <div className="opts-body">
+          <p className="quiet small">Pilihan teknis untuk tim. Biarkan seperti ini kecuali Anda diminta mengubahnya.</p>
           <Switch
             checked={structured}
             onChange={setStructured}
@@ -896,8 +914,37 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
           />
         </div>
       </details>
+
+      {confirmAll && (
+        <Dialog title="Jalankan semua langkah?" onClose={() => setConfirmAll(false)}>
+          <div className="dlg-body">
+            <p>Empat pegawai AI akan bekerja berurutan (±10 menit) dan memakai kuota. Anda bisa menghentikannya kapan saja.</p>
+            <div className="dlg-foot">
+              <button type="button" className="btn soft" onClick={() => setConfirmAll(false)}>
+                Batal
+              </button>
+              <button type="button" className="btn primary" onClick={startRunAll}>
+                Mulai
+              </button>
+            </div>
+          </div>
+        </Dialog>
+      )}
     </>
   )
+}
+
+// A broken image link becomes a plain grey note instead of a broken-image icon or alt text alone.
+function PreviewImage({ src, alt }: { src: string; alt: string }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) return <div className="mk-img-miss">Gambar tidak bisa dimuat</div>
+  return <img src={src} alt={alt} className="carousel-img" onError={() => setFailed(true)} />
+}
+
+function MdImg({ src, alt }: { src?: string; alt?: string }) {
+  const [failed, setFailed] = useState(!src)
+  if (failed || !src) return <span className="mk-img-miss md-img-miss">Gambar tidak bisa dimuat</span>
+  return <img src={src} alt={alt || ''} className="md-img" onError={() => setFailed(true)} />
 }
 
 const mdComponents = {
@@ -906,13 +953,7 @@ const mdComponents = {
       {children}
     </a>
   ),
-  img: ({ src, alt }: { src?: string; alt?: string }) => (
-    <img
-      src={src}
-      alt={alt || ''}
-      className="md-img"
-    />
-  ),
+  img: MdImg,
 }
 
 function OutputView({ o, meta }: { o: Output; meta: string }) {
@@ -947,33 +988,34 @@ function OutputView({ o, meta }: { o: Output; meta: string }) {
 }
 
 function Field({
+  id,
+  className,
   label,
   err,
-  opt,
+  hint,
   children,
 }: {
+  id: string
+  className?: string
   label: string
   err?: string
-  opt?: boolean
+  hint?: string
   children: React.ReactNode
 }) {
   return (
-    <label className="field">
-      <span>
-        {label}
-        {opt && (
-          <>
-            {' '}
-            <Opt />
-          </>
-        )}
-      </span>
+    <div className={className ? `field ${className}` : 'field'}>
+      <label htmlFor={id}>{label}</label>
       {children}
+      {hint && (
+        <small className="quiet" id={`${id}-hint`}>
+          {hint}
+        </small>
+      )}
       {err && (
-        <small className="err" role="alert">
+        <small className="err" id={`${id}-err`} role="alert">
           {err}
         </small>
       )}
-    </label>
+    </div>
   )
 }

@@ -16,20 +16,7 @@ import { RUNNING_HINT, RUNNING_PLACEHOLDER, STEER_KEY, STEER_TIP, isSteerKey } f
 import { KbAttach, KbLines, KbTrayView, asksToSave, useKbTray } from './kb-ui'
 import { groupPath } from './router'
 import { CopyButton } from './ui-extra'
-import { BotAvatar, CLOSE, DOTS, ErrorLine, PENCIL, Icon, ThinkingBlock, botColor, cleanTaskText, clock, isTaskPrompt, roleLabel } from './ui'
-
-// Phone-only copy switches: the initial value is read synchronously, then kept in step with the media query.
-function useMedia(q: string) {
-  const [on, setOn] = useState(() => window.matchMedia(q).matches)
-  useEffect(() => {
-    const m = window.matchMedia(q)
-    const f = () => setOn(m.matches)
-    m.addEventListener('change', f)
-    setOn(m.matches)
-    return () => m.removeEventListener('change', f)
-  }, [q])
-  return on
-}
+import { BotAvatar, CLOSE, DOTS, ErrorLine, PENCIL, Icon, ThinkingBlock, botColor, cleanTaskText, clock, isTaskPrompt, roleLabel, useMedia } from './ui'
 
 const sameId = (a: string, b: string) => a === b
 type Problem = { text: string; upgrade?: boolean } | null
@@ -216,7 +203,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
       el.scrollTop = el.scrollHeight - anchor.current // keep the reader's place after older messages are prepended
       anchor.current = null
     } else if (stick.current) el.scrollTop = el.scrollHeight
-  }, [msgs, turn])
+  }, [msgs, turn, planOut])
   useEffect(() => {
     const el = box.current
     if (!el) return
@@ -415,7 +402,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
       </header>
 
       <div
-        className="scroll"
+        className="scroll convo-body"
         ref={scroller}
         onScroll={(e) => {
           const el = e.currentTarget
@@ -451,19 +438,19 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
           {asked.map((a) => (
             <ActionCard key={a.id} action={a} />
           ))}
+          {planPending && planOut && (
+            <div className="plan-pin" role="status" style={{ marginTop: 'var(--s-3)' }}>
+              <span>Rencana menunggu persetujuan Anda.</span>
+              <button type="button" className="btn primary sm" onClick={goToPlan}>
+                Lihat dan setujui
+              </button>
+            </div>
+          )}
         </div>
         </MentionsCtx.Provider>
       </div>
 
       <div className="composer-wrap">
-        {planPending && planOut && (
-          <div className="plan-pin" role="status">
-            <span>Rencana menunggu persetujuan Anda.</span>
-            <button type="button" className="btn primary sm" onClick={goToPlan}>
-              Lihat dan setujui
-            </button>
-          </div>
-        )}
         {pending.length > 0 && (
           <ul className="queue-rows" aria-label="Pesan menunggu giliran">
             {pending.map((mid) => (

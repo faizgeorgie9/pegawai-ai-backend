@@ -18,7 +18,7 @@ import { RUNNING_HINT, RUNNING_PLACEHOLDER, STEER_KEY, STEER_TIP, isSteerKey } f
 import { ClarifyCard, CopyButton, RunProgress, statusText } from './ui-extra'
 import { PanelButtons, SidePanel, Split } from './Panel'
 import { MakeTaskButton } from './TaskPanel'
-import { BotAvatar, CLOSE, DOTS, Icon, PENCIL, ThinkingBlock, botColor, cleanTaskText, isTaskPrompt, nf, roleLabel } from './ui'
+import { BotAvatar, CLOSE, DOTS, Icon, PENCIL, ThinkingBlock, botColor, cleanTaskText, isTaskPrompt, nf, roleLabel, useMedia } from './ui'
 
 const THINK_KEY = 'pegawai.showThinking'
 function readThink(): boolean {
@@ -35,6 +35,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail, onHistory
   const [pv, setPv] = useState(0) // bumped whenever the side panel's data may have changed
   const bump = () => setPv((n) => n + 1)
   const admin = useAdminMode()
+  const wide = useMedia('(min-width: 901px)') // the rail (with its own Topik baru) is always visible; the header copy is for the sheet
   const { setDialog, askNotify, refreshMe, viewing, runs } = useData()
   const attached = useRef('') // last run this view followed, so a run is never attached twice
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -374,9 +375,11 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail, onHistory
             Atur
           </button>
         </span>
-        <button className="btn soft sm convo-new" title="Mulai percakapan baru, riwayat lama tetap ada" onClick={() => go(botPath(bot.id))}>
-          Topik baru
-        </button>
+        {!wide && (
+          <button className="btn soft sm convo-new" title="Mulai percakapan baru, riwayat lama tetap ada" onClick={() => go(botPath(bot.id))}>
+            Topik baru
+          </button>
+        )}
         <span className="convo-extras">
           <button className="switch" role="switch" aria-checked={showThink} onClick={toggleThink}>
             <span className="knob" aria-hidden="true" />

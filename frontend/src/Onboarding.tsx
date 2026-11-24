@@ -58,9 +58,11 @@ export function Onboarding({ steps }: { steps: Step[] }) {
           <b>{next.title}</b>
         </div>
         <span className="onb-ctrl">
-          <a className="btn sm primary" href={next.href}>
-            {next.action}
-          </a>
+          {!open && (
+            <a className="btn sm primary" href={next.href}>
+              {next.action}
+            </a>
+          )}
           <button type="button" className="btn link small" aria-expanded={open} aria-controls="onb-list" onClick={() => setOpen((v) => !v)}>
             {open ? 'Sembunyikan langkah' : 'Semua langkah'}
           </button>

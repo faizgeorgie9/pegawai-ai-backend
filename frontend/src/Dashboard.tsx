@@ -32,7 +32,7 @@ async function loadWork() {
 
 // Beranda answers one question: what do I need to do today?
 export default function Dashboard() {
-  const { groups, runs, me, settings, loadState, error, reload } = useData()
+  const { bots, groups, runs, me, settings, loadState, error, reload } = useData()
   const admin = useAdminMode()
   const workFn = useCallback(() => loadWork(), [])
   const work = useLoad(workFn)
@@ -69,7 +69,7 @@ export default function Dashboard() {
     {
       id: 'name',
       title: 'Isi nama bisnis',
-      hint: defaultName ? `Sekarang menampilkan "${settings.company_name.trim()}". Ganti dengan nama bisnis Anda.` : 'Nama bisnis Anda tampil di menu samping.',
+      hint: 'Nama bisnis Anda tampil di menu samping.',
       done: hasName(settings.company_name),
       href: '#/pengaturan/umum',
       action: defaultName ? 'Ganti nama' : 'Isi nama',
@@ -109,11 +109,13 @@ export default function Dashboard() {
         title="Beranda"
         sub="Yang perlu Anda lakukan hari ini."
         actions={
-          <a className="btn primary" href={ask} aria-label="Beri tugas ke tim">
-            <span>
-              Beri tugas<span className="hide-sm"> ke tim</span>
-            </span>
-          </a>
+          bots.length >= 2 ? (
+            <a className="btn primary" href={ask} aria-label="Beri tugas ke tim">
+              <span>
+                Beri tugas<span className="hide-sm"> ke tim</span>
+              </span>
+            </a>
+          ) : undefined
         }
       />
 
@@ -191,11 +193,6 @@ export default function Dashboard() {
         <a className="btn link small cost-more" href="#/pengaturan/paket">
           Lihat rincian
         </a>
-        {admin && me && (
-          <p className="quiet small cost-admin">
-            Pemakaian: <span className="num">{nf.format(me.usage.tokens_month)}</span> token
-          </p>
-        )}
       </section>
 
       <TimAnda />

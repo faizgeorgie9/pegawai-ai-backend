@@ -512,7 +512,7 @@ export function AppsPage() {
         <p>{a.enables}</p>
         {(status === 'connected' || status === 'needs_scope') && c.account && mode === 'row' && (
           <p className="connect-acct" title={c.account}>
-            Akun: <b>{c.account}</b>
+            Akun: {c.account}
           </p>
         )}
         {status === 'reconnect' && <p className="connect-warn">Izin akses sudah tidak berlaku. Hubungkan ulang agar bisa dipakai lagi.</p>}
@@ -587,6 +587,7 @@ export function AppsPage() {
 
   function appCard(a: HermesApp, mode: 'row' | 'mini') {
     const on = a.status === 'connected'
+    const accounts = shownAccounts(a.accounts, admin).join(', ')
     const ownDrive = merged.get('gdrive') === a && ['connected', 'needs_scope'].includes(by.get('gdrive')?.status ?? '') // our Drive connection folded into this card
     return (
       <li key={a.id} className={`app-card ${mode === 'row' ? 'app-row' : 'app-mini'}`} data-app={a.id} data-s={on ? 'connected' : 'disconnected'}>
@@ -600,17 +601,9 @@ export function AppsPage() {
           </div>
         </div>
         <p>{a.description}</p>
-        {on && shownAccounts(a.accounts, admin).length > 0 && (
-          <p className="connect-acct" title={shownAccounts(a.accounts, admin).join(', ')}>
-            {mode === 'row' ? (
-              <>
-                Akun: <b>{shownAccounts(a.accounts, admin).join(', ')}</b>
-              </>
-            ) : (
-              <>
-                Tersambung sebagai <b>{shownAccounts(a.accounts, admin).join(', ')}</b>
-              </>
-            )}
+        {on && accounts.length > 0 && (
+          <p className="connect-acct" title={accounts}>
+            {mode === 'row' ? <>Akun: {accounts}</> : <>Tersambung sebagai {accounts}</>}
           </p>
         )}
         {admin && (
@@ -648,7 +641,7 @@ export function AppsPage() {
     )
   }
 
-  // Tersambung first (our Google sign-in plus Hermes apps already connected), then one flat catalog of everything else.
+  // Tersambung (only fully working connections) first, then the ones that need reconnecting, then one flat catalog of everything else.
   const apps = (cat.data?.apps ?? []).filter((a) => admin || !a.technical)
   const cats = (cat.data?.categories ?? []).filter((c) => admin || c.id !== 'dev')
   const merged = new Map<ConnProvider, HermesApp>()
@@ -658,10 +651,16 @@ export function AppsPage() {
   }
   const oauthIds = (['gdrive', 'gmail'] as ConnProvider[]).filter((id) => by.has(id) && !merged.has(id))
   const linkedHermes = apps.filter((a) => a.status === 'connected')
-  // Every state in which the owner can already act on the connection counts as linked; problems come first.
-  const linkedOauth = (Object.keys(OWN_AS_HERMES) as ConnProvider[])
-    .filter((id) => ['connected', 'needs_scope', 'reconnect', 'broken'].includes(by.get(id)?.status ?? '') && (!merged.has(id) || merged.get(id)?.status !== 'connected') && by.has(id))
-    .sort((a, b) => Number(!['needs_scope', 'reconnect', 'broken'].includes(by.get(a)?.status ?? '')) - Number(!['needs_scope', 'reconnect', 'broken'].includes(by.get(b)?.status ?? '')))
+  // "Tersambung" only counts apps that really work; every problem gets its own group below.
+  // A connection already represented by a connected Hermes card is not repeated as its own card.
+  const connectedOauth: ConnProvider[] = []
+  const problemOauth: ConnProvider[] = []
+  for (const id of Object.keys(OWN_AS_HERMES) as ConnProvider[]) {
+    const c = by.get(id)
+    if (!c || merged.get(id)?.status === 'connected') continue
+    if (c.status === 'connected') connectedOauth.push(id)
+    else if (['needs_scope', 'reconnect', 'broken'].includes(c.status)) problemOauth.push(id)
+  }
   const groups = cats
     .map((c) => ({
       c,
@@ -675,7 +674,8 @@ export function AppsPage() {
     .filter((x) => (x.k === 'o' ? !['connected', 'needs_scope', 'reconnect', 'broken'].includes(by.get(x.id)?.status ?? '') : x.a.status !== 'connected'))
     .sort((x, y) => Number(x.k !== 'o') - Number(y.k !== 'o')) // the built-in Google apps lead the first page
   const shown = catalog.slice(0, limit)
-  const linkedCount = linkedOauth.length + linkedHermes.length
+  const linkedCount = connectedOauth.length + linkedHermes.length
+  const problemCount = problemOauth.length
   const ready = (conns.data || conns.state === 'error') && (cat.data || cat.state === 'error')
   const failed = conns.state === 'error' && !conns.data ? conns : cat.state === 'error' && !cat.data ? cat : null
 
@@ -750,18 +750,28 @@ export function AppsPage() {
                 <section className="apps-group apps-linked-sec" aria-labelledby="g-linked">
                   <header>
                     <h2 id="g-linked">
-                      Tersambung{linkedCount > 0 && <span className="quiet"> · {linkedCount}</span>}
+                      Tersambung<span className="quiet"> · {linkedCount}</span>
                     </h2>
                   </header>
                   {linkedCount === 0 ? (
                     <p className="quiet">Belum ada aplikasi tersambung. Pilih salah satu di bawah.</p>
                   ) : (
                     <ul className="app-rows">
-                      {linkedOauth.map((id) => oauthCard(id, 'row'))}
+                      {connectedOauth.map((id) => oauthCard(id, 'row'))}
                       {linkedHermes.map((a) => appCard(a, 'row'))}
                     </ul>
                   )}
                 </section>
+                {problemCount > 0 && (
+                  <section className="apps-group" aria-labelledby="g-problem">
+                    <header>
+                      <h2 id="g-problem">
+                        Perlu dihubungkan ulang<span className="quiet"> · {problemCount}</span>
+                      </h2>
+                    </header>
+                    <ul className="app-rows">{problemOauth.map((id) => oauthCard(id, 'row'))}</ul>
+                  </section>
+                )}
                 <section className="apps-group" aria-labelledby="g-catalog">
                   <header>
                     <h2 id="g-catalog">

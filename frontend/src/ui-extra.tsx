@@ -155,7 +155,7 @@ export function CostMeter({ u, reasons, plan }: { u: LimitInfo; reasons?: Estima
     <div className="cost-meter" data-state={u.limit ? u.state : 'none'}>
       <div className="cost-head">
         <span className="cost-spent num">{u.cost.label}</span>
-        <span className="quiet">{u.limit ? `dari ${u.limit.label} bulan ini${plan ? ` (paket ${plan})` : ''}` : 'bulan ini, tanpa batas biaya'}</span>
+        <span className="quiet">{u.limit ? `dari ${u.limit.label} bulan ini${plan ? ` (paket ${plan})` : ''}` : 'Tanpa batas biaya yang diatur.'}</span>
         {u.basis === 'estimated' && <Perkiraan reasons={reasons} />}
         {u.limit && <span className={`pill ${u.state === 'normal' ? 'ok' : u.state === 'warning' ? 'warn' : 'bad'}`}>{STATE_TEXT[u.state]}</span>}
       </div>
@@ -229,6 +229,7 @@ export function Loading({ text = 'Memuat...', shape = 'lines', rows }: { text?: 
           )
         )}
       </div>
+      {shape === 'ledger' && <p className="skel-text" aria-hidden="true" style={{ marginTop: 8, fontSize: 13, color: 'var(--muted)' }}>{text}</p>}
     </div>
   )
 }

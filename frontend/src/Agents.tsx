@@ -4,7 +4,7 @@ import type { Bot, BotDetail, MemoryItem } from './bff'
 import { useAdminMode } from './adminMode'
 import { useData } from './data'
 import { agenPath, botPath, go } from './router'
-import { BotAvatar, COLORS, ErrorLine, Icon, I, LOCK, botColor, cleanTaskText, colorLabel, nf, roleLabel, stamp, teamLabel } from './ui'
+import { BotAvatar, CHEVRON, COLORS, ErrorLine, Icon, I, LOCK, botColor, cleanTaskText, colorLabel, nf, roleLabel, stamp, teamLabel } from './ui'
 import { AgentSkills } from './skills-ui'
 import { TIERS, tierOf } from './modelTiers'
 import { Empty, EffortSelect, Loading, ModelSelect, PageHead, Opt, defaultEffortLabel, defaultModelLabel, effortWord, modelKey, splitModel, statusText, useLoad } from './ui-extra'
@@ -127,6 +127,28 @@ const TABS = [
   ['ingatan', 'Ingatan'],
 ] as const
 type TabId = (typeof TABS)[number][0]
+
+// A row that opens the Atur dialog, so the card stays the one place to change colour and precision without a second button.
+function SettingRow({ label, value, onClick }: { label: string; value: React.ReactNode; onClick: () => void }) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 44, padding: '4px 0', border: 0, background: 'transparent', textAlign: 'left', cursor: 'pointer' }}
+      >
+        <b>{label}</b>
+        <span className="quiet small" style={{ marginLeft: 'auto', textAlign: 'right' }}>
+          {value}
+        </span>
+        <span aria-hidden="true" style={{ flex: 'none', color: 'var(--muted)' }}>
+          <Icon d={CHEVRON} size={14} />
+        </span>
+      </button>
+    </li>
+  )
+}
+
 export function AgentDetail({ id }: { id: string }) {
   const { bots, setDialog } = useData()
   const admin = useAdminMode()
@@ -183,6 +205,17 @@ export function AgentDetail({ id }: { id: string }) {
   const tier = b.model ? TIERS.find((t) => t.id === tierOf(b.model))?.label : undefined
   const persona = b.persona || (b.builtin ? 'Dikelola sistem.' : 'Belum ada petunjuk tugas. Klik Atur untuk menulisnya.')
   const long = (b.persona ?? '').length > 200
+  const kpis = admin
+    ? [
+        { label: 'Percakapan', value: sessions.length },
+        { label: 'Pemakaian bulan ini (token)', value: month?.total ?? 0 },
+        ...((all?.total ?? 0) === (month?.total ?? 0) ? [] : [{ label: 'Pemakaian total (token)', value: all?.total ?? 0 }]),
+        { label: 'Tugas total', value: all?.runs ?? 0 },
+      ]
+    : [
+        { label: 'Percakapan', value: sessions.length },
+        { label: 'Tugas dikerjakan', value: all?.runs ?? 0 },
+      ]
 
   return (
     <section className="page">
@@ -237,19 +270,8 @@ export function AgentDetail({ id }: { id: string }) {
             {extra.state === 'loading' && <Loading text="Memuat pemakaian..." shape="ledger" rows={1} />}
             {extra.state === 'error' && <ErrorLine text={extra.error} onRetry={extra.retry} />}
             {extra.state === 'ok' && (
-              <dl className={admin ? 'kpis k4' : 'kpis k2'}>
-                {(admin
-                  ? [
-                      { label: 'Percakapan', value: sessions.length },
-                      { label: 'Pemakaian bulan ini (token)', value: month?.total ?? 0 },
-                      { label: 'Pemakaian total (token)', value: all?.total ?? 0 },
-                      { label: 'Tugas total', value: all?.runs ?? 0 },
-                    ]
-                  : [
-                      { label: 'Percakapan', value: sessions.length },
-                      { label: 'Tugas dikerjakan', value: all?.runs ?? 0 },
-                    ]
-                ).map((k) => (
+              <dl className={admin ? (kpis.length === 4 ? 'kpis k4' : 'kpis') : 'kpis k2'}>
+                {kpis.map((k) => (
                   <div key={k.label}>
                     <dt>{k.label}</dt>
                     <dd className="num">{nf.format(k.value)}</dd>
@@ -261,10 +283,7 @@ export function AgentDetail({ id }: { id: string }) {
       <div className="two perm-block">
         <section className="cbox perm-edit" aria-labelledby="perm-edit-h">
           <header className="perm-head">
-            <h2 id="perm-edit-h">Bisa Anda ubah</h2>
-            <button className="btn soft sm" onClick={() => setDialog({ kind: 'edit', bot: b })}>
-              Atur
-            </button>
+            <h2 id="perm-edit-h">Pengaturan pegawai</h2>
           </header>
           <ul className="perm-list">
             {!b.builtin && (
@@ -283,17 +302,17 @@ export function AgentDetail({ id }: { id: string }) {
                 </li>
               </>
             )}
-            <li>
-              <b>Warna</b>
-              <small className="quiet small">
-                <span className="swatch-chip" style={{ background: botColor(b) }} />
-                {colorLabel(b.color || 'plain')}
-              </small>
-            </li>
-            <li>
-              <b>Tingkat ketelitian</b>
-              <small className="quiet small">{tier ?? 'Ikuti bawaan'}</small>
-            </li>
+            <SettingRow
+              label="Warna"
+              value={
+                <>
+                  <span className="swatch-chip" style={{ background: botColor(b) }} />
+                  {colorLabel(b.color || 'plain')}
+                </>
+              }
+              onClick={() => setDialog({ kind: 'edit', bot: b })}
+            />
+            <SettingRow label="Tingkat ketelitian" value={tier ?? 'Ikuti bawaan'} onClick={() => setDialog({ kind: 'edit', bot: b })} />
           </ul>
           <p className="quiet small">Perubahan berlaku mulai tugas berikutnya.</p>
         </section>
@@ -483,7 +502,7 @@ function AgentMemory({ bot }: { bot: Bot }) {
         <>
           {total === 0 ? (
             <Empty title="Belum ada yang diingat">
-              Mulai percakapan dengan {bot.name}. Hal penting yang Anda sebutkan akan muncul di sini.
+              Pegawai mencatat hal penting dari percakapan, misalnya saat Anda menulis "Tolong ingat: …".
             </Empty>
           ) : (
             <>

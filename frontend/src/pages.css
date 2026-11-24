@@ -4,6 +4,7 @@
 .head-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .btn.outline { border-color: var(--control); color: var(--text); }
 .btn.outline:hover:not(:disabled) { background: var(--raised); }
+.btn.outline:disabled { color: var(--muted); border-color: var(--border); }
 a.btn { text-decoration: none; }
 .block { display: flex; flex-direction: column; gap: var(--s-3); }
 .block > header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
@@ -69,7 +70,7 @@ table.plain { width: 100%; border-collapse: collapse; }
 table.plain th, table.plain td { text-align: left; padding: 12px 14px; vertical-align: top; border-bottom: 1px solid var(--rule); }
 table.plain th { font-size: 12px; font-weight: 500; color: var(--muted); border-bottom-color: var(--border); }
 table.plain tr:last-child td { border-bottom: 0; }
-table.plain .r, .act .r { text-align: right; }
+table.plain .r { text-align: right; }
 
 @media (max-width: 900px) { .actions { grid-template-columns: minmax(0, 1fr); } .two { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 640px) {
@@ -97,7 +98,7 @@ td.st-col { min-width: 170px; }
 .tabs a, .tabs button { display: inline-flex; align-items: center; gap: var(--s-2); min-height: 44px; padding: 0 var(--s-4); margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--muted); font-weight: 500; text-decoration: none; white-space: nowrap; cursor: pointer; transition: color var(--m-in) var(--ease), border-color var(--m-in) var(--ease); }
 .tabs a:hover, .tabs button:hover:not(:disabled) { color: var(--text); }
 .tabs [aria-selected="true"] { color: var(--text); border-bottom-color: var(--text); }
-.tabs button:disabled { opacity: .45; cursor: default; }
+.tabs button:disabled { opacity: 1; color: var(--faint); cursor: default; }
 .tab-tag { padding: 2px var(--s-2); border-radius: 999px; background: var(--plain-bg); color: var(--plain-ink); font-size: 12px; font-weight: 500; }
 .tab-body { display: flex; flex-direction: column; gap: var(--s-5); }
 @media (max-width: 640px) { .tab-body { gap: var(--s-4); } .tabs a, .tabs button { padding: 0 var(--s-3); } .tab-tag { display: none; } }
@@ -200,9 +201,6 @@ td.st-col { min-width: 170px; }
 .set-inline { display: flex; gap: var(--s-2); }
 .set-inline input { min-width: 0; width: 220px; }
 .set-check { display: inline-flex; align-items: center; gap: var(--s-2); min-height: 36px; cursor: pointer; }
-.seg { display: inline-flex; border: 1px solid var(--control); border-radius: var(--radius-control); overflow: hidden; }
-.seg button { height: 34px; padding: 0 16px; border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 500; cursor: pointer; transition: background var(--m-in) var(--ease), color var(--m-in) var(--ease); }
-.seg button[aria-pressed="true"] { background: var(--active); color: var(--text); }
 .set-doc { padding: var(--s-4); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); display: flex; flex-direction: column; gap: var(--s-2); }
 .set-doc-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
 .set-files { margin: 0; padding-left: 18px; color: var(--muted); }
@@ -270,9 +268,7 @@ td.st-col { min-width: 170px; }
 .chk { display: inline-flex; align-items: center; gap: 6px; }
 .chk input { width: auto; height: auto; }
 
-/* Kanban: four columns on wide screens, two on tablets, stacked on phones. Each card is one link; the colour edge is the agent's. */
-.kb-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-4); align-items: start; }
-.kb-col { background: var(--raised); border-radius: var(--radius-card); padding: var(--s-3); display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
+/* Kanban: four columns on wide screens, one column (tabbed) below 1100 px. Each card is one link; the colour edge is the agent's. */
 .kb-col > header h2 { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
 .kb-col > header h2 b { font-weight: 500; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--surface); color: var(--muted); }
 .kb-col[data-col="running"] > header h2 { color: var(--st-run-ink); }
@@ -290,17 +286,16 @@ td.st-col { min-width: 170px; }
 .kc-group { overflow-wrap: anywhere; }
 .kc-group::before { content: "· "; }
 .kc-who:last-child + .kc-group::before, .kc-meta > .kc-group:first-child::before { content: ""; }
-.kc-note { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.kc-note { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .kc-note.wait { color: var(--st-wait-ink); font-weight: 500; }
 .kc-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 12px; color: var(--muted); }
-.kc-time { margin-left: auto; }
-.kc-act { display: flex; align-items: center; gap: 8px; padding: 0 12px 10px; }
+.kc-foot .kc-cost { margin-left: auto; }
+.kc-act { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; padding: 0 12px 10px; }
 .kcard:has(.kc-menu [aria-expanded="true"]) { z-index: 3; } /* open menu sits above the next card */
 .kc-act .kc-menu .icon-btn { color: var(--text-2, inherit); }
-.kc-act .kc-menu { position: relative; display: block; right: auto; top: auto; transform: none; margin-left: auto; }
-.kc-cost { color: var(--text); }
-@media (max-width: 1100px) { .kb-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 640px) { .kb-grid { grid-template-columns: minmax(0, 1fr); } .kb-col { padding: var(--s-2); } .kc-time { margin-left: 0; } }
+.kc-act .kc-menu { position: relative; display: block; right: auto; top: auto; transform: none; margin-left: auto; flex: none; }
+.kc-cost { color: var(--text); font-size: 12px; flex: none; white-space: nowrap; }
+.kc-menu .popmenu { right: 0; left: auto; max-width: calc(100vw - 32px); }
 @media (prefers-reduced-motion: reduce) { .kcard { transition: none; } .kcard:hover { transform: none; } }
 
 /* Knowledge Base list (Pengaturan) */
@@ -309,7 +304,8 @@ td.st-col { min-width: 170px; }
 .kb-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
 .kb-row { display: flex; align-items: center; gap: var(--s-3); min-width: 0; border-bottom: 1px solid var(--rule); }
 .kb-rtext { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 0; }
-.kb-rname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+/* A file name is an identity: it wraps to a second line instead of being cut with an ellipsis. */
+.kb-rname { display: block; overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; font-weight: 600; }
 .kb-src { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kb-row .pill { flex: none; }
 .kb-why { white-space: normal; }
@@ -384,22 +380,23 @@ td.st-col { min-width: 170px; }
 .onb-text small { font-size: var(--t-small); color: var(--muted); }
 .onb-step[data-done] .onb-text b { color: var(--muted); font-weight: 500; text-decoration: line-through; }
 .today-main { display: flex; flex-direction: column; gap: var(--gap); }
-.cost-card { gap: var(--s-2); padding-bottom: var(--s-4); }
+/* Beranda cost card: title left, "Lihat rincian" right, the amount and its note across the row; one column on a phone. */
+.cost-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-4); row-gap: var(--s-2); padding-bottom: var(--s-4); }
+.cost-card > h2 { grid-column: 1; grid-row: 1; }
+.cost-card > .cost-more { grid-column: 2; grid-row: 1; justify-self: end; }
+.cost-card > .cost-meter, .cost-card > .state-note, .cost-card > .cost-admin { grid-column: 1 / -1; min-width: 0; }
 .cost-card .cost-spent { font-size: 28px; font-weight: 500; line-height: 1.15; }
 .state-note { padding: var(--s-3) 0 var(--s-4); }
 .panel-card[data-empty] { padding-bottom: var(--s-3); }
 .panel-card[data-empty] .state-note { padding: var(--s-1) 0 var(--s-2); }
 .count-pill { margin-left: var(--s-2); vertical-align: middle; }
-.cost-compact { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); padding: var(--s-3) var(--s-4); }
-.cost-compact h2 { padding: 0; flex: none; min-width: 112px; font-size: var(--t-body); font-weight: 500; color: var(--muted); }
-.cost-compact .cost-meter { flex: 1; min-width: 0; }
+.cost-card.cost-compact { padding: var(--s-3) var(--s-4); column-gap: var(--s-4); }
+.cost-compact h2 { padding: 0; font-size: var(--t-body); font-weight: 500; color: var(--muted); }
 .cost-compact .cost-spent { font-size: 20px; font-weight: 600; line-height: 1.2; }
-.cost-compact .state-note { padding: 0; flex: 1; }
-.cost-compact .cost-admin { flex: 1 1 100%; }
+.cost-compact .state-note { padding: 0; }
 @media (max-width: 640px) {
-  .cost-compact h2 { flex: 1; min-width: 0; }
-  .cost-compact .cost-meter { order: 3; flex: 1 1 100%; }
-  .cost-compact .cost-more { order: 2; min-height: 40px; }
+  .cost-card { grid-template-columns: minmax(0, 1fr); }
+  .cost-card > .cost-more { grid-column: 1; grid-row: auto; justify-self: start; min-height: 40px; }
   .tab-body .btn.link.small { min-height: 40px; }
 }
 
@@ -421,7 +418,7 @@ td.st-col { min-width: 170px; }
 .app-card-head { display: flex; align-items: center; gap: var(--s-3); min-width: 0; }
 .app-card-head .app-mark { flex: none; width: 40px; height: 40px; }
 .app-card-head .app-top { min-width: 0; gap: 4px var(--s-2); }
-.app-card-head .app-top h3 { font-size: 15px; overflow-wrap: anywhere; }
+.app-card-head .app-top h3 { font-size: 15px; overflow-wrap: break-word; }
 .app-card-act { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin-top: auto; padding-top: var(--s-2); }
 .app-card-act .confirm-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
 .app-initial { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-weight: 700; font-size: 14px; background: hsl(var(--hue) 55% 88%); color: hsl(var(--hue) 55% 25%); }
@@ -439,10 +436,9 @@ td.st-col { min-width: 170px; }
 .skill-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); padding: var(--s-3) 0; cursor: pointer; }
 .skill-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .skill-txt code { font: inherit; color: var(--faint); }
-@media (max-width: 640px) { .apps-cats button { flex: none; } }
+@media (max-width: 640px) { .apps-cats button { flex: none; min-height: 40px; } }
 
 /* Papan Tugas: quick add, drag target, task panel (Kanban.tsx, TaskPanel.tsx) */
-.kb-grid[data-one] { grid-template-columns: minmax(0, 560px); }
 .kb-col[data-over] { outline: 2px dashed var(--control); outline-offset: -2px; }
 .kcard[draggable="true"] { cursor: grab; }
 button.kc-link { background: none; border: 0; width: 100%; text-align: left; font: inherit; cursor: pointer; }
@@ -480,7 +476,7 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
 .team-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; column-gap: 12px; align-items: center; min-width: 0; min-height: 56px; padding: var(--s-2) 0; }
 .team-row .ledger-main { line-height: 1.15; }
 .team-row .ledger-main small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.team-name { display: block; min-width: 0; color: inherit; text-decoration: none; }
+.team-name { display: block; min-width: 0; padding-block: 6px; color: inherit; text-decoration: none; }
 .team-name b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 500; color: color-mix(in srgb, var(--bot) 55%, var(--text)); }
 .team-name:hover b { text-decoration: underline; text-underline-offset: 3px; }
 .team-status { display: flex; align-items: center; gap: 4px; min-width: 0; }
@@ -526,9 +522,9 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
 }
 @media (prefers-reduced-motion: reduce) { .perm-locked > summary > svg { transition: none; } }
 
-/* Atur dialog colour picker (Dialogs.tsx): a 36 px target with an 8 px gap; the label names the current colour. */
-.swatches { gap: 8px; }
-.swatch { width: 36px; height: 36px; }
+/* Atur dialog (Dialogs.tsx): a 20 px radio in a 56 px row, so the current choice is easy to see and tap. */
+input.tier-radio { width: 20px; height: 20px; flex: none; }
+.radio-row:has(.tier-radio) { min-height: 56px; align-items: center; padding-block: var(--s-2); }
 
 /* Wide label/value rows: Settings and the identity card. Beats the panel.css .kv flex rule. */
 .kv.kv-wide { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 8px 16px; }
@@ -558,18 +554,16 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
   .kpis.k2 { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* ---------- Sprint 5 "satu layar": Jadwal & tugas ---------- */
+/* ---------- Jadwal & tugas: one screen ---------- */
 /* The page keeps one screen: the header, quick add and tabs stay put, the card lists scroll themselves. */
 .page.kanban { gap: var(--s-4); overflow: hidden; padding-bottom: var(--s-4); }
 .kb-grid { flex: 1 1 0%; min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); gap: var(--s-4); align-items: stretch; }
 .kb-grid[data-one] { grid-template-columns: minmax(0, 560px); }
-.kb-col { min-height: 0; overflow: hidden; }
+.kb-col { background: var(--raised); border-radius: var(--radius-card); padding: var(--s-3); display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; min-height: 0; overflow: hidden; }
 .kb-col > header { flex: none; }
-.kb-cards { list-style: none; margin: 0; padding: 2px 4px 2px 0; display: flex; flex-direction: column; gap: var(--s-2); flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.kb-cards { list-style: none; margin: 0; padding: 2px 4px 2px 0; display: flex; flex-direction: column; gap: var(--s-2); flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .kb-col > .kb-note { flex: none; }
 .kb-load { flex: 1 1 0%; min-height: 160px; }
-.kc-note { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.kc-cost { font-size: 12px; flex: none; white-space: nowrap; }
 /* The hover lift would make the fixed card menu position itself against the card (and get clipped by the list). */
 .kcard:has(.kc-menu [aria-expanded="true"]):hover { transform: none; }
 .kb-tabs { flex: none; }
@@ -613,7 +607,7 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
   .tq-opts select, .tq-opts input[type="datetime-local"] { width: 100%; }
 }
 
-/* ---------- Sprint 5 "satu layar": Aplikasi ---------- */
+/* ---------- Aplikasi: one scrolling list ---------- */
 .page.apps { gap: var(--s-4); }
 .apps-scroll { display: flex; flex-direction: column; gap: var(--s-4); }
 .apps-scroll > .skel { min-height: 160px; }
@@ -623,18 +617,27 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
 }
 .apps-tools-row { flex-direction: row; align-items: center; gap: var(--s-3); min-width: 0; }
 .apps-tools-row input[type="search"] { flex: none; width: 240px; max-width: 40%; height: 40px; }
-.apps-tools-row .apps-cats { flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 0; -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent); mask-image: linear-gradient(to right, black calc(100% - 24px), transparent); }
+.apps-tools-row .apps-cats { flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; padding-bottom: 0; -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent); mask-image: linear-gradient(to right, black calc(100% - 24px), transparent); }
+/* Desktop has room for every category: wrap instead of hiding the last chips behind a horizontal scroll. */
+@media (min-width: 901px) {
+  .apps-tools-row { flex-wrap: wrap; }
+  .apps-tools-row .apps-cats { flex-wrap: wrap; overflow-x: visible; scroll-snap-type: none; -webkit-mask-image: none; mask-image: none; }
+}
 .apps-tools-row .apps-cats::-webkit-scrollbar { display: none; }
-.apps-tools-row .apps-cats button { flex: none; }
+.apps-tools-row .apps-cats button { flex: none; scroll-snap-align: start; }
 .apps-tools-solo input[type="search"] { width: 420px; max-width: 100%; }
-.app-rows { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2); }
+.app-rows { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--s-2); }
 .app-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s-3); row-gap: 2px; min-height: 56px; padding: var(--s-2) var(--s-3); }
+/* A card that needs the user reads top to bottom: head, message, then its buttons. A healthy card stays one row. */
+.app-row[data-s="reconnect"], .app-row[data-s="broken"], .app-row[data-s="needs_scope"] { grid-template-columns: minmax(0, 1fr); align-content: start; }
+.app-row[data-s="reconnect"] > *, .app-row[data-s="broken"] > *, .app-row[data-s="needs_scope"] > * { grid-column: 1 / -1; }
+.app-row[data-s="reconnect"] > .app-card-act, .app-row[data-s="broken"] > .app-card-act, .app-row[data-s="needs_scope"] > .app-card-act { grid-column: 1 / -1; grid-row: auto; justify-content: flex-start; margin-top: var(--s-2); }
 .app-row > .app-card-head { grid-column: 1; grid-row: 1; }
 .app-row .app-card-head .app-mark { width: 32px; height: 32px; }
 .app-row > .app-card-act { grid-column: 2; grid-row: 1 / span 3; margin: 0; padding: 0; justify-content: flex-end; }
 .app-row > p { grid-column: 1; margin: 0; }
 .app-row > p:not(.connect-acct):not(.connect-warn):not(.quiet):not(.note-box) { display: none; } /* the description lives in the catalog */
-.app-row > .connect-acct { font-size: var(--t-small); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-row > .connect-acct { font-size: var(--t-small); color: var(--muted); white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
 .app-row > .connect-acct b { font-weight: 500; color: inherit; }
 .app-row > .note-box, .app-row > .connect-warn { grid-column: 1 / -1; }
 .app-row .app-card-act .confirm-actions { flex-wrap: wrap; justify-content: flex-end; }
@@ -647,8 +650,8 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
 .app-mini > p { grid-column: 1 / -1; grid-row: 2; margin: 0; font-size: var(--t-small); color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .app-mini > .connect-warn, .app-mini > .note-box, .app-mini > .quiet { grid-column: 1 / -1; -webkit-line-clamp: unset; display: block; }
 .app-mini > .app-code, .app-mini > .connect-acct { grid-row: auto; }
-/* The Gmail "Cara kerja tombol draf" toggle got its own row: inside the action column its 174 px pushed the title
-   down to 1 px on the Aplikasi > Aplikasi lain cards (FE-1, live test 24 Nov 2026). Keep it under the description. */
+/* The Gmail "Cara kerja tombol draf" toggle gets its own row: inside the action column its wide label used to
+   squeeze the title to 1 px on the Aplikasi cards. Keep it under the description. */
 .app-row > .app-how, .app-mini > .app-how { grid-column: 1 / -1; justify-self: start; margin: 0; }
 .apps-more { align-self: flex-start; margin-top: var(--s-2); }
 .skill-card > p.quiet { grid-row: 3; -webkit-line-clamp: 1; }
@@ -657,10 +660,9 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
   .apps-tools-row { flex-direction: column; align-items: stretch; gap: var(--s-2); }
   .apps-tools-row input[type="search"] { width: 100%; max-width: none; }
   .apps-tools-row .apps-cats { margin-inline: 0; padding-inline: 0; }
-  .page.apps .page-head p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .app-row { row-gap: 2px; }
-  .app-row:has(.connect-acct) > .app-card-act { grid-column: 1 / -1; grid-row: auto; justify-content: flex-start; }
-  .app-row:not(:has(.connect-acct)) > .app-card-act { grid-column: 2; grid-row: 1 / span 3; justify-content: flex-end; }
+  .app-row > .app-card-act { grid-column: 1 / -1; grid-row: auto; justify-content: flex-start; margin-top: var(--s-1); }
+  .app-mini > .app-card-act { justify-content: flex-end; }
   .app-row .app-card-act .btn, .app-mini > .app-card-act .btn, .app-row > .app-how, .app-mini > .app-how { min-height: 40px; }
 }
 
@@ -701,12 +703,14 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
 }
 
 @media (max-width: 640px) {
-  /* Sprint 5 Day 5 QA: every tap target is at least 40 px tall on a phone (measured on the 375 px pages). */
+  /* Every tap target is at least 40 px tall on a phone. */
   .btn, .copy-btn, .seg > button, .icon-btn:not(.tiny), .runs-pill, .swatch, .thinking-head, .back { min-height: 40px; }
   .icon-btn:not(.tiny), .swatch { min-width: 40px; }
   input:not([type="checkbox"]):not([type="radio"]), select { min-height: 40px; }
   .thinking-head, .back { align-items: center; }
   .back { display: inline-flex; }
-  /* ellipsis rows keep display:block, so the height comes from padding */
-  .title-btn, .kb-rname, .team-name { padding-block: 12px; }
+  /* links that read as a name get a 44 px target; a file name may wrap, so it keeps no extra padding */
+  .title-btn, .team-name { padding-block: 12px; }
+  .team-name { min-height: 44px; }
+  .kb-open { min-height: 40px; }
 }

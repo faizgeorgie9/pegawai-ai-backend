@@ -41,7 +41,7 @@ export function Switch({ checked, onChange, label, hint }: { checked: boolean; o
 
 export function ConfirmSwitch({ onYes, onNo }: { onYes: () => void; onNo: () => void }) {
   return (
-    <Dialog title="Ganti agen?" onClose={onNo}>
+    <Dialog title="Ganti pegawai?" onClose={onNo}>
       <div className="dlg-body">
         <p>Ada pekerjaan yang belum disimpan di halaman ini. Jika agen diganti, percakapan baru dimulai dan semua tahap serta hasil di layar ini dikosongkan. Riwayat chat agen lama tetap ada.</p>
         <div className="dlg-foot">

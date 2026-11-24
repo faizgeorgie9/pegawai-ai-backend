@@ -129,7 +129,7 @@ function Desk({ bot, agentSelect, onDirty, onNew }: { bot: Bot; agentSelect: Rea
     <>
       <div className="ws-bar">
         {agentSelect}
-        <Switch checked={simMode} onChange={setSimMode} label="Mode uji simulasi" hint="Menyertakan data simulasi pesanan, retur, dan kebijakan palsu (SIM-*) untuk pengujian. Hasilnya diberi label Simulasi. Bukan data pelanggan nyata." />
+        <Switch checked={simMode} onChange={setSimMode} label="Mode uji (tidak mengirim apa pun)" hint="Menyertakan data simulasi pesanan, retur, dan kebijakan palsu (SIM-*) untuk pengujian. Hasilnya diberi label Simulasi. Bukan data pelanggan nyata." />
         <OpenInChat botId={bot.id} sid={sid} />
         {turns.length > 0 && (
           <button className="btn soft" onClick={onNew} disabled={run.busy}>
@@ -229,9 +229,9 @@ function Desk({ bot, agentSelect, onDirty, onNew }: { bot: Bot; agentSelect: Rea
               Setelah agen menjawab, hasilnya tampil berurutan:
               <ol className="rlist num-list">
                 <li>Draf balasan pelanggan</li>
-                <li>Intent dan prioritas</li>
-                <li>Rekomendasi eskalasi</li>
-                <li>Ringkasan tiket</li>
+                <li>Maksud pelanggan dan tingkat penting</li>
+                <li>Perlu diteruskan ke manusia?</li>
+                <li>Ringkasan masalah</li>
                 <li>Sumber</li>
               </ol>
             </Empty>

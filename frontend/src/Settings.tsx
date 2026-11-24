@@ -9,6 +9,7 @@ import { toolsetText } from './ui-extra'
 import { ErrorLine, nf } from './ui'
 import { CostMeter, Loading, PageHead, Perkiraan, useLoad } from './ui-extra'
 import { cachedRead, onLinkIntent } from './session-cache'
+import { Switch } from './ws-common'
 
 // #/pengaturan/<bagian>. Left: the sections (a scrolling row on small screens). Right: the section, one sentence per option.
 const SECTIONS = [
@@ -144,11 +145,8 @@ function General() {
         </div>
       </Row>
       {isAdmin && (
-        <Row title="Mode admin" hint="Sembunyikan halaman dan rincian teknis dari menu. Akun staf selalu memakai tampilan sederhana.">
-          <label className="set-check">
-            <input type="checkbox" checked={admin} onChange={(e) => setAdminMode(e.target.checked)} />
-            <span>{admin ? 'Nyala' : 'Mati'}</span>
-          </label>
+        <Row title="Tampilan admin" hint="Tampilkan menu Admin dan rincian teknis. Matikan untuk melihat tampilan yang sama dengan staf.">
+          <Switch checked={admin} label={admin ? 'Nyala' : 'Mati'} onChange={setAdminMode} />
         </Row>
       )}
       {problem}
@@ -166,13 +164,18 @@ function Notifications() {
     ['input', 'Butuh izin atau jawaban', 'Kabar saat pegawai menunggu Anda.'],
     ['failed', 'Tugas gagal', 'Kabar saat tugas berhenti.'],
   ]
+  const browserHint =
+    perm === 'granted'
+      ? ''
+      : perm === 'denied'
+        ? 'Diblokir di peramban. Ubah izin situs di peramban Anda.'
+        : perm === 'unsupported'
+          ? 'Peramban ini tidak mendukung notifikasi.'
+          : 'Belum aktif. Klik Izinkan, lalu pilih Izinkan di jendela peramban.'
   return (
     <div className="set-sec">
       <h2 className="set-h">Notifikasi</h2>
-      <Row
-        title="Notifikasi browser"
-        hint={perm === 'granted' ? 'Diizinkan. Muncul saat tab ini tidak dibuka.' : perm === 'denied' ? 'Diblokir di peramban. Ubah izin situs di peramban Anda.' : perm === 'unsupported' ? 'Peramban ini tidak mendukung notifikasi.' : 'Belum diizinkan.'}
-      >
+      <Row title="Notifikasi di peramban" hint={browserHint}>
         {perm === 'default' && (
           <button className="btn outline" onClick={() => void Notification.requestPermission().then(setPerm)}>
             Izinkan
@@ -182,10 +185,7 @@ function Notifications() {
       </Row>
       {items.map(([k, t, h]) => (
         <Row key={k} title={t} hint={h}>
-          <label className="set-check">
-            <input type="checkbox" checked={settings.notify[k]} onChange={(e) => void save({ notify: { ...settings.notify, [k]: e.target.checked } })} />
-            <span>{settings.notify[k] ? 'Nyala' : 'Mati'}</span>
-          </label>
+          <Switch checked={settings.notify[k]} label={settings.notify[k] ? 'Nyala' : 'Mati'} onChange={(v) => void save({ notify: { ...settings.notify, [k]: v } })} />
         </Row>
       ))}
       {problem}
@@ -311,7 +311,7 @@ onLinkIntent('a[href="#/pengaturan/keamanan"]', () => {
 // ---------- Paket dan pemakaian ----------
 const dayText = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
 
-function Split({ title, rows, tokens }: { title: string; tokens: boolean; rows: { key: string; name: ReactNode; cost: Money; tokens: number; est: boolean }[] }) {
+function Split({ title, rows, tokens }: { title: string; tokens: boolean; rows: { key: string; name: ReactNode; cost: Money; tokens: number; unpriced: boolean }[] }) {
   const top = Math.max(...rows.map((r) => Number(r.cost.usd)), 0)
   const [all, setAll] = useState(false)
   return (
@@ -322,7 +322,7 @@ function Split({ title, rows, tokens }: { title: string; tokens: boolean; rows: 
           <li key={r.key}>
             <span className="row-top">
               <span>
-                {r.name} {r.est && <Perkiraan />}
+                {r.name} {r.unpriced && <Perkiraan />}
               </span>
               <b className="num">{r.cost.label}</b>
             </span>
@@ -367,12 +367,12 @@ function UsageDetail({ u, admin }: { u: MonthUsage; admin: boolean }) {
   return (
     <>
       <div className="usage-split">
-        <Split title="Per pegawai" tokens={admin} rows={u.by_agent.map((a) => ({ key: a.bot_id, name: a.name, cost: a.cost, tokens: a.tokens, est: a.estimated }))} />
+        <Split title="Per pegawai" tokens={admin} rows={u.by_agent.map((a) => ({ key: a.bot_id, name: a.name, cost: a.cost, tokens: a.tokens, unpriced: false }))} />
         {admin ? (
           <Split
             title="Per model"
             tokens
-            rows={u.by_model.map((m) => ({ key: `${m.provider}/${m.model}`, name: m.priced ? m.model : `${m.model} (belum ada harga)`, cost: m.cost, tokens: m.tokens, est: m.estimated }))}
+            rows={u.by_model.map((m) => ({ key: `${m.provider}/${m.model}`, name: m.priced ? m.model : `${m.model} (belum ada harga)`, cost: m.cost, tokens: m.tokens, unpriced: !m.priced }))}
           />
         ) : (
           perDay
@@ -435,7 +435,12 @@ function Plan() {
       )}
       {m.state === 'loading' && !d && <Loading text="Memuat rincian..." />}
       {m.state === 'error' && !d && <ErrorLine text={m.error} onRetry={m.retry} />}
-      {d && <UsageDetail u={d} admin={admin} />}
+      {d && (
+        <>
+          {d.tokens.runs > 0 && <p className="quiet small">Semua angka biaya di bawah ini perkiraan.</p>}
+          <UsageDetail u={d} admin={admin} />
+        </>
+      )}
     </div>
   )
 }
@@ -468,8 +473,10 @@ function DataSection() {
   return (
     <div className="set-sec">
       <h2 className="set-h">Data</h2>
-      <Row title="Lama simpan log aktivitas" hint="Catatan aktivitas dihapus otomatis setelah masa ini.">
+      <Row title="Lama simpan catatan aktivitas" hint="Catatan aktivitas dihapus otomatis setelah masa ini.">
         <span className="num">{k.data ? `${k.data.retention_days} hari` : '90 hari'}</span>
+        <br />
+        <small className="quiet small">Tidak bisa diubah</small>
       </Row>
       <Row title="Ekspor riwayat chat" hint="Semua chat dan tim dalam satu berkas.">
         <button className="btn outline" disabled={busy} onClick={() => void exportAll()}>
