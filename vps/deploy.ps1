@@ -427,7 +427,8 @@ if [ "$ACTUAL" != "$TARHASH" ]; then
 fi
 
 WORK=$(mktemp -d "$REL_ROOT/.unpack-XXXXXX")
-cleanup() { [ -n "${WORK:-}" ] && rm -rf "$WORK"; }
+# if/fi, not "[ ] && rm": a false test as the trap's last command would turn a successful run into exit 1
+cleanup() { if [ -n "${WORK:-}" ]; then rm -rf "$WORK"; fi; }
 trap cleanup EXIT
 
 tar xzf "$TAR" -C "$WORK"
@@ -446,6 +447,7 @@ mv "$WORK" "$REL"
 WORK=""
 rm -f "$TAR"
 echo "OK: rilis $SHA terpasang di $REL ($N_MAN berkas)"
+exit 0
 '@
     $script = $script.Replace('@@SHA@@', $Sha).Replace('@@TAR@@', $RemoteTar).Replace('@@TARHASH@@', $TarHash)
     return (Invoke-Remote -ScriptText $script -MustSucceed -What 'memasang rilis di server')
