@@ -59,7 +59,7 @@ function Card({ c, ask, act, open }: { c: TaskCard; ask: Ask; act: (f: () => Pro
     if (a.id === 'open') open(c.id)
     else if (a.id === 'edit') open(c.id, true)
     else if (a.id === 'chat') window.location.hash = c.link
-    else if (a.confirm) ask({ text: a.confirm, ok: a.label, run: () => api.taskVerb(c.id, a.id) })
+    else if (a.confirm) ask({ text: a.confirm, ok: a.label, danger: a.id === 'cancel', run: () => api.taskVerb(c.id, a.id) })
     else void act(() => api.taskVerb(c.id, a.id))
   }
   const tone = c.outcome === 'failed' ? 'bad' : 'plain'
@@ -259,7 +259,7 @@ function QuickAdd({ agent, onAdded }: { agent: string; onAdded: () => void }) {
   )
 }
 
-function Confirm({ a, onClose }: { a: { text: string; ok: string; run: () => Promise<unknown> }; onClose: (done: boolean) => void }) {
+function Confirm({ a, onClose }: { a: { text: string; ok: string; run: () => Promise<unknown>; danger?: boolean }; onClose: (done: boolean) => void }) {
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState('')
   async function yes() {
@@ -281,7 +281,7 @@ function Confirm({ a, onClose }: { a: { text: string; ok: string; run: () => Pro
           <button type="button" className="btn outline" onClick={() => onClose(false)}>
             Batal
           </button>
-          <button type="button" className="btn primary" disabled={busy} onClick={() => void yes()}>
+          <button type="button" className={a.danger ? 'btn danger' : 'btn primary'} disabled={busy} onClick={() => void yes()}>
             {a.ok}
           </button>
         </div>
@@ -428,7 +428,7 @@ export default function Kanban() {
   const [state, setState] = useState<'loading' | 'ok' | 'error'>('loading')
   const [error, setError] = useState('')
   const epoch = useRef(0)
-  const [confirm, setConfirm] = useState<{ text: string; ok: string; run: () => Promise<unknown> } | null>(null)
+  const [confirm, setConfirm] = useState<{ text: string; ok: string; run: () => Promise<unknown>; danger?: boolean } | null>(null)
   const [creating, setCreating] = useState(false)
   const [recOpen, setRecOpen] = useState(false)
   const [opened, setOpened] = useState<{ id: string; edit: boolean } | null>(null)

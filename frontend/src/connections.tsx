@@ -529,6 +529,11 @@ export function AppsPage() {
         {id === 'gmail' && admin && (
           <p className="quiet small">Google menganggap akses baca Drive dan Gmail sebagai izin terbatas (restricted scope), jadi pemakaian produksi di atas 100 pengguna perlu verifikasi aplikasi oleh Google.</p>
         )}
+        {id === 'gmail' && (
+          <button type="button" className="btn link app-how" aria-expanded={how} aria-controls="how-gmail" onClick={() => setHow((v) => !v)}>
+            {how ? 'Sembunyikan cara kerja' : 'Cara kerja tombol draf'}
+          </button>
+        )}
         {id === 'gmail' && how && (
           <p className="note-box" id="how-gmail">
             Di bawah setiap jawaban pegawai ada tombol &ldquo;Simpan sebagai draf Gmail&rdquo;. Anda bisa mengubah penerima, subjek, dan isinya dulu. Hasilnya hanya draf di Gmail Anda. Anda sendiri yang membuka dan mengirimnya.
@@ -573,11 +578,6 @@ export function AppsPage() {
                 </button>
               )}
               {(status === 'connected' || status === 'needs_scope') && id === 'gdrive' && pickDrive}
-              {id === 'gmail' && (
-                <button type="button" className="btn link" aria-expanded={how} aria-controls="how-gmail" onClick={() => setHow((v) => !v)}>
-                  {how ? 'Sembunyikan cara kerja' : 'Cara kerja tombol draf'}
-                </button>
-              )}
             </>
           )}
         </div>

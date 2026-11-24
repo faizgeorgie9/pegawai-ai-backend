@@ -647,6 +647,9 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
 .app-mini > p { grid-column: 1 / -1; grid-row: 2; margin: 0; font-size: var(--t-small); color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .app-mini > .connect-warn, .app-mini > .note-box, .app-mini > .quiet { grid-column: 1 / -1; -webkit-line-clamp: unset; display: block; }
 .app-mini > .app-code, .app-mini > .connect-acct { grid-row: auto; }
+/* The Gmail "Cara kerja tombol draf" toggle got its own row: inside the action column its 174 px pushed the title
+   down to 1 px on the Aplikasi > Aplikasi lain cards (FE-1, live test 24 Nov 2026). Keep it under the description. */
+.app-row > .app-how, .app-mini > .app-how { grid-column: 1 / -1; justify-self: start; margin: 0; }
 .apps-more { align-self: flex-start; margin-top: var(--s-2); }
 .skill-card > p.quiet { grid-row: 3; -webkit-line-clamp: 1; }
 @media (max-width: 900px) { .app-rows { grid-template-columns: minmax(0, 1fr); } }
@@ -658,7 +661,7 @@ button.kc-link { background: none; border: 0; width: 100%; text-align: left; fon
   .app-row { row-gap: 2px; }
   .app-row:has(.connect-acct) > .app-card-act { grid-column: 1 / -1; grid-row: auto; justify-content: flex-start; }
   .app-row:not(:has(.connect-acct)) > .app-card-act { grid-column: 2; grid-row: 1 / span 3; justify-content: flex-end; }
-  .app-row .app-card-act .btn, .app-mini > .app-card-act .btn { min-height: 40px; }
+  .app-row .app-card-act .btn, .app-mini > .app-card-act .btn, .app-row > .app-how, .app-mini > .app-how { min-height: 40px; }
 }
 
 /* Task panel: "Hasil terakhir" reads at body size, like the instructions above it. */

@@ -30,6 +30,7 @@ interface Data {
   refreshBots: () => Promise<Bot[]>
   refreshGroups: () => Promise<Group[]>
   setGroup: (g: Group) => void
+  setBot: (b: Bot) => void // put one saved bot into the list (the detail view reads it, so a save shows at once)
   on: (type: string, fn: Listener) => () => void
   dialog: DialogState
   setDialog: (d: DialogState) => void
@@ -244,6 +245,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       refreshBots,
       refreshGroups,
       setGroup: (g) => setGroups((cur) => (cur.some((x) => x.id === g.id) ? cur.map((x) => (x.id === g.id ? g : x)) : [...cur, g])),
+      setBot: (b) => setBots((cur) => (cur.some((x) => x.id === b.id) ? cur.map((x) => (x.id === b.id ? b : x)) : [...cur, b])),
       on,
       dialog,
       setDialog,

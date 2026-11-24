@@ -128,7 +128,7 @@ const TABS = [
 ] as const
 type TabId = (typeof TABS)[number][0]
 export function AgentDetail({ id }: { id: string }) {
-  const { setDialog } = useData()
+  const { bots, setDialog } = useData()
   const admin = useAdminMode()
   const backHref = admin ? '#/agen' : '#/'
   const backLabel = admin ? 'Semua agen' : 'Beranda'
@@ -173,7 +173,10 @@ export function AgentDetail({ id }: { id: string }) {
         {/Tidak ditemukan|tidak ditemukan/.test(bot.error) ? <Empty title="Pegawai tidak ditemukan">Mungkin sudah dihapus.</Empty> : <ErrorLine text={bot.error} onRetry={bot.retry} />}
       </section>
     )
-  const b = bot.data as BotDetail
+  // FE-3: the Atur dialog puts the saved bot into the shared list, so the card, avatar and values here follow at once
+  // instead of waiting for a page reload. The detail snapshot still supplies what the list does not carry (persona).
+  const live = bots.find((x) => x.id === id)
+  const b = live ? { ...(bot.data as BotDetail), ...live } : (bot.data as BotDetail)
   const [sessions, runs, um, ua, cat] = extra.data ?? [[], [], [], [], null]
   const month = um.find((x) => x.bot_id === id)
   const all = ua.find((x) => x.bot_id === id)
