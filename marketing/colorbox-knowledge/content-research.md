@@ -32,9 +32,19 @@
 
 ## 2. Arah Visual & Estetika (Visual Direction)
 
-- **Palet Warna:** Dinamis, cerah (*cheerful*), bersih (*clean*), memadukan warna-warna *pastel*, *warm earth tone*, serta sentuhan warna kontras yang *bold*.
+- **Palet Warna:** Dinamis, cerah (*cheerful*), bersih (*clean*), memadukan warna-warna *pastel*, *warm earth tone* (Cream, Beige, Soft Terracotta), serta sentuhan aksen kontras yang *chic*.
+- **Prinsip Tampilan Instagram (Zero-Text Rule):**
+  - Carousel Instagram Colorbox mengutamakan keindahan visual (*visual-first lookbook*). Sangat minim teks, tanpa detail harga atau spesifikasi kain yang menutupi gambar. Detail harga & belanja dialihkan ke caption.
+  - Menolak grid kotak jadul (*anti-canned template*). Tata letak dinamis ala moodboard Pinterest.
+  - Mempertahankan rasio aspek produk asli (*zero stretch/distortion*).
+- **Variasi 5 Gaya Visual Terpopuler:**
+  1. *Split Editorial Lookbook:* Foto model candid street/cafe di bagian atas + flatlay aksesoris melayang di kanvas bersih.
+  2. *Cozy Natural Table-Top / Fur Flatlay:* Kaos dilipat rapi di karpet bulu cream/linen dengan pencahayaan golden-hour dan bayangan daun palem.
+  3. *Editorial Zoom Callouts:* Foto outdoor dengan kotak aksen garis kuning tipis menyorot detail sablon grafis & jahitan.
+  4. *Ambient Boutique / Artsy Shoot:* Model berpose di studio keramik/kafe vintage berpenerangan hangat.
+  5. *Paper-Doll Wardrobe / Ghost Mannequin:* Baju tanpa model di lemari vintage atau stiker bergaris tepi putih untuk voting komunitas.
 - **Pencahayaan & Lokasi:**
-  - *Natural daylight* yang terang dan segar.
+  - *Natural daylight* yang terang dan hangat (*warm golden hour*).
   - Lokasi bernuansa perkotaan (*urban street*, tangga kafe, dinding bertekstur, kamar bergaya minimalis estetis, gerai toko Colorbox bernuansa modern).
 - **Model & Pose:**
   - Model wanita muda dengan pembawaan ramah, senyum natural, pose luwes (*effortless poses*), dan mencerminkan rasa percaya diri.

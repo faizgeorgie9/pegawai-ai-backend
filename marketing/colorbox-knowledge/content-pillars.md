@@ -60,7 +60,7 @@ Tagar Utama Kampanye:
 - **Contoh Topik Konten:**
   - *New Arrival Highlights* (misal: Knitwear koleksi terbaru, Retro Graphic Tees, koleksi kolaborasi seperti Colorbox x Liunic).
   - Promo musiman (Payday Sale, Twin Date Sale 9.9/10.10/11.11, diskon hingga 70%).
-- **Format Terbaik:** Video *lookbook* singkat berkecepatan tinggi, carousel foto produk dengan teks harga/diskon yang *eye-catching*, Instagram Story countdown.
+- **Format Terbaik:** Video *lookbook* singkat berkecepatan tinggi, carousel foto estetik ala Pinterest (flatlay alami, split moodboard, detail zoom) dengan teks harga diletakkan di caption (bukan menutupi visual produk), Instagram Story countdown.
 
 ### Pilar 4: Community & Interactive Engagement (Interaksi Komunitas)
 - **Tujuan:** Menumbuhkan *engagement* dua arah dan merangkul komunitas `#ColorboxBabes`.
