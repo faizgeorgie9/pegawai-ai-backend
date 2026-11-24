@@ -247,7 +247,10 @@ def search_tenant_memory(requesting_tenant: str, query: str) -> List[Dict[str, A
     clean_tenant = requesting_tenant.lower().strip()
     tenant_records = _tenant_memory_store.get(clean_tenant, {})
     q = query.lower().strip()
-    return [r for r in tenant_records.values() if q in r.get("content", "").lower()]
+    return [
+        r for r in tenant_records.values()
+        if q in r.get("content", "").lower() or q in r.get("id", "").lower()
+    ]
 
 
 def validate_tenant_isolation(
@@ -361,12 +364,98 @@ def validate_tenant_isolation(
     }
 
 
+EXPLICIT_DEFERRED_SCOPE = [
+    "Endpoint Isolation (separate VPS per user)",
+    "Dynamic PM Delegation",
+    "Frontend full memory management UI",
+    "Post-sprint evaluation of 6 non-primary memory candidates (Obsidian, Hindsight, Honcho, OpenViking, Cognee, AgentMemory)"
+]
+
+RUNTIME_STATUS = {
+    "endpoint_isolation_implemented": False,
+    "dynamic_pm_delegation_implemented": False,
+    "frontend_memory_ui_implemented": False,
+    "layer_1_session_active": True,
+    "layer_2_employee_active": True,
+    "layer_3_customer_active": False,
+    "layer_4_project_active": False,
+    "layer_5_long_term_active": False,
+    "primary_mvp_candidate": "memO (Mem0)"
+}
+
+
+def store_test_memory(tenant_id: str, mem_id: str, content: str, bot_id: str = "siti", category: str = "general") -> Dict[str, Any]:
+    """Store or update a memory record strictly in tenant's isolated partition."""
+    clean_tenant = tenant_id.lower().strip()
+    if clean_tenant not in _tenant_memory_store:
+        _tenant_memory_store[clean_tenant] = {}
+    record = {
+        "id": mem_id,
+        "bot_id": bot_id,
+        "category": category,
+        "content": content,
+        "confidential": True,
+        "created_at": time.time()
+    }
+    _tenant_memory_store[clean_tenant][mem_id] = record
+    return record
+
+
+def search_test_memory(tenant_id: str, query: str) -> List[Dict[str, Any]]:
+    """Search records strictly within tenant's isolated partition."""
+    return search_tenant_memory(tenant_id, query)
+
+
+def delete_test_memory(tenant_id: str, mem_id: str) -> bool:
+    """Delete a memory record strictly from tenant's partition. Returns True if deleted, False if not found."""
+    clean_tenant = tenant_id.lower().strip()
+    if clean_tenant in _tenant_memory_store and mem_id in _tenant_memory_store[clean_tenant]:
+        del _tenant_memory_store[clean_tenant][mem_id]
+        return True
+    return False
+
+
+def get_benchmark_matrix() -> List[Dict[str, Any]]:
+    """Return list representation of all 7 benchmarked memory candidates."""
+    matrix = []
+    for key, c in MEMORY_CANDIDATES.items():
+        matrix.append({
+            "candidate_key": key,
+            "name": c["name"],
+            "vendor_or_repo": c["vendor_or_repo"],
+            "license": c["license"],
+            "tested_status": c["tested_status"],
+            "layer_fit": c["layer_fit"],
+            "recommendation": "RECOMMENDED (MVP Layer 5)" if key == "memo"
+                else "REJECTED (Active Runtime Engine)" if key == "obsidian"
+                else "DEFERRED (UI Inspiration Only)" if key == "agentmemory"
+                else "DEFERRED (Post-Sprint Evaluation)",
+            "tradeoffs": c["tradeoffs"]
+        })
+    return matrix
+
+
 def get_memory_blueprint_summary() -> Dict[str, Any]:
     """Return complete Five-Layer Memory Architecture & Seven-Candidate Benchmark directory."""
+    layer_list = []
+    for k, v in MEMORY_LAYERS_SPEC.items():
+        layer_list.append({
+            "layer_key": k,
+            "layer_name": f"{v['layer_number']}_{v['name'].replace(' ', '_')}",
+            "number": v["layer_number"],
+            "title": v["name"],
+            "status": v["status"],
+            "scope": v["scope"],
+            "storage_engine": v["storage_engine"],
+            "description": v["description"]
+        })
     return {
         "blueprint_version": "1.0-sprint5",
-        "layers": MEMORY_LAYERS_SPEC,
+        "layers": layer_list,
+        "layers_spec": MEMORY_LAYERS_SPEC,
         "candidates_benchmark": MEMORY_CANDIDATES,
+        "explicit_deferred_scope": EXPLICIT_DEFERRED_SCOPE,
+        "runtime_status": RUNTIME_STATUS,
         "tenant_isolation_principles": {
             "partitioning_key": "tenant_id",
             "enforcement_levels": ["BFF Middleware", "Database Row-Level Security (RLS)", "Vector Metadata Filtering"],

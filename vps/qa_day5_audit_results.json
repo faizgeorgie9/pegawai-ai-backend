@@ -1,0 +1,189 @@
+{
+  "vps_hardening": {
+    "ufw": "Status: active\nLogging: on (low)\nDefault: deny (incoming), allow (outgoing), deny (routed)\nNew profiles: skip\n\nTo                         Action      From\n--                         ------      ----\n22/tcp                     ALLOW IN    Anywhere                   # SSH Access\n80/tcp                     ALLOW IN    Anywhere                   # HTTP Redirect\n443/tcp                    ALLOW IN    Anywhere                   # HTTPS Production\n22/tcp (v6)                ALLOW IN    Anywhere (v6)              # SSH Access\n80/tcp (v6)                ALLOW IN    Anywhere (v6)              # HTTP Redirect\n443/tcp (v6)               ALLOW IN    Anywhere (v6)              # HTTPS Production",
+    "ports": "tcp   LISTEN 0      4096   127.0.0.53%lo:53         0.0.0.0:*    users:((\"systemd-resolve\",pid=21983,fd=14))                                                                                              \ntcp   LISTEN 0      128        127.0.0.1:8642       0.0.0.0:*    users:((\"hermes\",pid=55498,fd=67))                                                                                                       \ntcp   LISTEN 0      128          0.0.0.0:22         0.0.0.0:*    users:((\"sshd\",pid=14014,fd=3))                                                                                                          \ntcp   LISTEN 0      511          0.0.0.0:80         0.0.0.0:*    users:((\"nginx\",pid=303026,fd=6),(\"nginx\",pid=303025,fd=6),(\"nginx\",pid=303024,fd=6),(\"nginx\",pid=303023,fd=6),(\"nginx\",pid=279436,fd=6))\ntcp   LISTEN 0      511          0.0.0.0:443        0.0.0.0:*    users:((\"nginx\",pid=303026,fd=8),(\"nginx\",pid=303025,fd=8),(\"nginx\",pid=303024,fd=8),(\"nginx\",pid=303023,fd=8),(\"nginx\",pid=279436,fd=8))\ntcp   LISTEN 0      4096       127.0.0.1:46805      0.0.0.0:*    users:((\"containerd\",pid=244446,fd=15))                                                                                                  \ntcp   LISTEN 0      2048       127.0.0.1:59019      0.0.0.0:*    users:((\"hermes\",pid=55498,fd=5))                                                                                                        \ntcp   LISTEN 0      4096       127.0.0.1:8080       0.0.0.0:*    users:((\"docker-proxy\",pid=252705,fd=7))                                                                                                 \ntcp   LISTEN 0      128             [::]:22            [::]:*    users:((\"sshd\",pid=14014,fd=4))                                                                                                          \ntcp   LISTEN 0      511             [::]:80            [::]:*    users:((\"nginx\",pid=303026,fd=7),(\"nginx\",pid=303025,fd=7),(\"nginx\",pid=303024,fd=7),(\"nginx\",pid=303023,fd=7),(\"nginx\",pid=279436,fd=7))\ntcp   LISTEN 0      511             [::]:443           [::]:*    users:((\"nginx\",pid=303026,fd=9),(\"nginx\",pid=303025,fd=9),(\"nginx\",pid=303024,fd=9),(\"nginx\",pid=303023,fd=9),(\"nginx\",pid=279436,fd=9))"
+  },
+  "vps_resources": {
+    "uptime": "20:14:43 up 6 days, 22:25,  1 user,  load average: 0.12, 0.05, 0.01",
+    "cpu": "CPU(s):                                  4\nModel name:                              Common KVM processor\nNUMA node0 CPU(s):                       0-3",
+    "ram": "total        used        free      shared  buff/cache   available\nMem:           3.8Gi       982Mi       190Mi        17Mi       2.7Gi       2.6Gi\nSwap:             0B          0B          0B",
+    "disk": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/sda1        58G  9.4G   49G  17% /"
+  },
+  "remote_pytest": {
+    "exit_code": 0,
+    "output": "============================= test session starts ==============================\nplatform linux -- Python 3.14.9, pytest-9.2.0, pluggy-1.7.0 -- /home/ubuntu/pegawai-ai/bff/.venv/bin/python\ncachedir: .pytest_cache\nrootdir: /home/ubuntu/pegawai-ai/bff\nconfigfile: pyproject.toml\nplugins: anyio-4.16.0, respx-0.23.1\ncollecting ... collected 20 items\n\ntests/test_day5_sprint5.py::test_auth_full_security_matrix PASSED        [  5%]\ntests/test_day5_sprint5.py::test_kb_agent_boundary_enforcement PASSED    [ 10%]\ntests/test_day5_sprint5.py::test_fastmcp_three_tier_privileges PASSED    [ 15%]\ntests/test_day5_sprint5.py::test_hermes_config_and_master_template_validation PASSED [ 20%]\ntests/test_day5_sprint5.py::test_telegram_webhook_execution PASSED       [ 25%]\ntests/test_day5_sprint5.py::test_five_layer_memory_and_seven_candidates PASSED [ 30%]\ntests/test_day5_sprint5.py::test_threat_scenario_1_cross_tenant_read_infiltration PASSED [ 35%]\ntests/test_day5_sprint5.py::test_threat_scenario_2_cross_tenant_write_overwrite PASSED [ 40%]\ntests/test_day5_sprint5.py::test_threat_scenario_3_cross_tenant_memory_deletion PASSED [ 45%]\ntests/test_day5_sprint5.py::test_threat_scenario_4_tenant_id_spoofing_path_traversal PASSED [ 50%]\ntests/test_day5_sprint5.py::test_threat_scenario_5_prompt_injection_memory_poisoning PASSED [ 55%]\ntests/test_day5_sprint5.py::test_explicit_deferred_scope_boundaries PASSED [ 60%]\ntests/test_day4_sprint5.py::test_telegram_webhook_secret_verification PASSED [ 65%]\ntests/test_day4_sprint5.py::test_telegram_message_splitting_under_4096_chars PASSED [ 70%]\ntests/test_day4_sprint5.py::test_telegram_command_handling PASSED        [ 75%]\ntests/test_day4_sprint5.py::test_process_telegram_update_routing_and_cs_knowledge PASSED [ 80%]\ntests/test_day4_sprint5.py::test_seven_memory_candidates_complete_benchmark PASSED [ 85%]\ntests/test_day4_sprint5.py::test_five_memory_layers_spec PASSED          [ 90%]\ntests/test_day4_sprint5.py::test_tenant_memory_isolation_and_threat_scenarios PASSED [ 95%]\ntests/test_day4_sprint5.py::test_api_telegram_and_memory_blueprint_endpoints PASSED [100%]\n\n=============================== warnings summary ===============================\n.venv/lib/python3.14/site-packages/pydantic_settings/sources/utils.py:51\n  /home/ubuntu/pegawai-ai/bff/.venv/lib/python3.14/site-packages/pydantic_settings/sources/utils.py:51: IncompleteFieldDefinitionWarning: Field 'lifespan' has an incomplete definition: its annotation contains an unresolved forward reference, so settings sources may fail to correctly resolve its value. Call `model_rebuild()` on the model where the field is defined, once all the referenced types are defined.\n    warnings.warn(  # noqa: B028  (called from many sources at differing depths, so no stacklevel is correct)\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n======================== 20 passed, 1 warning in 5.17s =========================\n"
+  },
+  "live_demo_http": {
+    "url": "https://139.190.107.151.sslip.io/demo",
+    "status_code": 200,
+    "html_valid": true,
+    "react_root_present": true
+  },
+  "live_auth_flow": {
+    "bad_password_status": 401,
+    "valid_login_status": 200,
+    "unauth_me_status": 401,
+    "auth_me_status": 200,
+    "user_profile": {
+      "ok": true,
+      "user": {
+        "id": "user_7aa7584538",
+        "name": "Demo Client User",
+        "email": "demo@colorbox.co.id",
+        "role": "member",
+        "company": "Colorbox",
+        "plan_id": "pro",
+        "created_at": "2026-11-24T13:14:53.305941+00:00",
+        "is_active": true
+      }
+    }
+  },
+  "live_telegram_webhook": {
+    "bff_status": {
+      "is_configured": true,
+      "bot_token_set": true,
+      "webhook_secret_configured": true,
+      "max_message_chars": 4096,
+      "active_chats_tracked": 0,
+      "outbox_messages_logged": 0,
+      "supported_commands": [
+        "/start",
+        "/help",
+        "/status",
+        "/agent",
+        "/reset"
+      ]
+    },
+    "telegram_api_webhook_info": {
+      "ok": true,
+      "result": {
+        "url": "https://139.190.107.151.sslip.io/bff/api/telegram/webhook",
+        "has_custom_certificate": false,
+        "pending_update_count": 0,
+        "last_error_date": 1795521847,
+        "last_error_message": "Wrong response from the webhook: 500 Internal Server Error",
+        "max_connections": 40,
+        "ip_address": "139.190.107.151",
+        "allowed_updates": [
+          "message",
+          "edited_message"
+        ]
+      }
+    }
+  },
+  "live_memory_blueprint": {
+    "status_code": 200,
+    "blueprint_version": "1.0-sprint5",
+    "layers": [
+      {
+        "layer_key": "layer_1_session",
+        "layer_name": "1_Session_Memory",
+        "number": 1,
+        "title": "Session Memory",
+        "status": "AVAILABLE",
+        "scope": "Per Conversation Topic",
+        "storage_engine": "PostgreSQL (chat_sessions, runs) & Hermes state.db FTS",
+        "description": "Maintains immediate turn-by-turn conversation dialogue, short-term context window packing, and recent tool invocation history."
+      },
+      {
+        "layer_key": "layer_2_employee",
+        "layer_name": "2_Employee_Memory",
+        "number": 2,
+        "title": "Employee Memory",
+        "status": "AVAILABLE_AND_PARTIAL",
+        "scope": "Per AI Bot Profile",
+        "storage_engine": "Hermes Profile Directory (~/.hermes/profiles/<bot>/memories/MEMORY.md & USER.md)",
+        "description": "Stores agent-specific learned notes (MEMORY.md up to 2,200 chars) and perceived user profile facts (USER.md up to 1,375 chars)."
+      },
+      {
+        "layer_key": "layer_3_customer",
+        "layer_name": "3_Customer_/_Tenant_Memory",
+        "number": 3,
+        "title": "Customer / Tenant Memory",
+        "status": "PLANNED",
+        "scope": "Per Client Organization / Tenant",
+        "storage_engine": "PostgreSQL (client_tenants, tenant_profiles) injected dynamically into run instructions",
+        "description": "Preserves client-specific brand guidelines, forbidden competitor terms, target audience personas, and corporate tone of voice."
+      },
+      {
+        "layer_key": "layer_4_project",
+        "layer_name": "4_Project_Memory",
+        "number": 4,
+        "title": "Project Memory",
+        "status": "PLANNED",
+        "scope": "Per Active Project / Campaign",
+        "storage_engine": "PostgreSQL (tasks, project_milestones, kb_items)",
+        "description": "Maintains operational campaign milestones, Kanban card statuses, assigned creative deliverables, and review feedback loops."
+      },
+      {
+        "layer_key": "layer_5_long_term",
+        "layer_name": "5_Long-Term_Episodic_&_Semantic_Memory",
+        "number": 5,
+        "title": "Long-Term Episodic & Semantic Memory",
+        "status": "PLANNED",
+        "scope": "Organization-Wide Knowledge",
+        "storage_engine": "Vector DB / pgvector (Target Engine: Mem0 / Postgres pgvector)",
+        "description": "Synthesizes long-term historical insights, cross-session problem resolution patterns, and recurring client preferences across years."
+      }
+    ],
+    "explicit_deferred_scope": [
+      "Endpoint Isolation (separate VPS per user)",
+      "Dynamic PM Delegation",
+      "Frontend full memory management UI",
+      "Post-sprint evaluation of 6 non-primary memory candidates (Obsidian, Hindsight, Honcho, OpenViking, Cognee, AgentMemory)"
+    ],
+    "runtime_status": {
+      "endpoint_isolation_implemented": false,
+      "dynamic_pm_delegation_implemented": false,
+      "frontend_memory_ui_implemented": false,
+      "layer_1_session_active": true,
+      "layer_2_employee_active": true,
+      "layer_3_customer_active": false,
+      "layer_4_project_active": false,
+      "layer_5_long_term_active": false,
+      "primary_mvp_candidate": "memO (Mem0)"
+    }
+  },
+  "threat_scenarios_validation": {
+    "status": "success",
+    "isolation_verified": true,
+    "scenarios_tested": 5,
+    "scenarios": [
+      {
+        "scenario": "1. Cross-Tenant Direct Read Attack",
+        "description": "Tenant 'tenant_beta_ltd' attempts to read memory of 'tenant_alpha_corp'",
+        "outcome": "PASSED_PROTECTED",
+        "status_code": 403,
+        "reason": "Access strictly blocked: Forbidden: Cross-tenant memory access denied. 'tenant_beta_ltd' cannot read data of 'tenant_alpha_corp'."
+      },
+      {
+        "scenario": "2. Cross-Tenant Memory Tamper / Overwrite Attack",
+        "description": "Tenant 'tenant_beta_ltd' attempts to overwrite memory record of 'tenant_alpha_corp'",
+        "outcome": "PASSED_PROTECTED",
+        "status_code": 403,
+        "reason": "Write strictly blocked: Forbidden: Cross-tenant memory access denied. 'tenant_beta_ltd' cannot write/overwrite data of 'tenant_alpha_corp'."
+      },
+      {
+        "scenario": "3. Cross-Tenant Deletion / Sabotage Attack",
+        "description": "Tenant 'tenant_beta_ltd' attempts to delete memory records of 'tenant_alpha_corp'",
+        "outcome": "PASSED_PROTECTED",
+        "status_code": 403,
+        "reason": "Deletion strictly blocked: Forbidden: Cross-tenant memory access denied. 'tenant_beta_ltd' cannot delete data of 'tenant_alpha_corp'."
+      },
+      {
+        "scenario": "4. Cross-Tenant Semantic Search Infiltration Attack",
+        "description": "Tenant 'tenant_beta_ltd' searches for confidential terms present in 'tenant_alpha_corp'",
+        "outcome": "PASSED_PROTECTED",
+        "hits_returned": 0,
+        "reason": "Search query strictly isolated to Tenant B datastore; 0 records leaked from Tenant A."
+      },
+      {
+        "scenario": "5. Prompt Injection / Global Memory Extraction Attempt",
+        "description": "Adversary injects jailbreak prompt seeking global multi-tenant dump",
+        "outcome": "PASSED_PROTECTED",
+        "hits_returned": 0,
+        "reason": "Deterministic database tenant partitioning cannot be bypassed by LLM prompt jailbreaks."
+      }
+    ]
+  }
+}
