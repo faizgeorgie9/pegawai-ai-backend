@@ -117,6 +117,7 @@ async def send_telegram_message(
     chunks = split_telegram_message(text)
     results = []
 
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", TELEGRAM_BOT_TOKEN)
     for chunk in chunks:
         payload = {
             "chat_id": chat_id,
@@ -126,7 +127,7 @@ async def send_telegram_message(
             payload["parse_mode"] = parse_mode
 
         # If mock mode or test token, record in outbox and return simulated success
-        if mock or "mock" in TELEGRAM_BOT_TOKEN or config.TESTING:
+        if mock or "mock" in bot_token or getattr(config, "TESTING", False):
             record = {
                 "ok": True,
                 "result": {
@@ -141,7 +142,7 @@ async def send_telegram_message(
             results.append(record)
             continue
 
-        url = f"{TELEGRAM_API_BASE}/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        url = f"{TELEGRAM_API_BASE}/bot{bot_token}/sendMessage"
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 resp = await client.post(url, json=payload)
