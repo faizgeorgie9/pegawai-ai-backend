@@ -2308,8 +2308,8 @@ def start_run_job(
                         "group_id": group_id, "bot_id": bot_id, "run_id": run_id, "text": c
                     })
 
-            if bot_id in ("vina", "cre-03"):
-                # Special handling for CRE-03 / Vina: Visual Art Director & Image Generation Specialist
+            if bot_id == "cre-03":
+                # Special handling for CRE-03: Visual Art Director & Image Generation Specialist
                 # Uses high-fidelity Playwright Aesthetic Visual Engine with authentic Colorbox catalog assets
                 t_img = time.time()
                 _record_run_event(
@@ -2318,14 +2318,14 @@ def start_run_job(
                 )
 
                 img_gen_ok = False
-                vina_md = ""
+                cre03_md = ""
                 err_cause = ""
 
                 try:
                     all_text_to_scan = (user_input or "") + " " + " ".join(str(h.get("content", "")) for h in (prior_history or []))
                     user_mandate_prods, _ = _detect_user_product_mandate(all_text_to_scan)
                     req_slide_count = _detect_requested_slide_count(all_text_to_scan, default_count=3)
-                    vina_md = _render_vina_visual_carousel([], user_mandate_prods, requested_slides=req_slide_count)
+                    cre03_md = _render_cre03_visual_carousel([], user_mandate_prods, requested_slides=req_slide_count)
 
                     out_dir = Path(MARKETING_OUTPUT_DIR) / "carousel_latest"
                     s1 = out_dir / "slide_1_cover_hero.png"
@@ -2349,7 +2349,7 @@ def start_run_job(
                         lv.out.append(error_msg)
                     HUB.publish(run_id, "delta", {"text": error_msg, "end": len(error_msg)})
                 else:
-                    bot_title = "CRE-03 (Graphic & Motion Designer)" if bot_id == "cre-03" else "Vina"
+                    bot_title = "CRE-03 (Graphic & Motion Designer)"
                     rendered_slide_files = sorted([f.name for f in out_dir.glob("slide_*.png")])
                     slide_file_list_str = ", ".join([f"`{f}`" for f in rendered_slide_files])
                     art_direction_note = (
@@ -2362,7 +2362,7 @@ def start_run_job(
                         f"- Berkas Gambar: {slide_file_list_str}\n"
                         "- Pratinjau Interaktif Live HTML: `/output/carousel_latest/carousel_preview.html`\n\n"
                     )
-                    final_output = (art_direction_note + vina_md).strip()
+                    final_output = (art_direction_note + cre03_md).strip()
                     final_status = "completed"
 
                     total_inp += 120
@@ -2934,103 +2934,125 @@ def _detect_user_product_mandate(user_text: str) -> Tuple[List[Dict[str, Any]], 
     if not user_text:
         return [], "User belum memberikan detail brief spesifik."
     low = user_text.lower()
+    low_clean = re.sub(r"[^\w\s-]", " ", low)
     scored_items: List[Tuple[int, Dict[str, Any]]] = []
     seen_names = set()
+
+    # Fashion term mapping (Indonesian -> English / category keywords)
+    has_jaket = any(k in low_clean for k in ["jaket", "jacket", "outer", "outerwear"])
+    has_rok = any(k in low_clean for k in ["rok", "skirt", "skort"])
+    has_tas = any(k in low_clean for k in ["tas", "bag", "tote", "sling"])
+    has_celana = any(k in low_clean for k in ["celana", "pants", "jeans"])
+    has_kaos = any(k in low_clean for k in ["kaos", "tshirt", "t-shirt", "tee", "baju", "atasan"])
+    has_dress = any(k in low_clean for k in ["dress", "gaun", "terusan"])
+    has_cardigan = any(k in low_clean for k in ["cardigan", "kardigan", "rajut"])
+    has_denim = "denim" in low_clean
 
     generic_words = {"long", "sleeve", "short", "crop", "with", "details", "detail", "regular", "fitted"}
 
     # 1. First score AUTHENTIC_IMAGE_CATALOG (items with real scraped photos get priority)
     for item in AUTHENTIC_IMAGE_CATALOG:
+        score = 0
+        iid = str(item.get("id", "")).lower()
+        iid_norm = iid.replace("-", "").replace(" ", "")
+
+        # Exact ID match (e.g. cbx-13, cbx13, cbx 13)
+        if iid in low_clean or (iid_norm and iid_norm in low_clean.replace("-", "").replace(" ", "")):
+            score += 1000
+
         iname = item["name"].lower()
+        icat = (item.get("category") or "").lower()
+
+        # Exact title match
+        if iname in low_clean:
+            score += 100
+
+        # Substring / keyphrase matches
+        if has_denim and has_jaket and ("denim" in iname and "jacket" in iname):
+            score += 200
+        elif has_denim and has_celana and ("denim" in iname and any(k in iname for k in ["pants", "jeans", "barrel", "flared"])):
+            score += 150
+        elif has_denim and has_tas and ("denim" in iname and "bag" in iname):
+            score += 150
+
         tokens = [t for t in re.findall(r"[a-z0-9]+", iname) if len(t) > 2]
         specific_tokens = [t for t in tokens if t not in generic_words]
-        spec_hits = sum(1 for t in specific_tokens if t in low)
-        if "rok" in low and any(k in iname for k in ["skirt", "skort"]):
-            spec_hits += 1
-        if "tas" in low and any(k in iname for k in ["bag", "tote"]):
-            spec_hits += 1
-        if "celana" in low and any(k in iname for k in ["pants", "denim", "jeans"]):
-            spec_hits += 1
+        spec_hits = sum(1 for t in specific_tokens if t in low_clean)
+        score += (spec_hits * 15)
 
-        if spec_hits == 0 and iname not in low:
-            continue
+        if has_jaket and ("jacket" in iname or "outerwear" in icat):
+            score += 30
+        if has_rok and any(k in iname for k in ["skirt", "skort"]):
+            score += 30
+        if has_tas and any(k in iname for k in ["bag", "tote"]):
+            score += 30
+        if has_celana and any(k in iname for k in ["pants", "jeans"]):
+            score += 30
+        if has_dress and "dress" in iname:
+            score += 30
 
-        score = 10
-        if iname in low:
-            score += 50
-        score += (spec_hits * 10)
         color = (item.get("color") or "").lower()
-        if color and color in low:
-            score += 15
-        if item["name"] not in seen_names:
-            seen_names.add(item["name"])
-            scored_items.append((score, item))
+        if color and color in low_clean:
+            score += 25
 
-    # 2. Check full CATALOG (1,216 products)
-    if len(CATALOG.rows) > 0:
+        if score > 0:
+            if item["name"] not in seen_names:
+                seen_names.add(item["name"])
+                scored_items.append((score, item))
+
+    # 2. Check full CATALOG (1,216 products) if no exact ID match
+    if not any(sc >= 500 for sc, _ in scored_items) and len(CATALOG.rows) > 0:
         candidates = CATALOG.search(user_text, limit=15)
         for c in candidates:
             cname = c["name"].lower()
             if c["name"] in seen_names:
                 continue
+            score = 0
+            if cname in low_clean:
+                score += 80
             tokens = [t for t in re.findall(r"[a-z0-9]+", cname) if len(t) > 2]
             specific_tokens = [t for t in tokens if t not in generic_words]
-            spec_hits = sum(1 for t in specific_tokens if t in low)
-            if "rok" in low and any(k in cname for k in ["skirt", "skort"]):
-                spec_hits += 1
-            if "tas" in low and any(k in cname for k in ["bag", "tote"]):
-                spec_hits += 1
-            if "celana" in low and any(k in cname for k in ["pants", "denim", "jeans"]):
-                spec_hits += 1
-
-            if spec_hits == 0 and cname not in low:
-                continue
-
-            score = 0
-            if cname in low:
-                score += 40
-            score += (spec_hits * 8)
+            spec_hits = sum(1 for t in specific_tokens if t in low_clean)
+            score += (spec_hits * 10)
+            if has_denim and has_jaket and ("denim" in cname and "jacket" in cname):
+                score += 150
             c_colors = [str(col).lower() for col in (c.get("colors") or [])]
-            if any(col in low for col in c_colors):
-                score += 10
-            seen_names.add(c["name"])
-            scored_items.append((score, c))
+            if any(col in low_clean for col in c_colors):
+                score += 15
+            if score > 0:
+                seen_names.add(c["name"])
+                scored_items.append((score, c))
 
     scored_items.sort(key=lambda x: x[0], reverse=True)
-    raw_matched = [it for _, it in scored_items]
-    if raw_matched:
-        hero = raw_matched[0]
-        rest = raw_matched[1:]
-        bottom_idx = -1
-        for i, item in enumerate(rest):
-            cat = str(item.get("category") or "").lower()
-            name = str(item.get("name") or "").lower()
-            if any(k in cat or k in name for k in ["skirt", "skort", "pants", "denim", "bottom"]):
-                bottom_idx = i
-                break
-        if bottom_idx >= 0:
-            pairing = rest.pop(bottom_idx)
-            matched = [hero, pairing] + rest
-        else:
-            matched = raw_matched
-    else:
-        matched = []
+
+    # Filter to only genuine high-confidence matches:
+    matched = []
+    if scored_items:
+        max_score = scored_items[0][0]
+        if max_score >= 80:
+            threshold = max(50, max_score * 0.5)
+            matched = [it for sc, it in scored_items if sc >= threshold]
+        elif max_score >= 30:
+            matched = [scored_items[0][1]]
 
     if matched:
         note = (
             "📌 [MANDAT USER - PRODUK TERPILIH]:\n"
             "User secara spesifik telah memilih dan meminta produk berikut untuk dipromosikan:\n"
-            + "\n".join(f"- {p['name']} ({p.get('colors', [''])[0] if isinstance(p.get('colors'), list) and p.get('colors') else p.get('color', '')}) - {p.get('price', '')}" for p in matched[:5])
-            + "\nATURAN WAJIB:\n"
-            "1. @cre-01 (@contentstrategist) dan @cre-02 (@copywriter) WAJIB mengunci produk pilihan user di atas sebagai fokus utama konten.\n"
-            "2. Jangan mengganti produk utama ini dengan produk lain di luar permintaan user.\n"
-            "3. Kembangkan konsep gaya, target persona, dan padu-padan pelengkap di sekitar produk ini."
+            + "\n".join(f"- {p['name']} ({p.get('colors', [''])[0] if isinstance(p.get('colors'), list) and p.get('colors') else p.get('color', '')}) - {p.get('price', '')}" + (f" [ID: {p['id']}]" if p.get('id') else "") for p in matched)
+            + "\nATURAN WAJIB & NETRALITAS:\n"
+            "1. @cre-01 (@contentstrategist), @cre-02 (@copywriter), @cre-03 (@graphicdesigner), dan @cre-04 (@videocreator) WAJIB mengunci produk pilihan user di atas sebagai fokus utama (Hero Utama) konten.\n"
+            "2. DILARANG KERAS mengganti atau mengubah produk hero ini dengan produk lain. Keputusan produk 100% berada di tangan user.\n"
+            "3. Jika diperlukan padu-padan (styling layer), produk pendukung hanya sebagai pelengkap sekunder dan TIDAK BOLEH menggeser fokus produk hero pilihan user."
         )
         return matched, note
     else:
         note = (
-            "📌 [PROMPT UMUM USER]:\n"
-            "User tidak menentukan produk spesifik. @cre-01 (@contentstrategist) bebas memilih dan mengkurasi produk terbaik langsung dari katalog Colorbox (product-catalog.md) sesuai dengan konsep brief."
+            "📌 [STATUS BRIEF: PRODUK BELUM DITENTUKAN USER]:\n"
+            "User belum menentukan produk spesifik yang ingin dipromosikan.\n"
+            "ATURAN WAJIB & NETRALITAS:\n"
+            "1. Penentuan produk promosi HARUS berasal dari user, BUKAN ditentukan sendiri oleh bot.\n"
+            "2. @cre-01 (@contentstrategist) WAJIB menanyakan dan mengonfirmasikan kepada user produk apa dari katalog Colorbox (product-catalog.md) yang ingin dipromosikan, atau menyajikan beberapa opsi katalog untuk dipilih user. JANGAN langsung mengunci produk hero secara sepihak tanpa mandat dari user!"
         )
         return [], note
 
@@ -3336,10 +3358,20 @@ def find_authentic_product(query: Any) -> Optional[Dict[str, Any]]:
         return query
 
     q_str = ""
+    q_id = ""
     if isinstance(query, dict):
+        q_id = str(query.get("id", "")).lower().replace("-", "").replace(" ", "")
         q_str = str(query.get("name", "")).lower()
     elif isinstance(query, str):
         q_str = query.lower().strip()
+        q_id = q_str.replace("-", "").replace(" ", "")
+
+    # First check ID match in AUTHENTIC_IMAGE_CATALOG (e.g. cbx-13, cbx13)
+    if q_id:
+        for item in AUTHENTIC_IMAGE_CATALOG:
+            item_id_norm = str(item.get("id", "")).lower().replace("-", "").replace(" ", "")
+            if item_id_norm and (item_id_norm == q_id or item_id_norm in q_id or q_id in item_id_norm):
+                return item
 
     if not q_str:
         return None
@@ -3383,13 +3415,14 @@ def find_authentic_product(query: Any) -> Optional[Dict[str, Any]]:
     return None
 
 
-def build_curated_wardrobe_outfit(hero_ref: Any = None, day_num: int = 1) -> List[Dict[str, Any]]:
+def build_curated_wardrobe_outfit(hero_ref: Any = None, day_num: int = 1, pairing_ref: Any = None) -> List[Dict[str, Any]]:
     """
     Intelligent Category-Aware Outfit Matcher:
     - Tops / Outerwear MUST pair with Bottoms (Skirts / Pants / Jeans) + Accessory.
     - Bottoms MUST pair with Tops / Outerwear (Blazers / Jackets / Hoodies / Shirts) + Accessory.
     - Dresses pair with Outerwear Layers + Shoes / Bags.
     - Bags / Shoes pair with complete Top + Bottom outfit.
+    - Prioritizes pairing_ref from agent discussion if valid, otherwise pools authentic catalog items.
     - NEVER invents fake products; returns empty list if no valid hero product exists.
     """
     if not hero_ref:
@@ -3424,18 +3457,23 @@ def build_curated_wardrobe_outfit(hero_ref: Any = None, day_num: int = 1) -> Lis
 
     day_offset = (day_num - 1) * 2
 
+    # Check if explicit pairing product was provided from discussion
+    custom_p2 = find_authentic_product(pairing_ref) if pairing_ref else None
+    if custom_p2 and custom_p2.get("id") == hero_id:
+        custom_p2 = None
+
     if subcat in ["outerwear", "tops"]:
-        p2 = bottoms_pool[day_offset % len(bottoms_pool)] if bottoms_pool else None
+        p2 = custom_p2 or (bottoms_pool[day_offset % len(bottoms_pool)] if bottoms_pool else None)
         p3 = acc_pool[(day_offset + 1) % len(acc_pool)] if acc_pool else None
     elif subcat == "bottoms":
-        p2 = tops_pool[day_offset % len(tops_pool)] if tops_pool else None
+        p2 = custom_p2 or (tops_pool[day_offset % len(tops_pool)] if tops_pool else None)
         p3 = acc_pool[(day_offset + 1) % len(acc_pool)] if acc_pool else None
     elif subcat == "dress":
         outer_pool = [x for x in AUTHENTIC_IMAGE_CATALOG if x["subcat"] == "outerwear" and x.get("id") != hero_id]
-        p2 = outer_pool[day_offset % len(outer_pool)] if outer_pool else None
+        p2 = custom_p2 or (outer_pool[day_offset % len(outer_pool)] if outer_pool else None)
         p3 = acc_pool[(day_offset + 1) % len(acc_pool)] if acc_pool else None
     else:  # bags or shoes
-        p2 = bottoms_pool[day_offset % len(bottoms_pool)] if bottoms_pool else None
+        p2 = custom_p2 or (bottoms_pool[day_offset % len(bottoms_pool)] if bottoms_pool else None)
         p3 = tops_pool[(day_offset + 1) % len(tops_pool)] if tops_pool else None
 
     outfit = [hero]
@@ -3543,13 +3581,13 @@ def _detect_requested_slide_count(user_text: str, default_count: int = 3) -> int
     return default_count
 
 
-def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods: List[Dict[str, Any]], requested_slides: Optional[int] = None) -> str:
+def _render_cre03_visual_carousel(transcript_lines: List[str], user_mandate_prods: List[Dict[str, Any]], requested_slides: Optional[int] = None) -> str:
     try:
         sys.path.append(str(ROOT_DIR / "colorbox" / "marketing"))
         sys.path.append(str(ROOT_DIR.parent / "colorbox" / "marketing"))
         from gemini_visual_engine import render_final_carousel_package
     except Exception as e:
-        print(f"[Vina Visual Engine Import Error]: {e}")
+        print(f"[CRE-03 Visual Engine Import Error]: {e}")
         return ""
 
     out_dir = str(MARKETING_OUTPUT_DIR / "carousel_latest")
@@ -3575,9 +3613,9 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
     if not all_mandate:
         return (
             "### ⚠️ Visual Carousel Tertunda — Belum Ada Produk Terpilih\n\n"
-            "Vina tidak dapat membuat visual carousel karena belum ada produk resmi dari katalog Colorbox "
-            "(`product-catalog.md`) yang dipilih dalam brief atau hasil diskusi tim.\n\n"
-            "Silakan minta @marketingstrategist (Meda) atau @researcher (Raka) untuk menentukan produk resmi "
+            "CRE-03 tidak dapat membuat visual carousel karena belum ada produk resmi dari katalog Colorbox "
+            "(`product-catalog.md`) yang ditentukan dalam mandat user atau brief tim.\n\n"
+            "Silakan minta user atau @cre-01 (@contentstrategist) untuk mengonfirmasi produk pilihan user "
             "dari katalog terlebih dahulu agar visual dapat diproduksi secara akurat sesuai produk riil."
         )
 
@@ -3596,15 +3634,15 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
         effective_num_slides = _detect_requested_slide_count(user_line or joined_text, default_count=3)
     effective_num_slides = max(2, min(int(effective_num_slides or 3), 5))
 
-    # Extract dynamic concepts/themes from Bram or Meda
-    bram_concept = None
+    # Extract dynamic concepts/themes from CRE-02 or CRE-01
+    creative_concept = None
     day_concepts = {}
     for line in reversed(transcript_lines):
         line_str = str(line)
-        if not bram_concept:
+        if not creative_concept:
             m = re.search(r'(?:Konsep Kreatif|Tema|Creative Concept):\s*([^\n]+)', line_str, re.IGNORECASE)
             if m:
-                bram_concept = m.group(1).strip()
+                creative_concept = m.group(1).strip()
         # Check per-day concepts
         for d in [1, 2, 3]:
             if d not in day_concepts:
@@ -3625,9 +3663,9 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
         if not day1_prods:
             return "### ⚠️ Gagal memproses outfit: Produk hero tidak valid."
 
-        d1_title = day_concepts.get(1) or (f"{bram_concept} — Part 1" if bram_concept else f"{day1_prods[0]['name'].upper()} // LOOK 01")
-        d2_title = day_concepts.get(2) or (f"{bram_concept} — Part 2" if bram_concept else (f"{day2_prods[0]['name'].upper()} // LOOK 02" if day2_prods else "LOOK 02"))
-        d3_title = day_concepts.get(3) or (f"{bram_concept} — Part 3" if bram_concept else (f"{day3_prods[0]['name'].upper()} // LOOK 03" if day3_prods else "LOOK 03"))
+        d1_title = day_concepts.get(1) or (f"{creative_concept} — Part 1" if creative_concept else f"{day1_prods[0]['name'].upper()} // LOOK 01")
+        d2_title = day_concepts.get(2) or (f"{creative_concept} — Part 2" if creative_concept else (f"{day2_prods[0]['name'].upper()} // LOOK 02" if day2_prods else "LOOK 02"))
+        d3_title = day_concepts.get(3) or (f"{creative_concept} — Part 3" if creative_concept else (f"{day3_prods[0]['name'].upper()} // LOOK 03" if day3_prods else "LOOK 03"))
 
         d1_sub = f"Kurasi gaya hari 1 — Koleksi resmi {day1_prods[0].get('color', 'Colorbox')}"
         d2_sub = f"Kurasi gaya hari 2 — Koleksi resmi {day2_prods[0].get('color', 'Colorbox')}" if day2_prods else "Kurasi gaya hari 2"
@@ -3678,11 +3716,11 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
                 num_slides=effective_num_slides
             )
         except Exception as ex:
-            print(f"[Vina Multi-Day Rendering Failed]: {ex}")
+            print(f"[CRE-03 Multi-Day Rendering Failed]: {ex}")
 
         md = (
             "### 🎨 Paket Visual Carousel Siap Posting (@colorbox Bespoke Standard):\n\n"
-            f"Vina telah memproduksi aset visual 3 hari ({effective_num_slides} slide per hari) berdasarkan konsep: **{bram_concept or 'Kampanye Colorbox'}**:\n\n"
+            f"CRE-03 telah memproduksi aset visual 3 hari ({effective_num_slides} slide per hari) berdasarkan konsep: **{creative_concept or 'Kampanye Colorbox'}**:\n\n"
             f"#### 📅 HARI 1: {d1_title} (Hero: {day1_prods[0]['name']})\n"
             f"- **Hero Utama:** {day1_prods[0]['name']} ({day1_prods[0].get('color', '')}) [{day1_prods[0].get('category', '')}]\n"
         )
@@ -3735,13 +3773,14 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
 
     # Single-day curation
     hero_input = all_mandate[0] if all_mandate else None
-    prods = build_curated_wardrobe_outfit(hero_input, day_num=1)
+    pairing_input = all_mandate[1] if len(all_mandate) > 1 else None
+    prods = build_curated_wardrobe_outfit(hero_input, day_num=1, pairing_ref=pairing_input)
     if not prods:
         return "### ⚠️ Gagal memproses outfit: Produk hero tidak valid."
 
     main_p = prods[0]
     p_name = main_p.get("name", "Produk Terpilih")
-    theme_title = bram_concept or f"COLORBOX // {p_name.upper()}"
+    theme_title = creative_concept or f"COLORBOX // {p_name.upper()}"
     headline = p_name
     subtitle = f"Koleksi resmi {main_p.get('color', 'Colorbox')} — Potongan presisi khas Colorbox"
 
@@ -3758,7 +3797,7 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
         )
         _sync_carousel_output_to_frontend(out_dir)
     except Exception as ex:
-        print(f"[Vina Rendering Failed]: {ex}")
+        print(f"[CRE-03 Rendering Failed]: {ex}")
 
     md = (
         f"### 🎨 Aset Visual Carousel Siap Posting (@colorbox Bespoke Standard · {effective_num_slides} Slide):\n\n"
@@ -3827,11 +3866,7 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                 if lead_mem:
                     responders = [lead_mem]
                 else:
-                    lead_mem = next((m for m in mems if m["bot_id"] == "bimo"), None)
-                    if lead_mem:
-                        responders = [lead_mem]
-                    else:
-                        responders = list(mems)
+                    responders = list(mems)
 
             # Fetch recent transcript for context
             conn_h = _connect()
@@ -3851,7 +3886,7 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                 who = "User" if m["role"] == "user" else by_id.get(m["bot_id"], {}).get("name", m["bot_id"] or "Agen")
                 transcript_lines.append(f"{who}: {m['text']}")
 
-            # Detect product mandate from user AND from agent transcript (Meda/Raka/Bram may mention product names)
+            # Detect product mandate from user prompt
             user_text_candidate = batch_text
             if not user_text_candidate and transcript_lines:
                 for ln in transcript_lines:
@@ -3881,15 +3916,8 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                     f"- Alur wajib: CRE-01 -> @cre-02 -> @cre-03 -> @cre-04 -> @cre-01 (Review Akhir & Selesai)."
                 )
 
-            # --- FIX: If still no product mandate, scan FULL transcript for product mentions ---
-            # Agents (Meda/Raka/Bram) often explicitly name products in their outputs;
-            # we scan last 15 transcript lines so Vina receives correct hero product.
-            if not user_mandate_prods and transcript_lines:
-                agent_text_scan = " ".join(transcript_lines[-15:])
-                agent_prods, agent_note = _detect_user_product_mandate(agent_text_scan)
-                if agent_prods:
-                    user_mandate_prods = agent_prods
-                    user_mandate_note = agent_note + "\n[Produk terdeteksi dari brief agen Meda/Raka/Bram]"
+            # Product mandate must strictly originate from user instruction, not assumed from past chats
+            # If user has not specified a product, CRE-01 will professionally ask user to determine the product.
 
             posted = 0
             tokens_used = 0
@@ -3913,41 +3941,47 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                     # Tailored instructions for marketing agents (CRE-01 through CRE-04)
                     role_instructions = ""
                     req_target_slides = _detect_requested_slide_count(batch_text or user_mandate_note, default_count=3)
-                    if bid in ("cre-01", "bimo"):
+                    if bid == "cre-01":
                         if wants_carousel and not wants_video:
                             role_instructions = (
                                 "TUGAS CONTENT STRATEGIST & FLOW CONTROLLER (CRE-01):\n"
                                 f"{format_directive}\n"
-                                f"1. Sambut tim dan user secara profesional, paparkan strategi kampanye Carousel Feed Instagram ({req_target_slides} slide kurasi padat, adopsi salah satu arketipe referensi Colorbox SRC-13 dari colorbox-content-references.md: Urban In-Situ, Scrapbook Spec Sheet, Outfit MATH, Drink Pairing, 3x3 Flatlay, Focus Brackets Zoom, dll., Zero-Text on Visual).\n"
+                                f"1. Sambut tim dan user secara profesional, objektif, dan NETRAL (bebas kontaminasi brand lain atau hardcoded asumsi).\n"
                                 f"2. {user_mandate_note}\n"
-                                f"3. Jika alur baru dimulai (rnd == 1), panggil @cre-02 (@copywriter) untuk menyusun naskah storytelling {req_target_slides} slide dan caption Instagram terverifikasi katalog.\n"
-                                f"4. Jika CRE-03 sudah selesai merender visual (rnd > 1), berikan laporan akhir Quality Audit Level 2: konfirmasi katalog 100% valid, ukuran cm terverifikasi, {req_target_slides} slide visual carousel 4:5 siap tayang sesuai referensi SRC-13. Nyatakan paket siap dipublikasikan ke user. JANGAN memanggil agen lain agar alur diskusi selesai dengan tuntas."
+                                f"   ATURAN MANDAT PRODUK: Penentuan produk hero promosi HARUS 100% berasal dari mandat user. Jika user menentukan produk (seperti 'promosiin cbx-13 denim jaket'), KUNCI produk tersebut (CBX-13 Contrast Detail Denim Jacket) sebagai hero utama dan DILARANG MENGGANTINYA. Jika user belum menentukan produk spesifik, ajukan pertanyaan secara profesional meminta user menentukan produk pilihannya.\n"
+                                f"3. Paparkan strategi kampanye Carousel Feed Instagram ({req_target_slides} slide kurasi padat, adopsi salah satu arketipe referensi Colorbox SRC-13 dari colorbox-content-references.md: Urban In-Situ, Scrapbook Spec Sheet, Outfit MATH, Drink Pairing, 3x3 Flatlay, Focus Brackets Zoom, dll., Zero-Text on Visual).\n"
+                                f"4. Jika alur baru dimulai (rnd == 1), panggil @cre-02 (@copywriter) untuk menyusun naskah storytelling {req_target_slides} slide dan caption Instagram terverifikasi katalog.\n"
+                                f"5. Jika CRE-03 sudah selesai merender visual (rnd > 1), berikan laporan akhir Quality Audit Level 2: konfirmasi katalog 100% valid, ukuran cm terverifikasi, {req_target_slides} slide visual carousel 4:5 siap tayang sesuai referensi SRC-13. Nyatakan paket siap dipublikasikan ke user. JANGAN memanggil agen lain agar alur diskusi selesai dengan tuntas."
                             )
                         elif not wants_carousel and wants_video:
                             role_instructions = (
                                 "TUGAS CONTENT STRATEGIST & FLOW CONTROLLER (CRE-01):\n"
                                 f"{format_directive}\n"
-                                "1. Sambut tim dan user secara profesional, paparkan strategi konten Video UGC vertikal 9:16 (hook 3 detik thumb-stopping, styling tips, Call-to-Action).\n"
+                                "1. Sambut tim dan user secara profesional, objektif, dan NETRAL.\n"
                                 f"2. {user_mandate_note}\n"
-                                "3. Jika alur baru dimulai (rnd == 1), panggil @cre-02 (@copywriter) untuk menyusun spoken script UGC 15 detik dan caption TikTok/Reels.\n"
-                                "4. Jika CRE-04 sudah selesai merender video (rnd > 1), berikan laporan akhir Quality Audit Level 2: konfirmasi katalog 100% valid, video vertikal 9:16 siap tayang. Nyatakan paket siap dipublikasikan ke user. JANGAN memanggil agen lain agar alur diskusi selesai dengan tuntas."
+                                "   ATURAN MANDAT PRODUK: Kunci produk hero pilihan user sebagai fokus 100% video UGC. DILARANG MENGGANTI PRODUK HERO PILIHAN USER.\n"
+                                "3. Paparkan strategi konten Video UGC vertikal 9:16 (hook 3 detik thumb-stopping, styling tips, Call-to-Action).\n"
+                                "4. Jika alur baru dimulai (rnd == 1), panggil @cre-02 (@copywriter) untuk menyusun spoken script UGC 15 detik dan caption TikTok/Reels.\n"
+                                "5. Jika CRE-04 sudah selesai merender video (rnd > 1), berikan laporan akhir Quality Audit Level 2: konfirmasi katalog 100% valid, video vertikal 9:16 siap tayang. Nyatakan paket siap dipublikasikan ke user. JANGAN memanggil agen lain agar alur diskusi selesai dengan tuntas."
                             )
                         else:
                             role_instructions = (
                                 "TUGAS CONTENT STRATEGIST & FLOW CONTROLLER (CRE-01):\n"
                                 f"{format_directive}\n"
-                                f"1. Sambut tim dan user di group chat secara profesional, strategis, dan terstruktur sesuai Agentic Skill content-strategy & product-marketing (agentic-marketing-skills.md) dan referensi konten Colorbox SRC-13 (colorbox-content-references.md).\n"
-                                f"2. Paparkan ringkasan brief, pilar kampanye #NeverJustOneThing, target audiens Gen Z (18-25th), alokasi format (carousel vs video vs keduanya), dan arketipe referensi Colorbox terpilih.\n"
-                                f"3. {user_mandate_note}\n"
+                                f"1. Sambut tim dan user di group chat secara profesional, strategis, objektif, dan NETRAL sesuai Agentic Skill content-strategy & product-marketing (agentic-marketing-skills.md) dan referensi konten Colorbox SRC-13 (colorbox-content-references.md).\n"
+                                f"2. {user_mandate_note}\n"
+                                f"   ATURAN MANDAT PRODUK: Penentuan produk promosi HARUS 100% berasal dari mandat user. Jika user menentukan produk (seperti CBX-13 Contrast Detail Denim Jacket), KUNCI produk tersebut sebagai hero utama dan DILARANG MENGGANTINYA.\n"
+                                f"3. Paparkan ringkasan brief, pilar kampanye #NeverJustOneThing, target audiens Gen Z (18-25th), alokasi format (carousel vs video vs keduanya), dan arketipe referensi Colorbox terpilih.\n"
                                 f"4. Jika alur baru dimulai (rnd == 1), panggil @cre-02 (@copywriter) untuk menyusun naskah storytelling {req_target_slides} slide, hook 3 detik, dan caption Instagram terverifikasi katalog.\n"
                                 f"5. Jika tim kreator (CRE-03 / CRE-04) sudah selesai merender (rnd > 1), berikan laporan akhir Quality Audit Level 2: konfirmasi katalog 100% valid, ukuran cm terverifikasi, aset gambar {req_target_slides} slide carousel 4:5 dan video UGC 9:16 siap tayang, dan nyatakan paket materi siap dipublikasikan ke user. JANGAN memanggil agen lain agar alur diskusi selesai dengan tuntas."
                             )
-                    elif bid in ("cre-02", "meda", "raka", "bram"):
+                    elif bid == "cre-02":
                         if wants_carousel and not wants_video:
                             role_instructions = (
                                 "TUGAS CONTENT & COPYWRITER (CRE-02):\n"
                                 f"{format_directive}\n"
                                 f"1. {user_mandate_note}\n"
+                                "   ATURAN MANDAT PRODUK: Naskah dan copywriting WAJIB berpusat 100% pada produk hero pilihan user di atas. DILARANG MENGGANTI PRODUK HERO.\n"
                                 f"2. Terapkan Agentic Skill copywriting & marketing-psychology (agentic-marketing-skills.md) serta arketipe referensi Colorbox SRC-13 (colorbox-content-references.md): rancang hook 3 detik thumb-stopping dan Micro-Copy Editorial.\n"
                                 f"3. Susun naskah carousel {req_target_slides} slide padat dan koheren dengan aturan Zero-Text on Visual (fokus visual bersih, teks informasi ada di caption).\n"
                                 "4. Tulis caption Instagram lengkap dengan SKU, harga katalog resmi (product-catalog.md), size guide cm, hashtag (#NeverJustOneThing #ColorboxBabes), dan CTA resmi.\n"
@@ -3958,6 +3992,7 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                                 "TUGAS CONTENT & COPYWRITER (CRE-02):\n"
                                 f"{format_directive}\n"
                                 f"1. {user_mandate_note}\n"
+                                "   ATURAN MANDAT PRODUK: Spoken script video WAJIB berpusat 100% pada produk hero pilihan user di atas.\n"
                                 "2. Terapkan Agentic Skill copywriting & video storytelling: susun spoken script UGC 15 detik (00-03s Hook cermin, 04-10s Mix & match styling, 11-15s CTA promo bio link).\n"
                                 "3. Tulis caption TikTok & Reels lengkap dengan audio suggestion, hashtag (#NeverJustOneThing #ColorboxBabes), dan CTA resmi.\n"
                                 "4. Delegasikan langsung ke @cre-04 (@videocreator) untuk eksekusi render video UGC 9:16."
@@ -3967,20 +4002,21 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                                 "TUGAS CONTENT & COPYWRITER (CRE-02):\n"
                                 f"{format_directive}\n"
                                 f"1. {user_mandate_note}\n"
+                                "   ATURAN MANDAT PRODUK: Naskah dan konten WAJIB berpusat 100% pada produk hero pilihan user di atas.\n"
                                 f"2. Terapkan Agentic Skill copywriting & marketing-psychology (agentic-marketing-skills.md) serta arketipe referensi Colorbox SRC-13 (colorbox-content-references.md): petakan hook 3 detik thumb-stopping dan storytelling Gen Z yang relatable sesuai tagline #NeverJustOneThing.\n"
                                 f"3. Susun naskah carousel {req_target_slides} slide padat dan koheren (Hero Impact, Detail Zoom tekstur, dan Mix & Match Styling Formula) dengan aturan Zero-Text on Visual (fokus visual bersih, teks informasi ada di caption).\n"
                                 "4. Tulis caption Instagram lengkap dengan SKU, harga katalog resmi, size guide cm, hashtag, dan CTA resmi.\n"
                                 "5. Tulis spoken script UGC singkat (15 detik) untuk video Reels/TikTok.\n"
                                 "6. Delegasikan langsung ke @cre-03 (@graphicdesigner) untuk render aset gambar visual carousel 4:5."
                             )
-                    elif bid in ("cre-03", "vina"):
+                    elif bid == "cre-03":
                         next_del = "@cre-01 (@contentstrategist)" if (wants_carousel and not wants_video) else "@cre-04 (@videocreator)"
                         role_instructions = (
                             "TUGAS GRAPHIC & MOTION DESIGNER (CRE-03):\n"
                             f"{format_directive}\n"
-                            f"1. Terapkan Agentic Skill social-content & image (agentic-marketing-skills.md) dan arketipe visual resmi Colorbox SRC-13 (colorbox-content-references.md): berikan pengarahan artistik layout visual untuk {req_target_slides} slide carousel (Instagram Feed Portrait 4:5, 1080 × 1350 px) yang padat, koheren, dan saling menyambung.\n"
+                            f"1. Terapkan Agentic Skill social-content & image (agentic-marketing-skills.md) dan arketipe visual resmi Colorbox SRC-13 (colorbox-content-references.md): berikan pengarahan artistik layout visual untuk {req_target_slides} slide carousel (Instagram Feed Portrait 4:5, 1080 × 1350 px) yang padat, koheren, dan saling menyambung dengan HERO UTAMA produk pilihan user.\n"
                             "2. DILARANG KERAS MENGGUNAKAN TEMPLATE KAKU ATAU KOTAK GRID ABU-ABU. Eksekusi visual murni lookbook editorial resolusi tinggi dengan foto katalog resmi Colorbox.\n"
-                            "3. Konfirmasi bahwa berkas gambar final siap tayang dirender menggunakan foto produk autentik Colorbox dengan rasio terkunci 100% (contain mode, tanpa stretch/gepeng).\n"
+                            "3. Konfirmasi bahwa berkas gambar final siap tayang dirender menggunakan foto produk autentik Colorbox (CBX) produk hero user dengan rasio terkunci 100% (contain mode, tanpa stretch/gepeng).\n"
                             "4. Pastikan kanvas bebas dari segala noise internal (tanpa label 'Slide 1/5', tanpa dot pagination, tanpa teks harga banner kaku — Zero-Text on Visual).\n"
                             f"5. Setelah memaparkan aset visual, delegasikan langsung ke {next_del}."
                         )
@@ -3989,7 +4025,7 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                             "TUGAS VIDEO & UGC CREATOR (CRE-04):\n"
                             f"{format_directive}\n"
                             "1. Terapkan Agentic Skill video & short-form storytelling (agentic-marketing-skills.md): rancang konsep dan storyboard detik-demi-detik video vertikal 9:16 (720x1280 px MP4) untuk Instagram Reels / TikTok (15-detik loop template).\n"
-                            "2. Pastikan video UGC menampilkan produk hero yang 100% PERSIS SAMA dengan produk pada brief strategi.\n"
+                            "2. Pastikan video UGC menampilkan produk hero yang 100% PERSIS SAMA dengan produk hero pilihan user pada brief strategi.\n"
                             "3. Paparkan panduan teknis talent UGC: pose fit check model cewek Colorbox, hook cermin, transisi natural, dan angle kamera mobile 50 cm.\n"
                             "4. Konfirmasi bahwa video UGC vertikal MP4 telah siap dirender dan tersedia di sistem.\n"
                             "5. Delegasikan kembali ke @cre-01 (@contentstrategist) untuk review akhir Quality Audit Level 2."
@@ -4089,7 +4125,7 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                                     print(f"[Mandate Extract Error]: {ex_m}")
                                     effective_mandate = user_mandate_prods
 
-                                if bid in ("cre-03", "vina"):
+                                if bid == "cre-03":
                                     try:
                                         print(f"[CRE-03 Inject] effective_mandate: {[p.get('name') for p in effective_mandate]}")
                                         user_prompt_txt = batch_text or ""
@@ -4099,9 +4135,9 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                                                     user_prompt_txt = str(l)
                                                     break
                                         req_slide_cnt = _detect_requested_slide_count(user_prompt_txt, default_count=3)
-                                        vina_carousel_md = _render_vina_visual_carousel(transcript_lines, effective_mandate, requested_slides=req_slide_cnt)
-                                        if vina_carousel_md and "Aset Visual Carousel Siap Posting" not in cleaned:
-                                            cleaned += "\n\n" + vina_carousel_md
+                                        cre03_carousel_md = _render_cre03_visual_carousel(transcript_lines, effective_mandate, requested_slides=req_slide_cnt)
+                                        if cre03_carousel_md and "Aset Visual Carousel Siap Posting" not in cleaned:
+                                            cleaned += "\n\n" + cre03_carousel_md
                                     except Exception as ex:
                                         print(f"[CRE-03 Visual Injection Error]: {ex}")
                                 elif bid in ("cre-04",):
@@ -4165,22 +4201,12 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                         "cre-01": "cre-02",
                         "cre-02": "cre-03",
                         "cre-03": "cre-01",
-                        "bimo": "cre-02",
-                        "meda": "cre-02",
-                        "raka": "cre-02",
-                        "bram": "cre-03",
-                        "vina": "cre-01",
                     }
                 elif not wants_carousel and wants_video:
                     pipeline_next = {
                         "cre-01": "cre-02",
                         "cre-02": "cre-04",
                         "cre-04": "cre-01",
-                        "bimo": "cre-02",
-                        "meda": "cre-02",
-                        "raka": "cre-02",
-                        "bram": "cre-04",
-                        "vina": "cre-01",
                     }
                 else:
                     pipeline_next = {
@@ -4188,24 +4214,19 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                         "cre-02": "cre-03",
                         "cre-03": "cre-04",
                         "cre-04": "cre-01",
-                        "bimo": "cre-02",
-                        "meda": "cre-02",
-                        "raka": "cre-02",
-                        "bram": "cre-03",
-                        "vina": "cre-04",
                     }
 
                 last_author = round_msgs[-1][0] if round_msgs else ""
                 producer_done = False
                 if wants_carousel and not wants_video:
-                    producer_done = ("cre-03" in bots_spoken_this_session) or ("vina" in bots_spoken_this_session)
+                    producer_done = ("cre-03" in bots_spoken_this_session)
                 elif not wants_carousel and wants_video:
                     producer_done = ("cre-04" in bots_spoken_this_session)
                 else:
                     producer_done = ("cre-04" in bots_spoken_this_session)
 
                 if gid == "marketing":
-                    if last_author in ("cre-01", "bimo") and producer_done:
+                    if last_author == "cre-01" and producer_done:
                         responders = []
                     elif last_author in pipeline_next and pipeline_next[last_author] in by_id:
                         responders = [by_id[pipeline_next[last_author]]]
