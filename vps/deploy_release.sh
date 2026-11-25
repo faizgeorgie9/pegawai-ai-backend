@@ -226,6 +226,10 @@ echo "$SHA" > /home/ubuntu/CURRENT_RELEASE
 log "SELESAI: rilis $SHA aktif"
 
 # ------------------------------------------------------------- housekeeping
+# The release is already live: a cleanup failure (e.g. a root-owned backup from an old manual sudo run) only warns.
+prune() {
+    rm -rf "$1" 2>/dev/null || sudo -n rm -rf "$1" 2>/dev/null || log "    PERINGATAN: gagal menghapus $1 (rilis tetap aktif)"
+}
 mapfile -t old < <(ls -1dt "$REL_ROOT"/*/ 2>/dev/null | tail -n +$(( KEEP_RELEASES + 1 )))
 for d in "${old[@]:-}"; do
     [ -n "${d:-}" ] || continue
@@ -233,11 +237,12 @@ for d in "${old[@]:-}"; do
         "$REL_ROOT/$SHA/") continue ;;
     esac
     log "hapus rilis lama: $d"
-    rm -rf "$d"
+    prune "$d"
 done
 mapfile -t oldb < <(ls -1dt "$BACKUP_ROOT"/deploy-*/ 2>/dev/null | tail -n +$(( KEEP_BACKUPS + 1 )))
 for d in "${oldb[@]:-}"; do
     [ -n "${d:-}" ] || continue
     log "hapus backup lama: $d"
-    rm -rf "$d"
+    prune "$d"
 done
+exit 0
