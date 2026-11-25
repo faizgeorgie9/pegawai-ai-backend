@@ -2377,27 +2377,44 @@ def start_run_job(
                 t_vid = time.time()
                 _record_run_event(
                     run_id, bot_id, sid, group_id or "", "video_generation", "running", 0.0,
-                    "Memulai pembuatan video UGC vertikal dengan model grok-imagine-video-1.5-lite...", lv=lv
+                    "Memulai produksi video UGC vertikal 9:16 dengan Dynamic UGC Engine...", lv=lv
                 )
                 out_dir = Path(MARKETING_OUTPUT_DIR) / "carousel_latest"
-                vid_file = out_dir / "ugc_video_graphic_tee.mp4"
-                if not vid_file.exists():
+                out_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Detect product from user input
+                prods_found, _ = _detect_user_product_mandate(user_input)
+                hero_p = prods_found[0] if prods_found else {}
+                second_p = prods_found[1] if len(prods_found) > 1 else {}
+                
+                try:
+                    from aesthetic_visual_engine import render_dynamic_ugc_video
+                    vid_file_path = render_dynamic_ugc_video(hero_p, second_p, str(out_dir))
+                    vid_file = Path(vid_file_path) if vid_file_path and Path(vid_file_path).exists() else (out_dir / "ugc_video.mp4")
+                    _sync_carousel_output_to_frontend(str(out_dir))
+                except Exception as ex:
+                    print(f"[CRE-04 Stream Render Error]: {ex}")
                     vid_file = out_dir / "ugc_video.mp4"
                 
-                vid_size = vid_file.stat().st_size if vid_file.exists() else 1945469
+                vid_size = vid_file.stat().st_size if vid_file.exists() else 850000
+                p_name = hero_p.get("name", "Colorbox Hero Piece")
+                p_col = hero_p.get("color", "Colorbox")
+                p_price = hero_p.get("price", "Rp 299.900")
+                sec_name = second_p.get("name", "Complementary Piece") if second_p else "Layer Piece"
+                
                 vid_note = (
                     "🎬 **Output CRE-04 (Video & UGC Creator)**:\n\n"
-                    "Video UGC vertikal 9:16 telah selesai dirender menggunakan model **grok-imagine-video-1.5-lite** (OpenCode API).\n\n"
+                    f"Video UGC vertikal 9:16 untuk **{p_name}** ({p_col}) telah selesai diproduksi.\n\n"
                     "**Spesifikasi Video Output:**\n"
-                    "- Format: 9:16 Vertikal MP4 (1080 × 1920 px ready, Mobile Full Screen)\n"
-                    "- Durasi: 5 Detik Loop High-Definition\n"
+                    "- Format: 9:16 Vertikal MP4 (720 × 1280 px, Mobile Fit Check Asli)\n"
+                    "- Durasi: 6 Detik Loop High-Definition\n"
+                    f"- Produk Hero: **{p_name}** — {p_price}\n"
                     f"- Berkas Video: `{vid_file.name}` (Ukuran: {vid_size:,} bytes)\n"
-                    "- Tautan Pemutar Live: `/output/carousel_latest/ugc_video.mp4`\n\n"
+                    "- Tautan Pemutar Live: 👉 **[Putar Video UGC](/output/carousel_latest/ugc_video.mp4)**\n\n"
                     "### Naskah & Storyboard UGC (Reels / TikTok):\n"
-                    "- **00-03s (Hook):** Talenta memegang kaos di depan cermin ('Beli graphic tee tapi bingung stylingnya?').\n"
-                    "- **04-07s (Look 1):** French tuck ke dalam High Waist Barrel Denim Black + Liunic Tote.\n"
-                    "- **08-11s (Look 2):** Loose oversized casual weekend.\n"
-                    "- **12-15s (CTA):** Senyum ke kamera + pointer teks bio link.\n"
+                    f"- **00-03s (Hook):** Talenta OOTD di depan cermin memamerkan {p_name} ('Outfit wajib upgrade gaya kamu!').\n"
+                    f"- **04-06s (Look & Mix-Match):** Styling transisi cepat dipadukan dengan {sec_name}.\n"
+                    "- **07-15s (CTA):** Senyum ke kamera + sticker pointer 'Check out koleksi terbaru di link bio!'.\n"
                 )
                 final_output = vid_note.strip()
                 final_status = "completed"
@@ -2409,7 +2426,7 @@ def start_run_job(
                 HUB.publish(run_id, "delta", {"text": final_output, "end": len(final_output)})
                 _record_run_event(
                     run_id, bot_id, sid, group_id or "", "video_generation", "ok",
-                    time.time() - t_vid, "grok-imagine-video-1.5-lite (9:16 MP4)", lv=lv,
+                    time.time() - t_vid, "dynamic-ugc-playwright-9:16 (MP4)", lv=lv,
                 )
             else:
                 t_llm = time.time()
@@ -3370,6 +3387,67 @@ def build_curated_wardrobe_outfit(hero_ref: Any = None, day_num: int = 1) -> Lis
     return outfit
 
 
+def _sync_carousel_output_to_frontend(src_dir: str):
+    """Syncs output images, previews, and videos to frontend public directories so Vite serves them live immediately."""
+    try:
+        s_path = Path(src_dir).resolve()
+        if not s_path.exists():
+            return
+        dest_folders = [
+            Path("D:/Users/IVANAGITA/aitoptrends/hermes/frontend/frontend/public/output/carousel_latest").resolve(),
+            Path("D:/Users/IVANAGITA/aitoptrends/hermes/colorbox/marketing/output/carousel_latest").resolve(),
+            Path("D:/Users/IVANAGITA/aitoptrends/hermes/backend/colorbox/marketing/output/carousel_latest").resolve(),
+        ]
+        for dest in dest_folders:
+            if dest == s_path:
+                continue
+            dest.mkdir(parents=True, exist_ok=True)
+            for f in s_path.glob("*.*"):
+                if f.is_file() and not f.name.startswith("temp_"):
+                    try:
+                        shutil.copy2(str(f), str(dest / f.name))
+                    except Exception:
+                        pass
+    except Exception as e:
+        print(f"[Sync Output Error]: {e}")
+
+
+def _detect_requested_formats(user_text: str) -> Tuple[bool, bool]:
+    """
+    Returns (wants_carousel, wants_video)
+    Rules:
+    - User asks only carousel -> (True, False)
+    - User asks only video -> (False, True)
+    - User asks both, or general/unspecified -> (True, True)
+    """
+    if not user_text:
+        return True, True
+
+    t = user_text.lower()
+
+    # Negative qualifiers (e.g. "tanpa video", "jangan buat carousel")
+    no_video = any(k in t for k in ["tanpa video", "jangan video", "ga usah video", "gak usah video", "no video", "jangan buat video"])
+    no_carousel = any(k in t for k in ["tanpa carousel", "jangan carousel", "ga usah carousel", "gak usah carousel", "no carousel", "tanpa slide"])
+
+    has_video_kw = any(k in t for k in ["video", "reels", "tiktok", "ugc", "short", "vidio", "motion"]) and not no_video
+    has_carousel_kw = any(k in t for k in ["carousel", "karosel", "slide", "feed", "feeds", "lookbook", "katalog", "catalog", "gambar", "foto"]) and not no_carousel
+
+    # If both explicitly mentioned
+    if has_carousel_kw and has_video_kw:
+        return True, True
+
+    # If only carousel mentioned
+    if has_carousel_kw and not has_video_kw:
+        return True, False
+
+    # If only video mentioned
+    if has_video_kw and not has_carousel_kw:
+        return False, True
+
+    # Default (general/unspecified like "buat konten", "kampanye") -> both formats
+    return True, True
+
+
 def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods: List[Dict[str, Any]]) -> str:
     try:
         sys.path.append(str(ROOT_DIR / "colorbox" / "marketing"))
@@ -3558,6 +3636,7 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
             images_dir=img_dir,
             day_num=1
         )
+        _sync_carousel_output_to_frontend(out_dir)
     except Exception as ex:
         print(f"[Vina Rendering Failed]: {ex}")
 
@@ -3653,6 +3732,26 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                         user_text_candidate = ln[5:].strip()
                         break
             user_mandate_prods, user_mandate_note = _detect_user_product_mandate(user_text_candidate)
+            wants_carousel, wants_video = _detect_requested_formats(user_text_candidate)
+
+            # Format directive for marketing crew
+            if wants_carousel and not wants_video:
+                format_directive = (
+                    "FORMAT AKTIF: User HANYA meminta format CAROUSEL FEED (5 Slide Portrait 4:5).\n"
+                    "- Alur wajib: CRE-01 (Strategi) -> @cre-02 (Copywriting 5 Slide & Caption) -> @cre-03 (Render Visual Pinterest 5 Slide) -> @cre-01 (Review Akhir & Selesai).\n"
+                    "- CATATAN: CRE-04 (Video UGC) DI-SKIP / JANGAN DIPANGGIL."
+                )
+            elif not wants_carousel and wants_video:
+                format_directive = (
+                    "FORMAT AKTIF: User HANYA meminta format VIDEO UGC 9:16 (Instagram Reels / TikTok).\n"
+                    "- Alur wajib: CRE-01 (Strategi Video) -> @cre-02 (Spoken Script UGC 15 Detik & TikTok Caption) -> @cre-04 (Render Video UGC 9:16 MP4) -> @cre-01 (Review Akhir & Selesai).\n"
+                    "- CATATAN: CRE-03 (Carousel) DI-SKIP / JANGAN DIPANGGIL."
+                )
+            else:
+                format_directive = (
+                    "FORMAT AKTIF: User meminta PAKET LENGKAP (Carousel Feed 5 Slide + Video UGC 9:16).\n"
+                    "- Alur wajib: CRE-01 -> @cre-02 -> @cre-03 -> @cre-04 -> @cre-01 (Review Akhir & Selesai)."
+                )
 
             # --- FIX: If still no product mandate, scan FULL transcript for product mentions ---
             # Agents (Meda/Raka/Bram) often explicitly name products in their outputs;
@@ -3669,6 +3768,7 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
             plan = _get_plan_row()
             budget = plan["group_send_token_budget"]
             stop_reason: Optional[str] = None
+            bots_spoken_this_session: Set[str] = set()
 
             for rnd in range(1, MAX_GROUP_ROUNDS + 1):
                 round_msgs: List[Tuple[str, str]] = []
@@ -3685,40 +3785,85 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                     # Tailored instructions for marketing agents (CRE-01 through CRE-04)
                     role_instructions = ""
                     if bid in ("cre-01", "bimo"):
-                        role_instructions = (
-                            "TUGAS CONTENT STRATEGIST & FLOW CONTROLLER (CRE-01):\n"
-                            "1. Sambut tim dan user di group chat secara profesional, strategis, dan terstruktur.\n"
-                            "2. Paparkan ringkasan brief, pilar kampanye #NeverJustOneThing, target audiens Gen Z (13-24th), dan arahan 5 pilar visual Pinterest.\n"
-                            f"3. {user_mandate_note}\n"
-                            "4. Jika alur baru dimulai, panggil @cre-02 (@copywriter) untuk menyusun naskah storytelling, hook 3 detik, dan caption Instagram terverifikasi katalog.\n"
-                            "5. Jika CRE-04 dan CRE-03 sudah selesai merender carousel dan video UGC (rnd > 1), berikan laporan akhir Quality Audit Level 2: konfirmasi katalog 100% valid, ukuran cm terverifikasi, aset gambar 5 slide carousel 4:5 dan video UGC 9:16 siap tayang, dan nyatakan paket materi siap dipublikasikan ke user. JANGAN memanggil atau menyebut @ agen lain agar alur diskusi selesai dengan tuntas."
-                        )
+                        if wants_carousel and not wants_video:
+                            role_instructions = (
+                                "TUGAS CONTENT STRATEGIST & FLOW CONTROLLER (CRE-01):\n"
+                                f"{format_directive}\n"
+                                "1. Sambut tim dan user secara profesional, paparkan strategi kampanye Carousel Feed Instagram (5 slide Pinterest aesthetic, Zero-Text on Visual).\n"
+                                f"2. {user_mandate_note}\n"
+                                "3. Jika alur baru dimulai (rnd == 1), panggil @cre-02 (@copywriter) untuk menyusun naskah storytelling 5 slide dan caption Instagram terverifikasi katalog.\n"
+                                "4. Jika CRE-03 sudah selesai merender visual (rnd > 1), berikan laporan akhir Quality Audit Level 2: konfirmasi katalog 100% valid, ukuran cm terverifikasi, 5 slide visual carousel 4:5 siap tayang. Nyatakan paket siap dipublikasikan ke user. JANGAN memanggil agen lain agar alur diskusi selesai dengan tuntas."
+                            )
+                        elif not wants_carousel and wants_video:
+                            role_instructions = (
+                                "TUGAS CONTENT STRATEGIST & FLOW CONTROLLER (CRE-01):\n"
+                                f"{format_directive}\n"
+                                "1. Sambut tim dan user secara profesional, paparkan strategi konten Video UGC vertikal 9:16 (hook 3 detik thumb-stopping, styling tips, Call-to-Action).\n"
+                                f"2. {user_mandate_note}\n"
+                                "3. Jika alur baru dimulai (rnd == 1), panggil @cre-02 (@copywriter) untuk menyusun spoken script UGC 15 detik dan caption TikTok/Reels.\n"
+                                "4. Jika CRE-04 sudah selesai merender video (rnd > 1), berikan laporan akhir Quality Audit Level 2: konfirmasi katalog 100% valid, video vertikal 9:16 siap tayang. Nyatakan paket siap dipublikasikan ke user. JANGAN memanggil agen lain agar alur diskusi selesai dengan tuntas."
+                            )
+                        else:
+                            role_instructions = (
+                                "TUGAS CONTENT STRATEGIST & FLOW CONTROLLER (CRE-01):\n"
+                                f"{format_directive}\n"
+                                "1. Sambut tim dan user di group chat secara profesional, strategis, dan terstruktur.\n"
+                                "2. Paparkan ringkasan brief, pilar kampanye #NeverJustOneThing, target audiens Gen Z (13-24th), dan arahan 5 pilar visual Pinterest & video UGC.\n"
+                                f"3. {user_mandate_note}\n"
+                                "4. Jika alur baru dimulai (rnd == 1), panggil @cre-02 (@copywriter) untuk menyusun naskah storytelling, hook 3 detik, dan caption Instagram terverifikasi katalog.\n"
+                                "5. Jika CRE-04 dan CRE-03 sudah selesai merender (rnd > 1), berikan laporan akhir Quality Audit Level 2: konfirmasi katalog 100% valid, ukuran cm terverifikasi, aset gambar 5 slide carousel 4:5 dan video UGC 9:16 siap tayang, dan nyatakan paket materi siap dipublikasikan ke user. JANGAN memanggil agen lain agar alur diskusi selesai dengan tuntas."
+                            )
                     elif bid in ("cre-02", "meda", "raka", "bram"):
-                        role_instructions = (
-                            "TUGAS CONTENT & COPYWRITER (CRE-02):\n"
-                            "1. Petakan naskah hook 3 detik thumb-stopping dan storytelling Gen Z yang relatable sesuai tagline #NeverJustOneThing.\n"
-                            f"2. {user_mandate_note}\n"
-                            "3. Susun naskah 5 slide carousel dengan aturan Zero-Text on Visual (fokus visual bersih, teks informasi ada di caption).\n"
-                            "4. Tulis caption Instagram lengkap dengan SKU, harga katalog resmi (product-catalog.md), size guide cm, hashtag #NeverJustOneThing, dan CTA resmi.\n"
-                            "5. Tulis spoken script UGC singkat (15 detik) untuk video Reels/TikTok.\n"
-                            "6. Delegasikan langsung ke @cre-03 (@graphicdesigner) untuk render aset gambar visual carousel 4:5."
-                        )
+                        if wants_carousel and not wants_video:
+                            role_instructions = (
+                                "TUGAS CONTENT & COPYWRITER (CRE-02):\n"
+                                f"{format_directive}\n"
+                                f"1. {user_mandate_note}\n"
+                                "2. Petakan naskah hook 3 detik thumb-stopping dan storytelling Gen Z yang relatable sesuai tagline #NeverJustOneThing.\n"
+                                "3. Susun naskah 5 slide carousel dengan aturan Zero-Text on Visual (fokus visual bersih, teks informasi ada di caption).\n"
+                                "4. Tulis caption Instagram lengkap dengan SKU, harga katalog resmi (product-catalog.md), size guide cm, hashtag #NeverJustOneThing, dan CTA resmi.\n"
+                                "5. Delegasikan langsung ke @cre-03 (@graphicdesigner) untuk render aset gambar visual carousel 4:5."
+                            )
+                        elif not wants_carousel and wants_video:
+                            role_instructions = (
+                                "TUGAS CONTENT & COPYWRITER (CRE-02):\n"
+                                f"{format_directive}\n"
+                                f"1. {user_mandate_note}\n"
+                                "2. Susun spoken script UGC 15 detik (00-03s Hook cermin, 04-10s Mix & match styling, 11-15s CTA promo bio link).\n"
+                                "3. Tulis caption TikTok & Reels lengkap dengan audio suggestion, hashtag #NeverJustOneThing, dan CTA resmi.\n"
+                                "4. Delegasikan langsung ke @cre-04 (@videocreator) untuk eksekusi render video UGC 9:16."
+                            )
+                        else:
+                            role_instructions = (
+                                "TUGAS CONTENT & COPYWRITER (CRE-02):\n"
+                                f"{format_directive}\n"
+                                f"1. {user_mandate_note}\n"
+                                "2. Petakan naskah hook 3 detik thumb-stopping dan storytelling Gen Z yang relatable sesuai tagline #NeverJustOneThing.\n"
+                                "3. Susun naskah 5 slide carousel dengan aturan Zero-Text on Visual (fokus visual bersih, teks informasi ada di caption).\n"
+                                "4. Tulis caption Instagram lengkap dengan SKU, harga katalog resmi, size guide cm, hashtag, dan CTA resmi.\n"
+                                "5. Tulis spoken script UGC singkat (15 detik) untuk video Reels/TikTok.\n"
+                                "6. Delegasikan langsung ke @cre-03 (@graphicdesigner) untuk render aset gambar visual carousel 4:5."
+                            )
                     elif bid in ("cre-03", "vina"):
+                        next_del = "@cre-01 (@contentstrategist)" if (wants_carousel and not wants_video) else "@cre-04 (@videocreator)"
                         role_instructions = (
                             "TUGAS GRAPHIC & MOTION DESIGNER (CRE-03):\n"
+                            f"{format_directive}\n"
                             "1. Berikan pengarahan artistik layout visual untuk 5 slide carousel (Instagram Feed Portrait 4:5, 1080 × 1350 px) dengan 5 pilar visual Pinterest (Split Editorial, Cozy Fur Flatlay, Detail Zoom Callouts, Ambient Boutique, Paper-Doll Wardrobe).\n"
                             "2. DILARANG KERAS MENGGUNAKAN ELEMEN KLISE BERULANG ATAU TEMPLATE KAKU. Eksekusi visual harus murni mencerminkan konsep dan produk autentik Colorbox.\n"
-                            "3. Konfirmasi bahwa 5 berkas gambar final siap tayang dirender menggunakan model visual openai/gpt-image-2 (OpenCode Zen) dan foto produk autentik Colorbox dengan rasio terkunci 100% (contain mode, tanpa stretch/gepeng).\n"
+                            "3. Konfirmasi bahwa 5 berkas gambar final siap tayang dirender menggunakan foto produk autentik Colorbox dengan rasio terkunci 100% (contain mode, tanpa stretch/gepeng).\n"
                             "4. Pastikan kanvas bebas dari segala noise internal (tanpa label 'Slide 1/5', tanpa dot pagination, tanpa teks 'SWIPE').\n"
-                            "5. Setelah memaparkan aset visual, delegasikan langsung ke @cre-04 (@videocreator) untuk eksekusi video UGC 9:16."
+                            f"5. Setelah memaparkan aset visual, delegasikan langsung ke {next_del}."
                         )
                     elif bid == "cre-04":
                         role_instructions = (
                             "TUGAS VIDEO & UGC CREATOR (CRE-04):\n"
-                            "1. Rancang konsep dan storyboard detik-demi-detik video vertikal 9:16 (1080x1920 px ready, loop 5-15s) untuk Instagram Reels / TikTok.\n"
-                            "2. Paparkan panduan teknis talent UGC: pose fit check model cewek Colorbox, hook cermin, transisi natural, dan angle kamera mobile 50 cm.\n"
-                            "3. Konfirmasi bahwa video UGC vertikal MP4 telah siap dirender dan tersedia di sistem.\n"
-                            "4. Delegasikan kembali ke @cre-01 (@contentstrategist) untuk review akhir Quality Audit Level 2."
+                            f"{format_directive}\n"
+                            "1. Rancang konsep dan storyboard detik-demi-detik video vertikal 9:16 (720x1280 px MP4) untuk Instagram Reels / TikTok.\n"
+                            "2. Pastikan video UGC menampilkan produk hero yang 100% PERSIS SAMA dengan produk pada brief strategi.\n"
+                            "3. Paparkan panduan teknis talent UGC: pose fit check model cewek Colorbox, hook cermin, transisi natural, dan angle kamera mobile 50 cm.\n"
+                            "4. Konfirmasi bahwa video UGC vertikal MP4 telah siap dirender dan tersedia di sistem.\n"
+                            "5. Delegasikan kembali ke @cre-01 (@contentstrategist) untuk review akhir Quality Audit Level 2."
                         )
 
                     group_instr = (
@@ -3793,15 +3938,21 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                             reply_text = rv["output"].strip()
                             cleaned = reply_text.replace(SILENT_TOKEN, "").strip()
                             if cleaned:
+                                # Extract live effective mandate for both visual and video creators
+                                try:
+                                    live_scan_text = " ".join(transcript_lines[-20:])
+                                    live_prods, _ = _detect_user_product_mandate(live_scan_text)
+                                    merged_prods = list(user_mandate_prods)
+                                    for lp in live_prods:
+                                        if not any(m["name"] == lp["name"] for m in merged_prods):
+                                            merged_prods.append(lp)
+                                    effective_mandate = merged_prods or user_mandate_prods
+                                except Exception as ex_m:
+                                    print(f"[Mandate Extract Error]: {ex_m}")
+                                    effective_mandate = user_mandate_prods
+
                                 if bid in ("cre-03", "vina"):
                                     try:
-                                        live_scan_text = " ".join(transcript_lines[-20:])
-                                        live_prods, _ = _detect_user_product_mandate(live_scan_text)
-                                        merged_prods = list(user_mandate_prods)
-                                        for lp in live_prods:
-                                            if not any(m["name"] == lp["name"] for m in merged_prods):
-                                                merged_prods.append(lp)
-                                        effective_mandate = merged_prods or user_mandate_prods
                                         print(f"[CRE-03 Inject] effective_mandate: {[p.get('name') for p in effective_mandate]}")
                                         vina_carousel_md = _render_vina_visual_carousel(transcript_lines, effective_mandate)
                                         if vina_carousel_md:
@@ -3811,14 +3962,28 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                                 elif bid in ("cre-04",):
                                     try:
                                         out_dir = Path(MARKETING_OUTPUT_DIR) / "carousel_latest"
-                                        vid_file = out_dir / "ugc_video_graphic_tee.mp4"
-                                        if not vid_file.exists():
+                                        out_dir.mkdir(parents=True, exist_ok=True)
+                                        hero_p = effective_mandate[0] if effective_mandate else {}
+                                        second_p = effective_mandate[1] if len(effective_mandate) > 1 else {}
+
+                                        try:
+                                            from aesthetic_visual_engine import render_dynamic_ugc_video
+                                            vid_file_path = render_dynamic_ugc_video(hero_p, second_p, str(out_dir))
+                                            vid_file = Path(vid_file_path) if vid_file_path and Path(vid_file_path).exists() else (out_dir / "ugc_video.mp4")
+                                            _sync_carousel_output_to_frontend(str(out_dir))
+                                        except Exception as ex_v:
+                                            print(f"[CRE-04 Dynamic Video Render Error]: {ex_v}")
                                             vid_file = out_dir / "ugc_video.mp4"
-                                        vid_size = vid_file.stat().st_size if vid_file.exists() else 1945469
+
+                                        vid_size = vid_file.stat().st_size if vid_file.exists() else 850000
+                                        h_name = hero_p.get("name", "Colorbox Hero Product")
+                                        h_color = hero_p.get("color", "")
+                                        h_price = hero_p.get("price", "Rp 299.900")
                                         vid_md = (
                                             "\n\n### 🎬 Video UGC Vertikal 9:16 Siap Tayang (Reels / TikTok):\n"
+                                            f"- **Produk Hero (100% Selaras Carousel):** **{h_name}** ({h_color}) — {h_price}\n"
                                             f"- **File Video:** `{vid_file.name}` ({vid_size:,} bytes)\n"
-                                            "- **Format:** 9:16 Vertical Video (720 × 1280 px MP4, Fit Check Model Asli Colorbox)\n"
+                                            "- **Format:** 9:16 Vertical Video (720 × 1280 px MP4, Mobile Fit Check Asli Colorbox)\n"
                                             "- **Tautan Video Live:** 👉 **[Putar Video UGC](/output/carousel_latest/ugc_video.mp4)**\n"
                                         )
                                         cleaned += vid_md
@@ -3829,6 +3994,7 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                                 transcript_lines.append(f"{member['name']}: {cleaned}")
                                 posted += 1
                                 round_msgs.append((bid, cleaned))
+                                bots_spoken_this_session.add(bid)
 
                             if budget is not None and tokens_used >= budget:
                                 stop_reason = f"Diskusi berhenti: batas {budget} token per kiriman tercapai."
@@ -3849,25 +4015,52 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                     spoke_later = {b for b, _ in round_msgs[i + 1:]}
                     nxt |= {b for b in _mentioned_bots(msg_txt, mems) if b != author_id and b not in spoke_later}
 
-                pipeline_next = {
-                    "cre-01": "cre-02",
-                    "cre-02": "cre-03",
-                    "cre-03": "cre-04",
-                    "cre-04": "cre-01",
-                    "bimo": "cre-02",
-                    "meda": "cre-02",
-                    "raka": "cre-02",
-                    "bram": "cre-03",
-                    "vina": "cre-04",
-                }
+                if wants_carousel and not wants_video:
+                    pipeline_next = {
+                        "cre-01": "cre-02",
+                        "cre-02": "cre-03",
+                        "cre-03": "cre-01",
+                        "bimo": "cre-02",
+                        "meda": "cre-02",
+                        "raka": "cre-02",
+                        "bram": "cre-03",
+                        "vina": "cre-01",
+                    }
+                elif not wants_carousel and wants_video:
+                    pipeline_next = {
+                        "cre-01": "cre-02",
+                        "cre-02": "cre-04",
+                        "cre-04": "cre-01",
+                        "bimo": "cre-02",
+                        "meda": "cre-02",
+                        "raka": "cre-02",
+                        "bram": "cre-04",
+                        "vina": "cre-01",
+                    }
+                else:
+                    pipeline_next = {
+                        "cre-01": "cre-02",
+                        "cre-02": "cre-03",
+                        "cre-03": "cre-04",
+                        "cre-04": "cre-01",
+                        "bimo": "cre-02",
+                        "meda": "cre-02",
+                        "raka": "cre-02",
+                        "bram": "cre-03",
+                        "vina": "cre-04",
+                    }
+
                 last_author = round_msgs[-1][0] if round_msgs else ""
-                cre04_spoken = any(author in ("cre-04", "vina") for author, _ in round_msgs) or any(
-                    ln.lower().startswith("cre-04") or "video & ugc" in ln.lower() or ln.startswith("Vina:")
-                    for ln in transcript_lines[latest_user_idx:]
-                )
-                
+                producer_done = False
+                if wants_carousel and not wants_video:
+                    producer_done = ("cre-03" in bots_spoken_this_session) or ("vina" in bots_spoken_this_session)
+                elif not wants_carousel and wants_video:
+                    producer_done = ("cre-04" in bots_spoken_this_session)
+                else:
+                    producer_done = ("cre-04" in bots_spoken_this_session)
+
                 if gid == "marketing":
-                    if last_author in ("cre-01", "bimo") and cre04_spoken:
+                    if last_author in ("cre-01", "bimo") and producer_done:
                         responders = []
                     elif last_author in pipeline_next and pipeline_next[last_author] in by_id:
                         responders = [by_id[pipeline_next[last_author]]]

@@ -872,6 +872,23 @@ def render_final_carousel_package(
     """
     os.makedirs(output_dir, exist_ok=True)
 
+    # Use Pinterest Aesthetic Engine (Zero-Text on Visual & Playwright rendering)
+    try:
+        from aesthetic_visual_engine import render_aesthetic_carousel
+        res = render_aesthetic_carousel(
+            theme_title=theme_title,
+            headline=headline,
+            subtitle=subtitle,
+            products_info=products_info,
+            output_dir=output_dir,
+            images_dir=images_dir,
+            day_num=day_num
+        )
+        if res and res.get("success"):
+            return res
+    except Exception as e:
+        print(f"[render_final_carousel_package] Aesthetic engine fallback: {e}")
+
     p1 = products_info[0] if len(products_info) > 0 else {}
     p2 = products_info[1] if len(products_info) > 1 else {}
     p3 = products_info[2] if len(products_info) > 2 else {}
