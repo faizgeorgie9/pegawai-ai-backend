@@ -85,8 +85,9 @@ b, strong { font-weight: 600; }
 .pill.wait { background: var(--st-wait-bg); color: var(--st-wait-ink); }
 .pill[data-team="marketing"] { background: var(--team-mkt-bg); color: var(--team-mkt-ink); }
 .pill[data-team="customer_support"] { background: var(--team-cs-bg); color: var(--team-cs-ink); }
-/* Segmented control (theme, Uji groups, dialog modes): one definition for every page. */
-.seg { display: inline-flex; align-self: flex-start; gap: 2px; padding: 2px; border: 1px solid var(--control); border-radius: var(--radius-control); background: var(--raised); overflow: hidden; }
+/* Segmented control (theme, Uji groups, dialog modes): one definition for every page.
+   flex: none: inside a scrolling flex column (.dlg-body) overflow:hidden lets it shrink to a 0-height strip. */
+.seg { display: inline-flex; flex: none; align-self: flex-start; gap: 2px; padding: 2px; border: 1px solid var(--control); border-radius: var(--radius-control); background: var(--raised); overflow: hidden; }
 .seg button { height: 28px; padding: 0 12px; border: 0; border-radius: 4px; background: transparent; color: var(--muted); font: inherit; font-weight: 500; cursor: pointer; transition: background var(--m-in) var(--ease), color var(--m-in) var(--ease); }
 .seg button[aria-selected="true"] { background: var(--surface); color: var(--text); }
 .seg button[aria-pressed="true"] { background: var(--active); color: var(--text); }
