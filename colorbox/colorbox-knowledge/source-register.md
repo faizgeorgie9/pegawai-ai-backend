@@ -25,6 +25,7 @@ Berikut adalah rekapitulasi seluruh sumber data eksternal, observasi publik, dan
 | **SRC-10** | Skenario Simulasi Komplain & Percakapan | Standar Interaksi CS R&D | Dummy / Simulated Data | `customer-inquiry-patterns.md` | Simulasi R&D |
 | **SRC-11** | Colorbox Official Product Images & Visual Assets | [https://colorbox.co.id](https://colorbox.co.id) & Shopify CDN | Public Data | `product-images-gallery.md` (20 Produk Terverifikasi, CBX-01 s/d CBX-20, 40 Foto Multi-Angle Front/Back/Detail) | Terverifikasi via Scraping Publik Resmi |
 | **SRC-12** | Corey Haines Marketing Skills for AI Agents | [https://agenticskills.io/skills/marketing-skills](https://agenticskills.io/skills/marketing-skills) | Framework & Best Practices | `agentic-marketing-skills.md` | Terverifikasi via AgenticSkills |
+| **SRC-13** | Colorbox Official Instagram Content References (17 Carousel Sets) | `content-reference/` Archive | Research Findings & Visual Benchmarks | `colorbox-content-references.md` | Terverifikasi dari Arsip Feed Resmi Colorbox |
 
 ---
 

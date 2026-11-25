@@ -110,6 +110,7 @@ MARKETING_FILES = {
     "content-pillars.md": ["SRC-06", "SRC-07"],
     "product-size-reference.md": ["SRC-03"],
     "agentic-marketing-skills.md": ["SRC-12"],
+    "colorbox-content-references.md": ["SRC-13"],
 }
 TEAM_WORKFLOW = {"marketing": "marketing", "customer_support": "cs"}
 PRODUCT_NOTE = (
@@ -151,13 +152,14 @@ BUILTIN_BOTS: List[Dict[str, Any]] = [
         "color": "amber",
         "builtin": True,
         "template": "cre-01",
-        "about": "Lead Content Strategist & Flow Controller (Agentic Skills: content-strategy, product-marketing, quality-audit).",
+        "about": "Lead Content Strategist & Flow Controller (Agentic Skills: content-strategy, product-marketing, quality-audit, SRC-13 benchmarks).",
         "persona": (
             "Kamu adalah CRE-01 Content Strategist & Omnichannel Distribution Lead untuk Colorbox Indonesia. "
             "Karaktermu strategis, analitis, terstruktur, berbasis data, dan proaktif sebagai flow controller tim Content & Creative "
-            "dengan keahlian Agentic Skills: content-strategy dan product-marketing (agentic-marketing-skills.md). "
+            "dengan keahlian Agentic Skills: content-strategy dan product-marketing (agentic-marketing-skills.md) serta referensi 17 carousel arsip resmi Colorbox (colorbox-content-references.md). "
             "Tugasmu: menerima brief dari user, memvalidasi produk ke katalog resmi Colorbox (product-catalog.md), menentukan alokasi format konten (carousel vs video vs keduanya), "
-            "merumuskan pilar konten strategis (Never Just One Thing, Gen Z 18-25th, format carousel 2-3 slide padat & koheren), "
+            "memilih arketipe visual resmi Colorbox (Urban In-Situ, Scrapbook Spec Sheet, Outfit MATH, Drink Pairing, 3x3 Flatlay, Focus Brackets Zoom, dll.), "
+            "menyelaraskan jumlah slide sesuai permintaan user (default 2-3 slide padat & koheren, atau spesifik jika user meminta), "
             "menyusun creative brief, membagi tugas ke CRE-02, dan setelah alur selesai, memberikan evaluasi akhir Quality Audit Level 2, anti-halusinasi produk, dan konfirmasi materi siap dipublikasikan."
         ),
     },
@@ -169,14 +171,14 @@ BUILTIN_BOTS: List[Dict[str, Any]] = [
         "color": "rose",
         "builtin": True,
         "template": "cre-02",
-        "about": "Copywriter & Storyteller (Agentic Skills: copywriting, marketing-psychology, hooks & frameworks).",
+        "about": "Copywriter & Storyteller (Agentic Skills: copywriting, marketing-psychology, Colorbox SRC-13 micro-copy).",
         "persona": (
             "Kamu adalah CRE-02 Creative Content & Copywriter Lead untuk Colorbox Indonesia. "
             "Gaya bicaramu fun, engaging, relatable ala Gen Z (Never Just One Thing), berwawasan tren pop, dan persuasif "
-            "dengan keahlian Agentic Skills: copywriting dan marketing-psychology (agentic-marketing-skills.md). "
-            "Tugasmu: menyusun hook 3 detik thumb-stopping (Contrast / Persona Switch / A-B Hook), menerapkan framework PAS/BAB, "
-            "merangkai naskah carousel 2-3 slide terstruktur dengan aturan Zero-Text on Visual (fokus visual bersih, teks informasi ada di caption), "
-            "takarir Instagram lengkap dengan SKU, harga katalog resmi, size guide cm, hashtag (#NeverJustOneThing #ColorboxBabes), "
+            "dengan keahlian Agentic Skills: copywriting dan marketing-psychology (agentic-marketing-skills.md) serta acuan arketipe konten Colorbox (colorbox-content-references.md). "
+            "Tugasmu: menyusun hook 3 detik thumb-stopping, merangkai naskah carousel padat terstruktur (2-3 slide default atau sesuai permintaan user) "
+            "dengan Micro-Copy Editorial Colorbox (seperti 'an outfit to romanticize mondays', 'Jakarta* Styled.', 'ARTICLE / WEAR TO WHERE? / colorbox, duh?!', atau gamification Outfit MATH), "
+            "mematuhi Zero-Text on Visual (teks informasi/harga ada di caption), menyusun takarir Instagram lengkap dengan SKU, harga katalog resmi, size guide cm, hashtag (#NeverJustOneThing #ColorboxBabes), "
             "naskah spoken script untuk video UGC 15 detik, lalu mendelegasikan ke CRE-03 atau CRE-04."
         ),
     },
@@ -190,13 +192,13 @@ BUILTIN_BOTS: List[Dict[str, Any]] = [
         "template": "cre-03",
         "model": "opencode-zen",
         "provider": "opencode-zen",
-        "about": "Visual Art Director & Canvas Specialist (Agentic Skills: social-content, image, editorial lookbook 4:5).",
+        "about": "Visual Art Director & Canvas Specialist (Agentic Skills: social-content, image, Colorbox SRC-13 layouts).",
         "persona": (
             "Kamu adalah CRE-03 Lead Graphic & Motion Designer untuk Colorbox Indonesia. "
             "Karaktermu visual-first, pixel-perfect, estetik ala Pinterest editorial, dan anti-template kaku "
-            "dengan keahlian Agentic Skills: social-content dan image (agentic-marketing-skills.md). "
+            "dengan keahlian Agentic Skills: social-content dan image (agentic-marketing-skills.md) serta tata letak 10 arketipe visual resmi Colorbox (colorbox-content-references.md). "
             "Tugasmu: merender berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080 × 1350 px PNG) yang bersih, elegan, dan estetik "
-            "(2-3 slide kurasi padat: Hero Impact, Detail Zoom kain/jahitan hero yang sama persis, dan Mix & Match Pairing), "
+            "(mengadopsi arketipe resmi: Urban In-Situ Lookbook, Detail Viewfinder Zoom, Scrapbook Spec Sheet, 3x3 Flatlay, Mix & Match Pairing), "
             "menjaga foto produk asli Colorbox terkunci 100% proporsional (contain mode, tanpa stretch), dan zero-text on image. "
             "Tampilkan pratinjau slide gambar final dan serahkan ke CRE-04 untuk produksi UGC atau ke CRE-01 untuk audit."
         ),
@@ -3556,8 +3558,15 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
     # Re-scan transcript for any product mentions from agents if mandate is low
     all_mandate = list(user_mandate_prods or [])
     if len(all_mandate) < 3 and transcript_lines:
-        recent_text = " ".join(transcript_lines[-20:])
+        latest_u_idx = 0
+        for idx_u, u_line in enumerate(transcript_lines):
+            if str(u_line).startswith("User:") or str(u_line).startswith("Kakak:"):
+                latest_u_idx = idx_u
+        recent_text = " ".join(transcript_lines[latest_u_idx:])
         disc_prods, _ = _detect_user_product_mandate(recent_text)
+        if not disc_prods:
+            recent_text = " ".join(transcript_lines[-20:])
+            disc_prods, _ = _detect_user_product_mandate(recent_text)
         for dp in disc_prods:
             if not any(m.get("name") == dp.get("name") for m in all_mandate):
                 all_mandate.append(dp)
@@ -3853,10 +3862,11 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
             wants_carousel, wants_video = _detect_requested_formats(user_text_candidate)
 
             # Format directive for marketing crew
+            req_target_slides = _detect_requested_slide_count(batch_text or user_text_candidate, default_count=3)
             if wants_carousel and not wants_video:
                 format_directive = (
-                    "FORMAT AKTIF: User HANYA meminta format CAROUSEL FEED (5 Slide Portrait 4:5).\n"
-                    "- Alur wajib: CRE-01 (Strategi) -> @cre-02 (Copywriting 5 Slide & Caption) -> @cre-03 (Render Visual Pinterest 5 Slide) -> @cre-01 (Review Akhir & Selesai).\n"
+                    f"FORMAT AKTIF: User HANYA meminta format CAROUSEL FEED ({req_target_slides} Slide Portrait 4:5).\n"
+                    f"- Alur wajib: CRE-01 (Strategi) -> @cre-02 (Copywriting {req_target_slides} Slide & Caption) -> @cre-03 (Render Visual Pinterest {req_target_slides} Slide) -> @cre-01 (Review Akhir & Selesai).\n"
                     "- CATATAN: CRE-04 (Video UGC) DI-SKIP / JANGAN DIPANGGIL."
                 )
             elif not wants_carousel and wants_video:
@@ -3867,8 +3877,8 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                 )
             else:
                 format_directive = (
-                    "FORMAT AKTIF: User meminta PAKET LENGKAP (Carousel Feed 5 Slide + Video UGC 9:16).\n"
-                    "- Alur wajib: CRE-01 -> @cre-02 -> @cre-03 -> @cre-04 -> @cre-01 (Review Akhir & Selesai)."
+                    f"FORMAT AKTIF: User meminta PAKET LENGKAP (Carousel Feed {req_target_slides} Slide + Video UGC 9:16).\n"
+                    f"- Alur wajib: CRE-01 -> @cre-02 -> @cre-03 -> @cre-04 -> @cre-01 (Review Akhir & Selesai)."
                 )
 
             # --- FIX: If still no product mandate, scan FULL transcript for product mentions ---
@@ -3902,15 +3912,16 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
 
                     # Tailored instructions for marketing agents (CRE-01 through CRE-04)
                     role_instructions = ""
+                    req_target_slides = _detect_requested_slide_count(batch_text or user_mandate_note, default_count=3)
                     if bid in ("cre-01", "bimo"):
                         if wants_carousel and not wants_video:
                             role_instructions = (
                                 "TUGAS CONTENT STRATEGIST & FLOW CONTROLLER (CRE-01):\n"
                                 f"{format_directive}\n"
-                                "1. Sambut tim dan user secara profesional, paparkan strategi kampanye Carousel Feed Instagram (5 slide Pinterest aesthetic, Zero-Text on Visual).\n"
+                                f"1. Sambut tim dan user secara profesional, paparkan strategi kampanye Carousel Feed Instagram ({req_target_slides} slide kurasi padat, adopsi salah satu arketipe referensi Colorbox SRC-13 dari colorbox-content-references.md: Urban In-Situ, Scrapbook Spec Sheet, Outfit MATH, Drink Pairing, 3x3 Flatlay, Focus Brackets Zoom, dll., Zero-Text on Visual).\n"
                                 f"2. {user_mandate_note}\n"
-                                "3. Jika alur baru dimulai (rnd == 1), panggil @cre-02 (@copywriter) untuk menyusun naskah storytelling 5 slide dan caption Instagram terverifikasi katalog.\n"
-                                "4. Jika CRE-03 sudah selesai merender visual (rnd > 1), berikan laporan akhir Quality Audit Level 2: konfirmasi katalog 100% valid, ukuran cm terverifikasi, 5 slide visual carousel 4:5 siap tayang. Nyatakan paket siap dipublikasikan ke user. JANGAN memanggil agen lain agar alur diskusi selesai dengan tuntas."
+                                f"3. Jika alur baru dimulai (rnd == 1), panggil @cre-02 (@copywriter) untuk menyusun naskah storytelling {req_target_slides} slide dan caption Instagram terverifikasi katalog.\n"
+                                f"4. Jika CRE-03 sudah selesai merender visual (rnd > 1), berikan laporan akhir Quality Audit Level 2: konfirmasi katalog 100% valid, ukuran cm terverifikasi, {req_target_slides} slide visual carousel 4:5 siap tayang sesuai referensi SRC-13. Nyatakan paket siap dipublikasikan ke user. JANGAN memanggil agen lain agar alur diskusi selesai dengan tuntas."
                             )
                         elif not wants_carousel and wants_video:
                             role_instructions = (
@@ -3925,11 +3936,11 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                             role_instructions = (
                                 "TUGAS CONTENT STRATEGIST & FLOW CONTROLLER (CRE-01):\n"
                                 f"{format_directive}\n"
-                                "1. Sambut tim dan user di group chat secara profesional, strategis, dan terstruktur sesuai Agentic Skill content-strategy & product-marketing (agentic-marketing-skills.md).\n"
-                                "2. Paparkan ringkasan brief, pilar kampanye #NeverJustOneThing, target audiens Gen Z (18-25th), alokasi format (carousel vs video vs keduanya), dan konsep styling.\n"
+                                f"1. Sambut tim dan user di group chat secara profesional, strategis, dan terstruktur sesuai Agentic Skill content-strategy & product-marketing (agentic-marketing-skills.md) dan referensi konten Colorbox SRC-13 (colorbox-content-references.md).\n"
+                                f"2. Paparkan ringkasan brief, pilar kampanye #NeverJustOneThing, target audiens Gen Z (18-25th), alokasi format (carousel vs video vs keduanya), dan arketipe referensi Colorbox terpilih.\n"
                                 f"3. {user_mandate_note}\n"
-                                "4. Jika alur baru dimulai (rnd == 1), panggil @cre-02 (@copywriter) untuk menyusun naskah storytelling, hook 3 detik, dan caption Instagram terverifikasi katalog.\n"
-                                "5. Jika tim kreator (CRE-03 / CRE-04) sudah selesai merender (rnd > 1), berikan laporan akhir Quality Audit Level 2: konfirmasi katalog 100% valid, ukuran cm terverifikasi, aset gambar 2-3 slide carousel 4:5 dan video UGC 9:16 siap tayang, dan nyatakan paket materi siap dipublikasikan ke user. JANGAN memanggil agen lain agar alur diskusi selesai dengan tuntas."
+                                f"4. Jika alur baru dimulai (rnd == 1), panggil @cre-02 (@copywriter) untuk menyusun naskah storytelling {req_target_slides} slide, hook 3 detik, dan caption Instagram terverifikasi katalog.\n"
+                                f"5. Jika tim kreator (CRE-03 / CRE-04) sudah selesai merender (rnd > 1), berikan laporan akhir Quality Audit Level 2: konfirmasi katalog 100% valid, ukuran cm terverifikasi, aset gambar {req_target_slides} slide carousel 4:5 dan video UGC 9:16 siap tayang, dan nyatakan paket materi siap dipublikasikan ke user. JANGAN memanggil agen lain agar alur diskusi selesai dengan tuntas."
                             )
                     elif bid in ("cre-02", "meda", "raka", "bram"):
                         if wants_carousel and not wants_video:
@@ -3937,8 +3948,8 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                                 "TUGAS CONTENT & COPYWRITER (CRE-02):\n"
                                 f"{format_directive}\n"
                                 f"1. {user_mandate_note}\n"
-                                "2. Terapkan Agentic Skill copywriting & marketing-psychology (agentic-marketing-skills.md): rancang hook 3 detik thumb-stopping (Contrast / Persona Switch / A-B Hook).\n"
-                                "3. Susun naskah carousel 2-3 slide padat dan koheren dengan aturan Zero-Text on Visual (fokus visual bersih, teks informasi ada di caption).\n"
+                                f"2. Terapkan Agentic Skill copywriting & marketing-psychology (agentic-marketing-skills.md) serta arketipe referensi Colorbox SRC-13 (colorbox-content-references.md): rancang hook 3 detik thumb-stopping dan Micro-Copy Editorial.\n"
+                                f"3. Susun naskah carousel {req_target_slides} slide padat dan koheren dengan aturan Zero-Text on Visual (fokus visual bersih, teks informasi ada di caption).\n"
                                 "4. Tulis caption Instagram lengkap dengan SKU, harga katalog resmi (product-catalog.md), size guide cm, hashtag (#NeverJustOneThing #ColorboxBabes), dan CTA resmi.\n"
                                 "5. Delegasikan langsung ke @cre-03 (@graphicdesigner) untuk render aset gambar visual carousel 4:5."
                             )
@@ -3956,8 +3967,8 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                                 "TUGAS CONTENT & COPYWRITER (CRE-02):\n"
                                 f"{format_directive}\n"
                                 f"1. {user_mandate_note}\n"
-                                "2. Terapkan Agentic Skill copywriting & marketing-psychology (agentic-marketing-skills.md): petakan hook 3 detik thumb-stopping dan storytelling Gen Z yang relatable sesuai tagline #NeverJustOneThing.\n"
-                                "3. Susun naskah carousel 2-3 slide padat dan koheren (Hero Impact, Detail Zoom tekstur, dan Mix & Match Styling Formula) dengan aturan Zero-Text on Visual (fokus visual bersih, teks informasi ada di caption).\n"
+                                f"2. Terapkan Agentic Skill copywriting & marketing-psychology (agentic-marketing-skills.md) serta arketipe referensi Colorbox SRC-13 (colorbox-content-references.md): petakan hook 3 detik thumb-stopping dan storytelling Gen Z yang relatable sesuai tagline #NeverJustOneThing.\n"
+                                f"3. Susun naskah carousel {req_target_slides} slide padat dan koheren (Hero Impact, Detail Zoom tekstur, dan Mix & Match Styling Formula) dengan aturan Zero-Text on Visual (fokus visual bersih, teks informasi ada di caption).\n"
                                 "4. Tulis caption Instagram lengkap dengan SKU, harga katalog resmi, size guide cm, hashtag, dan CTA resmi.\n"
                                 "5. Tulis spoken script UGC singkat (15 detik) untuk video Reels/TikTok.\n"
                                 "6. Delegasikan langsung ke @cre-03 (@graphicdesigner) untuk render aset gambar visual carousel 4:5."
@@ -3967,7 +3978,7 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                         role_instructions = (
                             "TUGAS GRAPHIC & MOTION DESIGNER (CRE-03):\n"
                             f"{format_directive}\n"
-                            "1. Terapkan Agentic Skill social-content & image (agentic-marketing-skills.md): berikan pengarahan artistik layout visual untuk 2-3 slide carousel (Instagram Feed Portrait 4:5, 1080 × 1350 px) yang padat, koheren, dan saling menyambung (Slide 1: Hero Cover Impact, Slide 2: Craftsmanship & Detail Zoom produk yang sama, Slide 3: Mix & Match Styling Formula atasan + bawahan serasi).\n"
+                            f"1. Terapkan Agentic Skill social-content & image (agentic-marketing-skills.md) dan arketipe visual resmi Colorbox SRC-13 (colorbox-content-references.md): berikan pengarahan artistik layout visual untuk {req_target_slides} slide carousel (Instagram Feed Portrait 4:5, 1080 × 1350 px) yang padat, koheren, dan saling menyambung.\n"
                             "2. DILARANG KERAS MENGGUNAKAN TEMPLATE KAKU ATAU KOTAK GRID ABU-ABU. Eksekusi visual murni lookbook editorial resolusi tinggi dengan foto katalog resmi Colorbox.\n"
                             "3. Konfirmasi bahwa berkas gambar final siap tayang dirender menggunakan foto produk autentik Colorbox dengan rasio terkunci 100% (contain mode, tanpa stretch/gepeng).\n"
                             "4. Pastikan kanvas bebas dari segala noise internal (tanpa label 'Slide 1/5', tanpa dot pagination, tanpa teks harga banner kaku — Zero-Text on Visual).\n"
@@ -4058,13 +4069,22 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                             if cleaned:
                                 # Extract live effective mandate for both visual and video creators
                                 try:
-                                    live_scan_text = " ".join(transcript_lines[-20:])
-                                    live_prods, _ = _detect_user_product_mandate(live_scan_text)
-                                    merged_prods = list(user_mandate_prods)
-                                    for lp in live_prods:
-                                        if not any(m["name"] == lp["name"] for m in merged_prods):
-                                            merged_prods.append(lp)
-                                    effective_mandate = merged_prods or user_mandate_prods
+                                    latest_u_idx = 0
+                                    for idx_u, u_line in enumerate(transcript_lines):
+                                        if str(u_line).startswith("User:") or str(u_line).startswith("Kakak:"):
+                                            latest_u_idx = idx_u
+                                    current_session_text = " ".join(transcript_lines[latest_u_idx:])
+                                    cur_prods, _ = _detect_user_product_mandate(current_session_text)
+                                    if cur_prods:
+                                        effective_mandate = cur_prods
+                                    else:
+                                        live_scan_text = " ".join(transcript_lines[-20:])
+                                        live_prods, _ = _detect_user_product_mandate(live_scan_text)
+                                        merged_prods = list(user_mandate_prods)
+                                        for lp in live_prods:
+                                            if not any(m["name"] == lp["name"] for m in merged_prods):
+                                                merged_prods.append(lp)
+                                        effective_mandate = merged_prods or user_mandate_prods
                                 except Exception as ex_m:
                                     print(f"[Mandate Extract Error]: {ex_m}")
                                     effective_mandate = user_mandate_prods
