@@ -111,6 +111,7 @@ MARKETING_FILES = {
     "product-size-reference.md": ["SRC-03"],
     "agentic-marketing-skills.md": ["SRC-12"],
     "colorbox-content-references.md": ["SRC-13"],
+    "sistem-desain-carousel-modular.md": ["SRC-14"],
 }
 TEAM_WORKFLOW = {"marketing": "marketing", "customer_support": "cs"}
 PRODUCT_NOTE = (
@@ -3632,7 +3633,7 @@ def _render_cre03_visual_carousel(transcript_lines: List[str], user_mandate_prod
                 user_line = str(line)
                 break
         effective_num_slides = _detect_requested_slide_count(user_line or joined_text, default_count=3)
-    effective_num_slides = max(2, min(int(effective_num_slides or 3), 5))
+    effective_num_slides = max(2, min(int(effective_num_slides or 3), 6))
 
     # Extract dynamic concepts/themes from CRE-02 or CRE-01
     creative_concept = None
@@ -3784,8 +3785,9 @@ def _render_cre03_visual_carousel(transcript_lines: List[str], user_mandate_prod
     headline = p_name
     subtitle = f"Koleksi resmi {main_p.get('color', 'Colorbox')} — Potongan presisi khas Colorbox"
 
+    render_res = {}
     try:
-        render_final_carousel_package(
+        render_res = render_final_carousel_package(
             theme_title=theme_title,
             headline=headline,
             subtitle=subtitle,
@@ -3794,15 +3796,23 @@ def _render_cre03_visual_carousel(transcript_lines: List[str], user_mandate_prod
             images_dir=img_dir,
             day_num=1,
             num_slides=effective_num_slides
-        )
+        ) or {}
         _sync_carousel_output_to_frontend(out_dir)
     except Exception as ex:
         print(f"[CRE-03 Rendering Failed]: {ex}")
 
+    bg_used = render_res.get("bg_asset") or "Warm Alabaster (#F4EFEA)"
+    accent_used = render_res.get("accent") or "Terracotta (#B85A3A)"
+    povs_used = ", ".join(render_res.get("povs_used") or ["front", "back", "detail"])
+    gpt2_stat = render_res.get("gpt_image_2_status") or "unavailable"
+
     md = (
-        f"### 🎨 Aset Visual Carousel Siap Posting (@colorbox Bespoke Standard · {effective_num_slides} Slide):\n\n"
-        f"**Kurasi Produk Riil:**\n"
+        f"### 🎨 Aset Visual Carousel Siap Posting (@colorbox Modular Design System · {effective_num_slides} Slide):\n\n"
+        f"**Kurasi Produk Riil & Aset Modular (SRC-14):**\n"
         f"- **Hero Utama:** {prods[0]['name']} ({prods[0].get('color', '')}) [{prods[0].get('category', '')}]\n"
+        f"- **POV Model Terpakai:** `{povs_used}`\n"
+        f"- **Background Asset:** `{bg_used}` · **Dynamic Accent:** `{accent_used}`\n"
+        f"- **Status `gpt-image-2`:** `{gpt2_stat}`\n"
     )
     if len(prods) > 1:
         md += f"- **Paduan Bawahan:** {prods[1]['name']} ({prods[1].get('color', '')}) [{prods[1].get('category', '')}]\n"
@@ -3817,17 +3827,18 @@ def _render_cre03_visual_carousel(transcript_lines: List[str], user_mandate_prod
         md += "![Mix & Match Styling Formula](/output/carousel_latest/slide_3_bottom_pairing.png)\n\n"
     if effective_num_slides >= 4:
         md += "![Complete Ensemble](/output/carousel_latest/slide_4_accessories_layering.png)\n\n"
-    if effective_num_slides >= 5:
+    if effective_num_slides == 5:
         md += "![Lookbook Outro](/output/carousel_latest/slide_5_outro_cta.png)\n\n"
+    elif effective_num_slides >= 6:
+        md += "![Mix & Match Variation](/output/carousel_latest/slide_5_mix_match.png)\n\n"
+        md += "![Lookbook Outro](/output/carousel_latest/slide_6_outro_cta.png)\n\n"
 
     md += (
         "👉 **[Buka Pratinjau Interaktif Live Carousel](/output/carousel_latest/carousel_preview.html)**\n\n"
-        "✨ **Karakteristik Desain:**\n"
-        f"- **Kurasi Padat & Koheren ({effective_num_slides} Slide):** Bebas slide pengisi berulang, alur cerita visual saling menyatu.\n"
-        "- **Bebas Template Baku:** Tata letak bespoke berorientasi lookbook editorial tanpa kotak grid abu-abu.\n"
-        "- **Multi-Angle Aktif:** Menampilkan foto depan dan foto detail close-up kain garmen yang sama persis.\n"
-        "- **Zero-Text on Visual:** Visual bersih estetis tanpa banner teks harga/promo kaku.\n"
-        "- **Preservasi Rasio:** Foto model dan garmen terkunci 100% proporsional (contain mode)."
+        "✨ **Karakteristik Desain (Sistem Desain Modular SRC-14):**\n"
+        f"- **Kurasi Padat & Koheren ({effective_num_slides} Slide):** Alur visual modular dengan counter `01 / {effective_num_slides:02d}` dan indikator `SWIPE →`.\n"
+        "- **POV Model Selektif:** Menggunakan angle `front`, `back`, dan `detail` sesuai kebutuhan tiap slide.\n"
+        "- **Token Warna & Safe Zone:** Mengikuti palet `#F4EFEA` / `#231916` dengan margin aman `64 px`."
     )
     return md
 

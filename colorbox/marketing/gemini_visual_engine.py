@@ -859,8 +859,41 @@ def render_final_carousel_package(
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    # Use Pinterest Aesthetic Engine (Zero-Text on Visual & Playwright rendering, strictly no rigid box fallback)
-    from aesthetic_visual_engine import render_aesthetic_carousel
+    from aesthetic_visual_engine import (
+        render_aesthetic_carousel,
+        get_product_pov_map,
+        select_background_asset,
+        select_accent_color,
+    )
+
+    p1 = products_info[0] if products_info else {}
+    p1_name = p1.get("name", "Colorbox Hero")
+    p1_color = p1.get("color", "Classic")
+    povs = get_product_pov_map(p1, images_dir)
+    _, bg_name = select_background_asset(p1)
+    accent_hex, accent_name = select_accent_color(p1)
+
+    gpt2_prompt = (
+        f"Modular Editorial Fashion Instagram Carousel Cover (1080x1350, 4:5 portrait) for {p1_name} ({p1_color}). "
+        f"Style: off-duty cool, modern retro/Y2K-tinged casual lookbook per sistem-desain-carousel-modular.md. "
+        f"Color tokens: Warm Alabaster #F4EFEA, Espresso Ink #231916, Translucent Cream pill rgba(244,239,234,0.88), {accent_name} ({accent_hex}) accent. "
+        f"Background setting inspired by {bg_name or 'minimalist street'}. "
+        f"POV: front full-body/3-quarter portrait. 64px safe margin, Plus Jakarta Sans + Playfair Display editorial header '01 / {num_slides:02d}'."
+    )
+    gpt2_status = "skipped"
+    gpt2_bytes = None
+    try:
+        gpt2_bytes = call_opencode_image_gen(gpt2_prompt, model=DEFAULT_IMAGE_MODEL)
+        if gpt2_bytes:
+            gpt2_out = os.path.join(output_dir, "gpt_image_2_concept.png")
+            with open(gpt2_out, "wb") as gf:
+                gf.write(gpt2_bytes)
+            gpt2_status = f"ok ({gpt2_out})"
+        else:
+            gpt2_status = "unavailable (OpenCode Inference returned 402 Payment Required / no image bytes)"
+    except Exception as ge:
+        gpt2_status = f"error: {ge}"
+
     res = render_aesthetic_carousel(
         theme_title=theme_title,
         headline=headline,
@@ -872,6 +905,8 @@ def render_final_carousel_package(
         num_slides=num_slides
     )
     if res and res.get("success"):
+        res["gpt_image_2_status"] = gpt2_status
+        res["povs_available"] = list(povs.keys())
         return res
 
     raise RuntimeError(f"Visual rendering failed: {res.get('error') if isinstance(res, dict) else 'unknown error'}")
