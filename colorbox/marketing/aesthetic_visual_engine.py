@@ -36,6 +36,66 @@ def img_to_b64(path):
     with open(path, "rb") as f:
         return f"data:{mime};base64," + base64.b64encode(f.read()).decode("utf-8")
 
+def remove_studio_background_to_b64(path: str) -> str:
+    """
+    Removes uniform light/studio background connected to image borders using
+    flood-fill + morphological edge feathering, returning a transparent PNG data URI.
+    Preserves interior highlights/white inner garments not connected to the border.
+    """
+    if not path or not os.path.exists(path):
+        return ""
+    try:
+        import io
+        import numpy as np
+        from PIL import Image, ImageFilter
+        from scipy import ndimage
+
+        im = Image.open(path).convert("RGBA")
+        arr = np.array(im, dtype=np.float32)
+        rgb = arr[:, :, :3]
+        h, w = rgb.shape[:2]
+
+        # Sample border pixels (top, left, right) to estimate studio backdrop color
+        border_pixels = np.concatenate([
+            rgb[0, :, :],
+            rgb[1, :, :],
+            rgb[:, 0, :],
+            rgb[:, -1, :],
+        ], axis=0)
+        bg_color = np.median(border_pixels, axis=0)
+
+        # Studio backdrop is neutral (low chroma) and bright/grey, including soft floor shadows
+        dist = np.linalg.norm(rgb - bg_color, axis=2)
+        chroma = np.max(rgb, axis=2) - np.min(rgb, axis=2)
+        luma = np.mean(rgb, axis=2)
+        is_bg_candidate = (dist < 46.0) | ((chroma < 20.0) & (luma > 180.0))
+
+        # Keep only background regions connected to the outer border (4-connectivity)
+        # so white inner shirts / buttons inside the model are preserved!
+        border_seed = np.zeros((h, w), dtype=bool)
+        border_seed[0, :] = is_bg_candidate[0, :]
+        border_seed[-1, :] = is_bg_candidate[-1, :]
+        border_seed[:, 0] = is_bg_candidate[:, 0]
+        border_seed[:, -1] = is_bg_candidate[:, -1]
+
+        bg_mask = ndimage.binary_propagation(border_seed, mask=is_bg_candidate)
+
+        # Slightly expand mask by 1px to eat white studio fringe, then feather alpha
+        bg_mask_dilated = ndimage.binary_dilation(bg_mask, iterations=1)
+        alpha = np.where(bg_mask_dilated, 0.0, 255.0).astype(np.uint8)
+        alpha_img = Image.fromarray(alpha, mode="L").filter(ImageFilter.GaussianBlur(radius=1.2))
+
+        out_arr = np.array(im)
+        out_arr[:, :, 3] = np.array(alpha_img)
+        out_im = Image.fromarray(out_arr, mode="RGBA")
+
+        buf = io.BytesIO()
+        out_im.save(buf, format="PNG")
+        return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("utf-8")
+    except Exception as e:
+        print(f"[Remove Studio BG Warning]: {e}")
+        return img_to_b64(path)
+
 def get_product_pov_map(prod: dict, images_dir=IMAGES_DIR) -> dict[str, str]:
     """
     Discovers all available POV angles ('front', 'back', 'detail', 'side') for a product
@@ -207,13 +267,13 @@ def render_aesthetic_carousel(
     num_slides: int = 3
 ) -> dict:
     """
-    Renders modular 1080x1350 px (4:5) Instagram Carousel slides following
-    sistem-desain-carousel-modular.md (SRC-14):
-    - Dynamic POV selection per slide (front, back, detail)
-    - Dynamic [SLOT_BG_ASSET] from background/
-    - Dynamic graphics accents from graphics/
-    - Exact Color System (#F4EFEA, #231916, rgba(244,239,234,0.88), dynamic accent)
-    - 64px Safe Zone & Plus Jakarta Sans + Playfair Display typography
+    Renders 1-3 modular 1080x1350 px (4:5) Instagram Carousel slides following
+    the updated sistem-desain-carousel-modular.md:
+    - Model photos have studio background REMOVED and are composited directly
+      onto [SLOT_BG_ASSET] (full-bleed, NO white-box collage).
+    - 1-3 slides only, NO CTA slide.
+    - Minimized text: 1-4 words editorial micro-copy only.
+    - Distinct POV per slide (front, detail, back/second-angle).
     """
     os.makedirs(output_dir, exist_ok=True)
     out_path = Path(output_dir)
@@ -225,274 +285,125 @@ def render_aesthetic_carousel(
             pass
 
     p1 = products_info[0] if len(products_info) > 0 else {}
-    p2 = products_info[1] if len(products_info) > 1 else {}
-
     p1_name = p1.get("name", "Hero Collection")
     p1_color = p1.get("color", "Classic")
-    p1_cat = p1.get("category", "Editorial Lookbook")
 
-    # Discover all POVs for p1 and p2
     p1_povs = get_product_pov_map(p1, images_dir)
-    p2_povs = get_product_pov_map(p2, images_dir)
-
     p1_front = p1_povs.get("front") or find_product_image(p1, images_dir, "front")
     p1_back = p1_povs.get("back") or p1_povs.get("side") or p1_front
     p1_detail = p1_povs.get("detail") or p1_back or p1_front
 
-    p1_front_b64 = img_to_b64(p1_front)
-    p1_back_b64 = img_to_b64(p1_back) or p1_front_b64
-    p1_detail_b64 = img_to_b64(p1_detail) or p1_front_b64
+    # Remove studio background for in-situ model compositing!
+    p1_front_cutout_b64 = remove_studio_background_to_b64(p1_front)
+    p1_back_cutout_b64 = remove_studio_background_to_b64(p1_back) or p1_front_cutout_b64
+    p1_detail_b64 = img_to_b64(p1_detail) or p1_front_cutout_b64
 
-    p2_name = p2.get("name", "Pairing Piece")
-    p2_front = p2_povs.get("front") or find_product_image(p2, images_dir, "front")
-    p2_front_b64 = img_to_b64(p2_front) or p1_back_b64
-
-    # Modular Background & Graphic Assets
     bg_path, bg_name = select_background_asset(p1)
     bg_b64 = img_to_b64(bg_path)
     accent_hex, accent_name = select_accent_color(p1)
-    gfx_star_b64 = img_to_b64(select_graphic_asset(["silver-stars.jpg", "red-stars.jpg", "disco-globe.png"]))
 
-    effective_slides = max(2, min(int(num_slides or 3), 6))
-    tag_collection = (p1_cat.split("&")[0].strip() or "EDITORIAL").upper()
-    hook_words = (headline or p1_name).split()[:6]
-    hook_text = " ".join(hook_words)
-    layer_note = subtitle if subtitle and len(subtitle) <= 75 else f"Layered silhouette in {p1_color.title()} — effortless day-to-night pairing."
+    effective_slides = max(1, min(int(num_slides or 3), 3))
+
+    # Minimalist micro-copy (1-4 words max, zero clutter, zero CTA)
+    micro_s1 = "structured, <i>effortless.</i>"
+    micro_s2 = "contrast stitch" if "contrast" in p1_name.lower() else "detail"
+    micro_s3 = "everyday layer"
 
     base_css = f"""
-      @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;1,500&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');
       * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-      :root {{
-        --bg-base: #F4EFEA;
-        --ink-primary: #231916;
-        --surface-pill: rgba(244, 239, 234, 0.88);
-        --border-subtle: rgba(35, 25, 22, 0.20);
-        --accent-dynamic: {accent_hex};
-      }}
       body {{
         width: 1080px; height: 1350px; overflow: hidden;
-        background: var(--bg-base);
-        color: var(--ink-primary);
+        background: #F4EFEA;
         font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
         position: relative;
       }}
-      .safe-canvas {{
-        position: relative; width: 100%; height: 100%;
-        padding: 64px;
-        display: flex; flex-direction: column; justify-content: space-between;
-        z-index: 2;
+      .bg-full {{
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        object-fit: cover; object-position: center; z-index: 0;
+        filter: contrast(0.96) brightness(0.95);
       }}
-      .bg-layer {{
-        position: absolute; inset: 0; z-index: 0;
-        background-size: cover; background-position: center;
+      .model-cutout {{
+        position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+        height: 92%; width: auto; max-width: 106%;
+        object-fit: contain; z-index: 2;
+        filter: drop-shadow(0 18px 36px rgba(20, 14, 12, 0.28));
       }}
-      .bg-scrim {{
-        position: absolute; inset: 0; z-index: 1;
-        background: linear-gradient(180deg, rgba(244,239,234,0.62) 0%, rgba(244,239,234,0.18) 40%, rgba(244,239,234,0.72) 100%);
+      .detail-full {{
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        object-fit: cover; object-position: center; z-index: 1;
       }}
-      .top-header {{
-        display: flex; align-items: center; justify-content: space-between;
-        padding-bottom: 14px;
-        border-bottom: 1.5px solid var(--ink-primary);
-        padding-right: 48px;
+      .micro-copy {{
+        position: absolute; z-index: 5;
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 46px; font-weight: 500; letter-spacing: -0.01em;
+        color: #FAF7F2;
+        text-shadow: 0 3px 18px rgba(0, 0, 0, 0.55);
       }}
-      .section-tag {{
-        font-size: 20px; font-weight: 600; letter-spacing: 0.08em;
-        text-transform: uppercase; color: var(--ink-primary);
-      }}
-      .slide-counter {{
-        font-size: 20px; font-weight: 600; letter-spacing: 0.08em;
-        background: var(--surface-pill); padding: 6px 14px; border-radius: 6px;
-        border: 1px solid var(--border-subtle);
-      }}
-      .photo-frame {{
-        width: 100%; flex: 1; margin: 24px 0;
-        border-radius: 14px; overflow: hidden; position: relative;
-        border: 1px solid var(--border-subtle);
-        background: #EAE3DC;
-        box-shadow: 0 18px 42px rgba(35,25,22,0.10);
-      }}
-      .photo-frame img {{
-        width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block;
-      }}
-      .callout-pill {{
-        position: absolute;
-        background: var(--surface-pill);
-        border: 1px solid var(--ink-primary);
+      .micro-copy i {{ font-style: italic; }}
+      .micro-pill {{
+        position: absolute; z-index: 5;
+        background: rgba(244, 239, 234, 0.88);
+        color: #231916;
+        border: 1px solid rgba(35, 25, 22, 0.45);
         border-radius: 999px;
-        padding: 10px 18px;
-        font-size: 19px; font-weight: 500; letter-spacing: 0.02em;
-        color: var(--ink-primary);
-        backdrop-filter: blur(6px);
+        padding: 8px 18px;
+        font-size: 18px; font-weight: 500; letter-spacing: 0.04em;
+        text-transform: lowercase;
       }}
-      .hairline-dot {{
-        display: inline-block; width: 6px; height: 6px; border-radius: 50%;
-        background: var(--accent-dynamic); margin-right: 8px; vertical-align: middle;
-      }}
-      .bottom-bar {{
-        display: flex; align-items: flex-end; justify-content: space-between;
-        gap: 24px; padding-bottom: 12px;
-      }}
-      .headline-lg {{
-        font-size: 56px; font-weight: 700; line-height: 1.10; letter-spacing: -0.02em;
-        color: var(--ink-primary); max-width: 740px;
-      }}
-      .serif-italic {{
-        font-family: 'Playfair Display', Georgia, serif; font-style: italic; font-weight: 500;
-        color: var(--accent-dynamic);
-      }}
-      .body-note {{
-        font-size: 26px; line-height: 1.35; font-weight: 500;
-        background: var(--surface-pill); padding: 14px 20px; border-radius: 10px;
-        border: 1px solid var(--border-subtle); max-width: 720px;
-      }}
-      .swipe-indicator {{
-        font-size: 20px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-        background: var(--surface-pill); padding: 10px 18px; border-radius: 999px;
-        border: 1px solid var(--ink-primary); white-space: nowrap;
+      .bracket {{
+        position: absolute; z-index: 4;
+        width: 44px; height: 44px;
+        border-color: #F4D03F; border-style: solid; border-width: 0;
       }}
     """
 
-    def make_slide_html(counter_idx: int, body_inner: str, use_bg: bool = True) -> str:
-        ctr = f"{counter_idx:02d} / {effective_slides:02d}"
-        bg_html = f'<div class="bg-layer" style="background-image:url(\'{bg_b64}\')"></div><div class="bg-scrim"></div>' if (use_bg and bg_b64) else ""
-        return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{base_css}</style></head>
-<body>{bg_html}<div class="safe-canvas">
-  <div class="top-header">
-    <span class="section-tag">{tag_collection} &middot; COLORBOX</span>
-    <span class="slide-counter">{ctr}</span>
-  </div>
-  {body_inner}
-</div></body></html>"""
+    html_s1 = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{base_css}</style></head>
+<body>
+  <img class="bg-full" src="{bg_b64}" />
+  <img class="model-cutout" src="{p1_front_cutout_b64}" />
+  <div class="micro-copy" style="top: 72px; left: 68px;">{micro_s1}</div>
+</body></html>"""
 
-    s1_inner = f"""
-      <div class="photo-frame">
-        <img src="{p1_front_b64}" />
-        <div class="callout-pill" style="top:28px; left:28px;"><span class="hairline-dot"></span>{p1_color}</div>
-      </div>
-      <div class="bottom-bar">
-        <div class="headline-lg">{hook_text} <span class="serif-italic">Edit</span></div>
-        <div class="swipe-indicator">SWIPE &rarr;</div>
-      </div>
-    """
+    html_s2 = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{base_css}</style></head>
+<body>
+  <img class="detail-full" src="{p1_detail_b64}" />
+  <div class="bracket" style="top: 320px; left: 260px; border-top-width: 3px; border-left-width: 3px;"></div>
+  <div class="bracket" style="top: 320px; right: 260px; border-top-width: 3px; border-right-width: 3px;"></div>
+  <div class="bracket" style="bottom: 320px; left: 260px; border-bottom-width: 3px; border-left-width: 3px;"></div>
+  <div class="bracket" style="bottom: 320px; right: 260px; border-bottom-width: 3px; border-right-width: 3px;"></div>
+  <div class="micro-pill" style="bottom: 72px; left: 68px;">{micro_s2}</div>
+</body></html>"""
 
-    s2_inner = f"""
-      <div class="photo-frame">
-        <img src="{p1_front_b64}" />
-        <div class="callout-pill" style="bottom:36px; left:28px;"><span class="hairline-dot"></span>HERO: {p1_name[:28]}</div>
-        <div class="callout-pill" style="top:36px; right:28px;"><span class="hairline-dot"></span>FRONT POV</div>
-      </div>
-      <div class="bottom-bar">
-        <div class="body-note">Structured silhouette crafted for effortless everyday layering.</div>
-        <div class="swipe-indicator">SWIPE &rarr;</div>
-      </div>
-    """
+    html_s3 = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{base_css}</style></head>
+<body>
+  <img class="bg-full" src="{bg_b64}" />
+  <img class="model-cutout" src="{p1_back_cutout_b64}" />
+  <div class="micro-copy" style="top: 72px; left: 68px;">{micro_s3}</div>
+</body></html>"""
 
-    s3_inner = f"""
-      <div class="photo-frame">
-        <img src="{p1_back_b64}" />
-        <div class="callout-pill" style="bottom:36px; right:28px;"><span class="hairline-dot"></span>BACK / SILHOUETTE POV</div>
-      </div>
-      <div class="bottom-bar">
-        <div class="body-note">{layer_note}</div>
-        <div class="swipe-indicator">SWIPE &rarr;</div>
-      </div>
-    """
-
-    s4_inner = f"""
-      <div class="photo-frame">
-        <img src="{p1_detail_b64}" style="object-position:center center;" />
-        <div class="callout-pill" style="top:32px; left:28px;"><span class="hairline-dot"></span>DETAIL / MATERIAL</div>
-      </div>
-      <div class="bottom-bar">
-        <div class="body-note">Close-up construction, hardware, and signature contrast stitching.</div>
-        <div class="swipe-indicator">SWIPE &rarr;</div>
-      </div>
-    """
-
-    s5_inner = f"""
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; flex:1; margin:24px 0;">
-        <div class="photo-frame" style="margin:0;">
-          <img src="{p1_front_b64}" />
-          <div class="callout-pill" style="bottom:20px; left:20px;">LOOK 01 &middot; HERO</div>
-        </div>
-        <div class="photo-frame" style="margin:0;">
-          <img src="{p2_front_b64}" />
-          <div class="callout-pill" style="bottom:20px; left:20px;">PAIR: {p2_name[:18]}</div>
-        </div>
-      </div>
-      <div class="bottom-bar">
-        <div class="body-note">Mix &amp; match formula: pair with {p2_name} for complete look.</div>
-        <div class="swipe-indicator">SWIPE &rarr;</div>
-      </div>
-    """
-
-    gfx_badge = f'<img src="{gfx_star_b64}" style="width:72px; height:72px; object-fit:cover; border-radius:12px; border:1px solid var(--border-subtle);" />' if gfx_star_b64 else ""
-    s6_inner = f"""
-      <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:28px; padding:40px; border:1.5px solid var(--border-subtle); border-radius:18px; margin:24px 0; background:rgba(255,255,255,0.45);">
-        {gfx_badge}
-        <div class="headline-lg" style="max-width:680px;">Save for your next <span class="serif-italic">OOTD</span></div>
-        <div class="body-note" style="text-align:center;">{p1_name} ({p1_color}) &mdash; Explore full collection at colorbox.co.id</div>
-      </div>
-      <div class="bottom-bar" style="justify-content:center;">
-        <div class="swipe-indicator">@COLORBOX_ID &middot; #NEVERJUSTONETHING</div>
-      </div>
-    """
-
-    if effective_slides == 2:
-        slide_specs = [
-            ("slide_1_cover_hero.png", s1_inner, "Slide 1: Cover / Hook (Front POV)", True),
-            ("slide_2_hero_top.png", s4_inner, "Slide 2: Detail & Texture Crop (Detail POV)", True),
-        ]
-    elif effective_slides == 3:
-        slide_specs = [
-            ("slide_1_cover_hero.png", s1_inner, "Slide 1: Cover / Hook (Front POV)", True),
-            ("slide_2_hero_top.png", s4_inner, "Slide 2: Detail & Texture Crop (Detail POV)", True),
-            ("slide_3_bottom_pairing.png", s3_inner, "Slide 3: Silhouette & Layering (Back POV)", True),
-        ]
-    elif effective_slides == 4:
-        slide_specs = [
-            ("slide_1_cover_hero.png", s1_inner, "Slide 1: Cover / Hook (Front POV)", True),
-            ("slide_2_hero_top.png", s2_inner, "Slide 2: Focus Look A (Front POV)", True),
-            ("slide_3_bottom_pairing.png", s3_inner, "Slide 3: Focus Look B (Back POV)", True),
-            ("slide_4_accessories_flatlay.png", s4_inner, "Slide 4: Detail & Texture Crop (Detail POV)", True),
-        ]
-    elif effective_slides == 5:
-        slide_specs = [
-            ("slide_1_cover_hero.png", s1_inner, "Slide 1: Cover / Hook (Front POV)", True),
-            ("slide_2_hero_top.png", s2_inner, "Slide 2: Focus Look A (Front POV)", True),
-            ("slide_3_bottom_pairing.png", s3_inner, "Slide 3: Focus Look B (Back POV)", True),
-            ("slide_4_accessories_flatlay.png", s4_inner, "Slide 4: Detail & Texture Crop (Detail POV)", True),
-            ("slide_5_outro_cta.png", s6_inner, "Slide 5: Closing & CTA", False),
-        ]
-    else:
-        slide_specs = [
-            ("slide_1_cover_hero.png", s1_inner, "Slide 1: Cover / Hook (Front POV)", True),
-            ("slide_2_hero_top.png", s2_inner, "Slide 2: Focus Look A (Front POV)", True),
-            ("slide_3_bottom_pairing.png", s3_inner, "Slide 3: Focus Look B (Back POV)", True),
-            ("slide_4_accessories_flatlay.png", s4_inner, "Slide 4: Detail & Texture Crop (Detail POV)", True),
-            ("slide_5_mix_match.png", s5_inner, "Slide 5: Mix & Match Variation", True),
-            ("slide_6_outro_cta.png", s6_inner, "Slide 6: Closing & CTA", False),
-        ]
+    all_slides = [
+        ("slide_1_cover_hero.png", html_s1, "Slide 1: In-Situ Front POV (Removed BG)"),
+        ("slide_2_hero_top.png", html_s2, "Slide 2: Macro Detail POV"),
+        ("slide_3_bottom_pairing.png", html_s3, "Slide 3: In-Situ Second Angle POV (Removed BG)"),
+    ]
+    slides_to_render = all_slides[:effective_slides]
 
     generated_slides = []
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        for idx, (sname, sinner, _, use_bg) in enumerate(slide_specs, start=1):
+        for sname, shtml, _ in slides_to_render:
             spath = out_path / sname
             page = browser.new_page(viewport={"width": 1080, "height": 1350})
-            page.set_content(make_slide_html(idx, sinner, use_bg=use_bg))
+            page.set_content(shtml)
             page.screenshot(path=str(spath))
             page.close()
             generated_slides.append(str(spath))
         browser.close()
 
-    if effective_slides >= 4 and (out_path / "slide_4_accessories_flatlay.png").exists():
-        shutil.copyfile(str(out_path / "slide_4_accessories_flatlay.png"), str(out_path / "slide_4_accessories_layering.png"))
-
     slide_cards_html = "\n".join([
         f'    <div class="slide-card"><img src="{sname}"><div class="caption">{stitle}</div></div>'
-        for sname, _, stitle, _ in slide_specs
+        for sname, _, stitle in slides_to_render
     ])
 
     preview_path = out_path / "carousel_preview.html"
@@ -500,7 +411,7 @@ def render_aesthetic_carousel(
 <html>
 <head>
 <meta charset="utf-8">
-<title>Colorbox Modular Editorial Lookbook — {p1_name}</title>
+<title>Colorbox In-Situ Lookbook — {p1_name}</title>
 <style>
   body {{ margin:0; background:#121214; color:#fff; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display:flex; flex-direction:column; align-items:center; padding:40px 20px; }}
   h1 {{ font-size:24px; font-weight:700; margin-bottom:8px; text-align:center; }}
@@ -513,7 +424,7 @@ def render_aesthetic_carousel(
 </head>
 <body>
   <h1>{p1_name} ({p1_color})</h1>
-  <p>Modular Design System (SRC-14) &middot; Accent: {accent_name} ({accent_hex}) &middot; BG: {bg_name or 'Warm Alabaster'} &middot; {effective_slides} Slides</p>
+  <p>In-Situ Cutout Lookbook (BG Removed) · Background: {bg_name} · {effective_slides} Slides · Minimal Micro-Copy</p>
   <div class="carousel-wrap">
 {slide_cards_html}
   </div>
