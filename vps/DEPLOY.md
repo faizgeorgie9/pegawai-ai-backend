@@ -1,7 +1,7 @@
 # Deploy Pegawai AI (satu perintah)
 
 Panduan singkat untuk tim. Semua perintah dijalankan **dari laptop Windows**, di root repo
-`pegawai-ai-backend`, pada branch `feat/frontend-prototype` (jangan membuat branch baru).
+`pegawai-ai-backend`. Branch lokal yang aktif tidak berpengaruh: yang dideploy selalu `origin/main`.
 
 Server tidak punya Node/npm, jadi frontend **selalu dibangun di laptop**. Skrip deploy membangun
 rilis dari commit git (bukan dari working tree), menguji backend, membangun frontend, lalu mengirim
@@ -137,11 +137,3 @@ Berkasnya disimpan hanya sebagai riwayat; jangan dijalankan.
 
 Satu-satunya jalur deploy yang sah: `.\vps\deploy.ps1` (dan `-Rollback` bila perlu).
 
-## Catatan deploy pertama
-
-Skrip server `/home/ubuntu/deploy-pegawai-ai.sh` versi lama belum memakai kunci `flock`. Setelah
-deploy berhasil, `deploy.ps1` menyalin `vps/deploy_release.sh` **dari commit yang dideploy** ke server
-(setelah `bash -n`), sehingga kunci deploy aktif untuk deploy berikutnya. Bila commit yang dideploy
-belum memuat versi ber-kunci, skrip server tidak diubah dan muncul peringatan: merge dulu perubahan
-tooling ke `main`, lalu deploy/rollback sekali lagi agar kunci aktif. Jangan menyalin skrip ke server
-secara manual tanpa memeriksa `bash -n`.

@@ -208,7 +208,8 @@ export function LoginModal({ onSuccess, notice }: LoginModalProps) {
         .login-card {
           width: 100%;
           max-width: 420px;
-          margin: auto;
+          align-self: flex-start;
+          margin: clamp(48px, 12vh, 120px) auto 0;
           padding: var(--s-6);
           background: var(--surface);
           color: var(--text);
@@ -388,7 +389,7 @@ export function LoginModal({ onSuccess, notice }: LoginModalProps) {
           .login-card {
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-start;
             max-width: none;
             min-height: 100svh;
             margin: 0;

@@ -183,6 +183,17 @@ export interface KnowledgeInfo {
   retention_days: number
   docs: { id: string; title: string; workflow: string; version: string | null; date: string | null; files: { name: string; title: string }[] }[]
 }
+// One colour of a catalog product (GET /products/search). The BFF searches whole English words, max 20 rows.
+export interface CatalogProduct {
+  id: number
+  category: string
+  name: string
+  price: number
+  price_original: number | null
+  colors: string[]
+  sizes: string[]
+  url: string
+}
 // Knowledge Base item (a file or link the user added; the BFF extracts the text and keeps it per user).
 export interface KbItem {
   id: string | null // null: a link that could not even be stored (e.g. the Knowledge Base is full)
@@ -955,21 +966,9 @@ export const api = {
     me: () => call<{ ok: boolean; user: AuthUser }>('GET', '/auth/me'),
     logout: () => call<{ ok: boolean }>('POST', '/auth/logout'),
   },
-  catalog: {
-    products: (q?: string, category?: string, limit = 50, signal?: AbortSignal) => {
-      const sp = new URLSearchParams()
-      if (q) sp.set('q', q)
-      if (category) sp.set('category', category)
-      sp.set('limit', String(limit))
-      return call<{ ok: boolean; total: number; count: number; items: any[] }>('GET', `/catalog/products?${sp.toString()}`, undefined, signal)
-    },
-    search: (q: string, limit = 20, signal?: AbortSignal) => {
-      const sp = new URLSearchParams({ q, limit: String(limit) })
-      return call<{ ok: boolean; total: number; count: number; items: any[] }>('GET', `/catalog/search?${sp.toString()}`, undefined, signal)
-    },
-    categories: (signal?: AbortSignal) =>
-      call<{ ok: boolean; categories: { name: string; count: number }[]; total_products: number }>('GET', '/catalog/categories', undefined, signal),
-  },
+  // Catalog search used by the Marketing brief (ProductPicker): the route that exists on the BFF.
+  productsSearch: (q: string, signal?: AbortSignal) =>
+    call<{ data: CatalogProduct[]; count: number }>('GET', `/products/search?q=${encodeURIComponent(q)}&limit=20`, undefined, signal),
   settings: () => call<Settings>('GET', '/settings'),
   saveSettings: (p: Partial<Settings>) => call<Settings>('PATCH', '/settings', p),
   models: () => call<ModelCatalog>('GET', '/models'),

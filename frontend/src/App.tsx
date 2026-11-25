@@ -364,7 +364,20 @@ function Sidebar({ route, authUser, onLogout, onClose }: { route: Route; authUse
         {authUser && (
           <div className="side-user">
             <div className="side-user-who">
-              <b>{authUser.name}</b>
+              <b
+                title={authUser.name}
+                style={{
+                  display: '-webkit-box',
+                  WebkitBoxOrient: 'vertical',
+                  WebkitLineClamp: 2,
+                  whiteSpace: 'normal',
+                  overflow: 'hidden',
+                  overflowWrap: 'anywhere',
+                  maxWidth: 160,
+                }}
+              >
+                {authUser.name}
+              </b>
               <small>{isAdminRole(authUser.role) ? 'Pemilik' : 'Staf'}{authUser.company ? ` · ${authUser.company}` : ''}</small>
             </div>
             <button type="button" className="btn quiet-btn sm side-user-out" onClick={onLogout} title="Keluar dari akun">

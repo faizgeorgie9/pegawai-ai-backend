@@ -100,3 +100,25 @@
 @keyframes sheet { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 .danger-zone .btn.danger-text { padding: 0 12px; margin-left: -12px; }
 .cost-line { margin: 0; font-size: 13px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+
+/* Catatan aktivitas: the summary button fills its cell, so every row keeps the same height and line. */
+.act td.sum { padding: 0; height: 100%; }
+.act .sum-btn { display: block; width: 100%; max-width: none; min-height: 44px; padding: 0 var(--s-3); text-align: left; }
+
+/* On a phone each record is a short card: Waktu + Kegiatan, Pegawai + Status, then the summary.
+   Label and value share a line (a stacked label doubled every card); the summary keeps its own 40 px target. */
+@media (max-width: 640px) {
+  .page.act-page .act tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 var(--s-3); padding: var(--s-2) var(--s-3); margin-bottom: var(--s-1); }
+  .page.act-page .act td { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); min-width: 0; padding: 0; text-align: left; }
+  .page.act-page .act td::before { display: inline; margin: 0; flex: none; }
+  .page.act-page .act td.none { display: none; }
+  .page.act-page .act .act-time { grid-area: 1 / 1; }
+  .page.act-page .act .act-status { grid-area: 1 / 2; }
+  .page.act-page .act .act-what { grid-area: 2 / 1 / 3 / -1; }
+  .page.act-page .act .act-who { grid-area: 3 / 1; }
+  .page.act-page .act .act-dur { grid-area: 3 / 2; }
+  .page.act-page .act .act-open { grid-area: 4 / 1 / 5 / -1; }
+  .page.act-page .act td.sum { display: flex; flex-direction: row; align-items: center; gap: var(--s-2); grid-column: 1 / -1; padding-top: 2px; border-top: 1px solid var(--rule); }
+  .page.act-page .act td.sum::before { flex: none; }
+  .page.act-page .act .sum-btn { min-height: 40px; padding: 0; text-align: left; }
+}

@@ -2,6 +2,7 @@ import './admin.css'
 import { useCallback, useEffect, useState } from 'react'
 import { useAdminMode } from './adminMode'
 import { api } from './bff'
+import { CATALOG_TOTAL } from './ProductPicker'
 import { ErrorLine } from './ui'
 import { BlockedBanner, CapChip, Empty, Loading, OFF_WHY, PageHead, SampleBadge, toolsetText, useLoad } from './ui-extra'
 import { AppsLink, forwardOldConnectLink } from './connections'
@@ -65,7 +66,7 @@ export function Tools() {
           <tbody>
             <tr>
               <td data-label="Kemampuan platform" className="rich"><b>Pencarian katalog dan pengetahuan</b></td>
-              <td data-label="Isi"><div className="clamp2">Server kami mencari 1.206 produk katalog dan pengetahuan Colorbox sebelum agen menjawab, lalu mencatat sumbernya per tugas.</div></td>
+              <td data-label="Isi"><div className="clamp2">Server kami mencari {CATALOG_TOTAL.toLocaleString('id-ID')} produk katalog dan pengetahuan Colorbox sebelum agen menjawab, lalu mencatat sumbernya per tugas.</div></td>
               <td className="st-col" data-label="Status"><CapChip cap="ok" label="Berfungsi" /></td>
             </tr>
           </tbody>
@@ -191,7 +192,12 @@ export function Kemampuan({ tab }: { tab: Extract<Route['name'], 'tools' | 'comp
         {tabs.map((t) => (
           <a key={t.name} id={'tab-' + t.name} role="tab" href={'#' + t.path} aria-selected={t.name === tab} aria-controls="tabpanel" tabIndex={t.name === tab ? 0 : -1}>
             {t.label}
-            {t.name === 'computer-use' && <span className="tab-tag">Nonaktif</span>}
+            {t.name === 'computer-use' && (
+              <>
+                <span className="admin-tag">Admin</span>
+                <span className="tab-tag">Nonaktif</span>
+              </>
+            )}
           </a>
         ))}
       </div>

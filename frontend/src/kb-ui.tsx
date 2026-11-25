@@ -10,7 +10,7 @@ import { CLOSE, Dialog, ErrorLine, Icon } from './ui'
 // and an inline status line per item. The BFF does the work (bff/kb.py); this file only shows it.
 
 export const KB_ACCEPT = '.txt,.md,.csv,.pdf,.docx'
-export const KB_TYPES_TEXT = 'TXT, MD, CSV, PDF, DOCX (maksimal 10 MB)'
+export const KB_TYPES_TEXT = 'TXT, MD, CSV, PDF, DOCX · maks. 10 MB'
 const PAPERCLIP = 'm21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48'
 const URL_RE = /https?:\/\/[^\s<>"'`]+/gi
 // Same words as INTENT_RE in bff/kb.py: the BFF decides, this only shows "memproses" while it reads the link.

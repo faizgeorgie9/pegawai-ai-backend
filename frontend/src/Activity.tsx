@@ -7,8 +7,19 @@ import { toolLabel } from './steps'
 import { ErrorLine, cleanTaskText, stamp } from './ui'
 import { Loading } from './ui-extra'
 
-const PAGE = 100
+const PAGE = 20
 const dur = (s: number) => (s <= 0 ? '–' : s < 1 ? `${Math.round(s * 1000)} md` : `${s.toFixed(1).replace('.', ',')} dtk`)
+
+// Admin rows keep the tool's own English summary in the database; the table shows plain Indonesian.
+function idSummary(text: string): string {
+  const reading = text.match(/^Reading tool details(?:\s*·\s*(\d+)\s+tools?)?$/i)
+  if (reading) return `Membaca petunjuk alat${reading[1] ? ` (${reading[1]})` : ''}`
+  const searching = text.match(/^Searching tools(?:\s*·\s*(.*))?$/i)
+  if (searching) return `Mencari alat${searching[1] ? `: ${searching[1]}` : ''}`
+  const mcp = text.match(/^(.+?)\s+Mcp\s*·\s*(.*)$/i)
+  if (mcp) return `${mcp[1]}: ${mcp[2]}`
+  return text
+}
 
 // scope: the same table inside the side panel, limited to one conversation (stacked rows, no page header).
 export default function Activity({ scope, version }: { scope?: Scope; version?: number } = {}) {
@@ -26,7 +37,7 @@ export default function Activity({ scope, version }: { scope?: Scope; version?: 
   function load() {
     const mine = ++epoch.current
     setState('loading')
-    api.activity({ bot, status, ...scope }).then(
+    api.activity({ bot, status, limit: PAGE, ...scope }).then(
       (r) => {
         if (mine !== epoch.current) return
         setRows(r)
@@ -52,7 +63,7 @@ export default function Activity({ scope, version }: { scope?: Scope; version?: 
     if (!last) return
     setLoadingMore(true)
     try {
-      const r = await api.activity({ bot, status, before: last.id, ...scope })
+      const r = await api.activity({ bot, status, before: last.id, limit: PAGE, ...scope })
       setRows((cur) => [...cur, ...r.filter((x) => !cur.some((c) => c.id === x.id))])
       setMore(r.length >= PAGE)
     } catch (e) {
@@ -62,6 +73,10 @@ export default function Activity({ scope, version }: { scope?: Scope; version?: 
       setLoadingMore(false)
     }
   }
+
+  // A column with only "–" is noise: show it only when at least one row has a value.
+  const hasDuration = rows.some((r) => r.duration > 0)
+  const hasLink = rows.some((r) => !!r.link)
 
   return (
     <section className={scope ? 'act-scope' : 'page act-page'} aria-labelledby={scope ? undefined : 'act-h'}>
@@ -113,32 +128,32 @@ export default function Activity({ scope, version }: { scope?: Scope; version?: 
                   <th>Pegawai</th>
                   <th>Kegiatan</th>
                   <th>Status</th>
-                  <th className="r">Durasi</th>
+                  {hasDuration && <th className="r">Durasi</th>}
                   <th>Ringkasan</th>
-                  {!scope && <th>Buka</th>}
+                  {!scope && hasLink && <th>Buka</th>}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id}>
-                    <td data-label="Waktu" className="num">{stamp(r.time)}</td>
-                    <td data-label="Pegawai">{r.bot_name}</td>
-                    <td data-label="Kegiatan">{r.tool ? toolLabel(r.tool) : '–'}</td>
-                    <td data-label="Status">
+                    <td data-label="Waktu" className="num act-time">{stamp(r.time)}</td>
+                    <td data-label="Pegawai" className="act-who">{r.bot_name}</td>
+                    <td data-label="Kegiatan" className="act-what">{r.tool ? toolLabel(r.tool) : '–'}</td>
+                    <td data-label="Status" className="act-status">
                       <span className={`pill ${r.status === 'ok' ? 'ok' : 'bad'}`}>{r.status === 'ok' ? 'Berhasil' : 'Gagal'}</span>
                     </td>
-                    {(!scope || r.duration > 0) && <td data-label="Durasi" className={r.duration > 0 ? 'r num' : 'r num none'}>{dur(r.duration)}</td>}
+                    {hasDuration && <td data-label="Durasi" className={r.duration > 0 ? 'r num act-dur' : 'r num none act-dur'}>{dur(r.duration)}</td>}
                     <td data-label="Ringkasan" className="sum">
                       {r.preview ? (
                         <button className="sum-btn" aria-expanded={open === r.id} onClick={() => setOpen(open === r.id ? null : r.id)}>
-                          <span data-open={open === r.id || undefined}>{cleanTaskText(r.preview)}</span>
+                          <span data-open={open === r.id || undefined}>{idSummary(cleanTaskText(r.preview))}</span>
                         </button>
                       ) : (
                         '–'
                       )}
                     </td>
-                    {!scope && (
-                      <td data-label="Buka" className={r.link ? undefined : 'none'}>
+                    {!scope && hasLink && (
+                      <td data-label="Buka" className={r.link ? 'act-open' : 'act-open none'}>
                         {r.link ? (
                           <a className="btn link" href={'#' + r.link}>
                             {r.where || 'Buka'}

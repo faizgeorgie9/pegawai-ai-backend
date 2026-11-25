@@ -20,6 +20,8 @@ export function MySources() {
   const fn = useCallback(() => api.kbItems(), [n])
   const items = useLoad(fn)
   const file = useRef<HTMLInputElement>(null)
+  const connFn = useCallback(() => api.connections(), [])
+  const conn = useLoad(connFn)
   const [url, setUrl] = useState('')
   const [find, setFind] = useState('')
   const [busy, setBusy] = useState('')
@@ -111,13 +113,7 @@ export function MySources() {
             if (fs.length) void addMany(fs)
           }}
         />
-        <p className="quiet small kb-intro">
-          Semua pegawai membaca ini dan menyebut sumbernya. Berkas: {KB_TYPES_TEXT}. Drive pribadi perlu disambungkan dulu di{' '}
-          <a className="kb-link" href="#/aplikasi">
-            Aplikasi
-          </a>
-          .
-        </p>
+        <p className="quiet small kb-intro">Semua pegawai AI membaca ini dan menyebut sumbernya.</p>
         <form
           className="set-inline kb-link-form"
           onSubmit={(e) => {
@@ -130,6 +126,16 @@ export function MySources() {
             Tambah link
           </button>
         </form>
+        <p className="quiet small">{KB_TYPES_TEXT}.</p>
+        {conn.state === 'ok' && !conn.data?.some((c) => c.provider === 'gdrive' && (c.status === 'connected' || c.status === 'needs_scope')) && (
+          <p className="quiet small">
+            Drive pribadi perlu disambungkan dulu di{' '}
+            <a className="kb-link" href="#/aplikasi">
+              Aplikasi
+            </a>
+            .
+          </p>
+        )}
         {problem && (
           <p className="problem-bar small" role="alert">
             {problem}

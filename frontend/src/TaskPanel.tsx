@@ -4,7 +4,7 @@ import type { TaskAction, TaskDetail } from './bff'
 import { useAdminMode } from './adminMode'
 import { useData } from './data'
 import { Md } from './rich'
-import { BotAvatar, Dialog, ErrorLine, stamp } from './ui'
+import { BotAvatar, Dialog, ErrorLine, Icon, stamp } from './ui'
 import { Loading } from './ui-extra'
 
 export type Ask = (a: { text: string; ok: string; run: () => Promise<unknown>; danger?: boolean }) => void
@@ -25,6 +25,8 @@ const EVENT_TEXT: Record<string, string> = {
   due: 'Waktunya tiba, masuk giliran',
   run_done: 'Pegawai selesai, hasil siap ditinjau',
   run_failed: 'Percobaan gagal',
+  done: 'Selesai',
+  ask_user: 'Pegawai menanyakan sesuatu',
   auto_retry: 'Mencoba lagi otomatis',
   failed: 'Gagal setelah dua percobaan',
   skipped: 'Tidak bisa dijalankan',
@@ -120,6 +122,7 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
   const [editing, setEditing] = useState(edit)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
+  const [hist, setHist] = useState(false)
 
   useEffect(() => {
     api.task(id).then(setT, (e) => setError(errText(e)))
@@ -161,6 +164,25 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
   const who = (c: TaskDetail['comments'][number]) => (c.author === 'user' ? 'Anda' : c.author === 'bot' ? (bots.find((b) => b.id === c.bot_id)?.name ?? 'Pegawai') : 'Sistem')
   const actions = t ? [t.primary, ...t.more].filter((a): a is TaskAction => !!a && !['open', 'edit', 'chat'].includes(a.id)) : []
   const send = t?.status === 'blocked' ? { label: 'Kirim jawaban', go: () => api.taskVerb(t.id, 'reply', { text }) } : t?.status === 'review' ? { label: 'Minta revisi', go: () => api.taskVerb(t.id, 'request_changes', { note: text }) } : { label: 'Kirim catatan', go: () => api.commentTask(t!.id, text) }
+  const worker = t?.assignee?.name ?? 'pegawai'
+  const placeholder = t?.status === 'blocked' ? `Tulis jawaban untuk ${worker}…` : t?.status === 'review' ? 'Tulis catatan revisi…' : `Tulis catatan untuk ${worker}…`
+  // The result often repeats the one-line summary above: showing both reads as two different things.
+  const resultEchoesLine = !!t && t.result.trim() !== '' && t.result.trim().replace(/\s+/g, ' ') === t.line.trim().replace(/\s+/g, ' ')
+  const reply =
+    t && t.status !== 'archived' ? (
+      <form
+        className="tp-reply"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (text.trim()) void run(send.go, true)
+        }}
+      >
+        <textarea rows={2} maxLength={4000} value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} aria-label={placeholder.replace(/…$/, '')} />
+        <button type="submit" className="btn soft" disabled={busy || !text.trim()}>
+          {send.label}
+        </button>
+      </form>
+    ) : null
 
   return (
     <Dialog title={t?.title ?? 'Tugas'} onClose={onClose} wide>
@@ -174,7 +196,7 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
               <span>{t.assignee?.name ?? 'Belum ada pengerja'}</span>
               {t.parent && <span className="quiet">· Bagian dari: {t.parent.title}</span>}
               {admin && <span className="pill plain cls">{t.status}</span>}
-              {admin && <span className="quiet small num">{t.id.slice(0, 8)}</span>}
+              {admin && <small className="quiet num">{t.id.slice(0, 8)}</small>}
             </p>
             <p className={`tp-line ${t.column === 'needs_you' ? 'wait' : ''}`}>{t.line.replace(/\bAgen\b/g, 'Pegawai')}</p>
 
@@ -192,7 +214,7 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
               </section>
             )}
 
-            {t.result && (
+            {t.result && !resultEchoesLine && (
               <section className="tp-sec">
                 <h3>Hasil terakhir</h3>
                 <div className="tp-result">
@@ -215,54 +237,52 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
               </section>
             )}
 
+            {t.comments.length > 0 ? (
+              <section className="tp-sec">
+                <h3>Percakapan</h3>
+                <ul className="tp-thread">
+                  {t.comments.map((c) => (
+                    <li key={c.id} data-me={c.author === 'user' || undefined}>
+                      <span className="quiet small">
+                        {who(c)} · {stamp(c.at)}
+                      </span>
+                      <span className="tp-text">{c.text}</span>
+                    </li>
+                  ))}
+                </ul>
+                {reply}
+              </section>
+            ) : (
+              // Nothing to reply to yet: keep the note box without an empty "Percakapan" heading.
+              reply && <section className="tp-sec">{reply}</section>
+            )}
+
             <section className="tp-sec">
-              <h3>Percakapan</h3>
-              {t.comments.length === 0 && <p className="quiet small">Belum ada percakapan.</p>}
-              <ul className="tp-thread">
-                {t.comments.map((c) => (
-                  <li key={c.id} data-me={c.author === 'user' || undefined}>
-                    <span className="quiet small">
-                      {who(c)} · {stamp(c.at)}
-                    </span>
-                    <span className="tp-text">{c.text}</span>
-                  </li>
-                ))}
-              </ul>
-              {t.status !== 'archived' && (
-                <form
-                  className="tp-reply"
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    if (text.trim()) void run(send.go, true)
-                  }}
-                >
-                  <textarea rows={2} maxLength={4000} value={text} onChange={(e) => setText(e.target.value)} placeholder="Balas ke pegawai…" aria-label="Balas ke pegawai" />
-                  <button type="submit" className="btn soft" disabled={busy || !text.trim()}>
-                    {send.label}
-                  </button>
-                </form>
+              <button type="button" className="btn link" aria-expanded={hist} onClick={() => setHist(!hist)}>
+                Riwayat
+                <span className="thinking-chev" aria-hidden="true" style={hist ? { transform: 'rotate(180deg)' } : undefined}>
+                  <Icon d="M6 9l6 6 6-6" size={14} />
+                </span>
+              </button>
+              {hist && (
+                <ul className="tp-hist">
+                  {t.events.map((e, i) => (
+                    <li key={i}>
+                      <span>{EVENT_TEXT[e.kind] ?? e.kind}</span>
+                      {admin && e.from && <span className="quiet small"> ({e.from} → {e.to})</span>}
+                      <span className="quiet small num"> · {stamp(e.at)}</span>
+                    </li>
+                  ))}
+                  {t.runs.map((r) => (
+                    <li key={r.id}>
+                      <span>Pengerjaan pegawai{r.cost ? ` · ${r.cost.label}` : ''}</span>
+                      {admin && <span className="quiet small"> ({r.status} {r.id.slice(0, 8)})</span>}
+                      <span className="quiet small num"> · {stamp(r.at)}</span>
+                    </li>
+                  ))}
+                </ul>
               )}
             </section>
-
-            <details className="tp-sec">
-              <summary>Riwayat</summary>
-              <ul className="tp-hist">
-                {t.events.map((e, i) => (
-                  <li key={i}>
-                    <span>{EVENT_TEXT[e.kind] ?? e.kind}</span>
-                    {admin && e.from && <span className="quiet small"> ({e.from} → {e.to})</span>}
-                    <span className="quiet small num"> · {stamp(e.at)}</span>
-                  </li>
-                ))}
-                {t.runs.map((r) => (
-                  <li key={r.id}>
-                    <span>Pengerjaan pegawai{r.cost ? ` · ${r.cost.label}` : ''}</span>
-                    {admin && <span className="quiet small"> ({r.status} {r.id.slice(0, 8)})</span>}
-                    <span className="quiet small num"> · {stamp(r.at)}</span>
-                  </li>
-                ))}
-              </ul>
-            </details>
 
             {actions.length > 0 && (
               <div className="dlg-foot tp-acts">

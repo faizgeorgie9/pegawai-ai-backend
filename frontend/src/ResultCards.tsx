@@ -175,9 +175,9 @@ export function CsCard({ r, origin, meta }: { r: CsResult; origin: Origin; meta?
           <p className="quiet">Tidak ada sumber disebut. Draf ini tidak berbasis sumber.</p>
         )}
       </Block>
-      {r.summary && <Block label="Ringkasan tiket"><p>{r.summary}</p></Block>}
+      {r.summary && <Block label="Ringkasan masalah"><p>{r.summary}</p></Block>}
       {r.context_notes && <Block label="Konteks percakapan"><p>{r.context_notes}</p></Block>}
-      {r.escalate && <Block label="Alasan eskalasi"><p>{r.escalation_reason || 'Tidak ada alasan ditulis.'}</p></Block>}
+      {r.escalate && <Block label="Kenapa perlu diteruskan ke manusia"><p>{r.escalation_reason || 'Tidak ada alasan ditulis.'}</p></Block>}
     </Frame>
   )
 }
@@ -208,18 +208,18 @@ export function Cs21Card({ r, validation, origin, meta, raw, refs }: { r: Cs21; 
         <p className="draft-text">{r.reply}</p>
         {r.clarifying && <p className="quiet small">Pertanyaan klarifikasi: {r.clarifying}</p>}
       </Block>
-      <Block label="Intent dan prioritas">
+      <Block label="Maksud pelanggan dan tingkat penting">
         <div className="cs-top">
           <span className="pill cls-class" title={r.primary_intent}>{INTENT_LABEL[r.primary_intent] ?? r.primary_intent}</span>
           <span className={`pill prio-${r.priority}`}>{r.priority} · {prio}</span>
         </div>
-        {r.secondary_intents.length > 0 && <p className="quiet small">Intent tambahan: {r.secondary_intents.map((i) => INTENT_LABEL[i] ?? i).join(', ')}</p>}
+        {r.secondary_intents.length > 0 && <p className="quiet small">Maksud lain: {r.secondary_intents.map((i) => INTENT_LABEL[i] ?? i).join(', ')}</p>}
       </Block>
-      <Block label="Rekomendasi eskalasi" badge={<span className={`pill ${r.escalation.recommended ? 'bad' : 'ok'}`}>{r.escalation.recommended ? 'Direkomendasikan' : 'Tidak direkomendasikan'}</span>}>
-        <p>{r.escalation.reason || (r.escalation.recommended ? 'Tidak ada alasan ditulis.' : 'Tidak ada alasan eskalasi. Draf tetap perlu ditinjau manusia.')}</p>
+      <Block label="Perlu diteruskan ke manusia?" badge={<span className={`pill ${r.escalation.recommended ? 'bad' : 'ok'}`}>{r.escalation.recommended ? 'Disarankan' : 'Tidak perlu'}</span>}>
+        <p>{r.escalation.reason || (r.escalation.recommended ? 'Tidak ada alasan ditulis.' : 'Tidak ada alasan untuk meneruskan. Draf tetap perlu ditinjau manusia.')}</p>
         <p className="quiet small">Hanya rekomendasi. Tidak ada yang dikirim ke siapa pun.</p>
       </Block>
-      <Block label="Ringkasan tiket">
+      <Block label="Ringkasan masalah">
         {s.issue && <p>{s.issue}</p>}
         <SubList label="Dilaporkan pelanggan" items={s.reported} />
         <SubList label="Terverifikasi dari sumber publik" items={s.verified} />

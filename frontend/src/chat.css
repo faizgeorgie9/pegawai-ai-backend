@@ -45,19 +45,24 @@ fieldset { border: 0; min-width: 0; padding: 0; margin: 0; }
 .btn.sm { height: 28px; padding: 0 10px; font-size: 13px; flex: none; }
 .bot-group + .bot-group { margin-top: 16px; }
 .bot-group h3 { padding: var(--s-1) var(--s-2); font-size: 12px; font-weight: 500; color: var(--muted); }
-.row { display: flex; align-items: center; gap: var(--s-3); width: 100%; padding: var(--s-2); border-radius: var(--radius-control); color: inherit; text-decoration: none; transition: background-color var(--m-in) var(--ease); }
+.row { position: relative; display: flex; align-items: center; gap: var(--s-3); width: 100%; padding: var(--s-2); border-radius: var(--radius-control); color: inherit; text-decoration: none; transition: background-color var(--m-in) var(--ease); }
 .row:hover { background: var(--raised); }
-.row { position: relative; }
 .row > b { color: color-mix(in srgb, var(--bot, var(--text)) 55%, var(--text)); }
 .row[aria-current] { background: var(--accent-wash); }
+.row:hover .avatar-stack { --stack-ring: var(--raised); }
+.row[aria-current] .avatar-stack { --stack-ring: var(--accent-wash); }
 .row[aria-current]::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--bot, var(--accent)); }
 .bot-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .bot-text b { font-size: 14px; font-weight: 600; color: color-mix(in srgb, var(--bot, var(--text)) 55%, var(--text)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bot-text small { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bot-avatar { display: inline-grid; place-items: center; flex: none; border-radius: 50%; font-weight: 500; background: color-mix(in srgb, var(--bot) 26%, var(--surface)); color: color-mix(in srgb, var(--bot) 55%, var(--text)); border: 1.5px solid var(--bot); }
-.avatar-stack { display: inline-flex; flex: none; }
-.avatar-stack .bot-avatar { outline: 2px solid var(--ground); }
-.avatar-stack .bot-avatar + .bot-avatar { margin-left: -8px; }
+.bot-avatar { display: inline-grid; place-items: center; flex: none; border-radius: 50%; font-weight: 500; background: color-mix(in srgb, var(--bot) 26%, var(--surface)); color: color-mix(in srgb, var(--bot) 55%, var(--text)); border: 1.5px solid var(--bot); position: relative; box-shadow: 0 0 0 2px var(--ring); }
+/* Stacked avatars: the ring takes the colour of whatever the stack sits on, so the first letter is never cut. */
+.avatar-stack { display: inline-flex; flex: none; --ring: var(--stack-ring, var(--ground)); }
+.avatar-stack .bot-avatar { outline: 0; }
+.avatar-stack .bot-avatar + .bot-avatar { margin-left: -6px; }
+.avatar-stack .bot-avatar:nth-child(1) { z-index: 3; }
+.avatar-stack .bot-avatar:nth-child(2) { z-index: 2; }
+.avatar-stack .bot-avatar:nth-child(3) { z-index: 1; }
 .avatar-stack.big .bot-avatar + .bot-avatar { margin-left: -12px; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--st-idle); }
 .status-dot[data-s="working"] { background: var(--st-run); animation: pulse 1.4s ease-in-out infinite; }
@@ -72,6 +77,7 @@ fieldset { border: 0; min-width: 0; padding: 0; margin: 0; }
 .popmenu button:hover { background: var(--bad-bg); }
 /* the phone header's ⋯ menu holds ordinary actions, not destructive ones */
 .convo-more .popmenu { right: 0; min-width: 220px; }
+.convo-more .icon-btn { color: var(--text); }
 .convo-more .popmenu button { color: var(--text); }
 .convo-more .popmenu button:hover { background: var(--raised); }
 .convo-more .popmenu .btn { width: 100%; height: 36px; padding: 0 10px; justify-content: flex-start; background: transparent; font-size: var(--t-body); }
@@ -175,6 +181,8 @@ textarea ~ .counter { align-self: flex-end; }
 
 /* ---------- conversation ---------- */
 .convo { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+/* the message area keeps a gap under its last bubble, including a plan strip moved in-flow */
+.convo-body { padding-bottom: var(--s-4); }
 .convo-head { display: flex; align-items: center; gap: var(--s-3); min-height: 64px; padding: 0 var(--gutter); flex: none; }
 /* spans that only exist to hide two groups of controls on a phone */
 .convo-extras { display: contents; }
@@ -345,8 +353,8 @@ body:has(.composer-wrap) .toasts { bottom: 160px; }
 .tpl b { font-size: 16px; font-weight: 600; }
 .tpl span { font-size: 13px; font-weight: 500; }
 .tpl small { font-size: 12px; color: var(--muted); margin-top: 4px; }
-.swatches { display: flex; flex-wrap: wrap; gap: 10px; }
-.swatch { width: 32px; height: 32px; padding: 0; border: 3px solid var(--surface); border-radius: 50%; cursor: pointer; outline: 1px solid var(--control); }
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.swatch { width: 36px; height: 36px; padding: 0; border: 3px solid var(--surface); border-radius: 50%; cursor: pointer; outline: 1px solid var(--control); }
 .swatch[aria-checked="true"] { outline: 3px solid var(--text); }
 .progress { display: flex; flex-direction: column; gap: 8px; font-weight: 500; }
 .bar-ind { position: relative; display: block; height: 6px; border-radius: 999px; background: var(--accent-track); overflow: hidden; }
@@ -434,6 +442,9 @@ body:has(.composer-wrap) .toasts { bottom: 160px; }
   .convo-head .btn { min-height: 40px; }
   .convo-head .icon-btn, .sess-actions .icon-btn, .row-menu .icon-btn, .rail-head .icon-btn { width: 40px; height: 40px; }
   .rail-head .btn, .sec-head .btn, .sess.confirm .btn { min-height: 40px; }
+  /* a name link inside a row is a tap target its whole row high; a standalone empty-state link gets 40 px too */
+  a.row { min-height: 40px; }
+  .empty > .empty-link { display: inline-flex; align-items: center; min-height: 40px; }
   .sess-actions { gap: 8px; }
   .sess.confirm { scroll-margin-block: 8px; }
   /* the chat and team header is one 56 px row: Riwayat/Daftar tim | name | extras | ⋯ */
@@ -441,6 +452,7 @@ body:has(.composer-wrap) .toasts { bottom: 160px; }
   .convo-head-chat .bot-avatar { display: none; }
   .convo-head-chat .convo-title { flex: 1 1 0; min-width: 0; }
   .convo-head-chat .convo-title h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .convo-head-chat .convo-title p { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; line-height: 1.3; }
   .convo-head-chat .convo-extras { display: none; }
   .convo-head-chat .convo-more { display: block; }
   .convo-more .popmenu button { height: auto; min-height: 40px; }
@@ -502,7 +514,7 @@ body:has(.composer-wrap) .toasts { bottom: 160px; }
 .kb-chip[data-s="failed"] { background: var(--bad-bg); color: var(--bad-ink); }
 .kb-name { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .kb-state { min-width: 0; flex: 1 1 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
-.kb-chip[data-s="failed"] .kb-state { color: inherit; }
+.kb-chip[data-s="failed"] .kb-state { color: inherit; white-space: normal; }
 .kb-chip .btn.link { height: 24px; padding: 0 6px; }
 .kb-chip[data-s="link"] .kb-name { flex: 1 1 0; }
 .kb-chip .icon-btn { flex: none; }
@@ -541,7 +553,6 @@ body:has(.composer-wrap) .toasts { bottom: 160px; }
 .pcard-name { font-weight: 600; overflow-wrap: anywhere; }
 .pcard-price { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
 .pcard-link { align-self: flex-start; font-size: 13px; color: var(--link); text-underline-offset: 3px; }
-.kb-chip[data-s="failed"] .kb-state { white-space: normal; }
 .kb-drive-link { color: inherit; text-underline-offset: 3px; font-weight: 500; }
 
 /* Chat list: the team's main contact and roles that wrap instead of being cut */
@@ -575,3 +586,10 @@ body:has(.composer-wrap) .toasts { bottom: 160px; }
 .radio-row input { margin-top: 3px; flex: none; }
 .radio-row small { display: block; }
 .radio-row[aria-disabled] { opacity: .5; cursor: default; }
+
+/* Masuk/Daftar: the card starts at a fixed offset from the top, so switching tabs does not make it jump.
+   The card's own styles ship inside LoginModal; these longhands override only its vertical placement. */
+.login-overlay .login-card { align-self: flex-start; margin-top: clamp(48px, 12vh, 120px); margin-bottom: 0; }
+@media (max-width: 420px) {
+  .login-overlay .login-card { margin-top: 0; margin-bottom: 0; }
+}

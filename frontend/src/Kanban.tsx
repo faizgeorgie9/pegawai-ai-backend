@@ -1,12 +1,30 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, errText } from './bff'
 import type { Schedule, TaskAction, TaskBoard, TaskCard, TaskColumnId } from './bff'
-import { useAdminMode } from './adminMode'
+import { useAdminMode, useIsAdmin } from './adminMode'
 import { useData } from './data'
 import TaskPanel from './TaskPanel'
 import type { Ask } from './TaskPanel'
-import { BotAvatar, DOTS, Dialog, ErrorLine, Icon, botColor } from './ui'
+import { BotAvatar, DOTS, Dialog, ErrorLine, Icon } from './ui'
 import { Empty, Loading } from './ui-extra'
+// No AI employee yet: one sentence and the way forward instead of an empty picker (P1-06).
+// Only admins may open "Pegawai baru" (App.tsx route guard); staff are told who can.
+function NoBots() {
+  const canCreate = useIsAdmin()
+  return (
+    <div className="kb-none">
+      <p>Belum ada pegawai AI untuk diberi tugas.</p>
+      {canCreate ? (
+        <a className="btn primary" href="#/agen/baru">
+          Buat pegawai
+        </a>
+      ) : (
+        <p className="quiet small">Minta pemilik akun membuatkan pegawai AI untuk Anda.</p>
+      )}
+    </div>
+  )
+}
+
 
 const COLUMN_EMPTY: Record<string, string> = {
   queue: 'Belum ada yang antre.',
@@ -22,6 +40,18 @@ const COLUMN_HINT: Record<string, string> = {
 }
 const WEEK = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
 const ZONE: Record<string, string> = { 'Asia/Jakarta': 'WIB', 'Asia/Makassar': 'WITA', 'Asia/Jayapura': 'WIT' }
+// Recurring tasks: the same icon language as the rest of the app (24 grid, stroke 1.75, after Lucide).
+const REPEAT = 'M17 2l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3'
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
+const MINUTES = ['00', '15', '30', '45']
+// A column reads by its name; the dot alone carries its status colour (one meaning per colour, no coloured heading).
+const COLUMN_DOT: Record<string, string> = {
+  queue: 'var(--st-idle)',
+  running: 'var(--st-run)',
+  needs_you: 'var(--st-wait)',
+  done: 'var(--st-done)',
+  archived: 'var(--st-idle)',
+}
 // only these two moves can be dragged (Perlu Anda -> Antre, Selesai -> Antre); Dikerjakan is never a drop target
 const DRAGGABLE = ['needs_you', 'done'] // a plan is never dragged: it is approved, revised or cancelled
 
@@ -64,6 +94,7 @@ function Card({ c, ask, act, open }: { c: TaskCard; ask: Ask; act: (f: () => Pro
   }
   const tone = c.outcome === 'failed' ? 'bad' : 'plain'
   const drag = DRAGGABLE.includes(c.column) && c.kind !== 'plan'
+  // One stripe, one meaning: only a task marked important gets it (failed cases already carry the "Gagal" pill).
   return (
     <li
       className="kcard"
@@ -74,7 +105,7 @@ function Card({ c, ask, act, open }: { c: TaskCard; ask: Ask; act: (f: () => Pro
         e.dataTransfer.setData('text/plain', c.id)
         e.dataTransfer.effectAllowed = 'move'
       }}
-      style={c.assignee ? ({ ['--kc' as string]: botColor(c.assignee) } as React.CSSProperties) : undefined}
+      style={{ borderLeftColor: c.priority > 0 ? 'var(--st-wait)' : 'transparent' }}
     >
       <button type="button" className="kc-link" onClick={() => open(c.id)}>
         <span className="kc-title">{c.title}</span>
@@ -93,17 +124,17 @@ function Card({ c, ask, act, open }: { c: TaskCard; ask: Ask; act: (f: () => Pro
             {c.priority > 0 && <span className="pill warn cls">Penting</span>}
             {c.outcome && c.outcome !== 'ok' && <span className={`pill ${tone} cls`}>{c.outcome === 'failed' ? 'Gagal' : 'Dibatalkan'}</span>}
             {admin && <span className="pill plain cls">{c.status}</span>}
+            {admin && c.cost && (
+              <span className="kc-cost num">
+                {c.cost.label}
+                {c.estimated ? ' (perkiraan)' : ''}
+              </span>
+            )}
           </span>
         )}
       </button>
-      {(c.primary || c.more.length > 0 || c.cost) && (
+      {(c.primary || c.more.length > 0) && (
         <div className="kc-act">
-          {c.cost && (
-            <span className="kc-cost num">
-              {c.cost.label}
-              {c.estimated ? ' (perkiraan)' : ''}
-            </span>
-          )}
           {c.primary && (
             <button type="button" className="btn soft sm" onClick={() => go(c.primary!)}>
               {c.primary.label}
@@ -165,7 +196,7 @@ const nextHour = () => {
 
 // Quick add on one line above the board: a title, who does it, an optional time. Enter saves.
 function QuickAdd({ agent, onAdded }: { agent: string; onAdded: () => void }) {
-  const { bots, groups } = useData()
+  const { bots, groups, loadState } = useData()
   const [title, setTitle] = useState('')
   const [who, setWho] = useState('')
   const [at, setAt] = useState('')
@@ -174,9 +205,11 @@ function QuickAdd({ agent, onAdded }: { agent: string; onAdded: () => void }) {
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState('')
   const titleRef = useRef<HTMLInputElement>(null)
-  const target = who || (agent ? `bot:${agent}` : bots[0] ? `bot:${bots[0].id}` : '')
-  const whoName = target.startsWith('bot:') ? bots.find((b) => `bot:${b.id}` === target)?.name : groups.find((g) => `group:${g.id}` === target)?.name
+  const target = who || (agent ? `bot:${agent}` : '')
+  const whoName = target.startsWith('bot:') ? bots.find((b) => `bot:${b.id}` === target)?.name : target.startsWith('group:') ? groups.find((g) => `group:${g.id}` === target)?.name : undefined
   const when = at ? new Date(at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''
+  // The toggle opens the picker on a phone; its label always names the chosen employee (or asks for one).
+  const toggle = whoName ? `Untuk ${whoName}${when ? ` · ${when}` : ''}. Ganti` : when ? `Pilih pegawai · ${when}` : 'Pilih pegawai'
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim() || !target || busy) return
@@ -195,17 +228,27 @@ function QuickAdd({ agent, onAdded }: { agent: string; onAdded: () => void }) {
     }
     setBusy(false)
   }
+  // Wait for the employee list: an empty picker would claim there are none while it still loads.
+  if (loadState !== 'ok') return null
+  // No AI employee yet: one sentence and the way to create one instead of an empty picker (P1-06).
+  if (bots.length === 0) return <NoBots />
   return (
     <form className="tq-add tq-bar" onSubmit={(e) => void submit(e)}>
       <input ref={titleRef} className="tq-title" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} placeholder="Tugas baru, lalu tekan Enter" aria-label="Judul tugas baru" />
-      <button type="submit" className="btn primary tq-go" disabled={!title.trim() || !target || busy}>
+      <button
+        type="submit"
+        className="btn primary tq-go"
+        disabled={!title.trim() || !target || busy}
+        title={!title.trim() ? 'Tulis tugasnya dulu' : !target ? 'Pilih pegawai dulu' : undefined}
+      >
         {busy ? 'Menambah...' : 'Tambah'}
       </button>
       <button type="button" className="btn link sm tq-toggle" aria-expanded={opts} aria-controls="tq-opts" onClick={() => setOpts((v) => !v)}>
-        Untuk {whoName ?? 'pegawai'}{when ? ` · ${when}` : ''} · Ubah
+        {toggle}
       </button>
       <div id="tq-opts" className="tq-opts" data-open={opts || undefined}>
         <select className="tq-who" aria-label="Dikerjakan oleh" value={target} onChange={(e) => setWho(e.target.value)}>
+          <option value="">Pilih pegawai</option>
           <optgroup label="Pegawai">
             {bots.map((b) => (
               <option key={b.id} value={`bot:${b.id}`}>
@@ -213,13 +256,15 @@ function QuickAdd({ agent, onAdded }: { agent: string; onAdded: () => void }) {
               </option>
             ))}
           </optgroup>
-          <optgroup label="Tim">
-            {groups.map((g) => (
-              <option key={g.id} value={`group:${g.id}`}>
-                {g.name}
-              </option>
-            ))}
-          </optgroup>
+          {groups.length > 0 && (
+            <optgroup label="Tim">
+              {groups.map((g) => (
+                <option key={g.id} value={`group:${g.id}`}>
+                  {g.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
         </select>
         {sched ? (
           <>
@@ -291,7 +336,7 @@ function Confirm({ a, onClose }: { a: { text: string; ok: string; run: () => Pro
 }
 
 function NewSchedule({ onClose }: { onClose: (created: boolean) => void }) {
-  const { bots, groups } = useData()
+  const { bots, groups, settings } = useData()
   const [prompt, setPrompt] = useState('')
   const [target, setTarget] = useState('')
   const [time, setTime] = useState('09:00')
@@ -299,6 +344,8 @@ function NewSchedule({ onClose }: { onClose: (created: boolean) => void }) {
   const [picked, setPicked] = useState<number[]>([])
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState('')
+  const [hour = '09', minute = '00'] = time.split(':')
+  const zone = ZONE[settings.timezone] ?? 'WIB'
   const days = repeat === 'daily' ? [0, 1, 2, 3, 4, 5, 6] : repeat === 'work' ? [0, 1, 2, 3, 4] : picked
   const ok = prompt.trim() && target && time && days.length > 0
 
@@ -346,10 +393,30 @@ function NewSchedule({ onClose }: { onClose: (created: boolean) => void }) {
             )}
           </select>
         </label>
-        <label className="field">
-          <span>Kapan?</span>
-          <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-        </label>
+        <div className="field">
+          <span id="ns-when">Kapan?</span>
+          {/* Two plain 24-hour pickers: a native time input follows the browser's AM/PM, which reads wrong in Indonesian. */}
+          <div role="group" aria-labelledby="ns-when" style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-2)' }}>
+            <select aria-label="Jam" value={hour} onChange={(e) => setTime(`${e.target.value}:${minute}`)} style={{ flex: '0 0 72px' }}>
+              {HOURS.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
+            <span aria-hidden="true" style={{ fontWeight: 600 }}>
+              .
+            </span>
+            <select aria-label="Menit" value={minute} onChange={(e) => setTime(`${hour}:${e.target.value}`)} style={{ flex: '0 0 72px' }}>
+              {MINUTES.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+            <span className="quiet small">{zone}</span>
+          </div>
+        </div>
         <label className="field">
           <span>Ulangi</span>
           <select value={repeat} onChange={(e) => setRepeat(e.target.value as typeof repeat)}>
@@ -418,7 +485,7 @@ function RecurringList({ list, ask, act }: { list: Schedule[]; ask: Ask; act: (f
 }
 
 export default function Kanban() {
-  const { bots, groups, runs } = useData()
+  const { bots, groups, runs, loadState } = useData()
   const [agent, setAgent] = useState('')
   const [group, setGroup] = useState('')
   const [archived, setArchived] = useState(false)
@@ -502,6 +569,8 @@ export default function Kanban() {
   const filtered = !!(agent || group)
   const filters = [agent, group, archived].filter(Boolean).length
   const panel = narrow && !archived
+  // Recurring work needs someone to do it: without a pegawai or a tim the dialog would be a form nobody can submit.
+  const canAssign = loadState === 'ok' && (bots.length > 0 || groups.length > 0)
 
   return (
     <section className="page kanban" aria-labelledby="kb-h">
@@ -511,15 +580,19 @@ export default function Kanban() {
           <p className="quiet">Beri tugas ke pegawai AI Anda dan pantau sampai selesai.</p>
         </div>
         <div className="filters">
-          <button
-            type="button"
-            className="btn outline"
-            aria-label={rec.length ? `Tugas berulang, ${rec.length}` : 'Tugas berulang'}
-            onClick={() => (rec.length ? setRecOpen(true) : setCreating(true))}
-          >
-            <span><span className="hide-sm">Tugas </span>berulang</span>
-            {rec.length > 0 && <b className="num count-pill hide-sm">{rec.length}</b>}
-          </button>
+          {canAssign && (
+            <button
+              type="button"
+              className="btn outline"
+              aria-label={rec.length ? `Tugas berulang, ${rec.length}` : 'Tugas berulang'}
+              title="Tugas berulang"
+              onClick={() => (rec.length ? setRecOpen(true) : setCreating(true))}
+            >
+              <Icon d={REPEAT} />
+              <span>Berulang</span>
+              {rec.length > 0 && <b className="num count-pill hide-sm">{rec.length}</b>}
+            </button>
+          )}
           <button type="button" className="btn outline" aria-expanded={filterOpen} aria-controls="kb-filters" onClick={() => setFilterOpen(!filterOpen)}>
             Filter{filters ? ` (${filters})` : ''}
           </button>
@@ -674,8 +747,9 @@ export default function Kanban() {
               }}
             >
               <header>
-                <h2 id={`kb-${c.id}`} title={COLUMN_HINT[c.id] ?? c.hint}>
+                <h2 id={`kb-${c.id}`} title={COLUMN_HINT[c.id] ?? c.hint} style={{ color: 'var(--text)' }}>
                   {c.label} <b className="num">{c.total}</b>
+                  <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: COLUMN_DOT[c.id], flex: 'none' }} />
                 </h2>
                 <p className="sr kb-hint">{COLUMN_HINT[c.id] ?? c.hint}</p>
               </header>

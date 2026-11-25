@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useIsAdmin } from './adminMode'
 import { api, errText, isAbort } from './bff'
 import type { Bot, Session } from './bff'
 import Chat from './Chat'
@@ -95,6 +96,7 @@ function Intro({ title, text, children }: { title: string; text: string; childre
 
 export function ChatLayout({ route }: { route: Extract<Route, { name: 'bot' } | { name: 'chat' }> }) {
   const { bots, loadState, error, reload, setDialog } = useData()
+  const canCreate = useIsAdmin()
   const botId = route.name === 'bot' ? route.id : undefined
   const sid = route.name === 'bot' ? route.sid : undefined
   const hist = useSessions(botId)
@@ -143,11 +145,13 @@ export function ChatLayout({ route }: { route: Extract<Route, { name: 'bot' } | 
     <div className="with-rail" data-picked={botId ? '' : undefined}>
       <Rail
         label="Pegawai dan riwayat chat"
-        title="Pegawai AI"
+        title="Pegawai"
         action={
-          <a className="btn soft sm" href="#/agen/baru">
-            Pegawai baru
-          </a>
+          canCreate ? (
+            <a className="btn soft sm" href="#/agen/baru">
+              Pegawai baru
+            </a>
+          ) : undefined
         }
         open={open}
         onClose={() => setOpen(false)}
@@ -177,7 +181,11 @@ export function ChatLayout({ route }: { route: Extract<Route, { name: 'bot' } | 
         <div id="who-list" className="who-list" hidden={!!bot && !whoOpen}>
           {loadState === 'loading' && <p className="quiet pad">Memuat pegawai...</p>}
           {loadState === 'error' && bots.length === 0 && <ErrorLine text={error} onRetry={reload} />}
-          {loadState === 'ok' && bots.length === 0 && <p className="quiet pad">Belum ada pegawai AI. Klik Pegawai baru untuk membuat yang pertama.</p>}
+          {loadState === 'ok' && bots.length === 0 && (
+            <p className="quiet pad">
+              {canCreate ? 'Belum ada pegawai AI. Klik Pegawai baru untuk membuat yang pertama.' : 'Minta pemilik akun membuatkan pegawai AI untuk Anda.'}
+            </p>
+          )}
           {Object.entries(teams).map(([team, list]) => (
             <div key={team} className="bot-group" data-team={team}>
               <h3>{teamLabel(team)}</h3>
@@ -246,6 +254,19 @@ export function ChatLayout({ route }: { route: Extract<Route, { name: 'bot' } | 
           ) : (
             <PageState what="Pegawai AI" loadState={loadState} error={error} reload={reload} />
           )
+        ) : loadState !== 'ok' ? (
+          <PageState what="Pegawai AI" loadState={loadState} error={error} reload={reload} />
+        ) : bots.length === 0 ? (
+          <Intro
+            title="Chat"
+            text={canCreate ? 'Belum ada pegawai AI. Buat yang pertama, lalu ajak bicara di sini.' : 'Minta pemilik akun membuatkan pegawai AI untuk Anda.'}
+          >
+            {canCreate && (
+              <a className="btn primary" href="#/agen/baru">
+                Pegawai baru
+              </a>
+            )}
+          </Intro>
         ) : (
           <Intro title="Chat" text="Ajak satu pegawai bicara langsung. Untuk pekerjaan yang butuh beberapa pegawai sekaligus, buka Tim.">
             <p className="quiet small">
@@ -263,6 +284,9 @@ export function ChatLayout({ route }: { route: Extract<Route, { name: 'bot' } | 
 
 export function GroupLayout({ route }: { route: Extract<Route, { name: 'grup' } | { name: 'grup-list' }> }) {
   const { bots, groups, loadState, error, reload, setDialog } = useData()
+  const canCreate = useIsAdmin()
+  // A team needs two members: below that "Tim baru" could only open a dialog with nothing to pick.
+  const canTeam = bots.length >= 2
   const gid = route.name === 'grup' ? route.id : undefined
   const [open, setOpen] = useState(false)
   useEffect(() => setOpen(false), [route])
@@ -280,16 +304,26 @@ export function GroupLayout({ route }: { route: Extract<Route, { name: 'grup' } 
         label="Daftar tim"
         title="Tim"
         action={
-          <button className="btn soft sm" onClick={() => setDialog({ kind: 'group' })}>
-            Tim baru
-          </button>
+          canTeam ? (
+            <button className="btn soft sm" onClick={() => setDialog({ kind: 'group' })}>
+              Tim baru
+            </button>
+          ) : undefined
         }
         open={open}
         onClose={() => setOpen(false)}
       >
         {loadState === 'loading' && <p className="quiet pad">Memuat tim...</p>}
         {loadState === 'error' && groups.length === 0 && <ErrorLine text={error} onRetry={reload} />}
-        {loadState === 'ok' && groups.length === 0 && <p className="quiet pad">Belum ada tim. Tim berisi 2 sampai 6 pegawai yang mengerjakan satu tugas bersama. Klik Tim baru.</p>}
+        {loadState === 'ok' && groups.length === 0 && (
+          <p className="quiet pad">
+            {canTeam
+              ? 'Belum ada tim. Tim berisi 2 sampai 6 pegawai yang mengerjakan satu tugas bersama. Klik Tim baru.'
+              : canCreate
+                ? 'Tim butuh minimal 2 pegawai AI. Buat satu pegawai lagi dulu.'
+                : 'Minta pemilik akun membuatkan pegawai AI untuk Anda.'}
+          </p>
+        )}
         <ul>
           {groups.map((g) => {
             const ms = g.members.map((m) => bots.find((b) => b.id === m)).filter((b): b is Bot => !!b)
@@ -316,11 +350,28 @@ export function GroupLayout({ route }: { route: Extract<Route, { name: 'grup' } 
       <div className="rail-main">
         {gid ? (
           <GroupChat key={gid} id={gid} onRail={() => setOpen(true)} />
-        ) : (
+        ) : loadState !== 'ok' ? (
+          <PageState what="Tim" loadState={loadState} error={error} reload={reload} />
+        ) : canTeam ? (
           <Intro title="Tim" text="Beberapa pegawai AI bekerja sama dalam satu percakapan. Pilih tim dari daftar, atau buat tim baru.">
             <button className="btn primary hide-narrow" onClick={() => setDialog({ kind: 'group' })}>
               Tim baru
             </button>
+          </Intro>
+        ) : (
+          <Intro
+            title="Tim"
+            text={
+              canCreate
+                ? 'Tim berisi minimal 2 pegawai AI. Buat satu pegawai lagi untuk mulai bekerja bersama.'
+                : 'Minta pemilik akun membuatkan pegawai AI untuk Anda.'
+            }
+          >
+            {canCreate && (
+              <a className="btn primary hide-narrow" href="#/agen/baru">
+                Pegawai baru
+              </a>
+            )}
           </Intro>
         )}
       </div>

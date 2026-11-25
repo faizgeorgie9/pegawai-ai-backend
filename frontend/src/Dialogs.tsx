@@ -7,7 +7,7 @@ import { BotAvatar, COLORS, Dialog, ErrorLine, botColor, colorLabel, roleLabel, 
 import { Opt, modelKey, splitModel } from './ui-extra'
 import { TIERS, tierOf, tiersFrom } from './modelTiers'
 import type { TierId } from './modelTiers'
-import { useAdminMode } from './adminMode'
+import { useAdminMode, useIsAdmin } from './adminMode'
 
 type Problem = { text: string; upgrade: boolean } | null
 const problemOf = (e: unknown): Problem => ({ text: errText(e), upgrade: e instanceof ApiError && e.upgrade })
@@ -20,6 +20,11 @@ function ProblemLine({ p }: { p: Problem; onPlan?: () => void }) {
       {p.text}
     </p>
   )
+}
+
+// The template cards come from the BFF. This one override keeps a technical word out of the picker for non-technical users.
+const TEMPLATE_DESC: Record<string, string> = {
+  budi: 'Merancang arah visual dan menyusun petunjuk untuk membuat gambar.',
 }
 
 export function Dialogs() {
@@ -158,7 +163,7 @@ function BotDialog({ onClose }: { onClose: () => void }) {
                     <BotAvatar bot={t} size={36} />
                     <b>{t.name}</b>
                     <span>{roleLabel(t.role)}</span>
-                    <small>{t.description}</small>
+                    <small>{TEMPLATE_DESC[t.id] ?? t.description}</small>
                   </button>
                 </li>
               ))}
@@ -208,6 +213,7 @@ function BotDialog({ onClose }: { onClose: () => void }) {
 // ---------- Grup baru / Atur anggota ----------
 function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
   const { bots, groups, refreshGroups, refreshMe, setDialog } = useData()
+  const canCreate = useIsAdmin()
   const existing = groups.find((g) => g.id === id)
   const [name, setName] = useState(existing?.name ?? '')
   const [picked, setPicked] = useState<string[]>(existing?.members ?? [])
@@ -217,6 +223,16 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
   const byTeam = bots.reduce<Record<string, Bot[]>>((acc, b) => ((acc[b.team] ??= []).push(b), acc), {})
   const teamsPicked = new Set(bots.filter((b) => picked.includes(b.id)).map((b) => b.team))
   const ok = name.trim().length > 0 && picked.length >= 2 && picked.length <= 6
+  // The button is disabled until both conditions hold, so the reason has to be visible before the first submit.
+  const reason = !ok
+    ? !name.trim() && picked.length < 2
+      ? 'Isi nama tim dan pilih minimal 2 anggota.'
+      : !name.trim()
+        ? 'Isi nama tim dulu.'
+        : picked.length < 2
+          ? 'Pilih minimal 2 anggota.'
+          : ''
+    : ''
 
   const toggle = (bid: string) => setPicked((p) => (p.includes(bid) ? p.filter((x) => x !== bid) : p.length < 6 ? [...p, bid] : p))
 
@@ -254,7 +270,11 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
                 {picked.length} / 6 dipilih, minimal 2
               </small>
             </span>
-            {bots.length === 0 && <p className="quiet state">Belum ada pegawai. Buat pegawai dulu.</p>}
+            {bots.length === 0 && (
+              <p className="quiet state">
+                {canCreate ? 'Belum ada pegawai. Buat pegawai dulu.' : 'Minta pemilik akun membuatkan pegawai AI untuk Anda.'}
+              </p>
+            )}
             <div className="picker">
               {Object.entries(byTeam).map(([team, list]) => (
                 <div key={team} className="picker-team">
@@ -280,11 +300,16 @@ function GroupDialog({ id, onClose }: { id?: string; onClose: () => void }) {
           </div>
         </fieldset>
         <ProblemLine p={problem} onPlan={() => setDialog({ kind: 'plan' })} />
+        {reason && (
+          <p className="quiet small" id="group-reason" aria-live="polite">
+            {reason}
+          </p>
+        )}
         <footer className="dlg-foot">
           <button type="button" className="btn quiet-btn" onClick={onClose} disabled={busy}>
             Batal
           </button>
-          <button type="submit" className="btn primary" disabled={busy}>
+          <button type="submit" className="btn primary" disabled={busy || !ok} aria-describedby={reason ? 'group-reason' : undefined}>
             {busy ? 'Menyimpan...' : id ? 'Simpan' : 'Buat tim'}
           </button>
         </footer>
@@ -517,7 +542,7 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
               <span id="ec-l">Warna: {colorLabel(color)}</span>
               <div className="swatches" role="radiogroup" aria-labelledby="ec-l">
                 {[['plain', 'var(--raised)'] as const, ...Object.entries(COLORS)].map(([c, hex]) => (
-                  <button key={c} type="button" role="radio" aria-checked={c === color} aria-label={`Warna ${colorLabel(c)}`} className="swatch" style={{ background: hex }} onClick={() => setColor(c)} />
+                  <button key={c} type="button" role="radio" aria-checked={c === color} aria-label={`Warna ${colorLabel(c)}`} className="swatch" data-autofocus={tierOff && c === color ? true : undefined} style={{ background: hex }} onClick={() => setColor(c)} />
                 ))}
               </div>
             </div>
@@ -530,7 +555,7 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
               ) : (
                 <>
                   <label className="radio-row">
-                    <input type="radio" name="tier" checked={model === ''} onChange={() => setModel('')} />
+                    <input type="radio" className="tier-radio" name="tier" checked={model === ''} data-autofocus={model === '' ? true : undefined} onChange={() => setModel('')} />
                     <span>
                       <b>Ikuti bawaan</b>
                       <small className="quiet"> Memakai pilihan standar sistem.{admin && cat?.default.model ? ` (${cat.default.model})` : ''}</small>
@@ -540,7 +565,7 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
                     const off = !tiers[t.id].length && selTier !== t.id
                     return (
                       <label key={t.id} className="radio-row" aria-disabled={off || undefined}>
-                        <input type="radio" name="tier" checked={selTier === t.id} disabled={off} onChange={() => pick(t.id)} />
+                        <input type="radio" className="tier-radio" name="tier" checked={selTier === t.id} data-autofocus={selTier === t.id ? true : undefined} disabled={off} onChange={() => pick(t.id)} />
                         <span>
                           <b>{t.label}</b>
                           <small className="quiet"> {t.hint}{admin && selTier === t.id ? ` Model: ${splitModel(model).model}` : ''}</small>

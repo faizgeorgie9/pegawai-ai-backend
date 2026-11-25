@@ -315,12 +315,14 @@ export default function Uji() {
               </header>
               <ul className="cases">
                 {shownRows.map((s) => (
-                  <li key={s.id}>
-                    <button type="button" className="case" aria-pressed={chosen?.id === s.id} onClick={() => { setPickId(s.id); if (wanted) go('/uji', true) }}>
+                  <li key={s.id} aria-current={chosen?.id === s.id ? 'true' : undefined}>
+                    <button type="button" className="case" onClick={() => { setPickId(s.id); if (wanted) go('/uji', true) }}>
                       <span className="case-id num">{s.id}</span>
                       <span className="case-main">
                         <b>{s.title}</b>
-                        <small title={s.tag}>{s.tag}{s.turns.length > 1 ? ` · ${s.turns.length} giliran` : ''}{s.simulate ? ' · simulasi' : ''}</small>
+                        {(s.turns.length > 1 || s.simulate) && (
+                          <small>{s.turns.length > 1 ? `${s.turns.length} giliran` : ''}{s.simulate ? `${s.turns.length > 1 ? ' · ' : ''}simulasi` : ''}</small>
+                        )}
                       </span>
                     </button>
                   </li>
@@ -360,9 +362,12 @@ export default function Uji() {
                 </label>
                 {compare && (
                   <div className="cmp-opts">
-                    <div className="seg" role="tablist" aria-label="Cara membandingkan">
-                      <button role="tab" aria-selected={kind === 'repeat'} disabled={busy} onClick={() => setKind('repeat')}>Diulang beberapa kali</button>
-                      <button role="tab" aria-selected={kind === 'agents'} disabled={busy} onClick={() => setKind('agents')}>Dua agen</button>
+                    <div className="cmp-kind">
+                      <span className="field-label" id="cmp-kind-label">Cara membandingkan</span>
+                      <div className="seg" role="tablist" aria-labelledby="cmp-kind-label">
+                        <button role="tab" aria-selected={kind === 'repeat'} disabled={busy} onClick={() => setKind('repeat')}>Diulang beberapa kali</button>
+                        <button role="tab" aria-selected={kind === 'agents'} disabled={busy} onClick={() => setKind('agents')}>Dua agen</button>
+                      </div>
                     </div>
                     {kind === 'repeat' ? (
                       <label className="field">
