@@ -32,8 +32,8 @@ def find_product_image(prod, images_dir=IMAGES_DIR, prefer_angle="front"):
                 if c.exists():
                     return str(c)
 
-    p_name = prod.get("name", "").lower()
-    pid = prod.get("id", "").lower()
+    p_name = str(prod.get("name") or "").lower()
+    pid = str(prod.get("id") or "").lower()
     img_files = list(Path(images_dir).glob("*.jpg")) + list(Path(images_dir).glob("*.png"))
     
     # Direct match on tokens
@@ -62,10 +62,18 @@ def render_aesthetic_carousel(
     products_info: list[dict],
     output_dir: str,
     images_dir: str = str(IMAGES_DIR),
-    day_num: int = 1
+    day_num: int = 1,
+    num_slides: int = 3
 ) -> dict:
     os.makedirs(output_dir, exist_ok=True)
     out_path = Path(output_dir)
+
+    # Clean previous slide images in output_dir so no leftover slides linger
+    for old_slide in out_path.glob("slide_*.png"):
+        try:
+            old_slide.unlink()
+        except Exception:
+            pass
 
     p1 = products_info[0] if len(products_info) > 0 else {}
     p2 = products_info[1] if len(products_info) > 1 else {}
@@ -469,18 +477,20 @@ def render_aesthetic_carousel(
   </div>
 </body></html>"""
 
-    # RENDER VIA PLAYWRIGHT
-    slides_html = [
-        ("slide_1_cover_hero.png", html_s1),
-        ("slide_2_hero_top.png", html_s2),
-        ("slide_3_bottom_pairing.png", html_s3),
-        ("slide_4_accessories_flatlay.png", html_s4),
-        ("slide_5_outro_cta.png", html_s5),
+    # RENDER VIA PLAYWRIGHT (Dynamic slide count: default 2 or 3, or user specified)
+    all_possible_slides = [
+        ("slide_1_cover_hero.png", html_s1, "Slide 1: Hero Cover Impact"),
+        ("slide_2_hero_top.png", html_s2, "Slide 2: Craftsmanship & Detail Zoom"),
+        ("slide_3_bottom_pairing.png", html_s3, "Slide 3: Mix & Match Styling Formula"),
+        ("slide_4_accessories_flatlay.png", html_s4, "Slide 4: Aesthetic Flatlay & In-Situ"),
+        ("slide_5_outro_cta.png", html_s5, "Slide 5: Capsule Wardrobe Outro"),
     ]
+    effective_slides = max(2, min(int(num_slides or 3), len(all_possible_slides)))
+    slides_to_render = all_possible_slides[:effective_slides]
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        for sname, shtml in slides_html:
+        for sname, shtml, _ in slides_to_render:
             spath = out_path / sname
             page = browser.new_page(viewport={"width": 1080, "height": 1350})
             page.set_content(shtml)
@@ -489,10 +499,16 @@ def render_aesthetic_carousel(
             generated_slides.append(str(spath))
         browser.close()
 
-    # Mirror slide_4 to slide_4_accessories_layering.png
-    shutil.copyfile(str(out_path / "slide_4_accessories_flatlay.png"), str(out_path / "slide_4_accessories_layering.png"))
+    # If slide 4 was rendered, mirror to slide_4_accessories_layering.png for compatibility
+    if effective_slides >= 4 and (out_path / "slide_4_accessories_flatlay.png").exists():
+        shutil.copyfile(str(out_path / "slide_4_accessories_flatlay.png"), str(out_path / "slide_4_accessories_layering.png"))
 
-    # Generate interactive HTML preview
+    # Generate interactive HTML preview dynamically matching generated slides
+    slide_cards_html = "\n".join([
+        f'    <div class="slide-card"><img src="{sname}"><div class="caption">{stitle}</div></div>'
+        for sname, _, stitle in slides_to_render
+    ])
+
     preview_path = out_path / "carousel_preview.html"
     preview_html = f"""<!DOCTYPE html>
 <html>
@@ -511,13 +527,9 @@ def render_aesthetic_carousel(
 </head>
 <body>
   <h1>{p1_name} ({p1_color})</h1>
-  <p>Editorial Lookbook Feed Carousel (4:5 Portrait) · Zero-Text on Visual Standard</p>
+  <p>Editorial Lookbook Feed Carousel (4:5 Portrait · {effective_slides} Slides) · Zero-Text on Visual Standard</p>
   <div class="carousel-wrap">
-    <div class="slide-card"><img src="slide_1_cover_hero.png"><div class="caption">Slide 1: Hero Cover Impact</div></div>
-    <div class="slide-card"><img src="slide_2_hero_top.png"><div class="caption">Slide 2: Craftsmanship & Detail Zoom</div></div>
-    <div class="slide-card"><img src="slide_3_bottom_pairing.png"><div class="caption">Slide 3: Mix & Match Styling Formula</div></div>
-    <div class="slide-card"><img src="slide_4_accessories_flatlay.png"><div class="caption">Slide 4: Aesthetic Flatlay & In-Situ</div></div>
-    <div class="slide-card"><img src="slide_5_outro_cta.png"><div class="caption">Slide 5: Capsule Wardrobe Outro</div></div>
+{slide_cards_html}
   </div>
 </body></html>"""
     preview_path.write_text(preview_html, encoding="utf-8")

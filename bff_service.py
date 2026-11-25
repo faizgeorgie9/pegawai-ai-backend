@@ -84,7 +84,6 @@ AVAILABLE_MODELS = [
     "qwen3.8-max",
     "mistral-large-4",
     "gpt-5.4-mini",
-    "openai/gpt-image-2",
 ]
 EFFORTS = ("none", "minimal", "low", "medium", "high", "xhigh")
 TIMEZONES = ("Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura")
@@ -155,7 +154,7 @@ BUILTIN_BOTS: List[Dict[str, Any]] = [
         "persona": (
             "Kamu adalah CRE-01 Content Strategist & Omnichannel Distribution Lead untuk Colorbox Indonesia. "
             "Karaktermu strategis, analitis, terstruktur, berbasis data, dan proaktif sebagai flow controller tim Content & Creative. "
-            "Tugasmu: menerima brief dari user, memvalidasi produk ke katalog resmi Colorbox (product-catalog.md), merumuskan pilar konten strategis (Never Just One Thing, Gen Z 13-24th, 5 pilar visual Pinterest), menyusun creative brief, membagi tugas ke CRE-02, dan setelah alur (CRE-02 -> CRE-03 -> CRE-04) selesai, memberikan evaluasi akhir Quality Audit Level 2, anti-halusinasi produk, dan konfirmasi materi siap dipublikasikan."
+            "Tugasmu: menerima brief dari user, memvalidasi produk ke katalog resmi Colorbox (product-catalog.md), merumuskan pilar konten strategis (Never Just One Thing, Gen Z 13-24th, format carousel 2-3 slide padat & koheren), menyusun creative brief, membagi tugas ke CRE-02, dan setelah alur (CRE-02 -> CRE-03 -> CRE-04) selesai, memberikan evaluasi akhir Quality Audit Level 2, anti-halusinasi produk, dan konfirmasi materi siap dipublikasikan."
         ),
     },
     {
@@ -166,11 +165,11 @@ BUILTIN_BOTS: List[Dict[str, Any]] = [
         "color": "rose",
         "builtin": True,
         "template": "cre-02",
-        "about": "Copywriter & Storyteller yang menulis hook 3 detik, naskah carousel 5 slide zero-text, dan takarir Instagram.",
+        "about": "Copywriter & Storyteller yang menulis hook 3 detik, naskah carousel 2-3 slide zero-text, dan takarir Instagram.",
         "persona": (
             "Kamu adalah CRE-02 Creative Content & Copywriter Lead untuk Colorbox Indonesia. "
             "Gaya bicaramu fun, engaging, relatable ala Gen Z (Never Just One Thing), berwawasan tren pop, dan persuasif. "
-            "Tugasmu: menyusun hook 3 detik thumb-stopping, merangkai naskah carousel 5 slide terstruktur dengan aturan Zero-Text on Visual (fokus visual bersih, teks informasi ada di caption), takarir Instagram lengkap dengan SKU, harga katalog resmi, dan hashtag #NeverJustOneThing, naskah spoken script untuk video UGC, lalu mendelegasikan ke CRE-03 dan CRE-04."
+            "Tugasmu: menyusun hook 3 detik thumb-stopping, merangkai naskah carousel 2-3 slide terstruktur dengan aturan Zero-Text on Visual (fokus visual bersih, teks informasi ada di caption), takarir Instagram lengkap dengan SKU, harga katalog resmi, dan hashtag #NeverJustOneThing, naskah spoken script untuk video UGC, lalu mendelegasikan ke CRE-03 dan CRE-04."
         ),
     },
     {
@@ -181,13 +180,13 @@ BUILTIN_BOTS: List[Dict[str, Any]] = [
         "color": "teal",
         "builtin": True,
         "template": "cre-03",
-        "model": "openai/gpt-image-2",
+        "model": "opencode-zen",
         "provider": "opencode-zen",
-        "about": "Visual Art Director & Canvas Specialist yang merender 5 slide Instagram Feed Carousel 4:5 Portrait (1080x1350 px PNG).",
+        "about": "Visual Art Director & Canvas Specialist yang merender 2-3 slide Instagram Feed Carousel 4:5 Portrait (1080x1350 px PNG) berbasis foto katalog resmi Colorbox.",
         "persona": (
             "Kamu adalah CRE-03 Lead Graphic & Motion Designer untuk Colorbox Indonesia. "
-            "Karaktermu visual-first, pixel-perfect, estetik ala Pinterest moodboard, dan anti-template kaku. "
-            "Tugasmu: merender berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080 × 1350 px PNG) yang bersih, elegan, dan estetik dengan 5 pilar gaya visual (Split Editorial, Cozy Fur Flatlay, Detail Zoom Callouts, Ambient Boutique, Paper-Doll Wardrobe), menjaga foto produk asli Colorbox terkunci 100% proporsional (contain mode, tanpa stretch), dan zero-text on image. Tampilkan pratinjau slide gambar final dan serahkan ke CRE-04 untuk produksi UGC."
+            "Karaktermu visual-first, pixel-perfect, estetik ala Pinterest editorial, dan anti-template kaku. "
+            "Tugasmu: merender berkas gambar final Instagram Feed Carousel format 4:5 Portrait (1080 × 1350 px PNG) yang bersih, elegan, dan estetik (2-3 slide kurasi padat: Hero Impact, Detail Zoom, dan Mix & Match Pairing), menjaga foto produk asli Colorbox terkunci 100% proporsional (contain mode, tanpa stretch), dan zero-text on image. Tampilkan pratinjau slide gambar final dan serahkan ke CRE-04 untuk produksi UGC jika relevan."
         ),
     },
     {
@@ -2294,11 +2293,11 @@ def start_run_job(
 
             if bot_id in ("vina", "cre-03"):
                 # Special handling for CRE-03 / Vina: Visual Art Director & Image Generation Specialist
-                # Uses image model: eff_model (default gpt-image-2.5-sunburst via OpenCode Zen)
+                # Uses high-fidelity Playwright Aesthetic Visual Engine with authentic Colorbox catalog assets
                 t_img = time.time()
                 _record_run_event(
                     run_id, bot_id, sid, group_id or "", "image_generation", "running", 0.0,
-                    f"Memulai pembuatan gambar dengan model {eff_model}...", lv=lv
+                    "Memulai kurasi dan render visual carousel editorial (Playwright Visual Engine)...", lv=lv
                 )
 
                 img_gen_ok = False
@@ -2315,29 +2314,22 @@ def start_run_job(
                                 user_mandate_prods = h_prods
                                 break
 
-                    vina_md = _render_vina_visual_carousel([], user_mandate_prods)
+                    req_slide_count = _detect_requested_slide_count(user_input, default_count=3)
+                    vina_md = _render_vina_visual_carousel([], user_mandate_prods, requested_slides=req_slide_count)
 
                     out_dir = Path(MARKETING_OUTPUT_DIR) / "carousel_latest"
-                    s4_ok = (out_dir / "slide_4_accessories_layering.png").exists() or (out_dir / "slide_4_accessories_flatlay.png").exists()
-                    required_slides = [
-                        out_dir / "slide_1_cover_hero.png",
-                        out_dir / "slide_2_hero_top.png",
-                        out_dir / "slide_3_bottom_pairing.png",
-                        out_dir / "slide_5_outro_cta.png",
-                    ]
-                    if all(s.exists() and s.stat().st_size > 1000 for s in required_slides) and s4_ok:
+                    s1 = out_dir / "slide_1_cover_hero.png"
+                    s2 = out_dir / "slide_2_hero_top.png"
+                    if s1.exists() and s1.stat().st_size > 1000 and s2.exists() and s2.stat().st_size > 1000:
                         img_gen_ok = True
                     else:
-                        missing = [s.name for s in required_slides if not (s.exists() and s.stat().st_size > 1000)]
-                        if not s4_ok:
-                            missing.append("slide_4_accessories_layering.png")
-                        err_cause = f"Berkas gambar tidak lengkap di disk: {', '.join(missing)}"
+                        err_cause = "Berkas slide visual utama belum berhasil dirender ke disk."
                 except Exception as ex:
                     err_cause = str(ex)
 
                 if not img_gen_ok:
                     final_status = "failed"
-                    final_err = f"Gagal membuat gambar/visual: Model {eff_model} tidak dapat merender berkas gambar visual carousel ({err_cause}).".strip()
+                    final_err = f"Gagal membuat gambar/visual: Tidak dapat merender berkas gambar visual carousel ({err_cause}).".strip()
                     _record_run_event(
                         run_id, bot_id, sid, group_id or "", "image_generation", "error",
                         time.time() - t_img, final_err[:300], lv=lv,
@@ -2348,13 +2340,16 @@ def start_run_job(
                     HUB.publish(run_id, "delta", {"text": error_msg, "end": len(error_msg)})
                 else:
                     bot_title = "CRE-03 (Graphic & Motion Designer)" if bot_id == "cre-03" else "Vina"
+                    rendered_slide_files = sorted([f.name for f in out_dir.glob("slide_*.png")])
+                    slide_file_list_str = ", ".join([f"`{f}`" for f in rendered_slide_files])
                     art_direction_note = (
                         f"🎨 **Output {bot_title} — Visual Art Director & Canvas Specialist**:\n\n"
-                        f"Aset visual telah dirender secara tuntas menggunakan model visual **gpt-image-2.5-sunburst** (OpenCode Zen) dan foto autentik katalog resmi.\n\n"
+                        f"Aset visual ({len(rendered_slide_files)} slide kurasi padat) telah dirender secara tuntas "
+                        "menggunakan layout editorial visual resolusi tinggi (Playwright Aesthetic Engine) dan foto katalog autentik Colorbox.\n\n"
                         "**Spesifikasi Visual Output:**\n"
                         "- Format: Instagram Feed Carousel (4:5 Portrait, 1080 × 1350 px PNG, Full Bleed)\n"
-                        "- Style Aesthetic: Visual-First Lookbook (Zero text on slide sesuai standar feed Instagram modern)\n"
-                        "- Berkas Gambar: `slide_1_cover_hero.png`, `slide_2_hero_top.png`, `slide_3_bottom_pairing.png`, `slide_4_accessories_flatlay.png`, `slide_5_outro_cta.png`\n"
+                        "- Style Aesthetic: Visual-First Lookbook (Zero-Text on Visual sesuai standar feed Instagram modern)\n"
+                        f"- Berkas Gambar: {slide_file_list_str}\n"
                         "- Pratinjau Interaktif Live HTML: `/output/carousel_latest/carousel_preview.html`\n\n"
                     )
                     final_output = (art_direction_note + vina_md).strip()
@@ -2370,7 +2365,7 @@ def start_run_job(
 
                     _record_run_event(
                         run_id, bot_id, sid, group_id or "", "image_generation", "ok",
-                        time.time() - t_img, f"{eff_model} (5 slides 1080x1350 px PNG)", lv=lv,
+                        time.time() - t_img, f"Visual Engine ({len(rendered_slide_files)} slides 1080x1350 px PNG)", lv=lv,
                     )
             elif bot_id in ("cre-04",):
                 # Video & UGC Creator
@@ -3402,6 +3397,13 @@ def _sync_carousel_output_to_frontend(src_dir: str):
             if dest == s_path:
                 continue
             dest.mkdir(parents=True, exist_ok=True)
+            # Remove stale slides in destination that no longer exist in source
+            for old_dest_f in dest.glob("slide_*.png"):
+                if not (s_path / old_dest_f.name).exists():
+                    try:
+                        old_dest_f.unlink()
+                    except Exception:
+                        pass
             for f in s_path.glob("*.*"):
                 if f.is_file() and not f.name.startswith("temp_"):
                     try:
@@ -3448,7 +3450,35 @@ def _detect_requested_formats(user_text: str) -> Tuple[bool, bool]:
     return True, True
 
 
-def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods: List[Dict[str, Any]]) -> str:
+def _detect_requested_slide_count(user_text: str, default_count: int = 3) -> int:
+    if not user_text:
+        return default_count
+    t = user_text.lower()
+    # Check specific Indonesian wordings first
+    if "2 slide" in t or "dua slide" in t or "2 gambar" in t or "2 foto" in t or "2 halaman" in t:
+        return 2
+    if "3 slide" in t or "tiga slide" in t or "3 gambar" in t or "3 foto" in t or "3 halaman" in t:
+        return 3
+    if "4 slide" in t or "empat slide" in t or "4 gambar" in t or "4 foto" in t or "4 halaman" in t:
+        return 4
+    if "5 slide" in t or "lima slide" in t or "5 gambar" in t or "5 foto" in t or "5 halaman" in t:
+        return 5
+
+    # Check regex on the last user intent
+    matches = list(re.finditer(r'(\d+)\s*(?:slide|halaman|gambar|foto)', t))
+    if matches:
+        for m in reversed(matches):
+            try:
+                val = int(m.group(1))
+                if 2 <= val <= 10:
+                    return val
+            except Exception:
+                pass
+
+    return default_count
+
+
+def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods: List[Dict[str, Any]], requested_slides: Optional[int] = None) -> str:
     try:
         sys.path.append(str(ROOT_DIR / "colorbox" / "marketing"))
         sys.path.append(str(ROOT_DIR.parent / "colorbox" / "marketing"))
@@ -3481,6 +3511,18 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
 
     joined_text = " ".join([str(line).lower() for line in transcript_lines])
     is_three_days = any(k in joined_text for k in ["3 hari", "tiga hari", "3 days", "jadwal 3 hari", "sprint 3 hari", "tiga hari berturut"])
+
+    # Determine slide count: strictly prioritize requested_slides, then latest user message in transcript
+    if requested_slides:
+        effective_num_slides = requested_slides
+    else:
+        user_line = ""
+        for line in reversed(transcript_lines):
+            if str(line).startswith("User:"):
+                user_line = str(line)
+                break
+        effective_num_slides = _detect_requested_slide_count(user_line or joined_text, default_count=3)
+    effective_num_slides = max(2, min(int(effective_num_slides or 3), 5))
 
     # Extract dynamic concepts/themes from Bram or Meda
     bram_concept = None
@@ -3527,7 +3569,8 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
                 products_info=day1_prods,
                 output_dir=str(MARKETING_OUTPUT_DIR / "carousel_day_1"),
                 images_dir=img_dir,
-                day_num=1
+                day_num=1,
+                num_slides=effective_num_slides
             )
             if day2_prods:
                 render_final_carousel_package(
@@ -3537,7 +3580,8 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
                     products_info=day2_prods,
                     output_dir=str(MARKETING_OUTPUT_DIR / "carousel_day_2"),
                     images_dir=img_dir,
-                    day_num=2
+                    day_num=2,
+                    num_slides=effective_num_slides
                 )
             if day3_prods:
                 render_final_carousel_package(
@@ -3547,7 +3591,8 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
                     products_info=day3_prods,
                     output_dir=str(MARKETING_OUTPUT_DIR / "carousel_day_3"),
                     images_dir=img_dir,
-                    day_num=3
+                    day_num=3,
+                    num_slides=effective_num_slides
                 )
             # Latest points to day 1
             render_final_carousel_package(
@@ -3557,14 +3602,15 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
                 products_info=day1_prods,
                 output_dir=out_dir,
                 images_dir=img_dir,
-                day_num=1
+                day_num=1,
+                num_slides=effective_num_slides
             )
         except Exception as ex:
             print(f"[Vina Multi-Day Rendering Failed]: {ex}")
 
         md = (
             "### 🎨 Paket Visual Carousel Siap Posting (@colorbox Bespoke Standard):\n\n"
-            f"Vina telah memproduksi aset visual 3 hari berdasarkan konsep: **{bram_concept or 'Kampanye Colorbox'}**:\n\n"
+            f"Vina telah memproduksi aset visual 3 hari ({effective_num_slides} slide per hari) berdasarkan konsep: **{bram_concept or 'Kampanye Colorbox'}**:\n\n"
             f"#### 📅 HARI 1: {d1_title} (Hero: {day1_prods[0]['name']})\n"
             f"- **Hero Utama:** {day1_prods[0]['name']} ({day1_prods[0].get('color', '')}) [{day1_prods[0].get('category', '')}]\n"
         )
@@ -3607,9 +3653,10 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
 
         md += (
             "✨ **Karakteristik Desain:**\n"
-            "- **Bebas Template Baku:** Layout dirancang murni mengikuti karakteristik produk dan konsep brief.\n"
-            "- **Multi-Angle Aktif:** Menampilkan sudut depan, detail tekstur/fitur, dan sudut profil pada slide relevan.\n"
-            "- **Kategori Harmonis:** Padu-padan atasan, bawahan, dan aksesori yang serasi tanpa pengulangan produk.\n"
+            f"- **Kurasi Padat & Koheren ({effective_num_slides} Slide):** Alur visual fokus dan nyambung tanpa slide pengisi kosong.\n"
+            "- **Bebas Template Baku:** Layout dirancang murni mengikuti foto katalog resmi dan konsep brief.\n"
+            "- **Multi-Angle Aktif:** Menampilkan sudut depan penuh dan detail jahitan/tekstur produk yang sama.\n"
+            "- **Zero-Text on Visual:** Visual bersih estetis bebas banner harga kaku (informasi ada di takarir).\n"
             "- **Aspek Rasio Terkunci:** Proporsi foto produk 100% presisi tanpa distorsi."
         )
         return md
@@ -3634,14 +3681,15 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
             products_info=prods,
             output_dir=out_dir,
             images_dir=img_dir,
-            day_num=1
+            day_num=1,
+            num_slides=effective_num_slides
         )
         _sync_carousel_output_to_frontend(out_dir)
     except Exception as ex:
         print(f"[Vina Rendering Failed]: {ex}")
 
     md = (
-        "### 🎨 Aset Visual Carousel Siap Posting (@colorbox Bespoke Standard):\n\n"
+        f"### 🎨 Aset Visual Carousel Siap Posting (@colorbox Bespoke Standard · {effective_num_slides} Slide):\n\n"
         f"**Kurasi Produk Riil:**\n"
         f"- **Hero Utama:** {prods[0]['name']} ({prods[0].get('color', '')}) [{prods[0].get('category', '')}]\n"
     )
@@ -3653,15 +3701,22 @@ def _render_vina_visual_carousel(transcript_lines: List[str], user_mandate_prods
     md += (
         "\n![Cover Hero](/output/carousel_latest/slide_1_cover_hero.png)\n\n"
         "![Craftsmanship & Detail](/output/carousel_latest/slide_2_hero_top.png)\n\n"
-        "![Bottom Silhouette](/output/carousel_latest/slide_3_bottom_pairing.png)\n\n"
-        "![Complete Ensemble](/output/carousel_latest/slide_4_accessories_layering.png)\n\n"
-        "![Lookbook Outro](/output/carousel_latest/slide_5_outro_cta.png)\n\n"
+    )
+    if effective_num_slides >= 3:
+        md += "![Mix & Match Styling Formula](/output/carousel_latest/slide_3_bottom_pairing.png)\n\n"
+    if effective_num_slides >= 4:
+        md += "![Complete Ensemble](/output/carousel_latest/slide_4_accessories_layering.png)\n\n"
+    if effective_num_slides >= 5:
+        md += "![Lookbook Outro](/output/carousel_latest/slide_5_outro_cta.png)\n\n"
+
+    md += (
         "👉 **[Buka Pratinjau Interaktif Live Carousel](/output/carousel_latest/carousel_preview.html)**\n\n"
         "✨ **Karakteristik Desain:**\n"
-        "- **Bebas Template Baku:** Tata letak bespoke berorientasi lookbook editorial.\n"
-        "- **Multi-Angle Aktif:** Menggunakan foto depan, foto detail close-up kain, dan foto tampak belakang/profil.\n"
-        "- **Kategori Harmonis:** Atasan dipadukan dengan bawahan & aksesoris, bebas repetisi produk.\n"
-        "- **Preservasi Rasio:** Foto model dan garmen terkunci 100% proporsional."
+        f"- **Kurasi Padat & Koheren ({effective_num_slides} Slide):** Bebas slide pengisi berulang, alur cerita visual saling menyatu.\n"
+        "- **Bebas Template Baku:** Tata letak bespoke berorientasi lookbook editorial tanpa kotak grid abu-abu.\n"
+        "- **Multi-Angle Aktif:** Menampilkan foto depan dan foto detail close-up kain garmen yang sama persis.\n"
+        "- **Zero-Text on Visual:** Visual bersih estetis tanpa banner teks harga/promo kaku.\n"
+        "- **Preservasi Rasio:** Foto model dan garmen terkunci 100% proporsional (contain mode)."
     )
     return md
 
@@ -3839,7 +3894,7 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                                 f"{format_directive}\n"
                                 f"1. {user_mandate_note}\n"
                                 "2. Petakan naskah hook 3 detik thumb-stopping dan storytelling Gen Z yang relatable sesuai tagline #NeverJustOneThing.\n"
-                                "3. Susun naskah 5 slide carousel dengan aturan Zero-Text on Visual (fokus visual bersih, teks informasi ada di caption).\n"
+                                "3. Susun naskah carousel 2-3 slide padat dan koheren (Hero Impact, Detail Zoom tekstur, dan Mix & Match Styling Formula) dengan aturan Zero-Text on Visual (fokus visual bersih, teks informasi ada di caption).\n"
                                 "4. Tulis caption Instagram lengkap dengan SKU, harga katalog resmi, size guide cm, hashtag, dan CTA resmi.\n"
                                 "5. Tulis spoken script UGC singkat (15 detik) untuk video Reels/TikTok.\n"
                                 "6. Delegasikan langsung ke @cre-03 (@graphicdesigner) untuk render aset gambar visual carousel 4:5."
@@ -3849,10 +3904,10 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                         role_instructions = (
                             "TUGAS GRAPHIC & MOTION DESIGNER (CRE-03):\n"
                             f"{format_directive}\n"
-                            "1. Berikan pengarahan artistik layout visual untuk 5 slide carousel (Instagram Feed Portrait 4:5, 1080 × 1350 px) dengan 5 pilar visual Pinterest (Split Editorial, Cozy Fur Flatlay, Detail Zoom Callouts, Ambient Boutique, Paper-Doll Wardrobe).\n"
-                            "2. DILARANG KERAS MENGGUNAKAN ELEMEN KLISE BERULANG ATAU TEMPLATE KAKU. Eksekusi visual harus murni mencerminkan konsep dan produk autentik Colorbox.\n"
-                            "3. Konfirmasi bahwa 5 berkas gambar final siap tayang dirender menggunakan foto produk autentik Colorbox dengan rasio terkunci 100% (contain mode, tanpa stretch/gepeng).\n"
-                            "4. Pastikan kanvas bebas dari segala noise internal (tanpa label 'Slide 1/5', tanpa dot pagination, tanpa teks 'SWIPE').\n"
+                            "1. Berikan pengarahan artistik layout visual untuk 2-3 slide carousel (Instagram Feed Portrait 4:5, 1080 × 1350 px) yang padat, koheren, dan saling menyambung (Slide 1: Hero Cover Impact, Slide 2: Craftsmanship & Detail Zoom produk yang sama, Slide 3: Mix & Match Styling Formula atasan + bawahan serasi).\n"
+                            "2. DILARANG KERAS MENGGUNAKAN TEMPLATE KAKU ATAU KOTAK GRID ABU-ABU. Eksekusi visual murni lookbook editorial resolusi tinggi dengan foto katalog resmi Colorbox.\n"
+                            "3. Konfirmasi bahwa berkas gambar final siap tayang dirender menggunakan foto produk autentik Colorbox dengan rasio terkunci 100% (contain mode, tanpa stretch/gepeng).\n"
+                            "4. Pastikan kanvas bebas dari segala noise internal (tanpa label 'Slide 1/5', tanpa dot pagination, tanpa teks harga banner kaku — Zero-Text on Visual).\n"
                             f"5. Setelah memaparkan aset visual, delegasikan langsung ke {next_del}."
                         )
                     elif bid == "cre-04":
@@ -3954,7 +4009,14 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                                 if bid in ("cre-03", "vina"):
                                     try:
                                         print(f"[CRE-03 Inject] effective_mandate: {[p.get('name') for p in effective_mandate]}")
-                                        vina_carousel_md = _render_vina_visual_carousel(transcript_lines, effective_mandate)
+                                        user_prompt_txt = batch_text or ""
+                                        if not user_prompt_txt:
+                                            for l in reversed(transcript_lines):
+                                                if str(l).startswith("User:") or str(l).startswith("Kakak:"):
+                                                    user_prompt_txt = str(l)
+                                                    break
+                                        req_slide_cnt = _detect_requested_slide_count(user_prompt_txt, default_count=3)
+                                        vina_carousel_md = _render_vina_visual_carousel(transcript_lines, effective_mandate, requested_slides=req_slide_cnt)
                                         if vina_carousel_md:
                                             cleaned += "\n\n" + vina_carousel_md
                                     except Exception as ex:

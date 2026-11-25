@@ -850,102 +850,31 @@ def render_final_carousel_package(
     output_dir: str,
     images_dir: str,
     day_num: int = 1,
-    visual_prompts: list[str] = None
+    visual_prompts: list[str] = None,
+    num_slides: int = 3
 ) -> dict:
     """
-    Renders 5 bespoke, template-free 1080x1350 px Feed Portrait carousel slides:
-    1. ZERO rigid templates: Dynamically switches layout archetype by day/mood:
-       - Day 1: Haute-Minimalist Atelier (Georgia serif, ivory paper, asymmetric collage)
-       - Day 2: Modernist Bauhaus / Swiss Grid (Sans display, architectural grey, tri-modular columns)
-       - Day 3: Avant-Garde Nocturne (Dark mode midnight slate, neon crimson, dramatic spotlighting)
-    2. Category-Aware Mix & Match: Top piece pairs with Bottom, Bottom pairs with Top, plus Accessory.
-    3. Multi-Angle Image Routing:
-       - Slide 1: Hero Front
-       - Slide 2: Hero Detail (craftsmanship, texture, lapel, weave)
-       - Slide 3: Complementary Bottom Front (silhouette foundation)
-       - Slide 4: Complete Trio Ensemble (Hero Back/Profile + Bottom + Accessory)
-       - Slide 5: Lookbook Outro & Palette
-    4. ZERO offside / ZERO text cutoff:
-       - Canvas Safe Zone (70 to 1010 px horizontally, 50 to 1300 px vertically).
-       - Guarded with draw_safe_text: auto-wrapping, auto-scaling, and line-length containment.
-    5. Aspect Ratio strictly locked with Lanczos high-fidelity scaling.
+    Renders bespoke, template-free 1080x1350 px Feed Portrait carousel slides (default 2 or 3 slides).
+    Zero rigid box templates. Clean editorial aesthetic with 100% authentic Colorbox catalog photos.
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    # Use Pinterest Aesthetic Engine (Zero-Text on Visual & Playwright rendering)
-    try:
-        from aesthetic_visual_engine import render_aesthetic_carousel
-        res = render_aesthetic_carousel(
-            theme_title=theme_title,
-            headline=headline,
-            subtitle=subtitle,
-            products_info=products_info,
-            output_dir=output_dir,
-            images_dir=images_dir,
-            day_num=day_num
-        )
-        if res and res.get("success"):
-            return res
-    except Exception as e:
-        print(f"[render_final_carousel_package] Aesthetic engine fallback: {e}")
+    # Use Pinterest Aesthetic Engine (Zero-Text on Visual & Playwright rendering, strictly no rigid box fallback)
+    from aesthetic_visual_engine import render_aesthetic_carousel
+    res = render_aesthetic_carousel(
+        theme_title=theme_title,
+        headline=headline,
+        subtitle=subtitle,
+        products_info=products_info,
+        output_dir=output_dir,
+        images_dir=images_dir,
+        day_num=day_num,
+        num_slides=num_slides
+    )
+    if res and res.get("success"):
+        return res
 
-    p1 = products_info[0] if len(products_info) > 0 else {}
-    p2 = products_info[1] if len(products_info) > 1 else {}
-    p3 = products_info[2] if len(products_info) > 2 else {}
-
-    p1_angles = resolve_product_angles(p1, images_dir)
-    p2_angles = resolve_product_angles(p2, images_dir)
-    p3_angles = resolve_product_angles(p3, images_dir)
-
-    # Route to distinct Archetype
-    if day_num == 2:
-        generated_slides = _render_archetype_2(
-            theme_title=theme_title,
-            headline=headline,
-            subtitle=subtitle,
-            p1=p1,
-            p2=p2,
-            p3=p3,
-            p1_angles=p1_angles,
-            p2_angles=p2_angles,
-            p3_angles=p3_angles,
-            output_dir=output_dir
-        )
-    elif day_num == 3:
-        generated_slides = _render_archetype_3(
-            theme_title=theme_title,
-            headline=headline,
-            subtitle=subtitle,
-            p1=p1,
-            p2=p2,
-            p3=p3,
-            p1_angles=p1_angles,
-            p2_angles=p2_angles,
-            p3_angles=p3_angles,
-            output_dir=output_dir
-        )
-    else:
-        generated_slides = _render_archetype_1(
-            theme_title=theme_title,
-            headline=headline,
-            subtitle=subtitle,
-            p1=p1,
-            p2=p2,
-            p3=p3,
-            p1_angles=p1_angles,
-            p2_angles=p2_angles,
-            p3_angles=p3_angles,
-            output_dir=output_dir
-        )
-
-    # Interactive HTML Preview
-    generate_carousel_preview_html(output_dir, headline or theme_title, subtitle or "Colorbox Campaign", day_num)
-
-    return {
-        "success": True,
-        "slides": generated_slides,
-        "html_preview": os.path.join(output_dir, "carousel_preview.html")
-    }
+    raise RuntimeError(f"Visual rendering failed: {res.get('error') if isinstance(res, dict) else 'unknown error'}")
 
 def generate_carousel_preview_html(output_dir: str, title: str, subtitle: str, day_num: int = 1) -> str:
     html_path = os.path.join(output_dir, "carousel_preview.html")
