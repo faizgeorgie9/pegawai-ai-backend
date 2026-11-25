@@ -6,10 +6,21 @@ import shutil
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent
-IMAGES_DIR = ROOT_DIR / "backend" / "colorbox" / "colorbox-knowledge" / "images"
-if not IMAGES_DIR.exists():
-    IMAGES_DIR = ROOT_DIR / "colorbox" / "colorbox-knowledge" / "images"
+_CUR = Path(__file__).resolve().parent
+IMAGES_DIR = None
+for _cand in [
+    _CUR / "colorbox" / "colorbox-knowledge" / "images",
+    _CUR / "backend" / "colorbox" / "colorbox-knowledge" / "images",
+    _CUR.parent / "colorbox" / "colorbox-knowledge" / "images",
+    _CUR.parent / "backend" / "colorbox" / "colorbox-knowledge" / "images",
+    _CUR.parent.parent / "colorbox" / "colorbox-knowledge" / "images",
+    _CUR.parent.parent / "backend" / "colorbox" / "colorbox-knowledge" / "images",
+    Path("colorbox/colorbox-knowledge/images").resolve(),
+    Path("backend/colorbox/colorbox-knowledge/images").resolve(),
+]:
+    if _cand.exists():
+        IMAGES_DIR = _cand
+        break
 
 def img_to_b64(path):
     if not path or not os.path.exists(path):
@@ -36,24 +47,46 @@ def find_product_image(prod, images_dir=IMAGES_DIR, prefer_angle="front"):
     pid = str(prod.get("id") or "").lower()
     img_files = list(Path(images_dir).glob("*.jpg")) + list(Path(images_dir).glob("*.png"))
     
-    # Direct match on tokens
+    # Direct match on tokens with prefer_angle boost
     tokens = [t for t in p_name.replace("-", " ").split() if len(t) > 3]
+    pa = (prefer_angle or "").lower()
     best_match = None
-    best_score = 0
+    best_score = -1
     for f in img_files:
         fn = f.name.lower()
-        score = sum(1 for t in tokens if t in fn)
+        token_hits = sum(1 for t in tokens if t in fn)
+        if not token_hits and pid not in fn:
+            continue
+        score = token_hits
         if pid and pid in fn:
             score += 5
+        if pa:
+            if pa in fn:
+                score += 10
+            elif pa == "detail" and any(k in fn for k in ["detail", "-c-", "close", "texture"]):
+                score += 10
+            elif pa == "front" and any(k in fn for k in ["front", "-a-"]):
+                score += 10
+            elif pa == "back" and any(k in fn for k in ["back", "-b-"]):
+                score += 10
+            elif pa == "side" and any(k in fn for k in ["side", "profile"]):
+                score += 10
         if score > best_score:
             best_score = score
             best_match = str(f)
             
-    if best_match:
+    if best_match and best_score > 0:
         return best_match
     
-    # Fallback to first available image
-    return str(img_files[0]) if img_files else ""
+    # Fallback to angle matching alone or first available image
+    if img_files:
+        if pa:
+            for f in img_files:
+                fn = f.name.lower()
+                if pa in fn or (pa == "detail" and "-c-" in fn) or (pa == "front" and "-a-" in fn):
+                    return str(f)
+        return str(img_files[0])
+    return ""
 
 def render_aesthetic_carousel(
     theme_title: str,
@@ -84,6 +117,7 @@ def render_aesthetic_carousel(
     p1_price = p1.get("price", "Rp 299.900")
     p1_img_b64 = img_to_b64(find_product_image(p1, images_dir, "front"))
     p1_det_b64 = img_to_b64(find_product_image(p1, images_dir, "detail")) or p1_img_b64
+    p1_back_b64 = img_to_b64(find_product_image(p1, images_dir, "back")) or p1_det_b64
 
     p2_name = p2.get("name", "Pairing Piece")
     p2_color = p2.get("color", "Neutral")
@@ -231,8 +265,8 @@ def render_aesthetic_carousel(
       </div>
       <div class="detail-col">
         <div class="detail-box">
-          <img src="{p1_det_b64}" />
-          <div class="callout-badge">FIT & TAILORING</div>
+          <img src="{p1_back_b64 if p1_back_b64 != p1_det_b64 else p1_det_b64}" />
+          <div class="callout-badge">{'BACK FIT & SILHOUETTE' if p1_back_b64 != p1_det_b64 else 'FIT & TAILORING'}</div>
         </div>
         <div class="detail-box">
           <img src="{p1_det_b64}" style="transform: scale(1.35);" />
@@ -317,11 +351,11 @@ def render_aesthetic_carousel(
       </div>
       <div class="duo-card">
         <div class="duo-img-box">
-          <img src="{p2_img_b64 or p1_det_b64}" />
+          <img src="{p2_img_b64 or p1_back_b64 or p1_det_b64}" />
         </div>
         <div class="duo-caption">
-          <span class="duo-name">Coordination</span>
-          <span class="duo-role">{p2_color}</span>
+          <span class="duo-name">{'Coordination' if p2_img_b64 else 'Back Profile'}</span>
+          <span class="duo-role">{p2_color if p2_img_b64 else p1_color}</span>
         </div>
       </div>
     </div>

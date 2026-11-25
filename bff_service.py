@@ -2320,16 +2320,9 @@ def start_run_job(
                 err_cause = ""
 
                 try:
-                    user_mandate_prods, _ = _detect_user_product_mandate(user_input)
-                    if not user_mandate_prods and prior_history:
-                        for h in reversed(prior_history):
-                            c_text = h.get("content", "")
-                            h_prods, _ = _detect_user_product_mandate(c_text)
-                            if h_prods:
-                                user_mandate_prods = h_prods
-                                break
-
-                    req_slide_count = _detect_requested_slide_count(user_input, default_count=3)
+                    all_text_to_scan = (user_input or "") + " " + " ".join(str(h.get("content", "")) for h in (prior_history or []))
+                    user_mandate_prods, _ = _detect_user_product_mandate(all_text_to_scan)
+                    req_slide_count = _detect_requested_slide_count(all_text_to_scan, default_count=3)
                     vina_md = _render_vina_visual_carousel([], user_mandate_prods, requested_slides=req_slide_count)
 
                     out_dir = Path(MARKETING_OUTPUT_DIR) / "carousel_latest"
@@ -2938,33 +2931,88 @@ def _mentioned_bots(text: str, members: List[Dict[str, Any]]) -> Set[str]:
 def _detect_user_product_mandate(user_text: str) -> Tuple[List[Dict[str, Any]], str]:
     if not user_text:
         return [], "User belum memberikan detail brief spesifik."
-    matched: List[Dict[str, Any]] = []
     low = user_text.lower()
+    scored_items: List[Tuple[int, Dict[str, Any]]] = []
+    seen_names = set()
 
-    # 1. First check AUTHENTIC_IMAGE_CATALOG (items with real scraped photos)
+    generic_words = {"long", "sleeve", "short", "crop", "with", "details", "detail", "regular", "fitted"}
+
+    # 1. First score AUTHENTIC_IMAGE_CATALOG (items with real scraped photos get priority)
     for item in AUTHENTIC_IMAGE_CATALOG:
         iname = item["name"].lower()
+        tokens = [t for t in re.findall(r"[a-z0-9]+", iname) if len(t) > 2]
+        specific_tokens = [t for t in tokens if t not in generic_words]
+        spec_hits = sum(1 for t in specific_tokens if t in low)
+        if "rok" in low and any(k in iname for k in ["skirt", "skort"]):
+            spec_hits += 1
+        if "tas" in low and any(k in iname for k in ["bag", "tote"]):
+            spec_hits += 1
+        if "celana" in low and any(k in iname for k in ["pants", "denim", "jeans"]):
+            spec_hits += 1
+
+        if spec_hits == 0 and iname not in low:
+            continue
+
+        score = 10
         if iname in low:
-            if not any(m["name"] == item["name"] for m in matched):
-                matched.append(item)
-        else:
-            tokens = [t for t in re.findall(r"[a-z0-9]+", iname) if len(t) > 3]
-            # If at least 2 distinct tokens match (or 1 unique long token)
-            match_cnt = sum(1 for t in tokens if t in low)
-            if match_cnt >= 2 or (len(tokens) == 1 and match_cnt == 1):
-                if not any(m["name"] == item["name"] for m in matched):
-                    matched.append(item)
+            score += 50
+        score += (spec_hits * 10)
+        color = (item.get("color") or "").lower()
+        if color and color in low:
+            score += 15
+        if item["name"] not in seen_names:
+            seen_names.add(item["name"])
+            scored_items.append((score, item))
 
     # 2. Check full CATALOG (1,216 products)
     if len(CATALOG.rows) > 0:
         candidates = CATALOG.search(user_text, limit=15)
         for c in candidates:
             cname = c["name"].lower()
-            tokens = [t for t in re.findall(r"[a-z0-9]+", cname) if len(t) > 3]
-            match_cnt = sum(1 for t in tokens if t in low)
-            if match_cnt >= 2 or cname in low:
-                if not any(m["name"] == c["name"] for m in matched):
-                    matched.append(c)
+            if c["name"] in seen_names:
+                continue
+            tokens = [t for t in re.findall(r"[a-z0-9]+", cname) if len(t) > 2]
+            specific_tokens = [t for t in tokens if t not in generic_words]
+            spec_hits = sum(1 for t in specific_tokens if t in low)
+            if "rok" in low and any(k in cname for k in ["skirt", "skort"]):
+                spec_hits += 1
+            if "tas" in low and any(k in cname for k in ["bag", "tote"]):
+                spec_hits += 1
+            if "celana" in low and any(k in cname for k in ["pants", "denim", "jeans"]):
+                spec_hits += 1
+
+            if spec_hits == 0 and cname not in low:
+                continue
+
+            score = 0
+            if cname in low:
+                score += 40
+            score += (spec_hits * 8)
+            c_colors = [str(col).lower() for col in (c.get("colors") or [])]
+            if any(col in low for col in c_colors):
+                score += 10
+            seen_names.add(c["name"])
+            scored_items.append((score, c))
+
+    scored_items.sort(key=lambda x: x[0], reverse=True)
+    raw_matched = [it for _, it in scored_items]
+    if raw_matched:
+        hero = raw_matched[0]
+        rest = raw_matched[1:]
+        bottom_idx = -1
+        for i, item in enumerate(rest):
+            cat = str(item.get("category") or "").lower()
+            name = str(item.get("name") or "").lower()
+            if any(k in cat or k in name for k in ["skirt", "skort", "pants", "denim", "bottom"]):
+                bottom_idx = i
+                break
+        if bottom_idx >= 0:
+            pairing = rest.pop(bottom_idx)
+            matched = [hero, pairing] + rest
+        else:
+            matched = raw_matched
+    else:
+        matched = []
 
     if matched:
         note = (
@@ -4032,7 +4080,7 @@ def _group_loop(gid: str, st: GroupSendState, initial_text: str) -> None:
                                                     break
                                         req_slide_cnt = _detect_requested_slide_count(user_prompt_txt, default_count=3)
                                         vina_carousel_md = _render_vina_visual_carousel(transcript_lines, effective_mandate, requested_slides=req_slide_cnt)
-                                        if vina_carousel_md:
+                                        if vina_carousel_md and "Aset Visual Carousel Siap Posting" not in cleaned:
                                             cleaned += "\n\n" + vina_carousel_md
                                     except Exception as ex:
                                         print(f"[CRE-03 Visual Injection Error]: {ex}")
