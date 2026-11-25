@@ -455,10 +455,9 @@ exit 0
 
 function Update-RemoteScript {
     param([Parameter(Mandatory = $true)][string]$LocalServerScript)
-    # Hanya menyentuh skrip server bila versi di sana belum punya kunci deploy.
+    # Keeps the server copy identical to vps/deploy_release.sh of the deployed commit (only versions that hold the deploy lock).
     try {
         $state = Get-RemoteState
-        if ($state.ScriptLock -gt 0) { return $false }
         $localHash = (Get-FileHash -LiteralPath $LocalServerScript -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($localHash -eq $state.ScriptHash) { return $false }
         $localText = [IO.File]::ReadAllText($LocalServerScript)
