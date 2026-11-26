@@ -1,0 +1,50 @@
+/* Pengaturan > Akun AI: one row per provider. Text | status | actions on a wide screen; everything stacks at 375 px. */
+.ai-sec { display: flex; flex-direction: column; }
+.ai-sec h3 { margin: 0 0 var(--s-1); font-size: 16px; font-weight: 600; }
+.ai-row { flex-wrap: wrap; }
+.ai-row .set-text { overflow-wrap: anywhere; }
+.ai-row .set-text small { font-size: 13px; }
+.ai-brand { display: flex; align-items: center; gap: var(--s-3); min-width: 0; }
+.ai-or { width: 32px; height: 32px; padding: 0; flex: none; background: none; }
+.ai-or .app-initial { width: 32px; height: 32px; font-size: 15px; }
+.ai-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ai-name b,
+.ai-name small { overflow-wrap: anywhere; }
+.ai-state { display: flex; align-items: center; flex-wrap: wrap; gap: 4px var(--s-2); min-width: 0; font-size: 13px; color: var(--muted); }
+.ai-state .num { font-size: 13px; }
+.ai-act { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--s-2); flex: 0 1 auto; }
+.ai-act .confirm-actions { flex: 1 1 100%; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: var(--s-2); }
+.ai-ask { flex: 1 1 220px; font-size: 13px; }
+.ai-row .admin-tag { align-self: flex-start; }
+.ai-key-wrap { flex: 1 1 100%; min-width: 0; }
+.ai-key-wrap:empty { display: none; }
+.ai-form { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-2); max-width: 520px; }
+.ai-form .field { min-width: 0; }
+.ai-form .field input { width: 100%; }
+.ai-form .err { color: var(--bad-ink); }
+.ai-form .btn.link { align-self: flex-start; }
+.ai-form-act { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-2); }
+/* The existing .set-row goes inline above 760 px and stacks below it; these rules follow the same breakpoint. */
+@media (min-width: 761px) {
+  .ai-row { align-items: flex-start; row-gap: var(--s-2); }
+  .ai-row .set-text { flex: 1 1 240px; }
+  .ai-act { justify-content: flex-end; margin-left: auto; }
+}
+@media (max-width: 760px) {
+  /* .set-row.ai-row beats pages.css's ≤640px row layout; a non-shrinking flex item clipped the hints at 375px. */
+  .set-row.ai-row { flex-direction: column; align-items: stretch; }
+  .ai-row .set-text { flex: 1 1 auto; min-width: 0; }
+  .ai-row .ai-state,
+  .ai-row .set-ctl { width: 100%; }
+  .ai-act { justify-content: flex-start; margin-left: 0; }
+}
+@media (max-width: 640px) {
+  .ai-act .btn,
+  .ai-form-act .btn { min-height: 40px; }
+  .ai-act .btn.primary,
+  .ai-act .btn.soft { flex: 1 1 auto; }
+  .ai-act .btn.link { min-height: 40px; }
+  .ai-act .confirm-actions { justify-content: flex-start; }
+  .ai-form { max-width: none; }
+  .ai-form-act .btn.primary { flex: 1 1 auto; }
+}

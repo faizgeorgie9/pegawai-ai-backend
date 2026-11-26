@@ -9,6 +9,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const key = env.BFF_API_KEY
+  // The mock API answers the new endpoints in `npm run dev:mock` only; a production build must never
+  // ship it, because the flag also decides which code the compiler keeps.
+  if (mode === 'production' && env.VITE_MOCK_API === '1') throw new Error('VITE_MOCK_API=1 dilarang pada build produksi')
   const proxy = {
     '/bff': {
       target: 'http://127.0.0.1:8090',
@@ -36,5 +39,28 @@ export default defineConfig(({ mode }) => {
       changeOrigin: true,
     } satisfies ProxyOptions,
   }
-  return { base: './', plugins: [react()], server: { proxy }, preview: { proxy } }
+  return {
+    base: './',
+    plugins: [react()],
+    server: { proxy },
+    preview: { proxy },
+    build: {
+      // Vendor chunks shared by every page. Rolldown 1.x names this option `codeSplitting`
+      // (`advancedChunks` is its deprecated former name); `manualChunks` does not exist here.
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+              {
+                name: 'markdown',
+                test: /node_modules[\\/](react-markdown|remark-[^\\/]+|mdast-[^\\/]+|micromark[^\\/]*|unified|unist-[^\\/]+|hast-[^\\/]+|vfile[^\\/]*|property-information|hast-util-[^\\/]+|mdast-util-[^\\/]+|micromark-[^\\/]+|unist-util-[^\\/]+|bail|ccount|character-entities[^\\/]*|comma-separated-tokens|decode-named-character-reference|devlop|escape-string-regexp|estree-[^\\/]+|html-url-attributes|inline-style-parser|is-plain-obj|longest-streak|markdown-table|space-separated-tokens|stringify-entities|style-to-[^\\/]+|trim-lines|trough|zwitch|@ungap[\\/][^\\/]+)[\\/]/,
+              },
+              { name: 'qr', test: /node_modules[\\/]uqr[\\/]/ },
+            ],
+          },
+        },
+      },
+    },
+  }
 })

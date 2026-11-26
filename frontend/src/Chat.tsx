@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ApiError, api, asStr, errText, isAbort, newKey, subscribe, toClarify, usageOf } from './bff'
-import type { Bot, ChatMessage, Session, SseState } from './bff'
+import { ApiError, api, asStr, errText, isAbort, newKey, subscribe, toAttachments, toClarify, usageOf } from './bff'
+import type { Attachment, Bot, ChatMessage, Session, SseState } from './bff'
+import { AttachmentList } from './attachments'
 import { ActionCard, useVisibleActions } from './ActionCard'
 import { useAdminMode } from './adminMode'
 import { useData } from './data'
@@ -39,6 +40,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail, onHistory
   const { setDialog, askNotify, refreshMe, viewing, runs } = useData()
   const attached = useRef('') // last run this view followed, so a run is never attached twice
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [sessionFiles, setSessionFiles] = useState<Attachment[]>([]) // files of a stored conversation whose messages carry none (contract gap G1)
   const [loading, setLoading] = useState(false)
   const [run, setRun] = useState<{ id: string } | null>(null) // id '' while the POST is in flight
   const [conn, setConn] = useState<SseState>('open')
@@ -144,6 +146,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail, onHistory
             tools: settle(m.tools),
             stopped: /stop|cancel|interrupt/.test(status) || undefined,
             error: /fail|error/.test(status) ? asStr(d.error) || 'Pegawai belum berhasil menyelesaikan tugas ini.' : undefined,
+            attachments: toAttachments(d.attachments),
           }))
           finish()
         },
@@ -192,6 +195,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail, onHistory
     setConn('open')
     setQueue([])
     setMessages([])
+    setSessionFiles([])
     setProblem(null)
     setLoading(!!sid)
     stick.current = true
@@ -200,6 +204,16 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail, onHistory
       try {
         const msgs = await api.messages(bot.id, sid)
         if (mine !== epoch.current) return
+        // Contract gap G1: stored messages may not carry the run's files, so read them per session instead.
+        // When they do carry files, that is the better source and this section stays hidden.
+        if (!msgs.some((m) => m.attachments?.length)) {
+          void api.artifacts({ bot_id: bot.id, session_id: sid }).then(
+            (items) => {
+              if (mine === epoch.current) setSessionFiles(items)
+            },
+            () => undefined, // optional: the section simply does not appear
+          )
+        }
         const active = await api.runs('active').catch(() => [])
         if (mine !== epoch.current) return
         const r = active.find((x) => x.bot_id === bot.id && x.session_id === sid && x.kind !== 'group')
@@ -482,6 +496,12 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail, onHistory
               onAnswer={(t) => answer(m, t)}
             />
           ))}
+          {sessionFiles.length > 0 && !messages.some((m) => m.attachments?.length) && (
+            <section className="att-session" aria-label="Berkas dari percakapan ini">
+              <h3 style={{ fontSize: 14, fontWeight: 600, margin: 'var(--s-4) 0 0' }}>Berkas dari percakapan ini · {sessionFiles.length}</h3>
+              <AttachmentList items={sessionFiles} />
+            </section>
+          )}
           {asked.map((a) => (
             <ActionCard key={a.id} action={a} />
           ))}
@@ -633,6 +653,7 @@ function Message(p: {
         ) : m.content ? (
           <Md text={sm.text} caret={sm.caret} />
         ) : null}
+        {!live && m.attachments?.length ? <AttachmentList items={m.attachments} /> : null}
         {!live && (cs?.reply || m.content) && (
           <div className="msg-tools">
             <CopyButton text={cs ? cs.reply : m.content} what={cs ? 'draf balasan' : 'jawaban'} />

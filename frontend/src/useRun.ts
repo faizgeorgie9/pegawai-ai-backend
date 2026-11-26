@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api, asStr, errText, subscribe, toClarify } from './bff'
-import type { Clarify, RunCtx, ToolChip } from './bff'
+import { api, asStr, errText, subscribe, toAttachments, toClarify } from './bff'
+import type { Attachment, Clarify, RunCtx, ToolChip } from './bff'
 import { applyTool, settle, toolsFrom } from './steps'
 import { toRunResult } from './results'
 import type { RunResult } from './results'
@@ -16,6 +16,7 @@ export interface RunEnd {
   runId: string
   sid: string
   result: RunResult // structured CS result, validation and context_refs from the `done` frame (empty without a workflow)
+  attachments: Attachment[] // non-text results of this run, from the `done` frame; [] when the run did not finish
 }
 const NONE: RunResult = { structured: null, validation: null, refs: [] }
 
@@ -60,7 +61,7 @@ export function useRun(botId = '') {
       setTools([])
       setClarify(undefined)
       setStartedAt(Date.now())
-      const fail = (e: string): RunEnd => ({ status: 'error', text: '', error: e, runId: runRef.current, sid: opt.sid ?? '', result: NONE })
+      const fail = (e: string): RunEnd => ({ status: 'error', text: '', error: e, runId: runRef.current, sid: opt.sid ?? '', result: NONE, attachments: [] })
       return new Promise<RunEnd>((resolve) => {
         const end = (r: RunEnd) => {
           if (mine !== ticket.current) return resolve({ ...r, status: 'idle' }) // superseded: caller must ignore
@@ -107,7 +108,7 @@ export function useRun(botId = '') {
                 const out = asStr(d.output) || acc
                 const stopped = /stop|cancel|interrupt/.test(st)
                 const failed = /fail|error/.test(st)
-                end({ status: stopped ? 'stopped' : failed ? 'error' : 'done', text: out, error: failed ? asStr(d.error) || 'Agen belum berhasil menyelesaikan tugas ini.' : '', runId: r.run.id, sid, result: toRunResult(d) })
+                end({ status: stopped ? 'stopped' : failed ? 'error' : 'done', text: out, error: failed ? asStr(d.error) || 'Agen belum berhasil menyelesaikan tugas ini.' : '', runId: r.run.id, sid, result: toRunResult(d), attachments: toAttachments(d.attachments) })
               },
             })
           },

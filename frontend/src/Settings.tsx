@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { api, errText } from './bff'
 import type { Money, MonthUsage, Security as SecurityData } from './bff'
@@ -10,11 +10,13 @@ import { ErrorLine, nf } from './ui'
 import { CostMeter, Loading, PageHead, Perkiraan, useLoad } from './ui-extra'
 import { cachedRead, onLinkIntent } from './session-cache'
 import { Switch } from './ws-common'
+import { AiAccounts } from './ai-accounts'
 
 // #/pengaturan/<bagian>. Left: the sections (a scrolling row on small screens). Right: the section, one sentence per option.
 const SECTIONS = [
   { id: 'umum', label: 'Umum' },
   { id: 'notifikasi', label: 'Notifikasi' },
+  { id: 'akun-ai', label: 'Akun AI' },
   { id: 'keamanan', label: 'Keamanan' },
   { id: 'paket', label: 'Paket dan biaya' },
   { id: 'data', label: 'Data' },
@@ -24,11 +26,20 @@ const ZONES: [string, string][] = [['Asia/Jakarta', 'WIB (Asia/Jakarta)'], ['Asi
 
 export default function Settings({ section }: { section?: string }) {
   const cur = SECTIONS.find((s) => s.id === section)?.id ?? 'umum'
+  const nav = useRef<HTMLElement>(null)
+  // On a phone the tab row scrolls sideways; keep the open section's tab out from under the edge fade.
+  useEffect(() => {
+    const box = nav.current
+    const a = box?.querySelector<HTMLElement>('[aria-current="page"]')
+    if (!box || !a || box.scrollWidth <= box.clientWidth) return
+    const r = a.getBoundingClientRect(), b = box.getBoundingClientRect()
+    box.scrollLeft += r.left - b.left - (b.width - r.width) / 2
+  }, [cur])
   return (
     <section className="page set-page">
       <PageHead title="Pengaturan" sub="Atur ruang kerja Anda." />
       <div className="set-layout">
-        <nav className="set-nav" aria-label="Bagian pengaturan">
+        <nav ref={nav} className="set-nav" aria-label="Bagian pengaturan">
           {SECTIONS.map((s) => (
             <a key={s.id} href={`#/pengaturan/${s.id}`} aria-current={s.id === cur ? 'page' : undefined} aria-label={s.label}>
               {s.id === 'paket' ? (
@@ -44,6 +55,7 @@ export default function Settings({ section }: { section?: string }) {
         <div className="set-body">
           {cur === 'umum' && <General />}
           {cur === 'notifikasi' && <Notifications />}
+          {cur === 'akun-ai' && <AiAccounts />}
           {cur === 'keamanan' && <Security />}
           {cur === 'paket' && <Plan />}
           {cur === 'data' && <DataSection />}

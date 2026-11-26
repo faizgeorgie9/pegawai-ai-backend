@@ -58,6 +58,8 @@ function sessionToken(): string {
 
 // Downloads keep the token out of the URL (a link would leak it into history and proxy logs).
 async function blobFetch(path: string, notFound: string): Promise<Blob> {
+  // Dev only: sample files live in memory (src/mock-assets.ts), never in the repository.
+  if (import.meta.env.VITE_MOCK_API === '1' && path.startsWith('/artifacts/mock-')) return (await import('./mock-api')).mockBlob(path)
   const token = sessionToken()
   let res: Response
   try {
@@ -66,11 +68,22 @@ async function blobFetch(path: string, notFound: string): Promise<Blob> {
     throw new ApiError('Server belum terjangkau. Pastikan BFF menyala, lalu coba lagi.')
   }
   if (res.status === 401) endSession(token)
-  if (!res.ok) throw new ApiError(res.status === 404 ? notFound : fallbackMessage(res.status), res.status)
+  // 403 on a file that exists but belongs to someone else reads the same as gone: never confirm that another user owns it.
+  if (!res.ok) throw new ApiError(res.status === 404 || res.status === 403 ? notFound : fallbackMessage(res.status), res.status)
   return res.blob()
 }
 
+// Dev only: `npm run dev:mock` answers the endpoints the BFF does not have yet and decorates real replies.
+// Production builds fold the condition to false at compile time, so the import (and mock-api.ts) is dropped.
 async function call<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  if (import.meta.env.VITE_MOCK_API === '1') {
+    const { mockIntercept } = await import('./mock-api')
+    return mockIntercept<T>(method, path, body, () => realCall<T>(method, path, body, signal))
+  }
+  return realCall<T>(method, path, body, signal)
+}
+
+async function realCall<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const token = sessionToken()
   let res: Response
   try {
@@ -173,7 +186,13 @@ export interface Settings {
 }
 export interface ModelCatalog {
   default: { model: string | null; provider: string | null; reasoning_effort?: string | null }
-  providers: { slug: string; name: string; models: string[] }[]
+  providers: {
+    slug: string
+    name: string
+    models: string[]
+    own?: boolean // true when the provider comes from the user's own key (contract gap G7)
+    models_info?: { id: string; label?: string; tier?: 'hemat' | 'seimbang' | 'teliti' }[]
+  }[]
 }
 export interface Security {
   deny: string[]
@@ -222,7 +241,7 @@ export interface PendingAction {
   created_at: string
   decided_at: string | null
 }
-export type ConnProvider = 'gdrive' | 'gmail'
+export type ConnProvider = 'gdrive' | 'gmail' | 'instagram' | 'canva'
 export interface Connection {
   provider: ConnProvider
   name: string
@@ -230,6 +249,7 @@ export interface Connection {
   reason?: string // broken / needs_scope: friendly sentence for the user
   needs?: 'reconnect' | 'admin' | 'retry' // broken: who can fix it
   account: string | null
+  account_type?: 'BUSINESS' | 'CREATOR' | 'PERSONAL' // Instagram only; the BFF sends account as an object there
   connected_at: string | null
   redirect_uri: string // what the administrator registers at the provider
   setup: { env: string; label: string; filled: boolean }[] // which admin values are filled (never the values)
@@ -432,6 +452,7 @@ export interface TaskDetail extends TaskCard {
   events: TaskEvent[]
   runs: { id: string; status: string; at: number; cost: Money | null }[]
   children: TaskCard[]
+  attachments: Attachment[] // [] when the BFF does not send them yet (contract gap G3)
 }
 export interface TaskBoard {
   columns: { id: TaskColumnId; label: string; hint: string; total: number; cards: TaskCard[] }[]
@@ -562,6 +583,7 @@ export interface Session {
   messageCount: number
   lastActive: number // epoch seconds
   model: string
+  source: 'web' | 'telegram' // 'telegram' when the conversation came from the agent's Telegram bot
 }
 // Ingatan: one remembered entry. `id` is stable for the exact text, so a changed entry rejects the delete.
 export interface MemoryItem {
@@ -610,6 +632,7 @@ export interface ChatMessage {
   notes?: string[]
   kb?: KbItem[] // Knowledge Base items saved from this message's links (result), shown under the bubble
   kbBusy?: boolean // the message asks to save a link and the BFF is still reading it
+  attachments?: Attachment[] // non-text results of this run (R1)
 }
 export interface ActivityRow {
   id: string
@@ -623,6 +646,113 @@ export interface ActivityRow {
   link: string // hash route or ''
   where: string
 }
+
+// ---- R1 Hasil non-teks ----
+export interface Attachment {
+  id: string
+  name: string
+  mime: string
+  bytes: number
+  width?: number
+  height?: number
+  duration_ms?: number
+  url: string // "/api/artifacts/{id}" (contract); screens never use it directly, they go through api.artifactBlob(id)
+  thumb_url?: string // same: the thumbnail is read through api.artifactBlob(id, true)
+}
+
+// ---- R5 Cara kerja khusus ----
+export type SkillScan = 'safe' | 'caution' | 'dangerous'
+export interface SkillFile {
+  name: string // ^[a-z0-9]+(-[a-z0-9]+)*$, the same as the folder name
+  description: string
+  category: string // default "khusus"
+  bytes: number
+  updated_at: number // epoch seconds
+  scan: SkillScan
+  enabled: boolean
+  source: 'user' | 'template'
+}
+export interface SkillFileList {
+  items: SkillFile[]
+  can_edit: boolean | null // null = the BFF does not say yet (contract gap G6): the screen uses useIsAdmin()
+}
+export interface SkillFileDetail {
+  name: string
+  category: string
+  content: string
+  scan: SkillScan
+  scan_note: string // the reason for "caution" in plain words; '' when the BFF does not send it (gap G6)
+  versions: { id: string; created_at: number }[]
+}
+
+// ---- R4 Akun AI ----
+export const AI_KEY_PROVIDERS = ['anthropic', 'openai', 'gemini', 'opencode-zen', 'opencode-go'] as const
+export type AiProviderId = 'openrouter' | (typeof AI_KEY_PROVIDERS)[number]
+export interface AiProvider {
+  id: AiProviderId
+  connected: boolean
+  last4?: string
+  status?: 'ok' | 'invalid'
+  method: 'oauth' | 'api_key'
+  checked_at?: number // epoch seconds, when the BFF sends it
+}
+export interface AiUnavailable {
+  id: string // claude-subscription | chatgpt-subscription | copilot
+  reason: string // an honest sentence from the BFF
+}
+export interface AiAccounts {
+  providers: AiProvider[]
+  unavailable: AiUnavailable[]
+}
+
+// ---- R3 Telegram ----
+export type TelegramState = 'none' | 'pending' | 'connected' | 'error'
+export interface TelegramPerson {
+  id: string // the Telegram ID (digits) as a string
+  name: string
+  owner?: boolean // gap G8: without it the first person in the list is the owner
+}
+export interface TelegramPairing {
+  pairing_id: string
+  link: string // https://t.me/newbot/pegawai_ai_bot/<username>?name=<name>
+  qr_text: string // the text encoded in the QR (the same as link)
+  expires_at: number // epoch seconds
+}
+export interface TelegramInfo {
+  status: TelegramState
+  username?: string // without "@"
+  allowed: TelegramPerson[]
+  pending: TelegramPerson[] // people asking for access (gap G8); [] when the BFF does not send it
+  error?: string
+  pairing?: TelegramPairing // only when the BFF resends the link while pending (gap G8)
+}
+
+// ---- R2 Instagram + Canva ----
+export type SocialStatus = 'draft' | 'awaiting_approval' | 'publishing' | 'published' | 'failed'
+export interface SocialPost {
+  id: string
+  platform: 'instagram'
+  caption: string
+  attachment_ids: string[]
+  status: SocialStatus
+  remote_id?: string
+  permalink?: string
+  error?: string
+  created_at: number
+  published_at: number // 0 when not published yet
+}
+// The content of PendingAction.payload for kind === "social_publish_post" (proposed shape, gap G9)
+export interface SocialActionPayload {
+  platform: 'instagram'
+  kind: 'image' | 'carousel' | 'reel'
+  caption: string
+  attachment_ids: string[]
+  attachments?: Attachment[] // preview; when absent the screen fetches the files and reads their kind
+  draft_id: string
+  account?: string // "@username"
+  permalink?: string
+}
+export const isSocialAction = (a: PendingAction) => a.kind === 'social_publish_post'
 
 export interface EvalScore {
   score: number | null
@@ -837,6 +967,7 @@ const toTaskDetail = (r: Raw): TaskDetail => ({
   events: list(r.events).map((e) => ({ kind: asStr(e.kind), at: epoch(e.created_at), from: asStr(e.payload?.from), to: asStr(e.payload?.to) })),
   runs: list(r.runs).map((x) => ({ id: asStr(x.id), status: asStr(x.status), at: epoch(x.at), cost: x.cost ? toMoney(x.cost) : null })),
   children: list(r.children).map(toTaskCard),
+  attachments: toAttachments(r.attachments),
 })
 const toTaskBoard = (r: Raw): TaskBoard => ({
   columns: list(r.columns).map((c) => ({ id: TCOL.find((x) => x === c.id) ?? 'done', label: asStr(c.label), hint: asStr(c.hint), total: asNum(c.total), cards: list(c.cards).map(toTaskCard) })),
@@ -880,7 +1011,97 @@ const toSession = (s: Raw): Session => ({
   messageCount: asNum(s.message_count ?? s.messageCount),
   lastActive: epoch(s.last_active ?? s.started_at ?? s.updated_at),
   model: asStr(s.model),
+  source: s.source === 'telegram' ? 'telegram' : 'web',
 })
+
+export const toAttachment = (r: Raw): Attachment | null => {
+  const id = asStr(r.id)
+  if (!id) return null
+  const a: Attachment = { id, name: asStr(r.name, 'berkas'), mime: asStr(r.mime).toLowerCase(), bytes: asNum(r.bytes), url: asStr(r.url, `/api/artifacts/${id}`) }
+  if (r.width != null) a.width = asNum(r.width)
+  if (r.height != null) a.height = asNum(r.height)
+  if (r.duration_ms != null) a.duration_ms = asNum(r.duration_ms)
+  if (r.thumb_url) a.thumb_url = asStr(r.thumb_url)
+  return a
+}
+export const toAttachments = (x: unknown): Attachment[] => list(x).map(toAttachment).filter((a): a is Attachment => a !== null)
+
+const SCANS: SkillScan[] = ['safe', 'caution', 'dangerous']
+// An unknown scan reads as "caution": never show "safe" unless the BFF says so.
+const toSkillFile = (r: Raw): SkillFile => ({
+  name: asStr(r.name),
+  description: asStr(r.description),
+  category: asStr(r.category, 'khusus'),
+  bytes: asNum(r.bytes),
+  updated_at: epoch(r.updated_at),
+  scan: SCANS.find((s) => s === r.scan) ?? 'caution',
+  enabled: r.enabled === true,
+  source: r.source === 'template' ? 'template' : 'user',
+})
+const toSkillFileDetail = (r: Raw): SkillFileDetail => ({
+  name: asStr(r.name),
+  category: asStr(r.category, 'khusus'),
+  content: asStr(r.content),
+  scan: SCANS.find((s) => s === r.scan) ?? 'caution',
+  scan_note: asStr(r.scan_note ?? r.scan_reason),
+  versions: list(r.versions).map((v) => ({ id: asStr(v.id), created_at: epoch(v.created_at) })),
+})
+
+const AI_IDS: string[] = ['openrouter', ...AI_KEY_PROVIDERS]
+const toAiAccounts = (r: Raw): AiAccounts => {
+  const rows = list(r.providers)
+  return {
+    providers: rows
+      .filter((p) => AI_IDS.includes(asStr(p.id)) && p.available !== false)
+      .map((p) => ({
+        id: asStr(p.id) as AiProviderId,
+        connected: p.connected === true,
+        last4: p.last4 ? asStr(p.last4) : undefined,
+        status: p.status === 'invalid' ? 'invalid' : p.status === 'ok' ? 'ok' : undefined,
+        method: p.method === 'oauth' ? 'oauth' : 'api_key',
+        checked_at: p.checked_at ? epoch(p.checked_at) : undefined,
+      })),
+    unavailable: rows.filter((p) => p.available === false).map((p) => ({ id: asStr(p.id), reason: asStr(p.reason) })),
+  }
+}
+
+const toPerson = (p: Raw): TelegramPerson => ({ id: asStr(p.id), name: asStr(p.name, 'Tanpa nama'), owner: p.owner === true ? true : undefined })
+const toPairing = (r: Raw): TelegramPairing => ({ pairing_id: asStr(r.pairing_id), link: asStr(r.link), qr_text: asStr(r.qr_text ?? r.link), expires_at: epoch(r.expires_at) })
+const TG: TelegramState[] = ['none', 'pending', 'connected', 'error']
+const toTelegram = (r: Raw): TelegramInfo => ({
+  status: TG.find((s) => s === r.status) ?? 'none',
+  username: r.username ? asStr(r.username).replace(/^@/, '') : undefined,
+  allowed: list(r.allowed).map(toPerson),
+  pending: list(r.pending).map(toPerson),
+  error: r.error ? asStr(r.error) : undefined,
+  pairing: r.pairing && typeof r.pairing === 'object' ? toPairing(r.pairing as Raw) : undefined,
+})
+
+const toSocialPost = (r: Raw): SocialPost => ({
+  id: asStr(r.id),
+  platform: 'instagram',
+  caption: asStr(r.caption),
+  attachment_ids: Array.isArray(r.attachment_ids) ? r.attachment_ids.map((x: unknown) => asStr(x)) : [],
+  status: (['draft', 'awaiting_approval', 'publishing', 'published', 'failed'] as const).find((s) => s === r.status) ?? 'draft',
+  remote_id: r.remote_id ? asStr(r.remote_id) : undefined,
+  permalink: r.permalink ? asStr(r.permalink) : undefined,
+  error: r.error ? asStr(r.error) : undefined,
+  created_at: epoch(r.created_at),
+  published_at: epoch(r.published_at),
+})
+
+// Contract: an instagram item carries account:{username,type}. Other items keep a string. Missing fields get safe values.
+const toConnection = (r: Raw): Connection => {
+  const acc = r.account && typeof r.account === 'object' ? (r.account as Raw) : null
+  return {
+    ...(r as unknown as Connection),
+    account: acc ? (acc.username ? `@${asStr(acc.username).replace(/^@/, '')}` : null) : r.account ? asStr(r.account) : null,
+    account_type: acc && ['BUSINESS', 'CREATOR', 'PERSONAL'].includes(asStr(acc.type)) ? (asStr(acc.type) as Connection['account_type']) : undefined,
+    redirect_uri: asStr(r.redirect_uri),
+    setup: Array.isArray(r.setup) ? (r.setup as Connection['setup']) : [],
+    connected_at: r.connected_at ? asStr(r.connected_at) : null,
+  }
+}
 const toMemoryItem = (x: Raw): MemoryItem => ({ id: asStr(x.id), text: asStr(x.text) })
 const toMemory = (r: Raw): MemoryInfo => {
   const limit = (r.limit && typeof r.limit === 'object' ? r.limit : {}) as Raw
@@ -932,6 +1153,8 @@ function foldMessages(rows: Raw[]): ChatMessage[] {
         const why = asStr(m.reasoning_content || m.reasoning).trim()
         if (why) turn.reasoning += (turn.reasoning ? '\n\n' : '') + why
       }
+      // Contract gap G1: assistant rows may carry the run's files. Only replace when this row has some.
+      if (Array.isArray(m.attachments) && m.attachments.length) turn.attachments = toAttachments(m.attachments)
     } // session_meta and anything else: hidden
   }
   return out
@@ -971,7 +1194,7 @@ export const api = {
     call<{ data: CatalogProduct[]; count: number }>('GET', `/products/search?q=${encodeURIComponent(q)}&limit=20`, undefined, signal),
   settings: () => call<Settings>('GET', '/settings'),
   saveSettings: (p: Partial<Settings>) => call<Settings>('PATCH', '/settings', p),
-  models: () => call<ModelCatalog>('GET', '/models'),
+  models: (bot?: string) => call<ModelCatalog>('GET', `/models${q({ bot })}`), // bot: optional (gap G7)
   security: () => call<Security>('GET', '/settings/security'),
   knowledge: () => call<KnowledgeInfo>('GET', '/settings/knowledge'),
   kbItems: () => call<KbItem[]>('GET', '/kb/items'),
@@ -989,7 +1212,7 @@ export const api = {
   actions: (pendingOnly = false) => call<PendingAction[]>('GET', `/actions${pendingOnly ? '?status=pending' : ''}`),
   approveAction: (id: string) => call<PendingAction>('POST', `/actions/${enc(id)}/approve`),
   rejectAction: (id: string) => call<PendingAction>('POST', `/actions/${enc(id)}/reject`),
-  connections: (fresh = false) => call<Connection[]>('GET', `/connections${fresh ? '?fresh=1' : ''}`),
+  connections: async (fresh = false) => list(await call('GET', `/connections${fresh ? '?fresh=1' : ''}`)).map(toConnection),
   connectStart: (p: ConnProvider) => call<{ url: string }>('POST', `/connections/${p}/start`),
   disconnect: (p: ConnProvider) => call<void>('DELETE', `/connections/${p}`),
   // Aplikasi: Hermes connector catalog and per-agent skills
@@ -1083,6 +1306,7 @@ export const api = {
       tokens: asNum(x.total_tokens),
       seconds: t0 && t1 ? Math.max(0, t1 - t0) : null,
       meta: (x.meta && typeof x.meta === 'object' ? x.meta : {}) as Partial<RunMeta>,
+      attachments: toAttachments(x.attachments),
     }
   },
   startSequence: async (botId: string, turns: string[], caseId: string, ctx?: RunCtx) =>
@@ -1131,6 +1355,37 @@ export const api = {
     return { ...u, turns: u.turns.map((t) => ({ ...t, created_at: epoch(t.created_at) })) }
   },
   usageMonth: () => call<MonthUsage>('GET', '/usage'),
+  // R1
+  artifacts: async (f: { bot_id?: string; session_id?: string; limit?: number }) =>
+    toAttachments(await call('GET', `/artifacts${q({ limit: 50, ...f })}`)), // session_id: proposed (gap G1)
+  artifactBlob: (id: string, thumb = false): Promise<Blob> =>
+    blobFetch(`/artifacts/${enc(id)}${thumb ? '?thumb=1' : ''}`, 'Berkas ini sudah tidak tersedia.'), // ?thumb=1: proposed; on 404 the card uses the original file
+  artifactLink: (id: string) => call<{ url: string; expires_at: string }>('POST', `/artifacts/${enc(id)}/link`), // proposed (gap G2): signed URL, 5 minutes, for <video>/<audio>
+  // R5
+  skillFiles: async (slug: string): Promise<SkillFileList> => {
+    const r = await call<Raw>('GET', `/agents/${enc(slug)}/skill-files`)
+    return { items: list(r).map(toSkillFile), can_edit: typeof r.can_edit === 'boolean' ? r.can_edit : null }
+  },
+  skillFile: async (slug: string, name: string) => toSkillFileDetail(await call<Raw>('GET', `/agents/${enc(slug)}/skill-files/${enc(name)}`)),
+  createSkillFile: async (slug: string, b: { category?: string; content: string }) => toSkillFile(await call<Raw>('POST', `/agents/${enc(slug)}/skill-files`, b)),
+  saveSkillFile: async (slug: string, name: string, content: string) => toSkillFile(await call<Raw>('PUT', `/agents/${enc(slug)}/skill-files/${enc(name)}`, { content })),
+  setSkillFileEnabled: (slug: string, name: string, enabled: boolean) => call<void>('PUT', `/agents/${enc(slug)}/skill-files/${enc(name)}/enabled`, { enabled }),
+  deleteSkillFile: (slug: string, name: string) => call<void>('DELETE', `/agents/${enc(slug)}/skill-files/${enc(name)}`),
+  restoreSkillFile: (slug: string, name: string, version_id: string) => call<void>('POST', `/agents/${enc(slug)}/skill-files/${enc(name)}/restore`, { version_id }),
+  // R4
+  aiAccounts: async (): Promise<AiAccounts> => toAiAccounts(await call<Raw>('GET', '/ai-accounts')),
+  saveAiKey: (p: AiProviderId, api_key: string) => call<{ status: 'ok'; last4: string }>('POST', `/ai-accounts/${enc(p)}`, { api_key }),
+  testAiAccount: (p: AiProviderId) => call<{ status: 'ok' | 'invalid' }>('POST', `/ai-accounts/${enc(p)}/test`),
+  removeAiAccount: (p: AiProviderId) => call<void>('DELETE', `/ai-accounts/${enc(p)}`),
+  openrouterStart: () => call<{ url: string }>('GET', '/ai-accounts/openrouter/start'),
+  // R3
+  telegram: async (slug: string): Promise<TelegramInfo> => toTelegram(await call<Raw>('GET', `/agents/${enc(slug)}/telegram`)),
+  telegramStart: async (slug: string): Promise<TelegramPairing> => toPairing(await call<Raw>('POST', `/agents/${enc(slug)}/telegram/start`)),
+  telegramToken: (slug: string, token: string) => call<unknown>('POST', `/agents/${enc(slug)}/telegram/token`, { token }),
+  telegramAllowed: (slug: string, user_ids: string[]) => call<unknown>('PUT', `/agents/${enc(slug)}/telegram/allowed`, { user_ids: user_ids.map(Number) }),
+  telegramDisconnect: (slug: string) => call<void>('DELETE', `/agents/${enc(slug)}/telegram`),
+  // R2 (connectStart / disconnect / connections already exist and now accept 'instagram' | 'canva')
+  socialPosts: async (f: { platform?: 'instagram'; limit?: number } = {}) => list(await call('GET', `/social/posts${q({ limit: 20, ...f })}`)).map(toSocialPost), // proposed (gap G9)
   usageBots: (period: 'month' | 'all') => call<BotUsage[]>('GET', `/usage/bots${q({ period })}`),
   thinking: async (s: Scope): Promise<Thought[]> =>
     list(await call('GET', `/thinking${q({ ...s })}`)).map((r) => ({
@@ -1163,6 +1418,18 @@ export const api = {
 // "Menyambung ulang…". Returns a function that closes it for good.
 export type SseState = 'open' | 'retry'
 export function subscribe(path: string, on: Record<string, (data: Raw) => void>, onState?: (s: SseState) => void): () => void {
+  // Dev only: /demo runs stream from memory; the prefix check is synchronous, the import is not.
+  if (import.meta.env.VITE_MOCK_API === '1' && path.startsWith('/runs/mock-')) {
+    let off = () => {}
+    let dead = false
+    void import('./mock-api').then((m) => {
+      if (!dead) off = m.mockSubscribe(path, on, onState)
+    })
+    return () => {
+      dead = true
+      off()
+    }
+  }
   let closed = false
   let timer = 0
   let ctrl: AbortController | null = null

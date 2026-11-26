@@ -1,0 +1,129 @@
+/* Instagram + Canva UI (R2). Tokens only: no new colours, fonts, radii or shadows. */
+
+/* ---- post approval card (chat, Beranda, Grup) ---- */
+.post-approval .post-prev {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--s-3);
+  max-width: 360px;
+  min-width: 0;
+}
+.post-prev-head { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.post-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.post-who { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+.post-who b { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.post-who small { font-size: 12px; line-height: 1.35; }
+
+.post-img { display: block; width: 100%; margin-top: var(--s-2); object-fit: cover; border-radius: var(--radius-control); background: var(--raised); }
+.post-media-skel {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  margin-top: var(--s-2);
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: var(--raised);
+}
+.post-media-skel .skel { position: absolute; inset: 0; border-radius: 0; }
+.post-media-none { margin: var(--s-2) 0 0; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+
+/* Carousel: the only horizontal scroll inside the page (spec allows this strip). */
+.post-strip {
+  display: flex;
+  gap: var(--s-2);
+  margin: var(--s-2) 0 0;
+  padding: 0 0 var(--s-1);
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+}
+.post-strip li { flex: none; width: 140px; height: 140px; scroll-snap-align: start; }
+.post-strip img, .post-strip .post-media-skel { width: 100%; height: 100%; margin: 0; object-fit: cover; border-radius: var(--radius-control); }
+.post-strip-note { display: block; margin-top: 2px; font-size: 12px; }
+.post-files { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-2); }
+.post-files .att-card, .post-files .att-list { max-width: 100%; }
+
+.post-video { display: block; width: 100%; margin-top: var(--s-2); border-radius: var(--radius-control); background: var(--ground); }
+.post-reel { display: block; width: auto; max-width: 100%; max-height: 360px; margin: var(--s-2) auto 0; aspect-ratio: 9 / 16; border-radius: var(--radius-control); background: var(--ground); }
+
+.post-cap {
+  margin: var(--s-2) 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.post-fold { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.post-more { align-self: flex-start; margin-top: 2px; }
+.post-count { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+.post-count.err, .post-limit.err { color: var(--bad-ink); }
+.post-limit { margin: 2px 0 0; font-size: 13px; }
+
+.post-edit { display: flex; flex-direction: column; gap: var(--s-2); }
+.post-edit .field textarea { width: 100%; }
+.post-approval .approval-actions .btn { height: 36px; }
+
+/* The catalog mini cards pin every <p> to row 2; a second note needs its own row or the two overlap. */
+.app-mini > .app-platform-note { grid-row: auto; }
+
+/* ---- Instagram personal-account guide (inside the app card) ---- */
+.ig-guide { display: flex; flex-direction: column; gap: var(--s-2); }
+.ig-guide > b { font-weight: 600; }
+.ig-guide ol { margin: 0; padding-left: 20px; font-size: 14px; list-style: revert; }
+.ig-guide li + li { margin-top: var(--s-1); }
+.ig-guide li { overflow-wrap: anywhere; }
+.ig-guide p { margin: 0; }
+.ig-guide .btn.link { align-self: flex-start; }
+.ig-guide:focus { outline: none; }
+.ig-guide:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- post list inside the connected Instagram card ---- */
+.app-row[data-app="instagram"] > .app-card-act, .app-row[data-app="canva"] > .app-card-act { align-self: start; }
+.app-row > .app-ig-toggle, .app-mini > .app-ig-toggle { grid-column: 1 / -1; justify-self: start; margin-top: var(--s-1); }
+.social-posts { grid-column: 1 / -1; min-width: 0; padding: var(--s-3) 0 0; border-top: 1px solid var(--rule); }
+.social-posts h3 { margin: 0 0 var(--s-1); font-size: 14px; font-weight: 600; }
+.sp-list { list-style: none; margin: 0; padding: 0; }
+.sp-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+}
+.sp-row + .sp-row { border-top: 1px solid var(--rule); }
+.sp-thumb { display: block; flex: none; width: 48px; height: 48px; object-fit: cover; border-radius: 6px; background: var(--raised); }
+.sp-thumb-empty { background: var(--raised); }
+.sp-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sp-cap { margin: 0; font-size: 14px; }
+.sp-main .err { color: var(--bad-ink); }
+.sp-status { display: flex; flex-direction: column; align-items: flex-end; gap: var(--s-1); min-width: 0; }
+
+@media (max-width: 640px) {
+  .post-prev { max-width: none; }
+  .post-approval .approval-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-2); }
+  .post-approval .approval-actions > .btn:first-child { grid-column: 1 / -1; height: 44px; }
+  .post-approval .approval-actions .btn { min-height: 40px; }
+  .post-more, .sp-status .btn.link, .app-row .app-ig-toggle { min-height: 40px; }
+  .post-edit .approval-actions { display: flex; flex-direction: column; }
+  .post-edit .approval-actions > .btn { width: 100%; }
+  .post-edit .btn, .ig-guide .btn.link { min-height: 40px; }
+  /* The status moves under the caption so a long pill never widens the phone page. */
+  .sp-row { grid-template-columns: 48px minmax(0, 1fr); align-items: start; }
+  .sp-status { grid-column: 2; align-items: flex-start; }
+}

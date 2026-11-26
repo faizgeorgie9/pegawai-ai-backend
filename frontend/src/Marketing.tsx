@@ -3,7 +3,8 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useAdminMode } from './adminMode'
 import { useData } from './data'
-import type { Bot } from './bff'
+import type { Attachment, Bot } from './bff'
+import { AttachmentList } from './attachments'
 import ProductPicker from './ProductPicker'
 import { AnswerDetails, MarketingCard, Provenance } from './ResultCards'
 import { instructionsFor, parseMarketing, stripBlock } from './results'
@@ -74,6 +75,7 @@ interface Output {
   refs: ContextRef[]
   runId: string
   at: Date
+  attachments: Attachment[] // files the agent produced in this run (images, video, documents)
 }
 
 const blankForm = {
@@ -128,21 +130,20 @@ const FIELD_LABELS: Partial<Record<keyof Form, string>> = {
   cta: 'Ajakan bertindak',
 }
 
-// Real design output only: markdown images the agent wrote (stage 3 in the UI). Never a hard-coded sample path.
-const MD_IMAGE = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g
-function imagesFrom(outs: Output[]): { src: string; alt: string }[] {
+// Real files the agents produced (stage 3 in the UI). The model's markdown images are no longer scraped: only a
+// file the run actually returned is shown. A rerun may repeat a file, so one entry per id; newest run first.
+function attachmentsOf(outs: Output[], stage: number): Attachment[] {
   const seen = new Set<string>()
-  const list: { src: string; alt: string }[] = []
-  for (const o of outs) {
-    if (o.stage !== 2) continue
-    for (const m of o.text.matchAll(MD_IMAGE)) {
-      const src = m[2]
-      if (seen.has(src) || !/^(https?:\/\/|\/)/i.test(src)) continue
-      seen.add(src)
-      list.push({ src, alt: m[1] || `Gambar ${list.length + 1}` })
+  const list: Attachment[] = []
+  for (const o of [...outs].reverse()) {
+    if (o.stage !== stage) continue
+    for (const a of o.attachments) {
+      if (seen.has(a.id)) continue
+      seen.add(a.id)
+      list.push(a)
     }
   }
-  return list.slice(0, 5)
+  return list
 }
 
 function validate(f: Form): Partial<Record<keyof Form, string>> {
@@ -293,6 +294,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
       refs: r.result.refs,
       runId: r.runId,
       at: new Date(),
+      attachments: r.attachments,
     }
     setOuts((cur) => [...cur, o])
     setView(o.id)
@@ -400,7 +402,7 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
   const shown = outs.find((o) => o.id === view && o.stage === stage) ?? inStage[inStage.length - 1]
   const currentAgent = AGENTS[stage]
   const displayName = currentAgent.name.replace(/\s*\([^)]*\)\s*$/, '')
-  const stageImages = imagesFrom(outs)
+  const stageFiles = attachmentsOf(outs, 2)
   const allChecked = Object.values(checklist).every(Boolean)
   const revCount = (o: Output) => `v${o.n}`
   const meta = (o: Output) => `${o.agentName} · ${revCount(o)} · ${hhmm(o.at)}`
@@ -620,20 +622,11 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                 </button>
               </div>
 
-              {/* Only images the agent actually produced: a sample path used to 404 on every slide. */}
-              {stageImages.length > 0 ? (
+              {/* Only files the run actually returned: a sample path used to 404 on every slide. */}
+              {stageFiles.length > 0 ? (
                 <>
                   <h3 className="mk-h3">Gambar carousel (1080 × 1350 px)</h3>
-                  <div className="carousel-grid">
-                    {stageImages.map((s) => (
-                      <div key={s.src} className="carousel-card">
-                        <PreviewImage src={s.src} alt={s.alt} />
-                        <div className="carousel-card-body">
-                          <b>{s.alt}</b>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <AttachmentList items={stageFiles} />
                 </>
               ) : (
                 <Empty title="Belum ada gambar">Klik tombol di atas untuk membuat desain. Gambar yang dihasilkan muncul di sini.</Empty>
@@ -686,20 +679,11 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
                 </span>
               </div>
 
-              {/* Only real result images, never the old sample campaign's files. */}
+              {/* Only real result files, never the old sample campaign's images. */}
               <div className="ws-block">
                 <b className="small">Pratinjau gambar (4:5)</b>
-                {stageImages.length > 0 ? (
-                  <div className="carousel-grid">
-                    {stageImages.map((s) => (
-                      <div key={s.src} className="carousel-card">
-                        <PreviewImage src={s.src} alt={s.alt} />
-                        <div className="carousel-card-body">
-                          <b>{s.alt}</b>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                {stageFiles.length > 0 ? (
+                  <AttachmentList items={stageFiles} />
                 ) : (
                   <Empty title="Belum ada gambar untuk diperiksa">Jalankan tahap Desain grafis dulu.</Empty>
                 )}
@@ -934,26 +918,15 @@ function Workspace({ leadBot, onDirty }: { leadBot: Bot; onDirty: (v: boolean) =
   )
 }
 
-// A broken image link becomes a plain grey note instead of a broken-image icon or alt text alone.
-function PreviewImage({ src, alt }: { src: string; alt: string }) {
-  const [failed, setFailed] = useState(false)
-  if (failed) return <div className="mk-img-miss">Gambar tidak bisa dimuat</div>
-  return <img src={src} alt={alt} className="carousel-img" onError={() => setFailed(true)} />
-}
-
-function MdImg({ src, alt }: { src?: string; alt?: string }) {
-  const [failed, setFailed] = useState(!src)
-  if (failed || !src) return <span className="mk-img-miss md-img-miss">Gambar tidak bisa dimuat</span>
-  return <img src={src} alt={alt || ''} className="md-img" onError={() => setFailed(true)} />
-}
-
+// The model may write image links in its text, but a file is only shown when the run returned it
+// (same rule as rich.tsx).
 const mdComponents = {
   a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
     <a href={href} target="_blank" rel="noopener noreferrer">
       {children}
     </a>
   ),
-  img: MdImg,
+  img: () => null,
 }
 
 function OutputView({ o, meta }: { o: Output; meta: string }) {
@@ -961,6 +934,7 @@ function OutputView({ o, meta }: { o: Output; meta: string }) {
     return (
       <>
         <MarketingCard r={o.parsed.result} origin="agent" meta={meta} />
+        <AttachmentList items={o.attachments} />
         <AnswerDetails text={o.parsed.text} />
         <Provenance refs={o.refs} workflow="marketing" />
       </>
@@ -968,22 +942,25 @@ function OutputView({ o, meta }: { o: Output; meta: string }) {
   }
 
   return (
-    <article className="rcard plain-answer">
-      <header>
-        <b>{o.agentName}</b>
-        <span className="pill">{STAGE_LABELS[o.stage]}</span>
-      </header>
-      <div className="rbody md">
-        {o.text ? (
-          <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-            {o.text}
-          </Markdown>
-        ) : (
-          <p className="quiet">Jawaban kosong.</p>
-        )}
-      </div>
-      <Provenance refs={o.refs} workflow="marketing" />
-    </article>
+    <>
+      <article className="rcard plain-answer">
+        <header>
+          <b>{o.agentName}</b>
+          <span className="pill">{STAGE_LABELS[o.stage]}</span>
+        </header>
+        <div className="rbody md">
+          {o.text ? (
+            <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+              {o.text}
+            </Markdown>
+          ) : (
+            <p className="quiet">Jawaban kosong.</p>
+          )}
+        </div>
+        <Provenance refs={o.refs} workflow="marketing" />
+      </article>
+      <AttachmentList items={o.attachments} />
+    </>
   )
 }
 

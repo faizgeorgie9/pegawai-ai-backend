@@ -244,7 +244,7 @@ td.st-col { min-width: 170px; }
 @media (max-width: 760px) {
   .set-layout { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
   .set-nav { position: static; flex-direction: row; overflow-x: auto; border-bottom: 1px solid var(--border); gap: 0; padding-right: 24px; -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent); mask-image: linear-gradient(to right, black calc(100% - 24px), transparent); }
-  .set-nav a { white-space: nowrap; border-radius: 0; padding: 12px 12px; margin-bottom: -1px; border-bottom: 2px solid transparent; }
+  .set-nav a { flex: none; white-space: nowrap; border-radius: 0; padding: 12px 12px; margin-bottom: -1px; border-bottom: 2px solid transparent; }
   .set-nav a[aria-current="page"] { background: transparent; border-bottom-color: var(--text); }
   .set-row { flex-direction: column; align-items: stretch; gap: var(--s-2); }
   .set-ctl .field { min-width: 0; }

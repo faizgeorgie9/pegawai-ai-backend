@@ -9,6 +9,7 @@ import { botPath, go, groupPath } from './router'
 import type { Route } from './router'
 import { BotAvatar, CLOSE, DOTS, ErrorLine, I, Icon, PENCIL, PLUS, TRASH, ago, botColor, roleLabel, teamLabel } from './ui'
 import { PageState, statusText } from './ui-extra'
+import './telegram.css'
 
 // Chat and Grup: a left column with the list (agents by team, or groups) and the conversation on the right.
 // Under 900 px the column is the page itself until something is chosen; after that it opens as a sheet from the header.
@@ -447,6 +448,8 @@ function SessionRow(p: { botId: string; botName: string; s: Session; current: bo
   const [name, setName] = useState('')
   const rowRef = useRef<HTMLLIElement>(null)
   const title = titleOf(p.s)
+  const agoText = ago(p.s.lastActive)
+  const fromTelegram = p.s.source === 'telegram'
   // The history list scrolls: without this, a delete click on a row near the fold looks like nothing happened.
   useEffect(() => {
     if (mode === 'confirm') rowRef.current?.scrollIntoView({ block: 'nearest' })
@@ -500,9 +503,16 @@ function SessionRow(p: { botId: string; botName: string; s: Session; current: bo
   }
   return (
     <li className="sess" aria-current={p.current ? 'true' : undefined}>
-      <a className="sess-main" href={'#' + botPath(p.botId, p.s.id)}>
-        <span className="sess-title">{title}</span>
-        <span className="sess-time">{ago(p.s.lastActive)}</span>
+      <a className="sess-main" href={'#' + botPath(p.botId, p.s.id)} aria-label={fromTelegram ? `${title}, dari Telegram, ${agoText}` : undefined}>
+        {fromTelegram ? (
+          <div className="sess-line">
+            <span className="sess-title">{title}</span>
+            <span className="pill plain sess-src">Telegram</span>
+          </div>
+        ) : (
+          <span className="sess-title">{title}</span>
+        )}
+        <span className="sess-time">{agoText}</span>
       </a>
       <span className="sess-actions">
         <button

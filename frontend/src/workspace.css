@@ -237,7 +237,7 @@ input.tgl:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px;
   .set-body { height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: var(--s-2); scrollbar-gutter: stable; }
 }
 @media (max-width: 640px) {
-  .set-nav { padding-right: 0; -webkit-mask-image: none; mask-image: none; }
+  /* six tabs no longer fit 375px: keep pages.css's fade so the row reads as scrollable */
   .set-nav a { padding: 12px 8px; min-width: 48px; text-align: center; }
   /* the active tab right above the section already names it */
   .set-h { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

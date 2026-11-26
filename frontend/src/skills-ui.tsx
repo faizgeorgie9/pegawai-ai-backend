@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react'
 import { api, errText } from './bff'
 import type { AgentSkills as AgentSkillsData, Skill } from './bff'
-import { useAdminMode } from './adminMode'
+import { useAdminMode, useIsAdmin } from './adminMode'
 import { Dialog, ErrorLine } from './ui'
 import { Loading, toolsetText, useLoad } from './ui-extra'
 import { cachedRead, forgetReads } from './session-cache'
+import { CustomSkills } from './custom-skills'
 
 const clean = (s: string) => s.replace(/^[^\p{L}\p{N}]+/u, '').trim()
 export const skillText = (s: Pick<Skill, 'name' | 'label' | 'description'>) => toolsetText(s.name, clean(s.label), s.description)
@@ -55,14 +56,20 @@ export function SkillSwitches({ slug, skills, onChange }: { slug: string; skills
   )
 }
 
-// Agent detail: this agent's skills as switches.
+// Agent detail: this agent's skills as switches, then the owner's own written instructions.
 export function AgentSkills({ slug }: { slug: string }) {
+  const canEdit = useIsAdmin()
   const fn = useCallback(() => api.agentSkills(slug), [slug])
   const r = useLoad(fn)
   const [local, setLocal] = useState<Skill[] | null>(null)
   if (r.state === 'loading') return <Loading text="Memuat keahlian..." shape="lines" />
   if (r.state === 'error' || !r.data) return <ErrorLine text="Daftar keahlian belum bisa dimuat. Coba lagi sebentar." onRetry={r.retry} />
-  return <SkillSwitches slug={slug} skills={local ?? r.data} onChange={setLocal} />
+  return (
+    <>
+      <SkillSwitches slug={slug} skills={local ?? r.data} onChange={setLocal} />
+      <CustomSkills slug={slug} canEdit={canEdit} />
+    </>
+  )
 }
 
 // Card shapes of the loaded grid; the third line is the "Dipakai" line, so the grid height does not jump.

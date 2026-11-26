@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api, errText } from './bff'
+import { api, errText, isSocialAction } from './bff'
 import type { PendingAction } from './bff'
 import { useData } from './data'
+import { PostApprovalCard } from './social-ui'
 
 // Approval cards for risky agent actions (delete a file, send an email): the agent only asks, the user decides here.
 // One list for the whole app: the BFF announces every change on the global stream, so every card stays current.
@@ -39,7 +40,13 @@ function emailOf(a: PendingAction) {
   }
 }
 
+// A publish request has its own preview and words; every other action keeps the card below.
 export function ActionCard({ action }: { action: PendingAction }) {
+  if (isSocialAction(action)) return <PostApprovalCard action={action} />
+  return <GenericActionCard action={action} />
+}
+
+function GenericActionCard({ action }: { action: PendingAction }) {
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState('')
   const [local, setLocal] = useState<PendingAction | null>(null) // the answer to our own click: final, so it stays

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import {
   siAirtable, siAsana, siBetterstack, siBox, siCalendly, siClickhouse, siClickup, siCloudflare, siCoinbase,
-  siConfluence, siDatadog, siDiscord, siIntercom, siJira, siLinear, siMetabase,
+  siConfluence, siDatadog, siDiscord, siInstagram, siIntercom, siJira, siLinear, siMetabase,
   siMintlify, siNeon, siNotion, siPosthog, siRailway, siResend, siSemrush, siSentry, siShopify, siStripe,
   siSupabase, siTodoist, siTurso, siVercel,
   type SimpleIcon,
@@ -25,6 +25,7 @@ const LOGOS: Record<string, SimpleIcon> = {
   datadog_mcp: siDatadog,
   discordbot: siDiscord,
   intercom_mcp: siIntercom,
+  instagram: siInstagram,
   jira: siJira,
   linear: siLinear,
   metabase: siMetabase,
@@ -44,12 +45,13 @@ const LOGOS: Record<string, SimpleIcon> = {
   vercel_mcp: siVercel,
 }
 
-export const hasLogo = (id: string) => id in LOGOS || id in EXTRA_LOGOS
+export const hasLogo = (id: string) => id in LOGOS || id in EXTRA_LOGOS || id === 'canva'
 
 // Brand colour on a neutral light tile in both themes, so dark brand colours stay visible. Decorative: the name is text next to it.
 export function AppLogo({ id, size = 28, fallback = null }: { id: string; name?: string; size?: number; fallback?: ReactNode }) {
   const icon = LOGOS[id]
-  const extra = icon ? undefined : EXTRA_LOGOS[id]
+  // Our Canva connection reuses the official full-colour mark the old Hermes connector already carried.
+  const extra = icon ? undefined : EXTRA_LOGOS[id] ?? (id === 'canva' ? EXTRA_LOGOS['canva_mcp'] : undefined)
   if (!icon && !extra) return <>{fallback}</>
   const px = Math.round(size * 0.64)
   return (

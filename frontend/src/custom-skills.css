@@ -1,0 +1,87 @@
+/* R5 · Cara kerja khusus inside the Keahlian card. Tokens come from styles.css; no new colours or button variants. */
+
+.cs-sec { border-top: 1px solid var(--rule); margin-top: var(--s-5); padding-top: var(--s-5); }
+.cs-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
+.cs-head h3 { font-size: var(--t-lead); font-weight: 600; }
+.cs-head .btn { flex: none; }
+.cs-intro { margin-top: var(--s-1); }
+.cs-note { margin-top: var(--s-3); font-size: var(--t-small); }
+.cs-limit { margin-top: var(--s-2); font-size: var(--t-small); }
+
+.cs-list { display: flex; flex-direction: column; margin-top: var(--s-3); }
+.cs-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--s-3); align-items: start; padding: var(--s-3) 0; border-bottom: 1px solid var(--rule); }
+.cs-list > .cs-row:last-child { border-bottom: 0; }
+.cs-row[data-new] { border-left: 2px solid var(--st-wait); padding-left: var(--s-3); }
+.cs-sw { margin-top: -8px; }
+.cs-txt { min-width: 0; }
+.cs-title { font-size: var(--t-body); font-weight: 600; overflow-wrap: anywhere; }
+.cs-desc { margin-top: 2px; font-size: var(--t-small); color: var(--muted); }
+.cs-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-2); margin-top: var(--s-1); font-size: var(--t-small); color: var(--muted); overflow-wrap: anywhere; }
+.cs-helpwarn { overflow-wrap: anywhere; }
+.cs-acts { display: flex; align-items: center; gap: var(--s-2); justify-self: end; }
+
+.cs-confirm { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-3); padding: var(--s-2) var(--s-3); font-size: var(--t-small); }
+.cs-confirm p { min-width: min(260px, 100%); }
+.cs-confirm .confirm-actions { flex: none; }
+.cs-row-err { grid-column: 1 / -1; margin-top: calc(-1 * var(--s-1)); color: var(--bad-ink); }
+
+.cs-empty-act { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-3); }
+
+.cs-opts { display: flex; flex-direction: column; gap: var(--s-2); }
+.cs-opt { display: flex; flex-direction: column; gap: 2px; width: 100%; min-height: 56px; padding: 12px 16px; background: transparent; color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-card); text-align: left; cursor: pointer; transition: background-color var(--m-in) var(--ease), border-color var(--m-in) var(--ease); }
+.cs-opt:hover { background: var(--raised); }
+.cs-opt b { font-size: var(--t-body); font-weight: 600; }
+.cs-opt span { font-size: var(--t-small); color: var(--muted); }
+
+.cs-tpls { display: flex; flex-direction: column; gap: var(--s-2); }
+.cs-tpl { align-items: flex-start; min-height: 104px; padding: var(--s-3); border: 1px solid var(--border); border-radius: var(--radius-card); }
+.cs-tpl:hover { background: var(--raised); }
+.cs-tpl:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.cs-tpl input { margin-top: 4px; flex: none; }
+.cs-tpl-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cs-tpl-body b { font-size: var(--t-body); font-weight: 600; }
+.cs-tpl-body small { font-size: var(--t-small); }
+.cs-tpl-prev { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; margin-top: var(--s-1); font-size: var(--t-small); color: var(--muted); white-space: pre-line; }
+
+.cs-cat { max-width: 320px; }
+.cs-field textarea { min-height: 320px; resize: vertical; font-family: "Cascadia Mono", "Cascadia Code", Consolas, "DejaVu Sans Mono", monospace; font-size: 13px; line-height: 1.5; }
+.cs-help-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); }
+.cs-help-row .counter { flex: none; }
+.cs-help-row .counter.err { color: var(--bad-ink); }
+
+.cs-vers { border-top: 1px solid var(--rule); padding-top: var(--s-2); }
+.cs-vers summary { font-size: var(--t-small); color: var(--muted); cursor: pointer; }
+.cs-vers-none { margin-top: var(--s-2); }
+.cs-vers ul { display: flex; flex-direction: column; margin-top: var(--s-2); }
+.cs-vers li { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); padding: var(--s-1) 0; font-size: var(--t-small); border-bottom: 1px solid var(--rule); }
+.cs-vers li:last-child { border-bottom: 0; }
+.cs-vers-confirm { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2); width: 100%; }
+.cs-discard { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2); width: 100%; }
+.cs-editor .dlg-foot { flex-wrap: wrap; }
+.cs-editor .dlg-foot .pline { order: -1; flex: 1 0 100%; margin-bottom: var(--s-2); }
+
+/* The close button must not dismiss a save that is still being checked. */
+.dlg[data-cs-busy] .dlg-head .icon-btn { opacity: .5; pointer-events: none; }
+
+@media (max-width: 640px) {
+  .cs-row { grid-template-columns: auto minmax(0, 1fr); }
+  .cs-sw { margin-top: -10px; }
+  .cs-acts { grid-column: 1 / -1; justify-self: stretch; gap: var(--s-2); }
+  .cs-acts .btn { min-height: 40px; }
+  .cs-confirm { flex-direction: column; align-items: stretch; }
+  .cs-confirm .confirm-actions .btn { min-height: 40px; }
+  .cs-opt { min-height: 56px; }
+  .cs-vers li { flex-wrap: wrap; }
+  .cs-vers-confirm { flex-direction: column; align-items: stretch; }
+  .cs-vers-confirm .confirm-actions .btn { min-height: 40px; }
+  .cs-discard { flex-direction: column; align-items: stretch; }
+  .cs-discard .confirm-actions .btn { min-height: 40px; }
+
+  /* The editor dialog is full screen on a phone; the textarea takes the remaining height. */
+  .dlg .cs-editor { flex: 1; min-height: 0; }
+  .dlg .cs-editor fieldset { flex: 1 1 auto; min-height: 0; }
+  .dlg .cs-editor .cs-field { flex: 1 1 auto; min-height: 0; }
+  .dlg .cs-editor .cs-field textarea { flex: 1 1 auto; min-height: 50svh; resize: none; }
+  .cs-help-row { flex-direction: column; gap: var(--s-1); }
+  .cs-help-row .counter { align-self: flex-end; }
+}

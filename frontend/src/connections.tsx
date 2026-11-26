@@ -10,6 +10,7 @@ import { SkillsSection } from './skills-ui'
 import { Dialog, ErrorLine } from './ui'
 import { CapChip, PageHead, Spinner, useLoad } from './ui-extra'
 import { cachedRead, forgetReads, onLinkIntent } from './session-cache'
+import { InstagramGuide, SocialPostList } from './social-ui'
 
 // Real per-user connections (BFF: bff/connections.py). The state comes from the BFF; nothing here pretends to be connected.
 type AppDef = { name: string; enables: string; where: string }
@@ -24,22 +25,40 @@ const APPS: Record<ConnProvider, AppDef> = {
     enables: 'Pegawai AI bisa membaca email, membuat draf, memberi label, mengarsipkan, dan memindahkan email ke Sampah; mengirim email selalu menunggu persetujuan Anda.',
     where: 'Tombol "Simpan sebagai draf Gmail" di bawah jawaban pegawai.',
   },
+  instagram: {
+    name: 'Instagram',
+    enables: 'Pegawai AI bisa menyiapkan postingan (foto, carousel, atau Reels) dan membaca ringkasan performa akun Instagram Bisnis atau Kreator Anda. Postingan baru terbit setelah Anda menyetujuinya.',
+    where: 'Kartu persetujuan di chat, lalu daftar Posting di kartu ini.',
+  },
+  canva: {
+    name: 'Canva',
+    enables: 'Pegawai AI bisa membuat dan mengubah desain di akun Canva Anda, lalu mengekspornya sebagai gambar atau dokumen. Setiap orang menyambungkan akun Canva miliknya sendiri.',
+    where: 'Hasil desain muncul sebagai kartu Gambar atau Dokumen di chat.',
+  },
 }
 const WHY: Record<string, string> = {
   denied: 'Izin tidak diberikan, jadi akun belum tersambung.',
   state: 'Permintaan sambungan sudah kedaluwarsa atau tidak dikenal. Coba hubungkan lagi.',
   exchange: 'Sambungan tidak diterima. Coba lagi; jika terus gagal, hubungi admin Anda.',
   scope: 'Izin yang diperlukan tidak dicentang. Hubungkan lagi dan centang semua izin yang diminta.',
+  personal: 'Akun Instagram ini masih akun pribadi. Ubah dulu ke akun Bisnis atau Kreator (gratis), lalu hubungkan lagi.',
 }
 
 // The BFF sends the browser back to #/aplikasi?connect=ok|error&app=...&reason=... after the provider's consent page.
-function readResult(): { ok: boolean; text: string } | null {
+function readResult(): { ok: boolean; text: string; app: ConnProvider | null; reason: string } | null {
   const q = new URLSearchParams(location.hash.split('?')[1] ?? '')
   const c = q.get('connect')
   if (c !== 'ok' && c !== 'error') return null
-  const app = APPS[q.get('app') as ConnProvider] as AppDef | undefined
-  if (c === 'ok') return { ok: true, text: `${app?.name ?? 'Aplikasi'} tersambung.` }
-  return { ok: false, text: `${app ? `${app.name} belum tersambung. ` : ''}${WHY[q.get('reason') ?? ''] ?? 'Sambungan gagal. Coba lagi.'}` }
+  const appId = q.get('app') as ConnProvider
+  const app = APPS[appId] as AppDef | undefined
+  const reason = q.get('reason') ?? ''
+  if (c === 'ok') return { ok: true, text: `${app?.name ?? 'Aplikasi'} tersambung.`, app: app ? appId : null, reason }
+  return {
+    ok: false,
+    text: `${app ? `${app.name} belum tersambung. ` : ''}${WHY[reason] ?? 'Sambungan gagal. Coba lagi.'}`,
+    app: app ? appId : null,
+    reason,
+  }
 }
 
 // Old links (#/tools?connect=..., from before the Aplikasi page existed) are forwarded with their query.
@@ -139,14 +158,18 @@ function Initial({ name }: { name: string }) {
   )
 }
 
-const OAUTH_CAT: Record<ConnProvider, string> = { gdrive: 'docs', gmail: 'comms' }
-const OAUTH_NAME: Record<ConnProvider, string> = { gdrive: 'Google Drive', gmail: 'Gmail' }
+const OAUTH_CAT: Record<ConnProvider, string> = { gdrive: 'docs', gmail: 'comms', instagram: 'social', canva: 'design' }
+const OAUTH_NAME: Record<ConnProvider, string> = { gdrive: 'Google Drive', gmail: 'Gmail', instagram: 'Instagram', canva: 'Canva' }
+// Our own connections, in the order their cards lead the catalog. Instagram and Canva exist even when the
+// Hermes catalog has no matching category, so they are added outside `groups` below.
+const OAUTH_IDS: ConnProvider[] = ['gdrive', 'gmail', 'instagram', 'canva']
+const IG_TYPE: Record<NonNullable<Connection['account_type']>, string> = { BUSINESS: 'Bisnis', CREATOR: 'Kreator', PERSONAL: 'Pribadi' }
 
 // One-card rule: an app that exists both as our own connection and as a Hermes connector gets ONE card. The Hermes connector
 // wins (it is always connectable); our connection stays reachable through its extra action (e.g. "Pilih dari Drive") when
 // it is connected too. Our connection alone is shown when the catalog has no matching connector. Add a line per known overlap
 // (our provider -> Hermes ids); the live catalog has no overlaps today.
-const OWN_AS_HERMES: Record<ConnProvider, string[]> = { gdrive: ['google_drive', 'googledrive'], gmail: ['gmail'] }
+const OWN_AS_HERMES: Record<ConnProvider, string[]> = { gdrive: ['google_drive', 'googledrive'], gmail: ['gmail'], instagram: [], canva: [] } // Canva is handled separately (slice R2): the old Hermes connector is switched off.
 
 // The CLI names accounts like canva_mcp_batty-rory: users only see a label that looks like an email address; admins see everything.
 const shownAccounts = (accounts: string[], admin: boolean) => (admin ? accounts : accounts.filter((a) => a.includes('@')))
@@ -396,6 +419,7 @@ export function AppsPage() {
   const cat = useLoad(catFn)
   const admin = useAdminMode()
   const [result] = useState(readResult)
+  const personal = !!result && !result.ok && result.app === 'instagram' && result.reason === 'personal'
   const [problem, setProblem] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [asking, setAsking] = useState<string | null>(null)
@@ -403,6 +427,8 @@ export function AppsPage() {
   const [saved, setSaved] = useState('')
   const [joined, setJoined] = useState('')
   const [how, setHow] = useState(false)
+  const [igGuide, setIgGuide] = useState(personal)
+  const [igPosts, setIgPosts] = useState(false)
   const [q, setQ] = useState('')
   const [only, setOnly] = useState('')
   const [limit, setLimit] = useState(12)
@@ -494,6 +520,14 @@ export function AppsPage() {
     const status = c.status
     const soon = status === 'not_configured' && !admin // not set up by the admin: users only see "Segera hadir"
     const mustAsk = status === 'broken' && c.needs === 'admin'
+    const acct = id === 'instagram' && c.account_type ? `${c.account} · ${IG_TYPE[c.account_type]}` : c.account
+    const ask =
+      id === 'instagram'
+        ? 'Putuskan Instagram? Postingan yang sudah terbit tidak terhapus. Pegawai tidak bisa lagi menyiapkan postingan.'
+        : id === 'canva'
+          ? 'Putuskan Canva? Desain Anda di Canva tidak terhapus.'
+          : `Putuskan ${a.name}?`
+    const connectLabel = status === 'reconnect' || status === 'broken' || status === 'needs_scope' ? 'Sambungkan ulang' : 'Hubungkan'
     return (
       <li key={id} className={`app-card ${mode === 'row' ? 'app-row' : 'app-mini'}`} data-app={id} data-s={status}>
         <div className="app-card-head">
@@ -510,12 +544,18 @@ export function AppsPage() {
           </div>
         </div>
         <p>{a.enables}</p>
-        {(status === 'connected' || status === 'needs_scope') && c.account && mode === 'row' && (
-          <p className="connect-acct" title={c.account}>
-            Akun: {c.account}
+        {(status === 'connected' || status === 'needs_scope') && acct && mode === 'row' && (
+          <p className="connect-acct" title={acct}>
+            Akun: {acct}
           </p>
         )}
-        {status === 'reconnect' && <p className="connect-warn">Izin akses sudah tidak berlaku. Hubungkan ulang agar bisa dipakai lagi.</p>}
+        {id === 'canva' && (
+          <p className="quiet small app-platform-note">Akun Canva gratis sudah cukup untuk membuat dan mengekspor desain. Isi otomatis dan Brand Kit butuh Canva Pro.</p>
+        )}
+        {id === 'instagram' && status === 'disconnected' && (
+          <p className="quiet small app-platform-note">Hanya untuk akun Instagram Bisnis atau Kreator.</p>
+        )}
+        {status === 'reconnect' && <p className="connect-warn">{c.reason ?? 'Izin akses sudah tidak berlaku. Hubungkan ulang agar bisa dipakai lagi.'}</p>}
         {(status === 'broken' || status === 'needs_scope') && (
           <p className="connect-warn" role="status">
             {c.reason ?? `${a.name} sedang bermasalah.`}
@@ -539,11 +579,17 @@ export function AppsPage() {
             Di bawah setiap jawaban pegawai ada tombol &ldquo;Simpan sebagai draf Gmail&rdquo;. Anda bisa mengubah penerima, subjek, dan isinya dulu. Hasilnya hanya draf di Gmail Anda. Anda sendiri yang membuka dan mengirimnya.
           </p>
         )}
-        {status === 'not_configured' && admin && <AdminHint c={c} />}
+        {id === 'instagram' && status === 'disconnected' && (
+          <button type="button" className="btn link small app-how" aria-expanded={igGuide} aria-controls="ig-guide" onClick={() => setIgGuide((v) => !v)}>
+            Akun saya masih pribadi
+          </button>
+        )}
+        {id === 'instagram' && igGuide && <InstagramGuide autoFocus={personal} onClose={() => setIgGuide(false)} />}
+        {status === 'not_configured' && admin && (c.setup.length > 0 || (id !== 'instagram' && id !== 'canva')) && <AdminHint c={c} />}
         <div className="app-card-act">
           {asking === id ? (
             <span className="confirm-actions" role="alert">
-              <span className="app-ask">Putuskan {a.name}?</span>
+              <span className="app-ask">{ask}</span>
               <button type="button" className="btn danger" disabled={busy === id} onClick={() => void disconnect(id)}>
                 Putuskan
               </button>
@@ -569,7 +615,7 @@ export function AppsPage() {
                   aria-describedby={status === 'not_configured' ? `why-${id}` : undefined}
                   onClick={() => void connect(id)}
                 >
-                  {status === 'reconnect' || status === 'broken' || status === 'needs_scope' ? 'Sambungkan ulang' : 'Hubungkan'}
+                  {busy === id ? `Membuka ${name}…` : connectLabel}
                 </button>
               )}
               {(status === 'reconnect' || status === 'broken' || status === 'needs_scope') && (
@@ -581,6 +627,12 @@ export function AppsPage() {
             </>
           )}
         </div>
+        {id === 'instagram' && status === 'connected' && (
+          <button type="button" className="btn soft app-ig-toggle" aria-expanded={igPosts} aria-controls="ig-posts" onClick={() => setIgPosts((v) => !v)}>
+            Lihat posting
+          </button>
+        )}
+        {id === 'instagram' && status === 'connected' && igPosts && <SocialPostList />}
       </li>
     )
   }
@@ -642,37 +694,44 @@ export function AppsPage() {
   }
 
   // Tersambung (only fully working connections) first, then the ones that need reconnecting, then one flat catalog of everything else.
-  const apps = (cat.data?.apps ?? []).filter((a) => admin || !a.technical)
+  // The old Hermes Canva connector is switched off while our own Canva connection exists (contract: it is disabled).
+  const apps = (cat.data?.apps ?? [])
+    .filter((a) => admin || !a.technical)
+    .filter((a) => !(by.has('canva') && ['canva', 'canva_mcp'].includes(a.id)))
   const cats = (cat.data?.categories ?? []).filter((c) => admin || c.id !== 'dev')
   const merged = new Map<ConnProvider, HermesApp>()
   for (const id of Object.keys(OWN_AS_HERMES) as ConnProvider[]) {
     const h = apps.find((a) => OWN_AS_HERMES[id].includes(a.id))
     if (h) merged.set(id, h)
   }
-  const oauthIds = (['gdrive', 'gmail'] as ConnProvider[]).filter((id) => by.has(id) && !merged.has(id))
+  const oauthIds = OAUTH_IDS.filter((id) => by.has(id) && !merged.has(id))
   const linkedHermes = apps.filter((a) => a.status === 'connected')
   // "Tersambung" only counts apps that really work; every problem gets its own group below.
   // A connection already represented by a connected Hermes card is not repeated as its own card.
   const connectedOauth: ConnProvider[] = []
   const problemOauth: ConnProvider[] = []
-  for (const id of Object.keys(OWN_AS_HERMES) as ConnProvider[]) {
+  for (const id of OAUTH_IDS) {
     const c = by.get(id)
     if (!c || merged.get(id)?.status === 'connected') continue
     if (c.status === 'connected') connectedOauth.push(id)
     else if (['needs_scope', 'reconnect', 'broken'].includes(c.status)) problemOauth.push(id)
   }
+  // Instagram and Canva have no guaranteed Hermes category; their cards are added next to the Google ones.
+  const ownExtra = (['instagram', 'canva'] as ConnProvider[]).filter((id) => by.has(id) && hit(OAUTH_NAME[id], APPS[id].enables, OAUTH_CAT[id]))
   const groups = cats
     .map((c) => ({
       c,
-      oauth: oauthIds.filter((id) => OAUTH_CAT[id] === c.id && hit(OAUTH_NAME[id], APPS[id].enables, c.id)),
+      oauth: oauthIds.filter((id) => id !== 'instagram' && id !== 'canva' && OAUTH_CAT[id] === c.id && hit(OAUTH_NAME[id], APPS[id].enables, c.id)),
       apps: apps.filter((a) => a.category === c.id && hit(a.name, a.description, c.id)),
     }))
     .filter((g) => g.oauth.length + g.apps.length > 0)
   type CatItem = { k: 'o'; id: ConnProvider } | { k: 'a'; a: HermesApp }
-  const catalog = groups
-    .flatMap((g): CatItem[] => [...g.oauth.map((id) => ({ k: 'o' as const, id })), ...g.apps.map((a) => ({ k: 'a' as const, a }))])
+  const catalog = [
+    ...groups.flatMap((g): CatItem[] => [...g.oauth.map((id) => ({ k: 'o' as const, id })), ...g.apps.map((a) => ({ k: 'a' as const, a }))]),
+    ...ownExtra.map((id): CatItem => ({ k: 'o', id })),
+  ]
     .filter((x) => (x.k === 'o' ? !['connected', 'needs_scope', 'reconnect', 'broken'].includes(by.get(x.id)?.status ?? '') : x.a.status !== 'connected'))
-    .sort((x, y) => Number(x.k !== 'o') - Number(y.k !== 'o')) // the built-in Google apps lead the first page
+    .sort((x, y) => Number(x.k !== 'o') - Number(y.k !== 'o')) // the built-in apps lead the first page
   const shown = catalog.slice(0, limit)
   const linkedCount = connectedOauth.length + linkedHermes.length
   const problemCount = problemOauth.length

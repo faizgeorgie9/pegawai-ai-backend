@@ -1,0 +1,127 @@
+/* Attachment cards (R1 chat/tasks/Marketing, R2 post preview). Tokens only; the dark scrim and white QR/lightbox
+   text are the two functional exceptions allowed by the spec. */
+
+.att-list { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-2); max-width: 560px; min-width: 0; }
+.att-compact-list { max-width: 360px; }
+
+.att-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; min-width: 0; margin: 0; }
+figure.att-card { display: block; }
+
+/* ---- single photo ---- */
+.att-photo { width: min(100%, 360px); }
+.att-media { padding: 0; border: 0; background: var(--raised); cursor: zoom-in; display: block; width: 100%; }
+.att-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.att-img { width: 100%; display: block; }
+.att-skel-wrap { position: relative; background: var(--raised); }
+.att-skel-wrap .att-skel { position: absolute; inset: 0; height: 100%; border-radius: 0; }
+
+/* ---- photo grid ---- */
+.att-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--s-2); min-width: 0; }
+.att-grid .att-photo { width: 100%; aspect-ratio: 1 / 1; }
+.att-grid .att-img { aspect-ratio: auto !important; height: 100%; }
+@media (max-width: 480px) {
+  .att-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ---- card foot ---- */
+.att-foot { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-2); padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3); min-height: 44px; border-top: 1px solid var(--rule); }
+.att-foot-text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.att-foot-actions { justify-content: flex-end; padding: var(--s-1) var(--s-2); min-height: 40px; }
+.att-name { font-size: 13px; font-weight: 500; line-height: 1.35; overflow-wrap: anywhere; }
+.att-name-doc { font-size: 14px; }
+.att-meta { font-size: 13px; color: var(--muted); line-height: 1.35; }
+.att-card .att-dl, .att-foot .icon-btn { width: 32px; height: 32px; flex: none; }
+.att-err { padding: 0 var(--s-3) var(--s-3); color: var(--bad-ink); }
+.att-foot > .att-err { flex: 1 0 100%; padding: 0; }
+
+/* ---- video ---- */
+.att-video { width: min(100%, 480px); }
+.att-video-box { position: relative; background: var(--raised); overflow: hidden; }
+.att-video-poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; background: var(--raised); }
+.att-video-el { width: 100%; height: 100%; display: block; background: #000; }
+.att-video .att-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 56px; height: 56px; padding: 0; border-radius: 999px; }
+.att-video .att-play:hover:not(:disabled) { background: color-mix(in srgb, var(--primary) 82%, var(--surface)); }
+
+/* ---- audio ---- */
+.att-audio-card { width: min(100%, 420px); }
+.att-audio { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3); }
+.att-audio-icon { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 999px; background: var(--raised); color: var(--muted); }
+.att-audio-player { padding: 0 var(--s-3) var(--s-3); }
+
+/* ---- document ---- */
+.att-doc { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3); }
+.att-ext { flex: none; width: 40px; height: 48px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--raised); color: var(--muted); font: 600 11px/1 var(--font); }
+.att-act { display: flex; align-items: center; gap: var(--s-2); margin-left: auto; flex: none; }
+
+/* ---- table preview ---- */
+.att-table { overflow-x: auto; border-top: 1px solid var(--rule); }
+.att-table table.plain { font-size: 13px; width: max-content; min-width: 100%; }
+.att-table table.plain th, .att-table table.plain td { padding: 8px 12px; white-space: nowrap; }
+.att-table table.plain th { background: var(--raised); color: var(--text); font-weight: 600; }
+.att-table-note { padding: var(--s-2) var(--s-3); }
+.att-table-note:last-child { padding-bottom: var(--s-3); }
+
+/* ---- compact (post preview) ---- */
+.att-card.att-compact { max-width: 360px; }
+.att-compact .att-doc { padding: var(--s-2); gap: var(--s-2); }
+.att-compact .att-ext { width: 32px; height: 38px; font-size: 10px; }
+.att-compact .att-name-doc { font-size: 13px; }
+.att-compact .att-act { margin-left: 0; }
+
+/* ---- states ---- */
+.att-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s-2); padding: var(--s-4); text-align: center; color: var(--muted); background: var(--raised); font-size: 13px; }
+.att-state .btn.link { font-size: 13px; }
+
+/* ---- lightbox ---- */
+.lb { border: 0; padding: 0; margin: auto; background: transparent; max-width: 100vw; max-height: 100svh; overflow: visible; animation: att-fade var(--m-in) var(--ease); }
+.lb::backdrop { background: rgb(0 0 0 / .82); }
+@keyframes att-fade { from { opacity: 0; } to { opacity: 1; } }
+.lb-in { position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--s-3); padding: var(--s-4); width: fit-content; max-width: 100vw; }
+.lb-img { display: block; max-width: min(92vw, 1200px); max-height: calc(100svh - 120px); object-fit: contain; border-radius: var(--radius-card); }
+.lb-note { color: #fff; font-size: 14px; padding: var(--s-6); }
+.lb-link { color: #fff; }
+.lb-bar { display: flex; align-items: center; gap: var(--s-3); width: 100%; min-width: 0; color: #fff; font-size: 13px; }
+.lb-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.lb-count { flex: none; }
+.lb-dl { flex: none; }
+.lb-err { color: #f9a9b7; }
+.lb .lb-close { position: absolute; top: 0; right: 0; width: 44px; height: 44px; border-radius: 999px; color: #fff; background: rgb(0 0 0 / .45); }
+.lb .lb-close:hover { background: rgb(0 0 0 / .65); color: #fff; }
+.lb .lb-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 999px; color: #fff; background: rgb(0 0 0 / .45); }
+.lb .lb-nav:hover { background: rgb(0 0 0 / .65); color: #fff; }
+.lb-prev { left: var(--s-2); }
+.lb-next { right: var(--s-2); }
+
+/* ---- phones ---- */
+@media (max-width: 640px) {
+  .att-card .att-dl, .att-foot .icon-btn { width: 40px; height: 40px; }
+  .lb-in { padding: 0 0 var(--s-2); gap: var(--s-2); }
+  .lb-img { max-width: 100vw; max-height: calc(100svh - 112px); border-radius: 0; }
+  .lb-bar { width: 100vw; flex-wrap: wrap; padding: 0 var(--s-3); }
+  .lb-name { flex: 1 0 100%; }
+  .lb-dl { width: 100%; height: 44px; }
+  .lb-close { top: var(--s-1); right: var(--s-1); }
+  .lb-prev { left: var(--s-1); }
+  .lb-next { right: var(--s-1); }
+}
+
+@media (max-width: 480px) {
+  .att-doc { flex-wrap: wrap; }
+  .att-doc .att-foot-text { flex: 1 1 0; }
+  .att-act { flex: 1 0 100%; margin-left: 0; justify-content: stretch; }
+  .att-act .btn { flex: 1; min-height: 40px; }
+  .att-compact .att-act { flex: none; }
+}
+
+/* At <= 640 px pages.css turns table.plain into stacked cards. A preview must stay a table, scrolled sideways. */
+@media (max-width: 640px) {
+  .att-table table.plain { display: table; }
+  .att-table table.plain thead { display: table-header-group; }
+  .att-table table.plain tbody { display: table-row-group; }
+  .att-table table.plain tr { display: table-row; margin: 0; padding: 0; background: transparent; border: 0; border-radius: 0; }
+  .att-table table.plain th, .att-table table.plain td { display: table-cell; padding: 8px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+  .att-table table.plain td::before, .att-table table.plain th::before { content: none; }
+  .att-table table.plain tr:last-child td { border-bottom: 0; }
+}
+
+.att-note { padding: 0 var(--s-3) var(--s-3); margin: 0; }

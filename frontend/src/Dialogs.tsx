@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { ApiError, api, errText } from './bff'
-import type { Bot, BotDetail, ModelCatalog, Plan, Template } from './bff'
+import type { AiAccounts, Bot, BotDetail, ModelCatalog, Plan, Template } from './bff'
 import { useData } from './data'
 import { botPath, groupPath, go, parse } from './router'
 import { BotAvatar, COLORS, Dialog, ErrorLine, botColor, colorLabel, roleLabel, teamLabel } from './ui'
 import { Opt, modelKey, splitModel } from './ui-extra'
-import { TIERS, tierOf, tiersFrom } from './modelTiers'
+import { TIERS, ownSlugs, sameRoute, tierOf, tiersFrom } from './modelTiers'
 import type { TierId } from './modelTiers'
 import { useAdminMode, useIsAdmin } from './adminMode'
 
@@ -25,6 +25,16 @@ function ProblemLine({ p }: { p: Problem; onPlan?: () => void }) {
 // The template cards come from the BFF. This one override keeps a technical word out of the picker for non-technical users.
 const TEMPLATE_DESC: Record<string, string> = {
   budi: 'Merancang arah visual dan menyusun petunjuk untuk membuat gambar.',
+}
+
+// The account chooser names a person's own account the same way the Akun AI screen does.
+const ACCOUNT_NAME: Record<string, string> = {
+  openrouter: 'OpenRouter',
+  anthropic: 'Anthropic (Claude)',
+  openai: 'OpenAI (GPT)',
+  gemini: 'Google Gemini',
+  'opencode-zen': 'OpenCode Zen',
+  'opencode-go': 'OpenCode Go',
 }
 
 export function Dialogs() {
@@ -441,12 +451,14 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
   const admin = useAdminMode()
   const [d, setD] = useState<BotDetail | null>(null)
   const [cat, setCat] = useState<ModelCatalog | null>(null)
+  const [accts, setAccts] = useState<AiAccounts | null>(null)
   const [catDone, setCatDone] = useState(false) // the catalog call finished, successfully or not
   const [loadErr, setLoadErr] = useState('')
   const [name, setName] = useState(bot.name)
   const [persona, setPersona] = useState('')
   const [color, setColor] = useState(bot.color || 'plain')
   const [model, setModel] = useState(modelKey(bot.provider, bot.model)) // '' = Ikuti bawaan
+  const [source, setSource] = useState<string | null>(null) // null = follow the employee's account
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState('')
   const [tried, setTried] = useState(false)
@@ -462,24 +474,35 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
       (e) => setLoadErr(errText(e)),
     )
     // without the list the tiers stay empty and the dialog says so, instead of promising a choice it cannot offer
-    api.models().then(
+    api.models(bot.id).then(
       (x) => {
         setCat(x)
         setCatDone(true)
       },
       () => setCatDone(true),
     )
+    // A failed accounts read leaves the dialog exactly as it was: only the default account, no broken choice.
+    api.aiAccounts().then(setAccts, () => setAccts(null))
   }
   useEffect(load, [bot.id])
 
-  const tiers = tiersFrom(cat)
-  // FE-4: when the catalog offers no tier, the dialog must say that plainly instead of promising the choice.
+  const own = accts ? ownSlugs(accts) : []
+  // Until the person picks an account, it follows the employee's current provider. `source` stays null so a late
+  // accounts response still lands on the right choice.
+  const src = source ?? own.find((s) => bot.provider && sameRoute(s, bot.provider)) ?? ''
+  const tiers = tiersFrom(cat, src ? [src] : undefined)
+  // FE-4: when no tier is available for the chosen account, the dialog must say that plainly instead of promising it.
   const tierOff = catDone && TIERS.every((t) => !tiers[t.id].length)
-  const cur = bot.model ? tierOf(bot.model) : null
-  const curTier = cur ? TIERS.find((t) => t.id === cur)?.label ?? '' : ''
+  const selTier = model ? TIERS.find((t) => tiers[t.id].includes(model))?.id ?? tierOf(splitModel(model).model ?? '') : ''
+  const curTier = selTier ? TIERS.find((t) => t.id === selTier)?.label ?? '' : ''
   // Picking a tier keeps the current model when it already belongs to it, else takes the middle model of the tier.
-  const pick = (t: TierId) => setModel(cur === t && modelKey(bot.provider, bot.model) ? modelKey(bot.provider, bot.model) : tiers[t][Math.floor(tiers[t].length / 2)] ?? '')
-  const selTier = model ? tierOf(splitModel(model).model ?? '') : ''
+  const pick = (t: TierId) => setModel(selTier === t && model ? model : tiers[t][Math.floor(tiers[t].length / 2)] ?? '')
+  // Changing accounts drops a model that belongs to the previous one: "Ikuti bawaan" is the honest fallback.
+  const chooseSource = (v: string) => {
+    setSource(v)
+    const next = tiersFrom(cat, v ? [v] : undefined)
+    if (model && !TIERS.some((x) => next[x.id].includes(model))) setModel('')
+  }
   const nameErr = tried && !name.trim() ? 'Isi nama pegawai.' : ''
 
   async function save(e: React.FormEvent) {
@@ -546,6 +569,30 @@ function EditBotDialog({ bot, onClose }: { bot: Bot; onClose: () => void }) {
                 ))}
               </div>
             </div>
+            {own.length > 0 && (
+              <div className="field" role="radiogroup" aria-labelledby="ec-acct">
+                <span id="ec-acct">Akun AI yang dipakai</span>
+                <label className="radio-row">
+                  <input type="radio" className="tier-radio" name="acct-src" checked={src === ''} onChange={() => chooseSource('')} />
+                  <span>
+                    <b>Akun bawaan Pegawai AI</b>
+                    <small className="quiet"> Biaya sudah termasuk paket Anda.</small>
+                  </span>
+                </label>
+                {own.map((s) => {
+                  const label = ACCOUNT_NAME[s] ?? s
+                  return (
+                    <label key={s} className="radio-row">
+                      <input type="radio" className="tier-radio" name="acct-src" checked={src === s} onChange={() => chooseSource(s)} />
+                      <span>
+                        <b>Akun saya: {label}</b>
+                        <small className="quiet"> Biaya ditagih langsung ke akun {label} Anda.</small>
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
             <div className="field" role={tierOff ? undefined : 'radiogroup'} aria-label={tierOff ? undefined : 'Tingkat ketelitian'}>
               <span>Tingkat ketelitian</span>
               {tierOff ? (

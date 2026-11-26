@@ -1,26 +1,68 @@
-import { useEffect, useRef, useState } from 'react'
-import Activity from './Activity'
+import { Component, Suspense, lazy, useEffect, useRef, useState } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 import { useActions } from './ActionCard'
-import { AgentDetail, AgentEdit, AgentList, AgentNew } from './Agents'
 import { isAdminRole, setAuthRole, useAdminMode, useIsAdmin } from './adminMode'
 import { ApiError, api, errText, onSessionEnd } from './bff'
 import type { AuthUser } from './bff'
-import { ChatLayout, GroupLayout } from './ChatLayout'
 import Dashboard from './Dashboard'
-import Kanban from './Kanban'
 import { DataProvider, useData } from './data'
-import { Dialogs } from './Dialogs'
-import { Kemampuan } from './Platform'
-import { AppsPage } from './connections'
-import CS from './CS'
 import { LoginModal } from './LoginModal'
-import Marketing from './Marketing'
-import Pengetahuan from './Pengetahuan'
-import Settings from './Settings'
-import Uji from './Uji'
 import { botPath, go, groupPath, useRoute } from './router'
 import type { Route } from './router'
-import { BotAvatar, CLOSE, I, Icon, MENU, elapsed } from './ui'
+import { onLinkIntent } from './session-cache'
+import { BotAvatar, CLOSE, ErrorLine, I, Icon, MENU, elapsed } from './ui'
+import { Loading } from './ui-extra'
+
+// Pages load when first opened. The shell, Dashboard, login and the small shared pieces stay in the
+// first chunk, so Beranda paints without paying for chat, the board or the admin screens.
+// Named exports are wrapped here instead of adding a default export to every page. The module may
+// export hooks beside its components, so only the picked key is narrowed to a component.
+const lazyNamed = <T, K extends keyof T>(load: () => Promise<T>, key: K) =>
+  lazy(() => load().then((m) => ({ default: m[key] as unknown as ComponentType<any> })))
+
+const Marketing = lazy(() => import('./Marketing'))
+const Uji = lazy(() => import('./Uji'))
+const CS = lazy(() => import('./CS'))
+const Activity = lazy(() => import('./Activity'))
+const Kanban = lazy(() => import('./Kanban'))
+const Settings = lazy(() => import('./Settings'))
+const Pengetahuan = lazy(() => import('./Pengetahuan'))
+const Kemampuan = lazyNamed(() => import('./Platform'), 'Kemampuan')
+const AppsPage = lazyNamed(() => import('./connections'), 'AppsPage')
+const AgentList = lazyNamed(() => import('./Agents'), 'AgentList')
+const AgentNew = lazyNamed(() => import('./Agents'), 'AgentNew')
+const AgentDetail = lazyNamed(() => import('./Agents'), 'AgentDetail')
+const AgentEdit = lazyNamed(() => import('./Agents'), 'AgentEdit')
+const ChatLayout = lazyNamed(() => import('./ChatLayout'), 'ChatLayout')
+const GroupLayout = lazyNamed(() => import('./ChatLayout'), 'GroupLayout')
+const Dialogs = lazyNamed(() => import('./Dialogs'), 'Dialogs')
+
+// A page chunk that fails to arrive (an old tab after a deploy) shows one honest line instead of a
+// blank screen. `main.tsx` already reloads once for a preload error; this covers the rest.
+class RouteBoundary extends Component<{ children: ReactNode; resetKey?: string }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  // A new screen clears an earlier failure without remounting the next screen (chat keeps its state).
+  componentDidUpdate(prev: { resetKey?: string }) {
+    if (this.state.failed && prev.resetKey !== this.props.resetKey) this.setState({ failed: false })
+  }
+  render() {
+    if (!this.state.failed) return this.props.children
+    return (
+      <section className="page">
+        <ErrorLine text="Halaman ini gagal dimuat. Biasanya karena aplikasi baru saja diperbarui." onRetry={() => location.reload()} />
+      </section>
+    )
+  }
+}
+
+const pageFallback = (
+  <section className="page">
+    <Loading text="Memuat halaman..." shape="page" />
+  </section>
+)
 
 const TOKEN_KEY = 'pegawai_ai_token'
 const SESSION_ENDED = 'Sesi Anda berakhir, silakan masuk lagi.'
@@ -178,11 +220,38 @@ function Mark() {
 
 function Shell({ authUser, onLogout }: { authUser: AuthUser; onLogout: () => void | Promise<void> }) {
   const route = useRoute()
-  const { conn, toasts, dismissToast, notifyAsk, answerNotify } = useData()
+  const { conn, toasts, dismissToast, notifyAsk, answerNotify, dialog } = useData()
   const [drawer, setDrawer] = useState(false)
   const isAdmin = useIsAdmin()
 
   useEffect(() => setDrawer(false), [route])
+
+  // The menu warms the page chunk while the pointer or focus is still on the link, so the click
+  // lands on content. Marketing, CS and Evaluasi are admin-only and stay cold.
+  useEffect(() => {
+    onLinkIntent('a[href="#/aplikasi"]', () => void import('./connections'))
+    onLinkIntent('a[href="#/kanban"]', () => void import('./Kanban'))
+    onLinkIntent('a[href="#/pengaturan"]', () => void import('./Settings'))
+    onLinkIntent('a[href="#/pengetahuan"]', () => void import('./Pengetahuan'))
+    onLinkIntent('a[href="#/agen"]', () => void import('./Agents'))
+  }, [])
+
+  // After Beranda has painted, fill idle time with the two screens a day usually starts with.
+  const warmed = useRef(false)
+  useEffect(() => {
+    if (route.name !== 'home' || warmed.current) return
+    const warm = () => {
+      warmed.current = true
+      void import('./Kanban')
+      void import('./Settings')
+    }
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(warm, { timeout: 4000 })
+      return () => window.cancelIdleCallback(id)
+    }
+    const id = window.setTimeout(warm, 2000)
+    return () => window.clearTimeout(id)
+  }, [route.name])
 
   // A member who reaches an admin route (old link, typed hash, restored tab) goes back to Beranda.
   useEffect(() => {
@@ -235,22 +304,26 @@ function Shell({ authUser, onLogout }: { authUser: AuthUser; onLogout: () => voi
             Menyambung ulang…
           </p>
         )}
-        {(route.name === 'bot' || route.name === 'chat') && <ChatLayout route={route} />}
-        {(route.name === 'grup' || route.name === 'grup-list') && <GroupLayout route={route} />}
-        {isAdmin && route.name === 'aktivitas' && <Activity />}
-        {route.name === 'kanban' && <Kanban />}
-        {route.name === 'home' && <Dashboard />}
-        {isAdmin && route.name === 'agen' && <AgentList />}
-        {isAdmin && route.name === 'agen-baru' && <AgentNew />}
-        {isAdmin && route.name === 'agen-detail' && <AgentDetail key={route.id} id={route.id} />}
-        {isAdmin && route.name === 'agen-ubah' && <AgentEdit key={route.id} id={route.id} />}
-        {isAdmin && (route.name === 'tools' || route.name === 'computer-use') && <Kemampuan tab={route.name} />}
-        {route.name === 'aplikasi' && <AppsPage />}
-        {route.name === 'pengetahuan' && <Pengetahuan />}
-        {isAdmin && route.name === 'marketing' && <Marketing />}
-        {isAdmin && route.name === 'cs' && <CS />}
-        {isAdmin && route.name === 'uji' && <Uji />}
-        {route.name === 'pengaturan' && <Settings section={route.section} />}
+        <RouteBoundary resetKey={route.name}>
+          <Suspense fallback={pageFallback}>
+            {(route.name === 'bot' || route.name === 'chat') && <ChatLayout route={route} />}
+            {(route.name === 'grup' || route.name === 'grup-list') && <GroupLayout route={route} />}
+            {isAdmin && route.name === 'aktivitas' && <Activity />}
+            {route.name === 'kanban' && <Kanban />}
+            {route.name === 'home' && <Dashboard />}
+            {isAdmin && route.name === 'agen' && <AgentList />}
+            {isAdmin && route.name === 'agen-baru' && <AgentNew />}
+            {isAdmin && route.name === 'agen-detail' && <AgentDetail key={route.id} id={route.id} />}
+            {isAdmin && route.name === 'agen-ubah' && <AgentEdit key={route.id} id={route.id} />}
+            {isAdmin && (route.name === 'tools' || route.name === 'computer-use') && <Kemampuan tab={route.name} />}
+            {route.name === 'aplikasi' && <AppsPage />}
+            {route.name === 'pengetahuan' && <Pengetahuan />}
+            {isAdmin && route.name === 'marketing' && <Marketing />}
+            {isAdmin && route.name === 'cs' && <CS />}
+            {isAdmin && route.name === 'uji' && <Uji />}
+            {route.name === 'pengaturan' && <Settings section={route.section} />}
+          </Suspense>
+        </RouteBoundary>
       </main>
 
       <div className="toasts" aria-live="polite">
@@ -284,7 +357,13 @@ function Shell({ authUser, onLogout }: { authUser: AuthUser; onLogout: () => voi
           </div>
         ))}
       </div>
-      <Dialogs />
+      {dialog && (
+        <RouteBoundary>
+          <Suspense fallback={null}>
+            <Dialogs />
+          </Suspense>
+        </RouteBoundary>
+      )}
     </div>
   )
 }

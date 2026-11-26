@@ -6,6 +6,7 @@ import { useData } from './data'
 import { agenPath, botPath, go } from './router'
 import { BotAvatar, CHEVRON, COLORS, ErrorLine, Icon, I, LOCK, botColor, cleanTaskText, colorLabel, nf, roleLabel, stamp, teamLabel } from './ui'
 import { AgentSkills } from './skills-ui'
+import { TelegramRow, TelegramTab } from './telegram-ui'
 import { TIERS, tierOf } from './modelTiers'
 import { Empty, EffortSelect, Loading, ModelSelect, PageHead, Opt, defaultEffortLabel, defaultModelLabel, effortWord, modelKey, splitModel, statusText, useLoad } from './ui-extra'
 
@@ -124,6 +125,7 @@ const TABS = [
   ['ringkasan', 'Ringkasan'],
   ['pekerjaan', 'Pekerjaan'],
   ['keahlian', 'Keahlian'],
+  ['telegram', 'Telegram'],
   ['ingatan', 'Ingatan'],
 ] as const
 type TabId = (typeof TABS)[number][0]
@@ -313,6 +315,7 @@ export function AgentDetail({ id }: { id: string }) {
               onClick={() => setDialog({ kind: 'edit', bot: b })}
             />
             <SettingRow label="Tingkat ketelitian" value={tier ?? 'Ikuti bawaan'} onClick={() => setDialog({ kind: 'edit', bot: b })} />
+            <TelegramRow bot={b} onOpen={() => setTab('telegram')} />
           </ul>
           <p className="quiet small">Perubahan berlaku mulai tugas berikutnya.</p>
         </section>
@@ -432,6 +435,8 @@ export function AgentDetail({ id }: { id: string }) {
             <AgentSkills slug={id} />
           </div>
         )}
+
+        {tab === 'telegram' && <TelegramTab bot={b} />}
 
         {tab === 'ingatan' && <AgentMemory bot={b} />}
       </div>

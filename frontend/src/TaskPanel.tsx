@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, errText } from './bff'
-import type { TaskAction, TaskDetail } from './bff'
+import type { Attachment, TaskAction, TaskDetail } from './bff'
+import { AttachmentList } from './attachments'
 import { useAdminMode } from './adminMode'
 import { useData } from './data'
 import { Md } from './rich'
@@ -123,6 +124,9 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [hist, setHist] = useState(false)
+  const [runFiles, setRunFiles] = useState<Attachment[]>([]) // files read from the newest run when the task has none (contract gap G3)
+  const [filesLoading, setFilesLoading] = useState(false)
+  const filesAsked = useRef('') // task id whose newest run was already read: the open panel also polls while it runs
 
   useEffect(() => {
     api.task(id).then(setT, (e) => setError(errText(e)))
@@ -141,6 +145,19 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
     }, 4000)
     return () => window.clearInterval(timer)
   }, [live, id])
+
+  // Contract gap G3: the task may not list its files yet, so read the newest run once. Without files the section
+  // simply does not appear; the fetch must not add a second error to a task that already loaded fine.
+  useEffect(() => {
+    if (!t || t.attachments.length > 0 || t.runs.length === 0 || filesAsked.current === t.id) return
+    filesAsked.current = t.id
+    const newest = [...t.runs].sort((a, b) => b.at - a.at)[0]
+    setFilesLoading(true)
+    api.run(newest.id).then(
+      (r) => setRunFiles(r.attachments),
+      () => undefined,
+    ).finally(() => setFilesLoading(false))
+  }, [t])
 
   // every change answers with the fresh task; the board behind is told to reload
   async function run(f: () => Promise<TaskDetail>, clear = false) {
@@ -168,6 +185,7 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
   const placeholder = t?.status === 'blocked' ? `Tulis jawaban untuk ${worker}…` : t?.status === 'review' ? 'Tulis catatan revisi…' : `Tulis catatan untuk ${worker}…`
   // The result often repeats the one-line summary above: showing both reads as two different things.
   const resultEchoesLine = !!t && t.result.trim() !== '' && t.result.trim().replace(/\s+/g, ' ') === t.line.trim().replace(/\s+/g, ' ')
+  const files = t ? (t.attachments.length > 0 ? t.attachments : runFiles) : []
   const reply =
     t && t.status !== 'archived' ? (
       <form
@@ -220,6 +238,13 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
                 <div className="tp-result">
                   <Md text={t.result} />
                 </div>
+              </section>
+            )}
+
+            {(files.length > 0 || filesLoading) && (
+              <section className="tp-sec">
+                <h3>Berkas hasil</h3>
+                {files.length > 0 ? <AttachmentList items={files} /> : <Loading shape="lines" rows={1} />}
               </section>
             )}
 
