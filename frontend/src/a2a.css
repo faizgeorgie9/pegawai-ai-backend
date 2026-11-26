@@ -1,0 +1,59 @@
+/* R5 · Pegawai ke pegawai: penanda "Antar pegawai", banner percakapan asal, tautan tujuan, dan sorot pesan. */
+
+.a2a-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  flex: none;
+}
+
+/* The start of a conversation another agent handed over: one quiet note, plus the way back to its origin. */
+.a2a-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  margin: var(--s-3) 0;
+  padding: 10px 14px;
+  background: var(--raised);
+  border-radius: var(--radius-control);
+  font-size: var(--t-body);
+}
+.a2a-banner p {
+  margin: 0;
+}
+
+/* A forwarded turn's destination: a quiet underline that is clearly a link, 40 px high on a phone. */
+.a2a-link {
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule);
+}
+.a2a-link:hover {
+  border-bottom-color: var(--text);
+}
+
+/* A group message that handed the turn to another agent: accent rail on the bubble's left edge. */
+.a2a-bubble {
+  border-left: 3px solid var(--bot);
+}
+
+/* One message reached from Riwayat or Chat (?pesan=<id>): outlined for two seconds, the same blue as a running step. */
+.gmsg[data-flash] {
+  outline: 2px solid var(--st-run);
+  outline-offset: 2px;
+  border-radius: var(--radius-card);
+}
+
+@media (max-width: 640px) {
+  .a2a-banner .btn.link {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .a2a-link {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+  }
+}

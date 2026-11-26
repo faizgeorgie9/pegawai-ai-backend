@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => {
         p.on('error', (_err, _req, res) => {
           const r = res as ServerResponse
           if (!r.headersSent) r.writeHead(502, { 'Content-Type': 'application/json' })
-          r.end(JSON.stringify({ error: 'Server belum terjangkau. Pastikan BFF menyala, lalu coba lagi.' }))
+          r.end(JSON.stringify({ error: 'Layanan belum bisa dihubungi. Coba lagi sebentar lagi.' }))
         })
       },
     } satisfies ProxyOptions,

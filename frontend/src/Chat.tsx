@@ -20,6 +20,7 @@ import { ClarifyCard, CopyButton, RunProgress, statusText } from './ui-extra'
 import { PanelButtons, SidePanel, Split } from './Panel'
 import { MakeTaskButton } from './TaskPanel'
 import { BotAvatar, CLOSE, DOTS, Icon, PENCIL, ThinkingBlock, botColor, cleanTaskText, isTaskPrompt, nf, roleLabel, useMedia } from './ui'
+import { AgentPill, ForwardedTo, PeerBanner } from './a2a-ui'
 
 const THINK_KEY = 'pegawai.showThinking'
 function readThink(): boolean {
@@ -483,6 +484,7 @@ export default function Chat({ bot, sid, sessions, onSessions, onRail, onHistory
               )}
             </div>
           )}
+          {!loading && active?.peer && <PeerBanner peer={active.peer} />}
           {messages.map((m, i) => (
             <Message
               key={m.key}
@@ -610,13 +612,33 @@ function Message(p: {
   onAnswer: (text: string) => Promise<void>
 }) {
   const { m, bot, live } = p
+  const { bots } = useData()
   const admin = useAdminMode() // model names and token counts are admin detail
+  const sender = m.from_bot ? bots.find((b) => b.id === m.from_bot) : undefined
   const cs = useMemo(() => (m.role === 'assistant' ? csFromText(m.content) : null), [m.role, m.content])
   const draft = useMemo(() => (live && m.role === 'assistant' ? partialReplyDraft(m.content) : null), [live, m.role, m.content]) // CS reply while its JSON is still open
   const sm = useSmoothText(m.content, live && m.role === 'assistant')
   // A task's prompt reaches the BFF with the agent's instruction appended; the owner sees only what they asked.
   const clean = m.role === 'user' ? cleanTaskText(m.content) : m.content
   if (m.role === 'user') {
+    // Another agent wrote this line: it is not the owner's message and never offers "Jadikan tugas".
+    if (m.from_bot) {
+      return (
+        <div className="msg bot a2a-msg" style={{ ['--bot' as string]: botColor(sender) }}>
+          <BotAvatar bot={sender} size={32} />
+          <div className="msg-body">
+            <p className="gmsg-who">
+              <b>{sender?.name ?? 'Pegawai lain'}</b>
+              {sender?.role && <span>{roleLabel(sender.role)}</span>}
+              <AgentPill />
+            </p>
+            <div className="bubble">
+              <Md text={clean} />
+            </div>
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="msg user">
         <p>{clean}</p>
@@ -654,6 +676,7 @@ function Message(p: {
           <Md text={sm.text} caret={sm.caret} />
         ) : null}
         {!live && m.attachments?.length ? <AttachmentList items={m.attachments} /> : null}
+        {!live && m.to_bots?.length ? <ForwardedTo to={m.to_bots} bots={bots} /> : null}
         {!live && (cs?.reply || m.content) && (
           <div className="msg-tools">
             <CopyButton text={cs ? cs.reply : m.content} what={cs ? 'draf balasan' : 'jawaban'} />

@@ -269,16 +269,23 @@
   margin: 0;
 }
 
-/* Chat history: a Telegram conversation keeps its title on one line, with the source pill. */
+/* Chat history: a Telegram or peer conversation keeps its title readable next to the source pill.
+   The title wraps to a second line instead of being cut after the first one. */
 .sess-line {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
   min-width: 0;
 }
 .sess-line .sess-title {
   flex: 1 1 auto;
   min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .sess-src {
   height: 20px;
@@ -286,6 +293,7 @@
   font-size: 12px;
   font-weight: 500;
   flex: none;
+  margin-top: 1px;
 }
 
 @media (max-width: 640px) {

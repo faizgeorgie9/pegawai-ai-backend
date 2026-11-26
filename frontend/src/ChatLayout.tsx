@@ -450,6 +450,10 @@ function SessionRow(p: { botId: string; botName: string; s: Session; current: bo
   const title = titleOf(p.s)
   const agoText = ago(p.s.lastActive)
   const fromTelegram = p.s.source === 'telegram'
+  const peer = p.s.peer
+  // Where the conversation came from: another agent first (handed over), else its Telegram bot.
+  const src = peer ? 'Dari ' + (peer.name || 'pegawai lain') : fromTelegram ? 'Telegram' : ''
+  const label = peer ? `${title}, dari pegawai ${peer.name || 'pegawai lain'}, ${agoText}` : fromTelegram ? `${title}, dari Telegram, ${agoText}` : undefined
   // The history list scrolls: without this, a delete click on a row near the fold looks like nothing happened.
   useEffect(() => {
     if (mode === 'confirm') rowRef.current?.scrollIntoView({ block: 'nearest' })
@@ -503,11 +507,11 @@ function SessionRow(p: { botId: string; botName: string; s: Session; current: bo
   }
   return (
     <li className="sess" aria-current={p.current ? 'true' : undefined}>
-      <a className="sess-main" href={'#' + botPath(p.botId, p.s.id)} aria-label={fromTelegram ? `${title}, dari Telegram, ${agoText}` : undefined}>
-        {fromTelegram ? (
+      <a className="sess-main" href={'#' + botPath(p.botId, p.s.id)} aria-label={label}>
+        {src ? (
           <div className="sess-line">
             <span className="sess-title">{title}</span>
-            <span className="pill plain sess-src">Telegram</span>
+            <span className="pill plain sess-src">{src}</span>
           </div>
         ) : (
           <span className="sess-title">{title}</span>

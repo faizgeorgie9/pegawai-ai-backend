@@ -1,0 +1,76 @@
+/* Handover (K3): the Beranda card that names customers waiting for a human, and the Pelanggan page.
+   Tokens only: the yellow/blue status colours already exist as --st-wait and --st-run. */
+
+/* ---- Beranda: "Pelanggan butuh manusia" ---- */
+.hv-alert { border-left: 3px solid var(--st-wait); }
+
+/* ---- Pelanggan: one scrolling page, two columns on a wide screen ---- */
+.hv { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: var(--s-4); align-items: start; }
+.hv-back { display: none; }
+
+/* list */
+.hv-list { gap: var(--s-3); padding-bottom: var(--s-3); }
+/* Three equal columns: wrapping inside a button is fine, an orphan "Semua" row is not. */
+.hv-list .seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-self: stretch; }
+.hv-list .seg button { height: auto; min-height: 32px; padding: 4px 6px; line-height: 1.25; white-space: normal; }
+.hv-rows { display: flex; flex-direction: column; }
+.hv-row { padding-left: var(--s-3); } /* one inset for every row, so names line up with the accent bar */
+.hv-row + .hv-row { border-top: 1px solid var(--rule); }
+.hv-row[data-state="needs_human"] { box-shadow: inset 3px 0 0 var(--st-wait); }
+.hv-row[data-state="human"] { box-shadow: inset 3px 0 0 var(--st-run); }
+.hv-row:has(> a[aria-current="true"]) { background: var(--raised); }
+.hv-row > a { display: block; min-height: 72px; padding: var(--s-3) 0; color: inherit; text-decoration: none; }
+.hv-row > a:hover b { text-decoration: underline; text-underline-offset: 3px; }
+.hv-row-top { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-2); }
+.hv-row-top b { font-weight: 500; }
+.hv-row small { display: block; }
+.hv-last { color: var(--muted); }
+.hv-more-list { align-self: flex-start; }
+.hv-empty-act { margin-top: var(--s-2); }
+
+/* `.panel-card > .state` removes inline padding; the dashed empty box still needs its 16px gutter. */
+.panel-card.hv-list > .empty-box,
+.panel-card.hv-detail > .empty-box { padding-inline: var(--s-4); }
+
+/* detail */
+.hv-detail { padding-bottom: var(--s-4); }
+.hv-detail h3 { margin: var(--s-3) 0 var(--s-2); font-size: var(--t-lead); font-weight: 600; }
+.hv-banner, .hv-human { margin-block: var(--s-3); }
+.hv-banner b { display: block; font-size: 14px; font-weight: 600; }
+.hv-human { padding: 10px 14px; background: var(--st-run-bg); color: var(--st-run-ink); border-radius: var(--radius-control); }
+.hv-human b { display: block; font-size: 14px; font-weight: 600; }
+.hv-human p { font-size: 14px; }
+.hv-bot { margin-block: var(--s-2) var(--s-3); }
+.hv-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.hv-actions .problem-bar { flex-basis: 100%; margin: 0; }
+.hv-actions .confirm-actions { flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.hv-actions .confirm-actions p { flex-basis: 100%; font-weight: 500; }
+.hv-actions .hv-take-hint { flex-basis: 100%; margin: 0; }
+.hv-find { margin-top: var(--s-1); }
+.hv-more { align-self: flex-start; margin-bottom: var(--s-2); }
+
+/* messages: customer and employee left, staff right, system centred with no box */
+.hv-thread { display: flex; flex-direction: column; gap: var(--s-2); }
+.hv-msg { min-width: 0; max-width: 80%; padding: var(--s-2) var(--s-3); border-radius: var(--radius-card); }
+.hv-msg p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.hv-msg[data-from="customer"] { align-self: flex-start; background: var(--raised); }
+.hv-msg[data-from="bot"] { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); }
+.hv-msg[data-from="staff"] { align-self: flex-end; background: var(--st-run-bg); color: var(--st-run-ink); }
+.hv-msg[data-from="system"] { align-self: center; max-width: 90%; padding: 0; text-align: center; color: var(--muted); font-size: 13px; }
+.hv-who { display: block; margin-bottom: 2px; font-size: 13px; font-weight: 600; }
+.hv-who .quiet { font-weight: 400; }
+.hv-msg time { display: block; margin-top: 2px; font-size: 12px; color: var(--faint); }
+
+@media (max-width: 900px) {
+  /* One column per route: the list, or one conversation with a way back. */
+  .hv { grid-template-columns: minmax(0, 1fr); }
+  .hv[data-detail] .hv-list { display: none; }
+  .hv:not([data-detail]) .hv-detail { display: none; }
+  .hv-back { display: inline-flex; }
+}
+
+@media (max-width: 640px) {
+  /* Filter labels may wrap; the global 40 px tap target stays. */
+  .hv-list .seg button { height: auto; min-height: 40px; padding: 6px 10px; }
+  .hv-msg { max-width: 92%; }
+}

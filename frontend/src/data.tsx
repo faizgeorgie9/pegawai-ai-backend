@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react'
 import { api, asStr, errText, subscribe, toGroupMsg } from './bff'
 import type { Bot, BotStatus, Group, Me, Raw, RunInfo, Settings, SseState } from './bff'
-import { botPath, go, groupPath } from './router'
+import { botPath, go, groupPath, pelangganPath } from './router'
 
 // App-wide data: the account, the bots, the groups and the active runs, kept fresh by the one global /api/events
 // stream. Views subscribe to the live events they care about (group messages, typing) through `on`.
@@ -204,6 +204,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         bot_status: (d) =>
           setBots((cur) => cur.map((b) => (b.id === asStr(d.bot_id) ? { ...b, status: (['working', 'discussing'].includes(asStr(d.status)) ? asStr(d.status) : 'idle') as BotStatus, activity: asStr(d.activity) } : b))),
         group_message: (d) => emit('group_message', { ...d, message: toGroupMsg((d.message ?? {}) as Raw), group_id: asStr(d.group_id) }),
+        handover: (d) => {
+          emit('handover', d)
+          if (asStr(d.state) === 'needs_human') toast(`${asStr(d.customer, 'Pelanggan')} di WhatsApp minta bicara dengan manusia`, pelangganPath(asStr(d.conversation_id)), 'input')
+        },
         action: (d) => emit('action', d),
         group_typing: (d) => emit('group_typing', d),
         group_reasoning: (d) => emit('group_reasoning', d),

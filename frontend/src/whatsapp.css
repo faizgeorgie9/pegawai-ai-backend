@@ -1,0 +1,65 @@
+/* Item 2 · WhatsApp for customer-service employees only: the Ringkasan row, the tab and the Aplikasi card. */
+
+.wa {
+  gap: 8px;
+}
+
+/* Ringkasan row: the whole row opens the tab, like SettingRow and the Telegram row. */
+.wa-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.wa-row > .quiet {
+  margin-left: auto;
+  text-align: right;
+}
+.wa-row-chev {
+  flex: none;
+  color: var(--muted);
+}
+
+/* Heading and status pill read as one line; on a phone the pill wraps under the heading, never over it. */
+.wa-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.wa h3 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Actions start at the left of the column instead of stretching across the card. */
+.wa .btn.soft {
+  align-self: flex-start;
+}
+
+/* Admin test message: label, box and button stacked and compact. */
+.wa-test {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.wa-test textarea {
+  width: 100%;
+}
+.wa-test .btn {
+  align-self: flex-start;
+}
+
+@media (max-width: 640px) {
+  .wa .btn.soft,
+  .wa-test .btn {
+    min-height: 40px;
+  }
+}

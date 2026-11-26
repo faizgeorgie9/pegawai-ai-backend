@@ -2,10 +2,11 @@ import { Component, Suspense, lazy, useEffect, useRef, useState } from 'react'
 import type { ComponentType, ReactNode } from 'react'
 import { useActions } from './ActionCard'
 import { isAdminRole, setAuthRole, useAdminMode, useIsAdmin } from './adminMode'
-import { ApiError, api, errText, onSessionEnd } from './bff'
+import { ApiError, api, canWhatsApp, errText, onSessionEnd } from './bff'
 import type { AuthUser } from './bff'
 import Dashboard from './Dashboard'
 import { DataProvider, useData } from './data'
+import { useHandoverQueue } from './handover'
 import { LoginModal } from './LoginModal'
 import { botPath, go, groupPath, useRoute } from './router'
 import type { Route } from './router'
@@ -36,6 +37,9 @@ const AgentEdit = lazyNamed(() => import('./Agents'), 'AgentEdit')
 const ChatLayout = lazyNamed(() => import('./ChatLayout'), 'ChatLayout')
 const GroupLayout = lazyNamed(() => import('./ChatLayout'), 'GroupLayout')
 const Dialogs = lazyNamed(() => import('./Dialogs'), 'Dialogs')
+const Output = lazy(() => import('./Output'))
+const Pelanggan = lazy(() => import('./Pelanggan'))
+const Mulai = lazy(() => import('./Mulai'))
 
 // A page chunk that fails to arrive (an old tab after a deploy) shows one honest line instead of a
 // blank screen. `main.tsx` already reloads once for a preload error; this covers the rest.
@@ -78,6 +82,7 @@ const ADMIN_ROUTES: Record<string, true> = {
   'computer-use': true,
   uji: true,
   aktivitas: true,
+  mulai: true,
 }
 
 const storedToken = () => {
@@ -234,6 +239,8 @@ function Shell({ authUser, onLogout }: { authUser: AuthUser; onLogout: () => voi
     onLinkIntent('a[href="#/pengaturan"]', () => void import('./Settings'))
     onLinkIntent('a[href="#/pengetahuan"]', () => void import('./Pengetahuan'))
     onLinkIntent('a[href="#/agen"]', () => void import('./Agents'))
+    onLinkIntent('a[href="#/output"]', () => void import('./Output'))
+    onLinkIntent('a[href="#/pelanggan"]', () => void import('./Pelanggan'))
   }, [])
 
   // After Beranda has painted, fill idle time with the two screens a day usually starts with.
@@ -322,6 +329,9 @@ function Shell({ authUser, onLogout }: { authUser: AuthUser; onLogout: () => voi
             {isAdmin && route.name === 'cs' && <CS />}
             {isAdmin && route.name === 'uji' && <Uji />}
             {route.name === 'pengaturan' && <Settings section={route.section} />}
+            {route.name === 'output' && <Output />}
+            {route.name === 'pelanggan' && <Pelanggan id={route.id} />}
+            {isAdmin && route.name === 'mulai' && <Mulai />}
           </Suspense>
         </RouteBoundary>
       </main>
@@ -369,10 +379,15 @@ function Shell({ authUser, onLogout }: { authUser: AuthUser; onLogout: () => voi
 }
 
 // ---------- sidebar ----------
-// Seven items for everyone; the Admin group (developer and QA screens) belongs to admin roles and can be
-// decluttered with the Mode admin switch. Members are redirected away from those routes in Shell.
+// The main group for everyone (Pelanggan only when a customer-service employee exists or the handover queue
+// is readable); the Admin group (developer and QA screens) belongs to admin roles and can be decluttered with
+// the Mode admin switch. Members are redirected away from those routes in Shell.
 function Sidebar({ route, authUser, onLogout, onClose }: { route: Route; authUser: AuthUser | null; onLogout: () => void; onClose: () => void }) {
-  const { settings } = useData()
+  const { settings, bots } = useData()
+  const hv = useHandoverQueue()
+  // The queue endpoint is the reliable signal for staff (who cannot list the employees they hand over to).
+  const hasCs = bots.some(canWhatsApp)
+  const showPelanggan = hasCs || hv.ready
   const admin = useAdminMode()
   const waiting = useActions().filter((a) => a.status === 'pending').length // risky agent actions (delete a file, send an email) waiting for the user
   return (
@@ -401,8 +416,16 @@ function Sidebar({ route, authUser, onLogout, onClose }: { route: Route; authUse
           <NavItem href="#/chat" icon={I.chat} current={route.name === 'chat' || route.name === 'bot'}>
             Chat
           </NavItem>
+          {showPelanggan && (
+            <NavItem href="#/pelanggan" icon={I.support} current={route.name === 'pelanggan'} badge={hv.counts.needs_human} badgeLabel="pelanggan menunggu manusia">
+              Pelanggan
+            </NavItem>
+          )}
           <NavItem href="#/kanban" icon={I.board} current={route.name === 'kanban'}>
             Jadwal &amp; tugas
+          </NavItem>
+          <NavItem href="#/output" icon={I.output} current={route.name === 'output'}>
+            Output
           </NavItem>
           <NavItem href="#/pengetahuan" icon={I.book} current={route.name === 'pengetahuan'}>
             Pengetahuan
@@ -472,13 +495,13 @@ function Sidebar({ route, authUser, onLogout, onClose }: { route: Route; authUse
   )
 }
 
-function NavItem({ href, icon, current, team, badge, children }: { href: string; icon: string; current: boolean; team?: string; badge?: number; children: React.ReactNode }) {
+function NavItem({ href, icon, current, team, badge, badgeLabel, children }: { href: string; icon: string; current: boolean; team?: string; badge?: number; badgeLabel?: string; children: React.ReactNode }) {
   return (
     <a className="nav-link" data-team={team} href={href} aria-current={current ? 'page' : undefined}>
       <Icon d={icon} size={16} />
       {children}
       {!!badge && (
-        <span className="nav-badge" aria-label={`${badge} menunggu persetujuan`}>
+        <span className="nav-badge" aria-label={`${badge} ${badgeLabel ?? 'menunggu persetujuan'}`}>
           {badge}
         </span>
       )}

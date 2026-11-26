@@ -16,6 +16,7 @@ import { RUNNING_HINT, RUNNING_PLACEHOLDER, STEER_KEY, STEER_TIP, isSteerKey } f
 import { KbAttach, KbLines, KbTrayView, asksToSave, useKbTray } from './kb-ui'
 import { groupPath } from './router'
 import { CopyButton } from './ui-extra'
+import { AgentPill } from './a2a-ui'
 import { BotAvatar, CLOSE, DOTS, ErrorLine, PENCIL, Icon, ThinkingBlock, botColor, cleanTaskText, clock, isTaskPrompt, roleLabel, useMedia } from './ui'
 
 const sameId = (a: string, b: string) => a === b
@@ -103,6 +104,7 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
 
   function load() {
     const mine = ++epoch.current
+    flashed.current = '' // a new group's message may reuse an id (sample data does)
     setState('loading')
     setMsgs([])
     setTurn(null)
@@ -128,6 +130,33 @@ export default function GroupChat({ id, onRail }: { id: string; onRail: () => vo
     )
   }
   useEffect(load, [id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A link from Riwayat/Chat (#/grup/<id>?pesan=<id>) scrolls to that message and outlines it for two seconds.
+  // A message outside the loaded 50 silently does nothing; older messages never load by themselves.
+  const flashed = useRef('')
+  const flashTimer = useRef<number | undefined>(undefined)
+  useEffect(() => () => window.clearTimeout(flashTimer.current), [])
+  const [linkTick, setLinkTick] = useState(0) // a new ?pesan= in the same group re-runs the highlight
+  useEffect(() => {
+    const bump = () => {
+      flashed.current = ''
+      setLinkTick((n) => n + 1)
+    }
+    window.addEventListener('hashchange', bump)
+    return () => window.removeEventListener('hashchange', bump)
+  }, [])
+  useEffect(() => {
+    if (state !== 'ok' || !msgs.length) return
+    const mid = new URLSearchParams(location.hash.split('?')[1] ?? '').get('pesan')
+    if (!mid || flashed.current === mid) return
+    const el = [...document.querySelectorAll<HTMLElement>('[data-mid]')].find((x) => x.dataset.mid === mid)
+    if (!el) return
+    flashed.current = mid
+    stick.current = false // stay on the linked message when a live turn or plan strip would scroll to the newest
+    el.scrollIntoView({ block: el.offsetHeight > innerHeight * 0.6 ? 'start' : 'center' })
+    el.setAttribute('data-flash', '')
+    flashTimer.current = window.setTimeout(() => el.removeAttribute('data-flash'), 2000)
+  }, [state, msgs, linkTick])
 
   useEffect(() => {
     const add = (m: GroupMsg) => setMsgs((cur) => (cur.some((x) => sameId(x.id, m.id)) ? cur : [...cur, m]))
@@ -579,20 +608,24 @@ function GroupBubble({ m, members, bot, queued, thought, onPlanState }: { m: Gro
     )
   }
   // Same rule as the server's routing (groups._mentioned): @bot-id or @first-name hands the turn to that member.
-  // shortcut: computed on the client, the server does not store who a message handed off to; store it if routing ever differs from mentions.
+  // shortcut: old messages have no `to_bot_ids`, so the client still guesses from mentions; drop the guess once history carries it.
   const tokens = new Set([...m.text.matchAll(/@(\w+)/g)].map((x) => x[1].toLowerCase()))
   const delegates = members.filter((b) => b.id !== m.bot_id && (tokens.has(b.id.toLowerCase()) || tokens.has(b.name.split(' ')[0].toLowerCase())))
+  const fromServer = m.to_bot_ids !== undefined
+  const to = fromServer ? members.filter((b) => m.to_bot_ids?.includes(b.id)) : delegates
+  const handOff = fromServer && to.length > 0
   return (
-    <div className="msg bot gmsg" id={m.plan ? `plan-${m.id}` : undefined} style={{ ['--bot' as string]: botColor(bot) }}>
+    <div className="msg bot gmsg" id={m.plan ? `plan-${m.id}` : undefined} data-mid={m.id} style={{ ['--bot' as string]: botColor(bot) }}>
       <BotAvatar bot={bot ?? { name: '?', color: '' }} size={32} />
       <div className="msg-body">
         <p className="gmsg-who">
           <b>{bot?.name ?? 'Pegawai'}</b>
           {bot?.role && <span>{roleLabel(bot.role)}</span>}
+          {handOff && <AgentPill />}
           <time>{clock(m.created_at)}</time>
         </p>
         {thought?.text && <ThinkingBlock text={thought.text} running={false} seconds={thought.seconds} />}
-        <div className="bubble">
+        <div className={handOff ? 'bubble a2a-bubble' : 'bubble'}>
           <Md text={m.plan ? withoutPlanBlock(m.text) : m.text} />
         </div>
         {m.text.trim() && (
@@ -601,10 +634,10 @@ function GroupBubble({ m, members, bot, queued, thought, onPlanState }: { m: Gro
             <GmailDraftButton text={m.plan ? withoutPlanBlock(m.text) : m.text} />
           </div>
         )}
-        {delegates.length > 0 && (
-          <p className="delegates" aria-label={`Membagi tugas ke ${delegates.map((b) => b.name).join(', ')}`}>
-            Membagi tugas →
-            {delegates.map((b) => (
+        {to.length > 0 && (
+          <p className="delegates" aria-label={fromServer ? `Untuk ${to.map((b) => b.name).join(', ')}` : `Membagi tugas ke ${to.map((b) => b.name).join(', ')}`}>
+            {fromServer ? 'Untuk →' : 'Membagi tugas →'}
+            {to.map((b) => (
               <span key={b.id} className="delegate" style={{ ['--bot' as string]: botColor(b) }}>
                 <BotAvatar bot={b} size={16} />
                 {b.name.split(' ')[0]}

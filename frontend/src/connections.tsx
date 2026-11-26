@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppLogo } from './app-logos'
 import { createPortal } from 'react-dom'
-import { api, errText } from './bff'
+import { api, canWhatsApp, errText } from './bff'
 import { useAdminMode } from './adminMode'
 import type { ConnProvider, Connection, HermesApp } from './bff'
+import { useData } from './data'
 import { go } from './router'
 import { SourcePicker } from './pick-ui'
 import { SkillsSection } from './skills-ui'
@@ -11,6 +12,7 @@ import { Dialog, ErrorLine } from './ui'
 import { CapChip, PageHead, Spinner, useLoad } from './ui-extra'
 import { cachedRead, forgetReads, onLinkIntent } from './session-cache'
 import { InstagramGuide, SocialPostList } from './social-ui'
+import { WhatsAppAppCard } from './whatsapp-ui'
 
 // Real per-user connections (BFF: bff/connections.py). The state comes from the BFF; nothing here pretends to be connected.
 type AppDef = { name: string; enables: string; where: string }
@@ -418,6 +420,7 @@ export function AppsPage() {
   const catFn = useCallback(() => cachedRead('apps-catalog', () => api.appsCatalog()), [])
   const cat = useLoad(catFn)
   const admin = useAdminMode()
+  const { bots } = useData()
   const [result] = useState(readResult)
   const personal = !!result && !result.ok && result.app === 'instagram' && result.reason === 'personal'
   const [problem, setProblem] = useState('')
@@ -505,6 +508,11 @@ export function AppsPage() {
   const by = new Map<string, Connection>((conns.data ?? []).map((c) => [c.provider, c]))
   const term = q.trim().toLowerCase()
   const hit = (name: string, text: string, category: string) => (!term || `${name} ${text}`.toLowerCase().includes(term)) && (!only || only === category)
+
+  // WhatsApp belongs to the account, not to one connector: one card under the "comms" category while a
+  // customer-service employee exists. It only points at that employee's tab; the channel is set up there.
+  const waShown =
+    bots.some(canWhatsApp) && hit('WhatsApp', 'Pelanggan chat ke nomor bisnis Anda dan dijawab oleh pegawai layanan pelanggan.', 'comms')
 
   const pickDrive = (
     <button type="button" className="btn outline" onClick={() => setPicker('gdrive')}>
@@ -725,13 +733,20 @@ export function AppsPage() {
       apps: apps.filter((a) => a.category === c.id && hit(a.name, a.description, c.id)),
     }))
     .filter((g) => g.oauth.length + g.apps.length > 0)
-  type CatItem = { k: 'o'; id: ConnProvider } | { k: 'a'; a: HermesApp }
-  const catalog = [
+  type CatItem = { k: 'o'; id: ConnProvider } | { k: 'a'; a: HermesApp } | { k: 'wa' }
+  const catalog: CatItem[] = [
     ...groups.flatMap((g): CatItem[] => [...g.oauth.map((id) => ({ k: 'o' as const, id })), ...g.apps.map((a) => ({ k: 'a' as const, a }))]),
     ...ownExtra.map((id): CatItem => ({ k: 'o', id })),
   ]
-    .filter((x) => (x.k === 'o' ? !['connected', 'needs_scope', 'reconnect', 'broken'].includes(by.get(x.id)?.status ?? '') : x.a.status !== 'connected'))
+    .filter((x) => (x.k === 'o' ? !['connected', 'needs_scope', 'reconnect', 'broken'].includes(by.get(x.id)?.status ?? '') : x.k === 'a' ? x.a.status !== 'connected' : true))
     .sort((x, y) => Number(x.k !== 'o') - Number(y.k !== 'o')) // the built-in apps lead the first page
+  if (waShown) {
+    // Right after Gmail (the one "comms" card every workspace has), or at the start of the catalog apps.
+    const gmailAt = catalog.findIndex((x) => x.k === 'o' && x.id === 'gmail')
+    const start = catalog.findIndex((x) => x.k !== 'o')
+    const at = gmailAt >= 0 ? gmailAt + 1 : start
+    catalog.splice(at < 0 ? catalog.length : at, 0, { k: 'wa' })
+  }
   const shown = catalog.slice(0, limit)
   const linkedCount = connectedOauth.length + linkedHermes.length
   const problemCount = problemOauth.length
@@ -837,7 +852,11 @@ export function AppsPage() {
                       Aplikasi lain<span className="quiet"> · {catalog.length}</span>
                     </h2>
                   </header>
-                  {shown.length > 0 && <ul className="app-grid app-mini-grid">{shown.map((x) => (x.k === 'o' ? oauthCard(x.id, 'mini') : appCard(x.a, 'mini')))}</ul>}
+                  {shown.length > 0 && (
+                    <ul className="app-grid app-mini-grid">
+                      {shown.map((x) => (x.k === 'o' ? oauthCard(x.id, 'mini') : x.k === 'a' ? appCard(x.a, 'mini') : <WhatsAppAppCard key="whatsapp" />))}
+                    </ul>
+                  )}
                   {catalog.length > limit && (
                     <button type="button" className="btn soft apps-more" onClick={() => setLimit((n) => n + 12)}>
                       Tampilkan lebih banyak ({catalog.length - limit} lagi)

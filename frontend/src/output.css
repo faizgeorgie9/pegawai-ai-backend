@@ -1,0 +1,74 @@
+/* Output (#/output): every non-text result an agent made. Same tokens as the rest of the app; the grid is
+   the page, one card per file, a quiet day heading between groups. */
+
+.out-main { display: flex; flex-direction: column; min-width: 0; }
+
+.out-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-3) var(--s-4); margin-bottom: var(--s-3); }
+.out-bar select { width: 220px; }
+
+.out-types { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.out-chip { display: inline-flex; align-items: center; gap: var(--s-2); height: 36px; padding: 0 var(--s-3); border: 1px solid var(--border); border-radius: var(--radius-control); background: transparent; color: var(--muted); font: inherit; font-weight: 500; cursor: pointer; }
+.out-chip:hover { border-color: var(--faint); color: var(--text); }
+.out-chip[aria-pressed="true"] { background: var(--active); color: var(--text); border-color: var(--control); }
+.out-chip .num { font-size: 13px; color: var(--muted); }
+
+.out-day { margin: var(--s-5) 0 var(--s-2); font-size: var(--t-body); font-weight: 600; color: var(--muted); }
+.out-day:first-of-type { margin-top: var(--s-4); }
+
+.out-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(208px, 1fr)); gap: var(--s-3); list-style: none; margin: 0; padding: 0; }
+
+.out-tile { display: flex; flex-direction: column; min-width: 0; overflow: hidden; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); }
+
+.out-media { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 4 / 3; padding: 0; border: 0; background: var(--raised); cursor: pointer; }
+.out-media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+.out-tile .out-skel { width: 100%; aspect-ratio: 4 / 3; height: auto; border-radius: 0; }
+/* The skeleton repeats the real tile's boxes (media, three text lines, two buttons) so the grid does not
+   jump when the files arrive; line boxes use the same 21/19 px heights as the text they stand in for. */
+.out-tile.skel .out-body { gap: 2px; }
+.out-tile.skel .out-body .skel-bar { height: 21px; }
+.out-tile.skel .out-body .skel-bar + .skel-bar { height: 19px; }
+.out-tile.skel .out-foot .skel-block { height: 36px; border-radius: var(--radius-control); }
+.out-tile.skel .skel-bar,
+.out-tile.skel .skel-block { animation: skel 1.6s ease-in-out infinite; }
+
+.out-play { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--primary); color: var(--on-primary); }
+
+.out-ext { display: grid; place-items: center; width: 56px; height: 64px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); color: var(--muted); font: 600 13px/1 var(--font); }
+
+.out-body { display: flex; flex-direction: column; gap: 2px; padding: var(--s-2) var(--s-3) 0; min-width: 0; }
+.out-name { font-size: 14px; font-weight: 500; }
+.out-meta { font-size: 13px; color: var(--muted); }
+.out-who { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+
+.out-foot { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); margin-top: auto; padding: var(--s-2) var(--s-3) var(--s-3); }
+.out-foot .btn.sm { min-width: 0; height: 36px; overflow: hidden; }
+
+.out-gone { margin: auto 0 0; padding: var(--s-2) var(--s-3) var(--s-3); }
+.out-err { margin: 0; padding: 0 var(--s-3) var(--s-3); }
+
+.out-empty-act { margin-top: var(--s-3); }
+.out-src { margin: 0; }
+
+.out-more { display: flex; justify-content: center; margin-top: var(--s-5); }
+.out-results > .problem-bar { margin-top: var(--s-4); }
+
+@media (max-width: 640px) {
+  .out-bar { flex-direction: column; align-items: stretch; }
+  .out-bar select { width: 100%; height: 40px; }
+  .out-page .btn { min-height: 40px; }
+  .out-chip { height: 40px; }
+  .out-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2); }
+  /* A 167 px tile wraps most file names and some "name · time" lines; both reserve two lines, so the
+     skeleton and every real tile share one height and nothing jumps when the files arrive. */
+  .out-name { min-height: 42px; }
+  .out-who { min-height: 39px; }
+  .out-tile.skel .out-body .skel-bar:first-child { height: 42px; }
+  .out-tile.skel .out-body .skel-bar:last-child { height: 39px; }
+  .out-tile.skel .out-foot .skel-block { height: 40px; }
+  .out-play { width: 32px; height: 32px; }
+  .out-foot .btn.sm { height: 40px; padding: 0 var(--s-2); }
+  /* A 375 px tile is 167 px wide: "Mengunduh…" needs the whole footer while the file is being fetched. */
+  .out-foot-busy { grid-template-columns: minmax(0, 1fr); }
+  .out-foot-busy .btn.soft { display: none; }
+}

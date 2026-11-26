@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ActionCard, useVisibleActions } from './ActionCard'
-import { useAdminMode } from './adminMode'
+import { useAdminMode, useIsAdmin } from './adminMode'
 import { api } from './bff'
 import { useData } from './data'
+import { HandoverAlert } from './handover-alert'
 import { Onboarding, DEFAULT_NAME, hasName, onboardingClosed } from './Onboarding'
 import type { Step } from './Onboarding'
 import { groupPath } from './router'
+import { StartChoice } from './start-choice'
 import { TimAnda } from './TimAnda'
 import { toolLabel } from './steps'
 import { ErrorLine, nf, stamp } from './ui'
@@ -34,6 +36,7 @@ async function loadWork() {
 export default function Dashboard() {
   const { bots, groups, runs, me, settings, loadState, error, reload } = useData()
   const admin = useAdminMode()
+  const isAdmin = useIsAdmin()
   const workFn = useCallback(() => loadWork(), [])
   const work = useLoad(workFn)
   const kbFn = useCallback(() => api.kbItems(), [])
@@ -64,6 +67,8 @@ export default function Dashboard() {
   const upcoming = w?.upcoming ?? []
   const waitingCount = approvals.length + (w?.waiting.length ?? 0)
   const defaultName = settings.company_name.trim() === DEFAULT_NAME
+  // A brand-new workspace: the owner picks a way to get the first employees instead of the guide (its steps need them).
+  const freshStart = isAdmin && bots.length === 0
 
   const steps: Step[] = [
     {
@@ -119,8 +124,10 @@ export default function Dashboard() {
         }
       />
 
-      {!stepsReady && !onboardingClosed() && <div className="panel-card onboard-row onb-skel" aria-hidden="true" />}
-      {stepsReady && <Onboarding steps={steps} />}
+      <HandoverAlert />
+      {freshStart && <StartChoice />}
+      {!freshStart && !stepsReady && !onboardingClosed() && <div className="panel-card onboard-row onb-skel" aria-hidden="true" />}
+      {!freshStart && stepsReady && <Onboarding steps={steps} />}
 
       <div className="two">
         <section className="panel-card" data-empty={w && w.waiting.length === 0 && approvals.length === 0 ? '' : undefined} aria-labelledby="need-h">

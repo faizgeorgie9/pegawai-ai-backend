@@ -15,6 +15,8 @@ const KEY = 'pa.mock'
 const LATENCY_KEY = 'pa.mock.latency'
 const DEMO_KEY = 'pa.mock.demo'
 const SOCIAL_KEY = 'pa.mock.social'
+const HV_KEY = 'pa.mock.handover'
+const FRESH_KEY = 'pa.mock.fresh'
 
 const DEFAULTS: Record<string, string> = {
   attachments: 'ok', // ok | empty | gone | slow | huge
@@ -28,6 +30,13 @@ const DEFAULTS: Record<string, string> = {
   canva: 'disconnected', // same, without personal
   posts: 'mixed', // mixed | empty | publishing
   publish: 'ok', // ok | fail
+  output: 'many', // many | few | empty | fail | slow
+  whatsapp: 'real', // real | ready | notconfigured | error | fail
+  handover: 'queue', // queue | empty | fail
+  handoverPing: 'off', // off | auto
+  a2a: 'on', // on | off
+  onboarding: 'off', // off | fresh | limit
+  templates: 'real', // real | sample | few | fail
 }
 
 function scenarios(): Record<string, string> {
@@ -80,6 +89,7 @@ declare global {
       get: () => Record<string, string>
       reset: () => void
       latency: (ms: number) => void
+      emit: (kind: 'handover') => void
     }
   }
 }
@@ -95,9 +105,14 @@ if (typeof window !== 'undefined') {
     reset() {
       localStorage.removeItem(KEY)
       localStorage.removeItem(LATENCY_KEY)
+      localStorage.removeItem(HV_KEY)
+      localStorage.removeItem(FRESH_KEY)
     },
     latency(ms) {
       localStorage.setItem(LATENCY_KEY, String(Math.max(0, ms)))
+    },
+    emit(kind) {
+      if (kind === 'handover') pingHandover()
     },
   }
   mountBadge()
@@ -142,6 +157,85 @@ function attById(id: string): Att | undefined {
 
 function atts(ids: string[]): Att[] {
   return ids.map((id) => CATALOG[id]).filter((a): a is Att => !!a)
+}
+
+// ---- sample outputs (K1): 30 files in 3 agents, registered in CATALOG so mockBlob can serve them ----
+type OutAtt = Att & { bot_id: string; created_at: string; session_id?: string; group_id?: string; task_id?: string; run_id?: string }
+type OutKind = 'image' | 'video' | 'audio' | 'document' | 'table'
+
+// The kind cycle is fixed (15 images, 6 documents, 3 tables, 3 videos, 3 voices); the names are drawn from
+// per-kind lists so an extension always matches its file kind.
+const OUT_PATTERN: OutKind[] = ['image', 'image', 'document', 'image', 'table', 'video', 'image', 'audio', 'document', 'image']
+const OUT_NAMES: Record<OutKind, string[]> = {
+  image: ['poster-promo-november.png', 'foto-produk-jaket.png', 'banner-akhir-pekan.png', 'carousel-slide-1.png', 'kartu-ucapan.png', 'thumbnail-reels.png'],
+  document: ['katalog-koleksi.pdf', 'sop-retur.docx'],
+  table: ['stok-gudang.csv', 'laporan-penjualan.xlsx'],
+  video: ['video-unboxing.webm'],
+  audio: ['sapaan-pelanggan.wav'],
+}
+const OUT_MIME: Record<string, string> = {
+  png: 'image/png',
+  pdf: 'application/pdf',
+  csv: 'text/csv',
+  webm: 'video/webm',
+  wav: 'audio/wav',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+}
+
+const outKind = (mime: string): OutKind => (mime.startsWith('image/') ? 'image' : mime.startsWith('video/') ? 'video' : mime.startsWith('audio/') ? 'audio' : mime === 'text/csv' || /spreadsheetml/.test(mime) ? 'table' : 'document')
+
+function buildOutputs(): OutAtt[] {
+  const now = Date.now()
+  const midnight = new Date(now)
+  midnight.setHours(0, 0, 0, 0)
+  const names = Object.fromEntries(Object.entries(OUT_NAMES).map(([k, v]) => [k, [...v]])) as Record<OutKind, string[]>
+  const used: Record<OutKind, number> = { image: 0, video: 0, audio: 0, document: 0, table: 0 }
+  const out: OutAtt[] = []
+  for (let i = 0; i < 30; i++) {
+    const n = i + 1
+    const kind = OUT_PATTERN[i % OUT_PATTERN.length]
+    const pool = names[kind]
+    const name = pool[used[kind]++ % pool.length]
+    const ext = name.split('.').pop() ?? ''
+    const mime = OUT_MIME[ext] ?? 'application/octet-stream'
+    // 4 today (40 minutes apart), 6 yesterday, the rest 2 to 9 days back, always newest first.
+    const at = i < 4 ? now - i * 40 * 60_000 : i < 10 ? midnight.getTime() - (2 + (i - 4) * 2) * 3_600_000 : midnight.getTime() - (2 + Math.floor((i - 10) / 3)) * 86_400_000 - ((i - 10) % 3) * 600_000
+    const file: OutAtt = {
+      id: `mock-out-${String(n).padStart(2, '0')}`,
+      name,
+      mime,
+      bytes: Math.round(40_960 + ((i * 7919) % 1_000) * 3_104),
+      url: `/api/artifacts/mock-out-${String(n).padStart(2, '0')}`,
+      bot_id: ['siti', 'rian', 'budi'][i % 3],
+      created_at: new Date(at).toISOString(),
+    }
+    if (kind === 'image') {
+      const sizes: [number, number][] = [
+        [1080, 1080],
+        [1080, 1350],
+        [1920, 1080],
+      ]
+      const [w, h] = sizes[(used.image - 1) % sizes.length]
+      file.width = w
+      file.height = h
+    }
+    if (kind === 'video' || kind === 'audio') file.duration_ms = kind === 'video' ? 12_000 : 2_000
+    if (n % 2 === 0) file.session_id = 'mock-sess-1'
+    if (n % 7 === 0) file.group_id = 'mock-grp-1'
+    if (n % 11 === 0) file.task_id = 'mock-task-1'
+    out.push(file)
+  }
+  return out
+}
+
+const OUT = buildOutputs()
+for (const o of OUT) CATALOG[o.id] = o
+
+function outCounts(items: OutAtt[]): Record<OutKind, number> {
+  const counts: Record<OutKind, number> = { image: 0, video: 0, audio: 0, document: 0, table: 0 }
+  for (const o of items) counts[outKind(o.mime)]++
+  return counts
 }
 
 const DEMO: Record<string, string[]> = {
@@ -237,6 +331,273 @@ function captionLong(): string {
   let out = ''
   while (out.length < 2340) out += (out ? '\n\n' : '') + one
   return out.slice(0, 2340)
+}
+
+// ---- handover (K3): five sample WhatsApp conversations; state and takeover survive a reload ----
+interface HvSaved {
+  state?: string
+  reason?: string
+  taken_by?: string
+  resume_at?: number
+  log?: { text: string; at: number }[]
+}
+type HvStore = Record<string, HvSaved>
+
+function hvStore(): HvStore {
+  try {
+    const raw = JSON.parse(localStorage.getItem(HV_KEY) ?? '{}') as unknown
+    return raw && typeof raw === 'object' ? (raw as HvStore) : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveHv(s: HvStore) {
+  localStorage.setItem(HV_KEY, JSON.stringify(s))
+}
+
+function setConvState(id: string, patch: HvSaved) {
+  const s = hvStore()
+  s[id] = { ...s[id], ...patch }
+  saveHv(s)
+}
+
+function pushConvLog(id: string, text: string) {
+  const s = hvStore()
+  s[id] = { ...s[id], log: [...(s[id]?.log ?? []), { text, at: Math.floor(Date.now() / 1000) }] }
+  saveHv(s)
+}
+
+interface HvSeed {
+  id: string
+  customer: string
+  phone: string
+  state: string
+  reason: string
+  taken: string
+  last: string
+  age: number // seconds since the last message
+  resume: number // seconds from now while a human has it
+}
+const HV_SEEDS: HvSeed[] = [
+  { id: 'mock-conv-1', customer: 'Dewi Lestari', phone: '4821', state: 'needs_human', reason: 'asked_human', taken: '', last: 'Aku mau bicara dengan CS asli, bukan bot.', age: 8 * 60, resume: 0 },
+  { id: 'mock-conv-2', customer: 'Budi Santoso', phone: '0937', state: 'human', reason: 'refund', taken: 'Anda', last: 'Baik kak, saya tunggu kabar refund-nya ya.', age: 2 * 3600, resume: 90 * 60 },
+  { id: 'mock-conv-3', customer: 'Rina Wijaya', phone: '7710', state: 'bot', reason: '', taken: '', last: 'Kak, ukuran M untuk jaket ini masih ada?', age: 14 * 60, resume: 0 },
+  { id: 'mock-conv-4', customer: 'Agus', phone: '1156', state: 'bot', reason: '', taken: '', last: 'Terima kasih, pesanan sudah sampai.', age: 3 * 3600, resume: 0 },
+  { id: 'mock-conv-5', customer: 'Maya Putri', phone: '3302', state: 'needs_human', reason: 'complaint', taken: '', last: 'Barangnya cacat, jahitannya lepas semua.', age: 25 * 60, resume: 0 },
+]
+const HV_FROM = ['customer', 'bot', 'staff', 'system'] as const
+
+// Message scripts: `off` = seconds before the conversation's last message.
+const HV_SCRIPTS: Record<string, { from: (typeof HV_FROM)[number]; text: string; off: number }[]> = {
+  'mock-conv-1': [
+    { from: 'customer', text: 'Selamat sore.', off: 2400 },
+    { from: 'bot', text: 'Selamat sore, Kak Dewi. Ada yang bisa saya bantu?', off: 2340 },
+    { from: 'customer', text: 'Saya mau tanya soal retur jaket yang saya beli minggu lalu.', off: 1800 },
+    { from: 'bot', text: 'Retur bisa dalam 7 hari setelah paket diterima, asal label belum dilepas. Mau saya bantu ajukan?', off: 1740 },
+    { from: 'customer', text: 'Aku mau bicara dengan CS asli, bukan bot.', off: 0 },
+    { from: 'system', text: 'Siti berhenti membalas. Menunggu manusia.', off: 0 },
+  ],
+  'mock-conv-2': [
+    { from: 'customer', text: 'Halo kak, pesanan saya belum sampai.', off: 7200 },
+    { from: 'bot', text: 'Halo Kak Budi. Nomor pesanan berapa?', off: 7140 },
+    { from: 'customer', text: 'PSN-8871.', off: 6900 },
+    { from: 'customer', text: 'Saya mau minta refund saja.', off: 6600 },
+    { from: 'system', text: 'Pelanggan minta pengembalian uang.', off: 6580 },
+    { from: 'staff', text: 'Halo kak Budi, saya Anda dari tim CS. Refund sedang kami proses.', off: 4200 },
+    { from: 'staff', text: 'Dana akan masuk 3–5 hari kerja. Kami kabari lagi bila sudah selesai.', off: 1800 },
+    { from: 'customer', text: 'Baik kak, saya tunggu kabar refund-nya ya.', off: 0 },
+  ],
+  'mock-conv-3': [
+    { from: 'customer', text: 'Halo, saya lihat postingan jaketnya.', off: 5400 },
+    { from: 'bot', text: 'Halo Kak Rina, terima kasih sudah mampir.', off: 5350 },
+    { from: 'customer', text: 'Selamat pagi.', off: 4800 },
+    { from: 'bot', text: 'Selamat pagi, Kak Rina.', off: 4740 },
+    { from: 'customer', text: 'Jaket koleksi November masih ada?', off: 600 },
+    { from: 'bot', text: 'Masih ada, Kak. Warnanya biru, hitam, dan krem.', off: 540 },
+    { from: 'customer', text: 'Kak, ukuran M untuk jaket ini masih ada?', off: 0 },
+  ],
+  'mock-conv-4': [
+    { from: 'customer', text: 'Sore, kak.', off: 7400 },
+    { from: 'bot', text: 'Sore, Kak Agus.', off: 7350 },
+    { from: 'customer', text: 'Halo, saya mau tanya pesanan saya.', off: 7200 },
+    { from: 'bot', text: 'Halo Kak Agus. Nomor pesanan berapa?', off: 7150 },
+    { from: 'customer', text: 'PSN-2231.', off: 7100 },
+    { from: 'bot', text: 'Pesanan sudah dikirim kemarin dan diperkirakan tiba hari ini.', off: 7000 },
+    { from: 'customer', text: 'Terima kasih, pesanan sudah sampai.', off: 0 },
+  ],
+  'mock-conv-5': [
+    { from: 'customer', text: 'Halo, jaket yang saya terima cacat.', off: 3000 },
+    { from: 'bot', text: 'Mohon maaf, Kak Maya. Boleh kirim foto bagian yang cacat?', off: 2940 },
+    { from: 'customer', text: 'Sudah saya kirim ya.', off: 1800 },
+    { from: 'bot', text: 'Terima kasih, fotonya sudah saya lihat. Saya teruskan ke tim layanan pelanggan untuk penukaran.', off: 1740 },
+    { from: 'customer', text: 'Barangnya cacat, jahitannya lepas semua.', off: 0 },
+    { from: 'system', text: 'Siti berhenti membalas. Menunggu manusia.', off: 0 },
+  ],
+}
+
+function convMessages(id: string): Raw[] {
+  const seed = HV_SEEDS.find((s) => s.id === id)
+  if (!seed) return []
+  const lastAt = Math.floor(Date.now() / 1000) - seed.age
+  const saved = hvStore()[id] ?? {}
+  const rows: Raw[] = (HV_SCRIPTS[id] ?? []).map((m, i) => ({
+    id: `${id}-m${i + 1}`,
+    from: m.from,
+    bot_id: m.from === 'bot' ? 'siti' : '',
+    text: m.text,
+    at: new Date((lastAt - m.off) * 1000).toISOString(),
+  }))
+  for (const [k, entry] of (saved.log ?? []).entries()) {
+    rows.push({ id: `${id}-log${k + 1}`, from: 'system', bot_id: '', text: entry.text, at: new Date(entry.at * 1000).toISOString() })
+  }
+  return rows.sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+}
+
+function convRows(): Raw[] {
+  const saved = hvStore()
+  const now = Math.floor(Date.now() / 1000)
+  return HV_SEEDS.map((s) => {
+    const o = saved[s.id] ?? {}
+    const state = o.state ?? s.state
+    const resume = o.resume_at != null ? o.resume_at : s.resume ? now + s.resume : 0
+    const lastAt = now - s.age
+    return {
+      id: s.id,
+      channel: 'whatsapp',
+      customer: s.customer,
+      phone_tail: s.phone,
+      bot_id: 'siti',
+      state,
+      reason: o.reason ?? s.reason,
+      taken_by: o.taken_by ?? s.taken,
+      resume_at: resume ? new Date(resume * 1000).toISOString() : null,
+      last_message: s.last,
+      last_at: new Date(lastAt * 1000).toISOString(),
+      message_count: convMessages(s.id).length,
+      since: new Date(lastAt * 1000).toISOString(),
+    }
+  })
+}
+
+function conversationRow(id: string): Raw | undefined {
+  return convRows().find((c) => c.id === id)
+}
+
+function convPage(state: string, botId: string, limit: number): Raw {
+  const all = convRows()
+  const counts = { needs_human: 0, human: 0, bot: 0 }
+  for (const c of all) {
+    if (c.state === 'needs_human') counts.needs_human++
+    else if (c.state === 'human') counts.human++
+    else counts.bot++
+  }
+  if (sc('handover') === 'empty') return { items: [], next: null, counts: { needs_human: 0, human: 0, bot: 0 } }
+  const wanted = state === 'open' ? ['needs_human', 'human'] : state ? [state] : []
+  const items = all
+    .filter((c) => (!botId || c.bot_id === botId) && (!wanted.length || wanted.includes(c.state)))
+    .sort((a, b) => (a.state === 'needs_human' ? 0 : 1) - (b.state === 'needs_human' ? 0 : 1) || Date.parse(b.last_at) - Date.parse(a.last_at))
+  return { items: items.slice(0, limit), next: null, counts }
+}
+
+// ---- WhatsApp status (K2): scenario answers and the channels flag on agents ----
+function waStatus(): Raw {
+  const scenario = sc('whatsapp')
+  const base: Raw = {
+    channel: 'whatsapp',
+    mode: 'business',
+    webhook_url: '',
+    webhook_verify_token_configured: true,
+    api_token_configured: true,
+    primary_agent: { id: 'siti', name: 'Siti', role: 'Frontline Support Specialist' },
+    escalation_agent: { id: 'hendra', name: 'Hendra', role: 'CS Team Lead & Quality Auditor' },
+    total_messages_processed: 128,
+    last_activity: new Date(Date.now() - 12 * 60_000).toISOString(),
+    eligible_bot_ids: ['siti', 'hendra'],
+    agents: [
+      { bot_id: 'siti', role: 'primary' },
+      { bot_id: 'hendra', role: 'escalation' },
+    ],
+  }
+  if (scenario === 'ready') {
+    return { ...base, status: 'ready', number: '+62 812-3456-7890', webhook_url: 'https://contoh.pegawai.ai/bff/api/whatsapp/webhook' }
+  }
+  if (scenario === 'notconfigured') return { ...base, status: 'not_configured', api_token_configured: false }
+  if (scenario === 'error') return { ...base, status: 'error', error: 'Nomor WhatsApp terputus. Hubungkan ulang di server.' }
+  return base
+}
+
+// ---- onboarding (K5): templates and a fresh install kept in localStorage ----
+const SAMPLE_TEMPLATES: Raw[] = [
+  { id: 'rian', name: 'Rian', role: 'Copywriting Specialist', team: 'marketing', color: 'amber', description: 'Menulis naskah dan caption yang santai, jujur, dan enak dibaca di HP.' },
+  { id: 'budi', name: 'Budi', role: 'Visual Designer & Art Director', team: 'marketing', color: 'indigo', description: 'Merancang arah visual dan menyiapkan gambar untuk konten.' },
+  { id: 'diana', name: 'Diana', role: 'Creative Director & QC Auditor', team: 'marketing', color: 'teal', description: 'Menilai mutu naskah dan memberi skor serta catatan perbaikan.' },
+  { id: 'siti', name: 'Siti', role: 'Frontline Support Specialist', team: 'customer_support', color: 'sky', description: 'Membalas pelanggan dengan empatik, jelas, dan sopan.' },
+  { id: 'hendra', name: 'Hendra', role: 'CS Team Lead & Quality Auditor', team: 'customer_support', color: 'teal', description: 'Memimpin tim CS dan mengaudit mutu balasan sebelum dikirim.' },
+]
+
+interface FreshState {
+  bots: Raw[]
+  groups: Raw[]
+  seq: number
+}
+
+// Skenario fresh hanya untuk menguji #/mulai; __mock.reset() mengembalikan.
+function freshStore(): FreshState {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FRESH_KEY) ?? '{}') as Partial<FreshState>
+    return { bots: Array.isArray(raw.bots) ? raw.bots : [], groups: Array.isArray(raw.groups) ? raw.groups : [], seq: asNum(raw.seq) }
+  } catch {
+    return { bots: [], groups: [], seq: 0 }
+  }
+}
+
+function saveFresh(f: FreshState) {
+  localStorage.setItem(FRESH_KEY, JSON.stringify(f))
+}
+
+const isFresh = () => sc('onboarding') === 'fresh' || sc('onboarding') === 'limit'
+
+// ---- events: the same handler map as the real /events stream, so a sample ping reaches toast and badge ----
+let eventHandlers: Record<string, (d: Raw) => void> | null = null
+let pingTimer = 0
+
+function pingHandover() {
+  const row = conversationRow('mock-conv-3')
+  if (!row || row.state !== 'needs_human') {
+    setConvState('mock-conv-3', { state: 'needs_human', reason: 'asked_human', taken_by: '', resume_at: 0 })
+    pushConvLog('mock-conv-3', 'Siti berhenti membalas. Menunggu manusia.')
+  }
+  eventHandlers?.handover?.({
+    conversation_id: 'mock-conv-3',
+    state: 'needs_human',
+    reason: 'asked_human',
+    customer: 'Rina Wijaya',
+    bot_id: 'siti',
+    at: new Date().toISOString(),
+  })
+}
+
+export function mockEvents(on: Record<string, (d: Raw) => void>): () => void {
+  eventHandlers = on
+  if (sc('handoverPing') === 'auto' && !pingTimer) {
+    pingTimer = window.setTimeout(() => {
+      pingTimer = 0
+      pingHandover()
+    }, 8000)
+  }
+  return () => {
+    if (eventHandlers === on) eventHandlers = null
+  }
+}
+
+// Agents the group decoration knows by id or first name (the ids the BFF can route to).
+const A2A_NAMES: Record<string, string> = { rian: 'Rian', diana: 'Diana', budi: 'Budi', siti: 'Siti', hendra: 'Hendra', bimo: 'Bimo', meda: 'Meda', raka: 'Raka', bram: 'Bram', vina: 'Vina' }
+
+function mentionedIds(text: string, author: string): string[] {
+  return Object.entries(A2A_NAMES)
+    .filter(([id, name]) => id !== author && new RegExp(`@(${id}|${name})\\b`, 'i').test(text))
+    .map(([id]) => id)
 }
 
 // ---- connections demo ----
@@ -671,18 +1032,17 @@ export async function mockBlob(path: string): Promise<Blob> {
   const id = decodeURIComponent(url.pathname.replace('/artifacts/', ''))
   const thumb = url.searchParams.get('thumb') === '1'
   const a = attById(id)
-  if (!a || id === A.broken.id || sc('attachments') === 'gone') throw new ApiError('Berkas ini sudah tidak tersedia.', 404)
+  // mock-out-17 is always gone: the Output screen has to explain a missing file.
+  if (!a || id === A.broken.id || id === 'mock-out-17' || sc('attachments') === 'gone') throw new ApiError('Berkas ini sudah tidak tersedia.', 404)
   if (sc('attachments') === 'slow') await wait(4000)
   try {
-    if (id === A.video.id || id === A.huge.id) {
+    if (a.mime.startsWith('video/')) {
       if (thumb) return await pngBlob(640, 360, 'Video contoh', 3)
       return await webmBlob(a.width ?? 1280, a.height ?? 720, 'Video contoh')
     }
-    if (id === A.audio.id) return wavBlob(2)
-    if (id === A.pdf.id) return pdfBlob('Katalog Colorbox', ['Contoh katalog produk untuk mode contoh.', 'Ukuran, warna, dan harga di layar bukan data asli.', '', 'Dokumen ini dibuat di browser dan tidak disimpan.'])
-    if (id === A.csv.id) return csvBlob()
-    if (id === A.docx.id) return zipLikeBlob('docx')
-    if (id === A.xlsx.id) return zipLikeBlob('xlsx')
+    if (a.mime.startsWith('audio/')) return wavBlob(2)
+    if (a.mime === 'application/pdf') return pdfBlob('Katalog Colorbox', ['Contoh katalog produk untuk mode contoh.', 'Ukuran, warna, dan harga di layar bukan data asli.', '', 'Dokumen ini dibuat di browser dan tidak disimpan.'])
+    if (a.mime === 'text/csv') return csvBlob()
     if (a.mime.startsWith('image/')) return await pngBlob(a.width ?? 1080, a.height ?? 1080, `Contoh ${a.width ?? 1080}×${a.height ?? 1080}`, a.width === a.height ? 1 : a.width === 1080 ? 0 : 2)
     if (a.mime.startsWith('text/')) return textBlob('Contoh berkas teks dari mode contoh.')
     return zipLikeBlob(a.name.split('.').pop() ?? 'zip')
@@ -724,19 +1084,39 @@ export async function mockIntercept<T>(method: string, path: string, body: unkno
   }
   if (m === 'GET' && seg.length === 1 && seg[0] === 'artifacts') {
     const sid = q.get('session_id') ?? ''
-    const session = sid ? demoSession(sid) : undefined
-    let items: Att[] = []
-    if (sc('attachments') !== 'empty') {
-      if (session) items = atts(session.attachment_ids)
-      else if (sc('attachments') === 'huge') items = [A.huge]
-      else items = [A.img1, A.pdf]
+    if (sid) {
+      const session = demoSession(sid)
+      let items: Att[] = []
+      if (sc('attachments') !== 'empty') {
+        if (session) items = atts(session.attachment_ids)
+        else if (sc('attachments') === 'huge') items = [A.huge]
+        else items = [A.img1, A.pdf]
+      }
+      return answer({ items })
     }
-    return answer({ items })
+    // Output (K1): the same endpoint without session_id lists every file, filtered and paged.
+    if (sc('output') === 'fail') throw new ApiError('Layanan belum bisa dihubungi. Coba lagi sebentar lagi.', 500)
+    const botId = q.get('bot_id') ?? ''
+    const type = q.get('type') ?? ''
+    const scenario = sc('output')
+    const limit = Math.min(100, Math.max(1, asNum(q.get('limit'), 24)))
+    const start = scenario === 'few' || scenario === 'empty' ? 0 : Math.max(0, asNum(q.get('before'), 0))
+    // The scenario decides the whole set: `few` and `empty` also drive the chip counts, not only the rows.
+    const base = OUT.filter((o) => !botId || o.bot_id === botId)
+    const scope = scenario === 'empty' ? [] : scenario === 'few' ? base.slice(0, 3) : base
+    const rows = type ? scope.filter((o) => outKind(o.mime) === type) : scope
+    const page = rows.slice(start, start + limit)
+    await wait(scenario === 'slow' ? 3000 : latency())
+    return {
+      items: page,
+      next: scenario === 'few' || scenario === 'empty' || start + limit >= rows.length ? null : String(start + limit),
+      counts: outCounts(scope),
+    } as T
   }
 
   // R5 skill files
   if (seg[0] === 'agents' && seg[2] === 'skill-files') {
-    if (sc('skills') === 'fail') throw new ApiError('Server belum terjangkau. Pastikan BFF menyala, lalu coba lagi.', 500)
+    if (sc('skills') === 'fail') throw new ApiError('Layanan belum bisa dihubungi. Coba lagi sebentar lagi.', 500)
     if (m !== 'GET') await wait(sc('skills') === 'slowscan' ? 6000 : latency())
     const name = seg[3] ?? ''
     const action = seg[4] ?? ''
@@ -810,7 +1190,7 @@ export async function mockIntercept<T>(method: string, path: string, body: unkno
       return { url: '#/pengaturan/akun-ai?connect=ok' } as T
     }
     if (m === 'GET' && !seg[1]) {
-      if (sc('ai') === 'fail') throw new ApiError('Server belum terjangkau. Pastikan BFF menyala, lalu coba lagi.', 500)
+      if (sc('ai') === 'fail') throw new ApiError('Layanan belum bisa dihubungi. Coba lagi sebentar lagi.', 500)
       return answer({ providers: [...aiRows(), ...UNAVAILABLE] })
     }
     const provider = seg[1] ?? ''
@@ -837,7 +1217,7 @@ export async function mockIntercept<T>(method: string, path: string, body: unkno
 
   // R3 Telegram
   if (seg[0] === 'agents' && seg[2] === 'telegram') {
-    if (sc('telegram') === 'fail') throw new ApiError('Server belum terjangkau. Pastikan BFF menyala, lalu coba lagi.', 500)
+    if (sc('telegram') === 'fail') throw new ApiError('Layanan belum bisa dihubungi. Coba lagi sebentar lagi.', 500)
     const action = seg[3] ?? ''
     if (m === 'GET' && !action) return answer(telegramInfo())
     if (m === 'POST' && action === 'start') {
@@ -893,6 +1273,31 @@ export async function mockIntercept<T>(method: string, path: string, body: unkno
     return (mine ? [...rows, mine] : rows) as T
   }
 
+  // K4: sessions started by another agent, and the turns inside them, before the demo-session branch.
+  if (sc('a2a') === 'on' && m === 'GET' && seg[0] === 'bots' && seg[2] === 'sessions' && seg[3] === 'mock-sess-a2a-in' && seg[4] === 'messages') {
+    await wait()
+    return [
+      { id: 'a1', role: 'user', from_bot_id: 'rian', content: 'Budi, tolong buatkan 3 gambar carousel untuk koleksi November. Warna utama biru.' },
+      { id: 'a2', role: 'assistant', content: 'Siap. Saya buat tiga gambar 4:5 dengan warna biru. Saya kabari Rian setelah selesai.' },
+      { id: 'a3', role: 'assistant', content: 'Tiga gambar sudah jadi.', attachments: atts([A.img1.id, A.img2.id, A.img3.id]) },
+    ] as T
+  }
+  if (sc('a2a') === 'on' && m === 'GET' && seg[0] === 'bots' && seg[2] === 'sessions' && seg[3] === 'mock-sess-a2a-out' && seg[4] === 'messages') {
+    await wait()
+    return [
+      { id: 'b1', role: 'user', content: 'Minta Budi membuat carousel koleksi November.' },
+      { id: 'b2', role: 'assistant', content: 'Sudah saya teruskan ke Budi.', to_bots: [{ bot_id: 'budi', link: '/chat/budi/mock-sess-a2a-in' }] },
+    ] as T
+  }
+
+  // K5 onboarding=fresh|limit: the only agent endpoints this scenario answers; the rest goes to the BFF.
+  if (isFresh() && m === 'GET' && seg[0] === 'bots' && seg[2] === 'sessions' && seg[3] && seg[1].endsWith('-mock')) return [] as T
+  if (isFresh() && m === 'GET' && seg[0] === 'bots' && seg.length === 2 && seg[1].endsWith('-mock')) {
+    const bot = freshStore().bots.find((x) => x.id === seg[1])
+    if (!bot) throw notFound()
+    return bot as T
+  }
+
   // R1 demo chat
   if (m === 'POST' && seg[0] === 'bots' && seg[2] === 'runs' && /^\/demo\b/i.test(asStr(b.input))) {
     await wait()
@@ -919,11 +1324,18 @@ export async function mockIntercept<T>(method: string, path: string, body: unkno
   if (m === 'GET' && seg[0] === 'bots' && seg[2] === 'sessions') {
     const rows = await real()
     const list = Array.isArray(rows) ? rows : []
+    const now = Math.floor(Date.now() / 1000)
     const demoRows = demoStore()
       .sessions.filter((s) => s.bot_id === seg[1])
       .map((s) => ({ id: s.id, title: `Contoh: ${s.input.replace(/^\/demo\s*/i, '')}`, preview: s.output, message_count: 2, last_active: Math.floor(s.created_at / 1000), model: '' }))
+    const a2aOn = sc('a2a') === 'on'
+    const incoming =
+      a2aOn && ['budi', 'diana', 'siti', 'hendra'].includes(seg[1])
+        ? [{ id: 'mock-sess-a2a-in', title: 'Brief carousel dari Rian', preview: 'Budi, tolong buatkan 3 gambar carousel…', message_count: 3, last_active: now - 40 * 60, model: '', source: 'web', peer: { bot_id: 'rian', name: 'Rian', link: '/chat/rian/mock-sess-a2a-out' } }]
+        : []
+    const outgoing = a2aOn && seg[1] === 'rian' ? [{ id: 'mock-sess-a2a-out', title: 'Brief carousel untuk Budi', preview: 'Sudah saya teruskan ke Budi.', message_count: 2, last_active: now - 45 * 60, model: '', source: 'web', peer: null }] : []
     const tg = telegramStatus() === 'none' && sc('telegram') === 'none' ? [] : [{ id: 'mock-sess-tg', title: 'Pesan dari Telegram', preview: 'Halo, ini pesan dari Telegram.', message_count: 4, last_active: Math.floor(Date.now() / 1000) - 1800, model: '', source: 'telegram' }]
-    return [...demoRows, ...tg, ...list.filter((r) => !r?.id?.startsWith?.('mock-sess'))] as T
+    return [...outgoing, ...incoming, ...demoRows, ...tg, ...list.filter((r) => !r?.id?.startsWith?.('mock-sess'))] as T
   }
 
   // R1 task files
@@ -933,6 +1345,151 @@ export async function mockIntercept<T>(method: string, path: string, body: unkno
       return { ...t, attachments: sc('attachments') === 'huge' ? [A.huge] : [A.img1, A.pdf] } as T
     }
     return t as T
+  }
+
+  // K2: the WhatsApp eligibility flag on the agent list and one agent (only when the scenario is not real).
+  if (m === 'GET' && seg[0] === 'bots' && seg.length === 1) {
+    if (isFresh()) return freshStore().bots as T
+    if (sc('whatsapp') === 'real') return real()
+    const rows = (await real()) as unknown
+    const arr = Array.isArray(rows) ? rows : []
+    return arr.map((x: Raw) => ({ ...x, channels: { whatsapp: asStr(x.team) === 'customer_support' } })) as T
+  }
+  if (m === 'GET' && seg[0] === 'bots' && seg.length === 2 && !seg[1].endsWith('-mock')) {
+    const row = (await real()) as Raw
+    return (sc('whatsapp') === 'real' ? row : { ...row, channels: { whatsapp: asStr(row.team) === 'customer_support' } }) as T
+  }
+  // K5: creating agents and a team on a fresh install (one by one, as the screens do).
+  if (m === 'GET' && seg[0] === 'groups' && seg.length === 1 && isFresh()) return freshStore().groups as T
+  if (m === 'GET' && seg[0] === 'me' && isFresh()) {
+    const me = (await real()) as Raw
+    const f = freshStore()
+    const limits = sc('onboarding') === 'limit' ? { ...(me.limits ?? {}), max_bots: 3 } : me.limits
+    return { ...me, limits, usage: { ...(me.usage ?? {}), bots: f.bots.length, groups: f.groups.length } } as T
+  }
+  if (m === 'POST' && seg[0] === 'bots' && seg.length === 1 && isFresh()) {
+    await wait(1200)
+    const f = freshStore()
+    const name = asStr(b.name).trim()
+    if (f.bots.some((x) => asStr(x.name).toLowerCase() === name.toLowerCase())) throw new ApiError('Nama ini sudah dipakai.', 400)
+    if (sc('onboarding') === 'limit' && f.bots.length >= 3)
+      throw new ApiError('Batas jumlah pegawai di paket Anda tercapai. Hapus pegawai yang tidak dipakai, atau hubungi tim AITopTrends untuk menaikkan paket.', 402)
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'pegawai'
+    const bot = {
+      id: `${slug}-mock`,
+      name,
+      role: asStr(b.role),
+      team: asStr(b.team),
+      color: 'slate',
+      builtin: false,
+      status: 'idle',
+      activity: '',
+      about: '',
+      created_at: new Date().toISOString(),
+      model: null,
+      provider: null,
+      reasoning_effort: null,
+    }
+    f.bots.push(bot)
+    saveFresh(f)
+    return bot as T
+  }
+  if (m === 'POST' && seg[0] === 'groups' && seg.length === 1 && isFresh()) {
+    await wait(600)
+    const f = freshStore()
+    const ids = Array.isArray(b.bot_ids) ? b.bot_ids.map((x: unknown) => asStr(x)) : []
+    if (ids.length < 2 || ids.length > 6) throw new ApiError('Grup harus punya 2 sampai 6 anggota', 400)
+    const group = { id: `mock-grp-${f.seq + 1}`, name: asStr(b.name), members: ids, running: false }
+    f.seq += 1
+    f.groups.push(group)
+    saveFresh(f)
+    return group as T
+  }
+
+  // K4: group messages carry who was handed the turn (`to_bot_ids`), same @name rule as the real routing.
+  if (sc('a2a') === 'on' && m === 'GET' && seg[0] === 'groups' && seg[2] === 'messages') {
+    const rows = (await real()) as unknown
+    const arr = Array.isArray(rows) ? rows : []
+    return arr.map((x: Raw) => {
+      const text = asStr(x.text ?? x.content)
+      const author = asStr(x.bot_id)
+      const isBot = asStr(x.author ?? x.role) === 'bot'
+      return { ...x, to_bot_ids: isBot ? mentionedIds(text, author) : [] }
+    }) as T
+  }
+
+  // K3: conversations, takeover and return. Sample data lives in localStorage so a reload keeps the state.
+  if (seg[0] === 'conversations') {
+    if (sc('handover') === 'fail') throw new ApiError('Layanan belum bisa dihubungi. Coba lagi sebentar lagi.', 500)
+    if (m === 'GET' && seg.length === 1) {
+      await wait()
+      return convPage(q.get('state') ?? '', q.get('bot_id') ?? '', Math.max(1, asNum(q.get('limit'), 30))) as T
+    }
+    if (m === 'GET' && seg.length === 2) {
+      await wait()
+      const row = conversationRow(seg[1])
+      if (!row) throw notFound()
+      return row as T
+    }
+    if (m === 'GET' && seg[2] === 'messages') {
+      await wait()
+      if (!conversationRow(seg[1])) throw notFound()
+      return { items: convMessages(seg[1]), next: null } as T
+    }
+    if (m === 'POST' && seg[2] === 'takeover') {
+      await wait(600)
+      const row = conversationRow(seg[1])
+      if (!row) throw notFound()
+      if (!(row.state === 'human' && row.taken_by)) {
+        setConvState(seg[1], { state: 'human', taken_by: 'Anda', resume_at: Math.floor(Date.now() / 1000) + 7200 })
+        pushConvLog(seg[1], 'Percakapan diambil alih.')
+      }
+      return conversationRow(seg[1]) as T
+    }
+    if (m === 'POST' && seg[2] === 'return') {
+      await wait(600)
+      const row = conversationRow(seg[1])
+      if (!row) throw notFound()
+      if (row.state !== 'bot' || row.taken_by) {
+        setConvState(seg[1], { state: 'bot', taken_by: '', resume_at: 0 })
+        pushConvLog(seg[1], 'Dikembalikan ke Siti.')
+      }
+      return conversationRow(seg[1]) as T
+    }
+  }
+
+  // K2: WhatsApp status scenarios (`real` decorates the BFF's own reply and never hides its errors).
+  if (m === 'GET' && seg[0] === 'whatsapp' && seg[1] === 'status') {
+    const scenario = sc('whatsapp')
+    if (scenario === 'fail') throw new ApiError('Layanan belum bisa dihubungi. Coba lagi sebentar lagi.', 500)
+    if (scenario === 'real') {
+      const r = (await real()) as Raw
+      return {
+        ...r,
+        eligible_bot_ids: Array.isArray(r.eligible_bot_ids) && r.eligible_bot_ids.length ? r.eligible_bot_ids : ['siti', 'hendra'],
+        agents:
+          Array.isArray(r.agents) && r.agents.length
+            ? r.agents
+            : [
+                { bot_id: 'siti', role: 'primary' },
+                { bot_id: 'hendra', role: 'escalation' },
+              ],
+        number: r.number || '+62 812-3456-7890',
+      } as T
+    }
+    await wait()
+    return waStatus() as T
+  }
+
+  // K5: the templates the BFF really has, or a fixed sample so #/mulai can be seen without a backend.
+  if (m === 'GET' && seg[0] === 'templates') {
+    const scenario = sc('templates')
+    if (scenario === 'fail') throw new ApiError('Layanan belum bisa dihubungi. Coba lagi sebentar lagi.', 500)
+    if (scenario !== 'real') {
+      await wait()
+      return (scenario === 'few' ? SAMPLE_TEMPLATES.filter((t) => t.id === 'siti') : SAMPLE_TEMPLATES) as T
+    }
+    return real()
   }
 
   // R2 connections

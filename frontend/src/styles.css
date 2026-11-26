@@ -123,3 +123,14 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px
 .skip-link { position: fixed; z-index: 100; left: var(--s-3); top: var(--s-3); padding: 10px 16px; border-radius: var(--radius-control); background: var(--primary); color: var(--on-primary); font-weight: 500; text-decoration: none; transform: translateY(-200%); }
 .skip-link:focus-visible { transform: none; }
 .stage:focus { outline: none; }
+
+/* Target sentuh ≥ 40 px untuk <summary> di ponsel. Awalan .stage/.dlg menang atas aturan per-halaman tanpa !important. */
+@media (max-width: 640px) {
+  /* sudah flex + align-items:center: cukup tingginya */
+  .stage .opts > summary, .stage .tech > summary, .stage .ver > summary, .stage .prov summary,
+  .stage .cs-detail > summary, .stage .perm-locked > summary, .stage .usage-days summary,
+  .dlg .opts > summary, .dlg .tech > summary, .dlg .ver > summary { min-height: 40px; }
+  /* penanda bawaan tetap tampil: tambah padding vertikal, bukan display:flex */
+  .stage .app-admin summary, .stage .md-ans summary, .stage .cs-vers summary,
+  .dlg .app-admin summary, .dlg .cs-vers summary { min-height: 40px; box-sizing: border-box; padding-block: 10px; }
+}

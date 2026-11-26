@@ -12,6 +12,7 @@ export function TimAnda() {
   const [showAll, setShowAll] = useState(false)
 
   if (loadState === 'error' && bots.length === 0) return null
+  if (bots.length === 0 && canCreate) return null
 
   // Working first, then the main contact (Project Manager), then the server's own order.
   const rank = (b: (typeof bots)[number]) => (b.status !== 'idle' ? 0 : /project manager/i.test(b.role) ? 1 : 2)
@@ -30,16 +31,7 @@ export function TimAnda() {
       </header>
       {bots.length === 0 ? (
         <Empty title="Belum ada pegawai AI">
-          {canCreate ? (
-            <>
-              <p className="team-empty">Buat pegawai pertama Anda untuk mulai mendelegasikan pekerjaan.</p>
-              <a className="btn primary" href="#/agen/baru">
-                Pegawai baru
-              </a>
-            </>
-          ) : (
-            <p className="team-empty">Minta pemilik akun membuatkan pegawai AI untuk Anda.</p>
-          )}
+          <p className="team-empty">Minta pemilik akun membuatkan pegawai AI untuk Anda.</p>
         </Empty>
       ) : (
         <>

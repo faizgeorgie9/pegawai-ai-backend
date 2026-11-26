@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { api, errText } from './bff'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { api, canWhatsApp, errText } from './bff'
 import type { Bot, BotDetail, MemoryItem } from './bff'
 import { useAdminMode } from './adminMode'
 import { useData } from './data'
@@ -7,6 +7,7 @@ import { agenPath, botPath, go } from './router'
 import { BotAvatar, CHEVRON, COLORS, ErrorLine, Icon, I, LOCK, botColor, cleanTaskText, colorLabel, nf, roleLabel, stamp, teamLabel } from './ui'
 import { AgentSkills } from './skills-ui'
 import { TelegramRow, TelegramTab } from './telegram-ui'
+import { WhatsAppRow, WhatsAppTab } from './whatsapp-ui'
 import { TIERS, tierOf } from './modelTiers'
 import { Empty, EffortSelect, Loading, ModelSelect, PageHead, Opt, defaultEffortLabel, defaultModelLabel, effortWord, modelKey, splitModel, statusText, useLoad } from './ui-extra'
 
@@ -126,6 +127,7 @@ const TABS = [
   ['pekerjaan', 'Pekerjaan'],
   ['keahlian', 'Keahlian'],
   ['telegram', 'Telegram'],
+  ['whatsapp', 'WhatsApp'],
   ['ingatan', 'Ingatan'],
 ] as const
 type TabId = (typeof TABS)[number][0]
@@ -176,16 +178,24 @@ export function AgentDetail({ id }: { id: string }) {
   })
   const [allText, setAllText] = useState(false)
   const [wide] = useState(() => window.matchMedia('(min-width: 901px)').matches)
+  const tablist = useRef<HTMLDivElement>(null)
 
-  function onTabKey(e: React.KeyboardEvent) {
-    const i = TABS.findIndex(([id]) => id === tab)
-    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
-    const next = d ? TABS[(i + d + TABS.length) % TABS.length][0] : e.key === 'Home' ? TABS[0][0] : e.key === 'End' ? TABS[TABS.length - 1][0] : undefined
-    if (!next) return
-    e.preventDefault()
-    setTab(next)
-    document.getElementById('tab-' + next)?.focus()
-  }
+  // The WhatsApp tab exists only for an employee that may answer WhatsApp (K2). A link that asks for it
+  // on anybody else falls back to Ringkasan instead of opening a tab that is not there.
+  const loaded = bot.state === 'ok' ? (bots.find((x) => x.id === id) ?? (bot.data as BotDetail)) : undefined
+  const allowWhatsApp = !!loaded && canWhatsApp(loaded)
+  useEffect(() => {
+    if (loaded && tab === 'whatsapp' && !allowWhatsApp) setTab('ringkasan')
+  }, [loaded, allowWhatsApp, tab])
+
+  // A narrow screen shows only part of the tab row; keep the selected tab centred without moving the page.
+  useEffect(() => {
+    const box = tablist.current
+    const a = box?.querySelector<HTMLElement>('[aria-selected="true"]')
+    if (!box || !a || box.scrollWidth <= box.clientWidth) return
+    const r = a.getBoundingClientRect(), b = box.getBoundingClientRect()
+    box.scrollLeft += r.left - b.left - (b.width - r.width) / 2
+  }, [tab, bot.state, allowWhatsApp])
 
   if (bot.state === 'loading') return <section className="page"><Loading text="Memuat pegawai..." shape="page" /></section>
   if (bot.state === 'error')
@@ -201,6 +211,17 @@ export function AgentDetail({ id }: { id: string }) {
   // instead of waiting for a page reload. The detail snapshot still supplies what the list does not carry (persona).
   const live = bots.find((x) => x.id === id)
   const b = live ? { ...(bot.data as BotDetail), ...live } : (bot.data as BotDetail)
+  const tabs = TABS.filter(([tid]) => tid !== 'whatsapp' || canWhatsApp(b))
+
+  function onTabKey(e: React.KeyboardEvent) {
+    const i = tabs.findIndex(([tid]) => tid === tab)
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
+    const next = d ? tabs[(i + d + tabs.length) % tabs.length][0] : e.key === 'Home' ? tabs[0][0] : e.key === 'End' ? tabs[tabs.length - 1][0] : undefined
+    if (!next) return
+    e.preventDefault()
+    setTab(next)
+    document.getElementById('tab-' + next)?.focus()
+  }
   const [sessions, runs, um, ua, cat] = extra.data ?? [[], [], [], [], null]
   const month = um.find((x) => x.bot_id === id)
   const all = ua.find((x) => x.bot_id === id)
@@ -249,17 +270,17 @@ export function AgentDetail({ id }: { id: string }) {
         </div>
       </header>
 
-      <div className="tabs" role="tablist" aria-label="Bagian detail pegawai" onKeyDown={onTabKey}>
-        {TABS.map(([id, label]) => (
+      <div ref={tablist} className="tabs" role="tablist" aria-label="Bagian detail pegawai" onKeyDown={onTabKey}>
+        {tabs.map(([tid, label]) => (
           <button
-            key={id}
-            id={'tab-' + id}
+            key={tid}
+            id={'tab-' + tid}
             type="button"
             role="tab"
-            aria-selected={tab === id}
-            aria-controls={'panel-' + id}
-            tabIndex={tab === id ? 0 : -1}
-            onClick={() => setTab(id)}
+            aria-selected={tab === tid}
+            aria-controls={'panel-' + tid}
+            tabIndex={tab === tid ? 0 : -1}
+            onClick={() => setTab(tid)}
           >
             {label}
           </button>
@@ -316,6 +337,7 @@ export function AgentDetail({ id }: { id: string }) {
             />
             <SettingRow label="Tingkat ketelitian" value={tier ?? 'Ikuti bawaan'} onClick={() => setDialog({ kind: 'edit', bot: b })} />
             <TelegramRow bot={b} onOpen={() => setTab('telegram')} />
+            <WhatsAppRow bot={b} onOpen={() => setTab('whatsapp')} />
           </ul>
           <p className="quiet small">Perubahan berlaku mulai tugas berikutnya.</p>
         </section>
@@ -437,6 +459,8 @@ export function AgentDetail({ id }: { id: string }) {
         )}
 
         {tab === 'telegram' && <TelegramTab bot={b} />}
+
+        {tab === 'whatsapp' && canWhatsApp(b) && <WhatsAppTab bot={b} />}
 
         {tab === 'ingatan' && <AgentMemory bot={b} />}
       </div>

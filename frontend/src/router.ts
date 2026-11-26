@@ -2,7 +2,8 @@ import { useMemo, useSyncExternalStore } from 'react'
 
 // Hash router. The hash is the state, so refresh and back work.
 // #/ beranda, #/chat (agent list), #/grup (group list), #/chat/<id>/<sesi?> (old #/bot/... still read), #/grup/<id>, #/agen, #/agen/baru, #/agen/<id>, #/agen/<id>/ubah,
-// #/pengaturan (and #/pengaturan/<bagian>), #/tools, #/aplikasi, #/pengetahuan, #/computer-use, #/kanban (#/scheduler opens it too), #/marketing, #/cs, #/uji (alias #/evaluasi; #/uji?case=V02 opens that case), #/aktivitas
+// #/pengaturan (and #/pengaturan/<bagian>), #/tools, #/aplikasi, #/pengetahuan, #/computer-use, #/kanban (#/scheduler opens it too), #/marketing, #/cs, #/uji (alias #/evaluasi; #/uji?case=V02 opens that case), #/aktivitas,
+// #/output (#/output?pegawai=<id>&jenis=<jenis>), #/pelanggan, #/pelanggan/<id>, #/mulai
 export type Route =
   | { name: 'home' }
   | { name: 'bot'; id: string; sid?: string }
@@ -23,6 +24,9 @@ export type Route =
   | { name: 'marketing' }
   | { name: 'cs' }
   | { name: 'uji'; case?: string }
+  | { name: 'output' }
+  | { name: 'pelanggan'; id?: string }
+  | { name: 'mulai' }
 
 export function parse(hash: string): Route {
   const [path, query = ''] = hash.split('?')
@@ -47,6 +51,9 @@ export function parse(hash: string): Route {
   if (p[0] === 'marketing') return { name: 'marketing' }
   if (p[0] === 'cs') return { name: 'cs' }
   if (p[0] === 'uji' || p[0] === 'evaluasi') return { name: 'uji', case: new URLSearchParams(query).get('case') || undefined }
+  if (p[0] === 'output') return { name: 'output' }
+  if (p[0] === 'pelanggan') return { name: 'pelanggan', id: p[1] }
+  if (p[0] === 'mulai') return { name: 'mulai' }
   return { name: 'home' }
 }
 
@@ -71,3 +78,11 @@ export function go(path: string, replace = false) {
 export const botPath = (id: string, sid?: string) => `/chat/${encodeURIComponent(id)}${sid ? '/' + encodeURIComponent(sid) : ''}`
 export const groupPath = (id: string) => `/grup/${encodeURIComponent(id)}`
 export const agenPath = (id: string, sub?: 'ubah') => `/agen/${encodeURIComponent(id)}${sub ? '/' + sub : ''}`
+export const pelangganPath = (id?: string) => `/pelanggan${id ? '/' + encodeURIComponent(id) : ''}`
+export const outputPath = (f: { pegawai?: string; jenis?: string } = {}) => {
+  const s = new URLSearchParams()
+  if (f.pegawai) s.set('pegawai', f.pegawai)
+  if (f.jenis) s.set('jenis', f.jenis)
+  const t = s.toString()
+  return `/output${t ? '?' + t : ''}`
+}

@@ -23,7 +23,7 @@ function fallbackMessage(status: number): string {
   if (status === 404) return 'Data tidak ditemukan. Mungkin sudah dihapus.'
   if (status === 409) return 'Permintaan bentrok dengan keadaan saat ini. Coba lagi.'
   if (status === 429) return 'Terlalu banyak tugas berjalan, coba sebentar lagi.'
-  if (status >= 500) return 'Server belum terjangkau. Pastikan BFF menyala, lalu coba lagi.'
+  if (status >= 500) return 'Layanan belum bisa dihubungi. Coba lagi sebentar lagi.'
   return `Permintaan gagal (kode ${status}).`
 }
 
@@ -65,7 +65,7 @@ async function blobFetch(path: string, notFound: string): Promise<Blob> {
   try {
     res = await fetch(BASE + path, { headers: token ? { Authorization: `Bearer ${token}` } : undefined })
   } catch {
-    throw new ApiError('Server belum terjangkau. Pastikan BFF menyala, lalu coba lagi.')
+    throw new ApiError('Layanan belum bisa dihubungi. Coba lagi sebentar lagi.')
   }
   if (res.status === 401) endSession(token)
   // 403 on a file that exists but belongs to someone else reads the same as gone: never confirm that another user owns it.
@@ -102,7 +102,7 @@ async function realCall<T>(method: string, path: string, body?: unknown, signal?
     })
   } catch (e) {
     if (signal?.aborted) throw e
-    throw new ApiError('Server belum terjangkau. Pastikan BFF menyala, lalu coba lagi.')
+    throw new ApiError('Layanan belum bisa dihubungi. Coba lagi sebentar lagi.')
   }
   if (!res.ok) {
     let j: Record<string, unknown> = {}
@@ -156,6 +156,7 @@ export interface Bot {
   model: string // '' = follow the default
   provider: string
   effort: string // reasoning_effort, '' = follow the default
+  channels?: { whatsapp: boolean } // K2; tidak ada = BFF belum mengirim, layar memakai isCsBot()
 }
 export interface BotDetail extends Bot {
   persona: string
@@ -283,6 +284,10 @@ export interface WhatsAppStatus {
   escalation_agent: { id: string; name: string; role: string }
   total_messages_processed: number
   last_activity: string | null
+  number?: string
+  eligible_bot_ids?: string[]
+  agents?: { bot_id: string; role: 'primary' | 'escalation' }[]
+  error?: string
 }
 export interface WhatsAppMessage {
   id: string
@@ -386,6 +391,7 @@ export interface GroupMsg {
   created_at: number
   plan?: ContentPlan // the message ends with a valid content plan (the BFF validated it): shown as an approval card
   task?: { id: string; title: string } // the agent's run made or worked on this task (chip "Tugas: ..." to the board)
+  to_bot_ids?: string[] // K4; undefined = BFF belum mengirim (layar menebak dari @nama seperti sekarang), [] = tidak ada tujuan
 }
 export interface PlanDay {
   date: string // YYYY-MM-DD
@@ -584,6 +590,7 @@ export interface Session {
   lastActive: number // epoch seconds
   model: string
   source: 'web' | 'telegram' // 'telegram' when the conversation came from the agent's Telegram bot
+  peer?: PeerRef // K4; ada bila sesi dimulai pegawai lain
 }
 // Ingatan: one remembered entry. `id` is stable for the exact text, so a changed entry rejects the delete.
 export interface MemoryItem {
@@ -633,6 +640,8 @@ export interface ChatMessage {
   kb?: KbItem[] // Knowledge Base items saved from this message's links (result), shown under the bubble
   kbBusy?: boolean // the message asks to save a link and the BFF is still reading it
   attachments?: Attachment[] // non-text results of this run (R1)
+  from_bot?: string // K4: baris "user" ditulis pegawai lain (id pegawai)
+  to_bots?: PeerLink[] // K4: baris "assistant" meneruskan ke pegawai lain
 }
 export interface ActivityRow {
   id: string
@@ -754,6 +763,84 @@ export interface SocialActionPayload {
 }
 export const isSocialAction = (a: PendingAction) => a.kind === 'social_publish_post'
 
+// ---- Output ----
+export type OutputKind = 'image' | 'video' | 'audio' | 'document' | 'table'
+export const OUTPUT_KINDS: OutputKind[] = ['image', 'video', 'audio', 'document', 'table']
+export interface OutputItem extends Attachment {
+  bot_id: string
+  created_at: number // epoch detik
+  session_id?: string
+  group_id?: string
+  task_id?: string
+  run_id?: string
+}
+export interface OutputPage {
+  items: OutputItem[]
+  next: string | null // kursor buram untuk halaman berikutnya
+  counts: Record<OutputKind, number> | null // null bila BFF tidak mengirim
+}
+export interface OutputFilter {
+  bot_id?: string
+  type?: OutputKind
+  before?: string
+  limit?: number
+}
+
+// ---- WhatsApp hanya untuk CS ----
+export const isCsBot = (b: Pick<Bot, 'team'>) => b.team === 'customer_support' || b.team === 'cs'
+export const canWhatsApp = (b: Pick<Bot, 'team' | 'channels'>) => (b.channels ? b.channels.whatsapp : isCsBot(b))
+
+// ---- Handover ----
+export type HandoverState = 'bot' | 'needs_human' | 'human'
+export type HandoverReason = 'asked_human' | 'complaint' | 'refund' | 'bot_unsure' | 'other'
+export interface Conversation {
+  id: string
+  channel: 'whatsapp'
+  customer: string // nama tampil; '' -> layar menulis "Pelanggan"
+  phone_tail: string // 4 digit terakhir
+  bot_id: string
+  state: HandoverState
+  reason: HandoverReason | ''
+  taken_by: string // '' bila tidak ada
+  resume_at: number // epoch detik; 0 bila tidak ada
+  last_message: string
+  last_at: number
+  message_count: number
+  since: number // sejak kapan state sekarang
+}
+export interface ConversationCounts {
+  needs_human: number
+  human: number
+  bot: number
+}
+export interface ConversationPage {
+  items: Conversation[]
+  next: string | null
+  counts: ConversationCounts
+}
+export interface ConversationMessage {
+  id: string
+  from: 'customer' | 'bot' | 'staff' | 'system'
+  bot_id: string
+  text: string
+  at: number
+}
+export interface ConversationMessagePage {
+  items: ConversationMessage[]
+  next: string | null
+}
+
+// ---- Pegawai ke pegawai ----
+export interface PeerRef {
+  bot_id: string
+  name: string
+  link: string // rute hash tanpa '#'; '' bila tidak diketahui
+}
+export interface PeerLink {
+  bot_id: string
+  link: string
+}
+
 export interface EvalScore {
   score: number | null
   reason: string
@@ -850,6 +937,7 @@ const toBot = (r: Raw): Bot => ({
   model: asStr(r.model),
   provider: asStr(r.provider),
   effort: asStr(r.reasoning_effort),
+  channels: r.channels && typeof r.channels === 'object' ? { whatsapp: (r.channels as Raw).whatsapp === true } : undefined,
 })
 const toMoney = (r: Raw): Money => ({ usd: asStr(r.usd, '0'), label: asStr(r.label, '$0') })
 const toLimits = (r: Raw = {}): Limits => ({
@@ -909,6 +997,7 @@ export const toGroupMsg = (r: Raw): GroupMsg => {
     created_at: epoch(r.created_at ?? r.time),
     plan: r.plan ? toContentPlan(r.plan) : undefined,
     task: r.task ? { id: asStr((r.task as Raw).id), title: asStr((r.task as Raw).title) } : undefined,
+    to_bot_ids: Array.isArray(r.to_bot_ids) ? r.to_bot_ids.map((x: unknown) => asStr(x)) : undefined,
   }
 }
 const toPlanState = (p: Raw): Pick<ContentPlan, 'task_id' | 'state'> => ({
@@ -1012,6 +1101,7 @@ const toSession = (s: Raw): Session => ({
   lastActive: epoch(s.last_active ?? s.started_at ?? s.updated_at),
   model: asStr(s.model),
   source: s.source === 'telegram' ? 'telegram' : 'web',
+  peer: s.peer && typeof s.peer === 'object' && (s.peer as Raw).bot_id ? toPeer(s.peer as Raw) : undefined,
 })
 
 export const toAttachment = (r: Raw): Attachment | null => {
@@ -1025,6 +1115,57 @@ export const toAttachment = (r: Raw): Attachment | null => {
   return a
 }
 export const toAttachments = (x: unknown): Attachment[] => list(x).map(toAttachment).filter((a): a is Attachment => a !== null)
+
+export const toOutputItem = (r: Raw): OutputItem | null => {
+  const a = toAttachment(r)
+  if (!a) return null
+  return {
+    ...a,
+    bot_id: asStr(r.bot_id),
+    created_at: epoch(r.created_at),
+    session_id: r.session_id ? asStr(r.session_id) : undefined,
+    group_id: r.group_id ? asStr(r.group_id) : undefined,
+    task_id: r.task_id ? asStr(r.task_id) : undefined,
+    run_id: r.run_id ? asStr(r.run_id) : undefined,
+  }
+}
+const toOutputPage = (r: Raw): OutputPage => ({
+  items: list(r).map(toOutputItem).filter((x): x is OutputItem => x !== null),
+  next: typeof r?.next === 'string' && r.next ? r.next : null,
+  counts: r?.counts && typeof r.counts === 'object' ? (Object.fromEntries(OUTPUT_KINDS.map((k) => [k, asNum((r.counts as Raw)[k])])) as Record<OutputKind, number>) : null,
+})
+
+const HV_STATES: HandoverState[] = ['bot', 'needs_human', 'human']
+const HV_REASONS: HandoverReason[] = ['asked_human', 'complaint', 'refund', 'bot_unsure', 'other']
+export const toConversation = (r: Raw): Conversation => ({
+  id: asStr(r.id),
+  channel: 'whatsapp',
+  customer: asStr(r.customer ?? r.customer_name),
+  phone_tail: asStr(r.phone_tail).slice(-4),
+  bot_id: asStr(r.bot_id),
+  state: HV_STATES.find((s) => s === r.state) ?? 'bot',
+  reason: HV_REASONS.find((s) => s === r.reason) ?? '',
+  taken_by: asStr(r.taken_by),
+  resume_at: epoch(r.resume_at),
+  last_message: asStr(r.last_message),
+  last_at: epoch(r.last_at),
+  message_count: asNum(r.message_count),
+  since: epoch(r.since ?? r.last_at),
+})
+const toConversationPage = (r: Raw): ConversationPage => ({
+  items: list(r).map(toConversation),
+  next: typeof r?.next === 'string' && r.next ? r.next : null,
+  counts: { needs_human: asNum(r?.counts?.needs_human), human: asNum(r?.counts?.human), bot: asNum(r?.counts?.bot) },
+})
+const toConversationMessage = (r: Raw): ConversationMessage => ({
+  id: asStr(r.id),
+  from: (['customer', 'bot', 'staff', 'system'] as const).find((x) => x === r.from) ?? 'system',
+  bot_id: asStr(r.bot_id),
+  text: asStr(r.text),
+  at: epoch(r.at ?? r.created_at),
+})
+
+const toPeer = (r: Raw): PeerRef => ({ bot_id: asStr(r.bot_id), name: asStr(r.name), link: asStr(r.link) })
 
 const SCANS: SkillScan[] = ['safe', 'caution', 'dangerous']
 // An unknown scan reads as "caution": never show "safe" unless the BFF says so.
@@ -1139,7 +1280,7 @@ function foldMessages(rows: Raw[]): ChatMessage[] {
     const key = `h-${m.id ?? out.length}`
     if (m.role === 'user') {
       turn = null
-      out.push({ key, role: 'user', content: asStr(m.content), reasoning: '', tools: [] })
+      out.push({ key, role: 'user', content: asStr(m.content), reasoning: '', tools: [], ...(m.from_bot_id ? { from_bot: asStr(m.from_bot_id) } : {}) })
     } else if (m.role === 'assistant' || m.role === 'tool') {
       if (!turn) {
         turn = { key, role: 'assistant', content: '', reasoning: '', tools: [] }
@@ -1155,6 +1296,7 @@ function foldMessages(rows: Raw[]): ChatMessage[] {
       }
       // Contract gap G1: assistant rows may carry the run's files. Only replace when this row has some.
       if (Array.isArray(m.attachments) && m.attachments.length) turn.attachments = toAttachments(m.attachments)
+      if (Array.isArray(m.to_bots) && m.to_bots.length) turn.to_bots = m.to_bots.map((x: Raw) => ({ bot_id: asStr(x.bot_id), link: asStr(x.link) }))
     } // session_meta and anything else: hidden
   }
   return out
@@ -1386,6 +1528,19 @@ export const api = {
   telegramDisconnect: (slug: string) => call<void>('DELETE', `/agents/${enc(slug)}/telegram`),
   // R2 (connectStart / disconnect / connections already exist and now accept 'instagram' | 'canva')
   socialPosts: async (f: { platform?: 'instagram'; limit?: number } = {}) => list(await call('GET', `/social/posts${q({ limit: 20, ...f })}`)).map(toSocialPost), // proposed (gap G9)
+  // Output (K1): endpoint yang sama dengan api.artifacts, dengan filter dan halaman
+  outputs: async (f: OutputFilter = {}): Promise<OutputPage> =>
+    toOutputPage(await call<Raw>('GET', `/artifacts${q({ bot_id: f.bot_id, type: f.type, before: f.before, limit: f.limit ?? 24 })}`)),
+  // Handover (K3)
+  conversations: async (f: { state?: HandoverState | 'open'; bot_id?: string; before?: string; limit?: number } = {}): Promise<ConversationPage> =>
+    toConversationPage(await call<Raw>('GET', `/conversations${q({ channel: 'whatsapp', state: f.state, bot_id: f.bot_id, before: f.before, limit: f.limit ?? 30 })}`)),
+  conversation: async (id: string) => toConversation(await call<Raw>('GET', `/conversations/${enc(id)}`)),
+  conversationMessages: async (id: string, before?: string): Promise<ConversationMessagePage> => {
+    const r = await call<Raw>('GET', `/conversations/${enc(id)}/messages${q({ before, limit: 50 })}`)
+    return { items: list(r).map(toConversationMessage), next: typeof r?.next === 'string' && r.next ? r.next : null }
+  },
+  takeOver: async (id: string) => toConversation(await call<Raw>('POST', `/conversations/${enc(id)}/takeover`)),
+  handBack: async (id: string) => toConversation(await call<Raw>('POST', `/conversations/${enc(id)}/return`)),
   usageBots: (period: 'month' | 'all') => call<BotUsage[]>('GET', `/usage/bots${q({ period })}`),
   thinking: async (s: Scope): Promise<Thought[]> =>
     list(await call('GET', `/thinking${q({ ...s })}`)).map((r) => ({
@@ -1418,6 +1573,15 @@ export const api = {
 // "Menyambung ulang…". Returns a function that closes it for good.
 export type SseState = 'open' | 'retry'
 export function subscribe(path: string, on: Record<string, (data: Raw) => void>, onState?: (s: SseState) => void): () => void {
+  // Dev only: /events also carries the sample handover ping. The import rides beside the real stream and a
+  // production build folds the condition to false, so mock-api.ts never ships.
+  let offMock = () => {}
+  let mockDead = false
+  if (import.meta.env.VITE_MOCK_API === '1' && path === '/events') {
+    void import('./mock-api').then((m) => {
+      if (!mockDead) offMock = m.mockEvents(on)
+    })
+  }
   // Dev only: /demo runs stream from memory; the prefix check is synchronous, the import is not.
   if (import.meta.env.VITE_MOCK_API === '1' && path.startsWith('/runs/mock-')) {
     let off = () => {}
@@ -1499,6 +1663,8 @@ export function subscribe(path: string, on: Record<string, (data: Raw) => void>,
 
   void open()
   return () => {
+    mockDead = true
+    offMock()
     closed = true
     window.clearTimeout(timer)
     ctrl?.abort()

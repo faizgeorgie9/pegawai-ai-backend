@@ -104,6 +104,7 @@ export const I = {
   check: 'M20 6 9 17l-5-5',
   board: 'M4 4h5v16H4zM10 4h5v10h-5zM16 4h4v13h-4z',
   book: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5zM4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5',
+  output: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
 }
 export const PENCIL = 'M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4'
 export const TRASH = 'M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13'
