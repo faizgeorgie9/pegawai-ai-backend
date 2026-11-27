@@ -495,7 +495,7 @@ export function SocialPostList() {
       ) : (
         <ul className="sp-list">
           {items.map((p) => {
-            const s = STATUS[p.status]
+            const s = STATUS[p.status] ?? { cls: 'idle', label: 'Status belum dikenal' }
             return (
               <li key={p.id} className="sp-row">
                 <PostThumb id={p.attachment_ids[0]} />

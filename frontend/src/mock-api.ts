@@ -22,20 +22,25 @@ const DEFAULTS: Record<string, string> = {
   attachments: 'ok', // ok | empty | gone | slow | huge
   artifactLink: 'on', // on | off
   skills: 'list', // list | empty | full | staff | fail | slowscan
-  ai: 'none', // none | ok | invalid | fail | keyreject
+  ai: 'none', // none | ok | invalid | orinvalid | fail | keyreject
   telegram: 'none', // none | pending | connected | error | fail
   telegramExpiry: '600', // seconds
   telegramConfirm: 'confirm', // never: the bot never finishes pairing
+  telegramPending: 'off', // off | on: somebody asks for access while the bot is connected
   instagram: 'disconnected', // disconnected | connected | personal | reconnect | broken | notconfigured
   canva: 'disconnected', // same, without personal
-  posts: 'mixed', // mixed | empty | publishing
+  posts: 'mixed', // mixed | empty | publishing | fail
   publish: 'ok', // ok | fail
+  approval: 'pending', // pending | expired | fail: the /demo posting card and its Setujui/Tolak answer
+  socialMedia: 'carousel', // carousel | image | reel: the media on the /demo posting card
   output: 'many', // many | few | empty | fail | slow
+  outputSources: 'auto', // auto | group | task | both: shows "Buka tim" / "Lihat di Jadwal & tugas"
+  outputCounts: 'on', // on | off: off sends counts:null
   whatsapp: 'real', // real | ready | notconfigured | error | fail
-  handover: 'queue', // queue | empty | fail
+  handover: 'queue', // queue | empty | fail | pages | noresume | actionfail
   handoverPing: 'off', // off | auto
   a2a: 'on', // on | off
-  onboarding: 'off', // off | fresh | limit
+  onboarding: 'off', // off | fresh | limit | teamfail
   templates: 'real', // real | sample | few | fail
 }
 
@@ -333,6 +338,15 @@ function captionLong(): string {
   return out.slice(0, 2340)
 }
 
+// The media on the approval card. `carousel` keeps the three pictures /demo posting made; the other two
+// scenarios replace them with one picture or one short video, which is what Instagram calls a reel.
+function demoMedia(demo: SocialDemo): { kind: 'carousel' | 'image' | 'reel'; ids: string[] } {
+  const media = sc('socialMedia')
+  if (media === 'image') return { kind: 'image', ids: [A.img2.id] }
+  if (media === 'reel') return { kind: 'reel', ids: [A.video.id] }
+  return { kind: 'carousel', ids: demo.ids }
+}
+
 // ---- handover (K3): five sample WhatsApp conversations; state and takeover survive a reload ----
 interface HvSaved {
   state?: string
@@ -438,7 +452,18 @@ const HV_SCRIPTS: Record<string, { from: (typeof HV_FROM)[number]; text: string;
 
 function convMessages(id: string): Raw[] {
   const seed = HV_SEEDS.find((s) => s.id === id)
-  if (!seed) return []
+  if (!seed) {
+    // Fillers from `handover=pages`: two lines so their detail page is not empty.
+    if (id.startsWith('mock-conv-page-')) {
+      const n = asNum(id.replace('mock-conv-page-', ''), 1)
+      const at = Math.floor(Date.now() / 1000) - (5 + (n - 1) * 11) * 60
+      return [
+        { id: `${id}-m1`, from: 'customer', bot_id: '', text: 'Halo, saya mau tanya pesanan saya.', at: new Date((at - 120) * 1000).toISOString() },
+        { id: `${id}-m2`, from: 'bot', bot_id: 'siti', text: 'Halo, pesanan Anda sedang kami periksa. Sebentar lagi kami kabari.', at: new Date(at * 1000).toISOString() },
+      ]
+    }
+    return []
+  }
   const lastAt = Math.floor(Date.now() / 1000) - seed.age
   const saved = hvStore()[id] ?? {}
   const rows: Raw[] = (HV_SCRIPTS[id] ?? []).map((m, i) => ({
@@ -457,10 +482,11 @@ function convMessages(id: string): Raw[] {
 function convRows(): Raw[] {
   const saved = hvStore()
   const now = Math.floor(Date.now() / 1000)
-  return HV_SEEDS.map((s) => {
+  const rows: Raw[] = HV_SEEDS.map((s) => {
     const o = saved[s.id] ?? {}
     const state = o.state ?? s.state
-    const resume = o.resume_at != null ? o.resume_at : s.resume ? now + s.resume : 0
+    // `noresume` shows a taken-over conversation that will not go back to the employee on its own.
+    const resume = sc('handover') === 'noresume' && s.id === 'mock-conv-2' ? 0 : o.resume_at != null ? o.resume_at : s.resume ? now + s.resume : 0
     const lastAt = now - s.age
     return {
       id: s.id,
@@ -478,13 +504,50 @@ function convRows(): Raw[] {
       since: new Date(lastAt * 1000).toISOString(),
     }
   })
+  if (sc('handover') === 'pages') rows.push(...fillerRows(now))
+  return rows
+}
+
+// `handover=pages` fills the queue so the list has a second page (and Beranda a "Dan N lainnya" row).
+// 30 of them wait for a human, so the default filter itself is longer than one page of 30.
+const FILLER_FIRST = ['Sari', 'Dedi', 'Nur', 'Yuni', 'Tono', 'Lestari', 'Bayu', 'Intan', 'Rudi', 'Melati', 'Hasan', 'Putri', 'Joko', 'Wulan', 'Fajar', 'Sinta', 'Arif', 'Mega', 'Doni', 'Ratna', 'Eko', 'Diah', 'Yusuf', 'Ani', 'Bambang', 'Citra', 'Gunawan', 'Fitri', 'Iwan', 'Ningsih', 'Rahmat', 'Siti', 'Teguh', 'Vina']
+const FILLER_LAST = ['Wijaya', 'Pratama', 'Saputra', 'Hidayat', 'Kusuma', 'Anggraini', 'Santoso', 'Permata', 'Hartono', 'Rahayu', 'Firmansyah', 'Sari', 'Nugroho', 'Utami', 'Setiawan', 'Damayanti', 'Purnama', 'Safitri', 'Susanto', 'Wulandari', 'Kurniawan', 'Maharani', 'Iskandar', 'Puspita', 'Siregar', 'Ramadhani', 'Halim', 'Astuti', 'Ginting', 'Mulyani', 'Prasetyo', 'Nabila', 'Surya', 'Wibowo']
+const FILLER_LINES = [
+  'Kak, pesanan saya kapan dikirim?',
+  'Barang saya belum sampai, sudah seminggu.',
+  'Bisa tukar ukuran?',
+  'Saya mau batalkan pesanan.',
+  'Warna lain masih ada?',
+]
+function fillerRows(now: number): Raw[] {
+  return Array.from({ length: 34 }, (_, i) => {
+    const n = i + 1
+    const state = n <= 30 ? 'needs_human' : 'bot'
+    const lastAt = now - (5 + i * 11) * 60
+    const name = `${FILLER_FIRST[i]} ${FILLER_LAST[(i * 7) % FILLER_LAST.length]}`
+    return {
+      id: `mock-conv-page-${n}`,
+      channel: 'whatsapp',
+      customer: name,
+      phone_tail: String(2100 + n),
+      bot_id: 'siti',
+      state,
+      reason: state === 'needs_human' ? ['asked_human', 'complaint', 'refund', 'bot_unsure', 'other'][i % 5] : '',
+      taken_by: '',
+      resume_at: null,
+      last_message: FILLER_LINES[i % FILLER_LINES.length],
+      last_at: new Date(lastAt * 1000).toISOString(),
+      message_count: 2,
+      since: new Date(lastAt * 1000).toISOString(),
+    }
+  })
 }
 
 function conversationRow(id: string): Raw | undefined {
   return convRows().find((c) => c.id === id)
 }
 
-function convPage(state: string, botId: string, limit: number): Raw {
+function convPage(state: string, botId: string, limit: number, before: string | null): Raw {
   const all = convRows()
   const counts = { needs_human: 0, human: 0, bot: 0 }
   for (const c of all) {
@@ -497,7 +560,19 @@ function convPage(state: string, botId: string, limit: number): Raw {
   const items = all
     .filter((c) => (!botId || c.bot_id === botId) && (!wanted.length || wanted.includes(c.state)))
     .sort((a, b) => (a.state === 'needs_human' ? 0 : 1) - (b.state === 'needs_human' ? 0 : 1) || Date.parse(b.last_at) - Date.parse(a.last_at))
-  return { items: items.slice(0, limit), next: null, counts }
+  const start = Math.max(0, asNum(before ?? '', 0))
+  const page = items.slice(start, start + limit)
+  return { items: page, next: start + limit < items.length ? String(start + limit) : null, counts }
+}
+
+// `handover=pages` reads a long thread four messages at a time, like the BFF does; the newest page comes
+// first and "Muat pesan sebelumnya" asks for the cursor returned as `next`.
+function threadPage(id: string, before: string | null): Raw {
+  const all = convMessages(id)
+  if (sc('handover') !== 'pages') return { items: all, next: null }
+  const end = before && before !== '0' ? Math.max(0, Math.min(all.length, asNum(before, all.length))) : all.length
+  const start = Math.max(0, end - 4)
+  return { items: all.slice(start, end), next: start > 0 ? String(start) : null }
 }
 
 // ---- WhatsApp status (K2): scenario answers and the channels flag on agents ----
@@ -556,7 +631,7 @@ function saveFresh(f: FreshState) {
   localStorage.setItem(FRESH_KEY, JSON.stringify(f))
 }
 
-const isFresh = () => sc('onboarding') === 'fresh' || sc('onboarding') === 'limit'
+const isFresh = () => ['fresh', 'limit', 'teamfail'].includes(sc('onboarding'))
 
 // ---- events: the same handler map as the real /events stream, so a sample ping reaches toast and badge ----
 let eventHandlers: Record<string, (d: Raw) => void> | null = null
@@ -806,9 +881,14 @@ function aiRows(): Raw[] {
     method: 'oauth',
     checked_at: or || connected ? new Date().toISOString() : undefined,
   })
-  if (scenario === 'invalid') {
+  if (scenario === 'invalid' && !aiOverride.anthropic) {
     const a = rows.find((r) => r.id === 'anthropic')
     if (a) Object.assign(a, { connected: true, status: 'invalid', last4: '1234' })
+  }
+  if (scenario === 'orinvalid' && !aiOverride.openrouter) {
+    // A saved OpenRouter login the provider no longer accepts: the card shows "Perlu disambungkan ulang".
+    const orRow = rows.find((r) => r.id === 'openrouter')
+    if (orRow) Object.assign(orRow, { connected: true, status: 'invalid', last4: 'or42' })
   }
   return rows
 }
@@ -847,7 +927,10 @@ function pairing(): Raw {
 function telegramInfo(): Raw {
   const status = telegramStatus()
   const allowed = status === 'connected' && !tgState.allowed.length ? [{ id: '111', name: 'Anda', owner: true }, { id: '222', name: 'Rina (staf)' }] : tgState.allowed
-  const pending = status === 'pending' && !tgState.pending.length ? [{ id: '333', name: 'Dewi' }] : tgState.pending
+  let pending: Raw[] = tgState.pending
+  if (!pending.length && status === 'pending') pending = [{ id: '333', name: 'Dewi' }]
+  // A connected bot can still have somebody waiting for permission; this is the only screen that shows both.
+  if (status === 'connected' && sc('telegramPending') === 'on') pending = [...pending, { id: '444', name: 'Dewi' }]
   return {
     status,
     username: status === 'connected' ? tgState.username : undefined,
@@ -871,10 +954,11 @@ function socialPosts(): Raw[] {
   const out: Raw[] = []
   const demo = socialDemo()
   if (demo && demo.approved_at) {
+    const media = demoMedia(demo)
     const done = Date.now() - demo.approved_at >= 2000
     const failed = done && sc('publish') === 'fail'
     out.push(
-      postRow('mock-post-demo', demo.caption, demo.ids, done ? (failed ? 'failed' : 'published') : 'publishing', {
+      postRow('mock-post-demo', demo.caption, media.ids, done ? (failed ? 'failed' : 'published') : 'publishing', {
         error: failed ? 'Instagram menolak gambar ini: ukurannya terlalu kecil.' : undefined,
         permalink: done && !failed ? 'https://www.instagram.com/p/CONTOHDEMO/' : undefined,
         published_at: done && !failed ? Math.floor(Date.now() / 1000) : 0,
@@ -899,11 +983,16 @@ function socialPosts(): Raw[] {
 function socialAction(): Raw | null {
   const demo = socialDemo()
   if (!demo) return null
+  const media = demoMedia(demo)
   let status = 'pending'
   let result: string | null = null
   let permalink: string | undefined
   let decided: string | null = null
-  if (demo.rejected_at) {
+  if (!demo.approved_at && !demo.rejected_at && sc('approval') === 'expired') {
+    // Instagram asked for Setujui days ago; the card now explains it is too late to publish this draft.
+    status = 'expired'
+    decided = new Date().toISOString()
+  } else if (demo.rejected_at) {
     status = 'rejected'
     result = null
     decided = new Date(demo.rejected_at).toISOString()
@@ -930,10 +1019,10 @@ function socialAction(): Raw | null {
     summary: 'Posting ke Instagram',
     payload: {
       platform: 'instagram',
-      kind: 'carousel',
+      kind: media.kind,
       caption: demo.caption,
-      attachment_ids: demo.ids,
-      attachments: atts(demo.ids),
+      attachment_ids: media.ids,
+      attachments: atts(media.ids),
       draft_id: 'mock-draft-1',
       account: '@colorbox.id',
       permalink,
@@ -1106,11 +1195,34 @@ export async function mockIntercept<T>(method: string, path: string, body: unkno
     const scope = scenario === 'empty' ? [] : scenario === 'few' ? base.slice(0, 3) : base
     const rows = type ? scope.filter((o) => outKind(o.mime) === type) : scope
     const page = rows.slice(start, start + limit)
+    // `outputSources` moves a preview's origin off the chat: first non-image file from a team, the next
+    // from a task. Without it every sample file that has a session shows "Buka percakapan" only.
+    const sourceMode = sc('outputSources')
+    let items: Raw[] = page
+    if (sourceMode !== 'auto' && page.length) {
+      const copies = page.map((o) => ({ ...o }) as Raw)
+      const nonImage = copies.filter((o) => outKind(asStr(o.mime)) !== 'image')
+      if (sourceMode === 'group' || sourceMode === 'both') {
+        const target = nonImage[0]
+        if (target) {
+          target.group_id = 'mock-grp-1'
+          delete target.session_id
+        }
+      }
+      if (sourceMode === 'task' || sourceMode === 'both') {
+        const target = nonImage[sourceMode === 'both' ? 1 : 0]
+        if (target) {
+          target.task_id = 'mock-task-1'
+          delete target.session_id
+        }
+      }
+      items = copies
+    }
     await wait(scenario === 'slow' ? 3000 : latency())
     return {
-      items: page,
+      items,
       next: scenario === 'few' || scenario === 'empty' || start + limit >= rows.length ? null : String(start + limit),
-      counts: outCounts(scope),
+      counts: sc('outputCounts') === 'off' ? null : outCounts(scope),
     } as T
   }
 
@@ -1254,6 +1366,7 @@ export async function mockIntercept<T>(method: string, path: string, body: unkno
 
   // R2 posts + approval
   if (m === 'GET' && seg[0] === 'social' && seg[1] === 'posts') {
+    if (sc('posts') === 'fail') throw new ApiError('Daftar posting belum bisa dimuat. Coba lagi sebentar.', 500)
     const limit = asNum(q.get('limit'), 20)
     return answer({ items: socialPosts().slice(0, limit) })
   }
@@ -1261,6 +1374,7 @@ export async function mockIntercept<T>(method: string, path: string, body: unkno
     const demo = socialDemo()
     if (!demo) throw notFound()
     await wait()
+    if (sc('approval') === 'fail') throw new ApiError('Persetujuan belum bisa dikirim. Coba lagi sebentar.', 500)
     if (seg[2] === 'approve') demo.approved_at = Date.now()
     else demo.rejected_at = Date.now()
     saveSocial(demo)
@@ -1396,6 +1510,7 @@ export async function mockIntercept<T>(method: string, path: string, body: unkno
   }
   if (m === 'POST' && seg[0] === 'groups' && seg.length === 1 && isFresh()) {
     await wait(600)
+    if (sc('onboarding') === 'teamfail') throw new ApiError('Tim belum bisa dibuat. Coba lagi sebentar.', 500)
     const f = freshStore()
     const ids = Array.isArray(b.bot_ids) ? b.bot_ids.map((x: unknown) => asStr(x)) : []
     if (ids.length < 2 || ids.length > 6) throw new ApiError('Grup harus punya 2 sampai 6 anggota', 400)
@@ -1423,7 +1538,7 @@ export async function mockIntercept<T>(method: string, path: string, body: unkno
     if (sc('handover') === 'fail') throw new ApiError('Layanan belum bisa dihubungi. Coba lagi sebentar lagi.', 500)
     if (m === 'GET' && seg.length === 1) {
       await wait()
-      return convPage(q.get('state') ?? '', q.get('bot_id') ?? '', Math.max(1, asNum(q.get('limit'), 30))) as T
+      return convPage(q.get('state') ?? '', q.get('bot_id') ?? '', Math.max(1, asNum(q.get('limit'), 30)), q.get('before')) as T
     }
     if (m === 'GET' && seg.length === 2) {
       await wait()
@@ -1434,8 +1549,11 @@ export async function mockIntercept<T>(method: string, path: string, body: unkno
     if (m === 'GET' && seg[2] === 'messages') {
       await wait()
       if (!conversationRow(seg[1])) throw notFound()
-      return { items: convMessages(seg[1]), next: null } as T
+      return threadPage(seg[1], q.get('before')) as T
     }
+    // GET above stays healthy; only the two buttons fail, so the banner's error line is what gets tested.
+    if (m === 'POST' && (seg[2] === 'takeover' || seg[2] === 'return') && sc('handover') === 'actionfail')
+      throw new ApiError('Aksi belum bisa dikirim. Coba lagi sebentar.', 500)
     if (m === 'POST' && seg[2] === 'takeover') {
       await wait(600)
       const row = conversationRow(seg[1])

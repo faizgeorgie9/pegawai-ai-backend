@@ -34,11 +34,13 @@ export function forgetReads(...keys: string[]): void {
 }
 
 // Starts a slow read while the pointer or keyboard focus is still on the menu link, so the click
-// lands on data instead of an empty page. Attached once per selector (the data attribute survives HMR).
-export function onLinkIntent(selector: string, run: () => void): void {
+// lands on data instead of an empty page. Attached once per selector *and purpose* (the data attribute
+// survives HMR): two purposes on the same link (warming the code chunk, warming the data) each need
+// their own key, or the second registration is dropped and never fires.
+export function onLinkIntent(selector: string, run: () => void, key = selector): void {
   if (typeof document === 'undefined') return
   const root = document.documentElement
-  const flag = `intent${selector.replace(/\W/g, '')}`
+  const flag = `intent${key.replace(/\W/g, '')}`
   if (flag in root.dataset) return
   root.dataset[flag] = '1'
   const fire = (e: Event) => {

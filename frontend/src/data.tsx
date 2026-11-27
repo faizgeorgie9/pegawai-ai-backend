@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { api, asStr, errText, subscribe, toGroupMsg } from './bff'
 import type { Bot, BotStatus, Group, Me, Raw, RunInfo, Settings, SseState } from './bff'
 import { botPath, go, groupPath, pelangganPath } from './router'
+import { cachedRead } from './session-cache'
 
 // App-wide data: the account, the bots, the groups and the active runs, kept fresh by the one global /api/events
 // stream. Views subscribe to the live events they care about (group messages, typing) through `on`.
@@ -171,6 +172,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(reload, [reload])
+
+  // The Aplikasi page and its Keahlian tab wait on reads that take seconds in the BFF (the catalog runs two
+  // Hermes CLI calls, the skills ask the gateway per agent). Start those reads once the workspace has painted,
+  // in idle time, so the menu click lands on content instead of a skeleton. `cachedRead` gives the page the same
+  // in-flight promise, so this never doubles a request; a failure here is ignored (the page shows its own error
+  // and restarts the read with Coba lagi).
+  const warmed = useRef(false)
+  useEffect(() => {
+    if (loadState !== 'ok') return
+    const warm = () => {
+      if (warmed.current) return
+      warmed.current = true
+      void cachedRead('connections', () => api.connections()).catch(() => {})
+      void cachedRead('apps-catalog', () => api.appsCatalog()).catch(() => {})
+      void cachedRead('skills', () => api.skillsAll()).catch(() => {})
+    }
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(warm, { timeout: 4000 })
+      return () => window.cancelIdleCallback(id)
+    }
+    const id = window.setTimeout(warm, 2000)
+    return () => window.clearTimeout(id)
+  }, [loadState])
 
   // One global stream for the sidebar, the runs pill, group chat and notifications.
   useEffect(() => {

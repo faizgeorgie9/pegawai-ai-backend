@@ -16,9 +16,9 @@ type KeyProvider = (typeof AI_KEY_PROVIDERS)[number]
 // Fixed order and exact wording for the five key providers. The link opens in a new tab; the hint never names a
 // technical detail that a business owner would have to look up.
 const PROVIDERS: { id: KeyProvider; name: string; hint: string; where: string }[] = [
-  { id: 'anthropic', name: 'Anthropic (Claude)', hint: 'Kunci akses dari akun Anthropic Anda. Untuk model Claude.', where: 'https://console.anthropic.com/settings/keys' },
-  { id: 'openai', name: 'OpenAI (GPT)', hint: 'Kunci akses dari akun OpenAI Anda. Untuk model GPT.', where: 'https://platform.openai.com/api-keys' },
-  { id: 'gemini', name: 'Google Gemini', hint: 'Kunci akses dari Google AI Studio. Untuk model Gemini.', where: 'https://aistudio.google.com/app/apikey' },
+  { id: 'anthropic', name: 'Anthropic (Claude)', hint: 'Kunci akses dari akun Anthropic Anda. Untuk memakai Claude.', where: 'https://console.anthropic.com/settings/keys' },
+  { id: 'openai', name: 'OpenAI (GPT)', hint: 'Kunci akses dari akun OpenAI Anda. Untuk memakai GPT.', where: 'https://platform.openai.com/api-keys' },
+  { id: 'gemini', name: 'Google Gemini', hint: 'Kunci akses dari Google AI Studio. Untuk memakai Gemini.', where: 'https://aistudio.google.com/app/apikey' },
   { id: 'opencode-zen', name: 'OpenCode Zen', hint: 'Kunci akses OpenCode Zen. Bayar sesuai pemakaian.', where: 'https://opencode.ai' },
   { id: 'opencode-go', name: 'OpenCode Go', hint: 'Kunci akses langganan OpenCode Go.', where: 'https://opencode.ai' },
 ]
@@ -326,7 +326,7 @@ export function AiAccounts() {
               </div>
               <div className="ai-name">
                 <b>OpenRouter</b>
-                <small className="quiet">Satu akun untuk banyak model AI, termasuk Claude dan GPT. Klik, masuk, selesai.</small>
+                <small className="quiet">Satu akun untuk banyak AI sekaligus, termasuk Claude dan GPT. Klik, masuk, selesai.</small>
               </div>
             </div>
           </div>

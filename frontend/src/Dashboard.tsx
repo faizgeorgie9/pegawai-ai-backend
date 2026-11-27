@@ -7,6 +7,7 @@ import { HandoverAlert } from './handover-alert'
 import { Onboarding, DEFAULT_NAME, hasName, onboardingClosed } from './Onboarding'
 import type { Step } from './Onboarding'
 import { groupPath } from './router'
+import { cachedRead } from './session-cache'
 import { StartChoice } from './start-choice'
 import { TimAnda } from './TimAnda'
 import { toolLabel } from './steps'
@@ -41,7 +42,7 @@ export default function Dashboard() {
   const work = useLoad(workFn)
   const kbFn = useCallback(() => api.kbItems(), [])
   const kb = useLoad(kbFn)
-  const connFn = useCallback(() => api.connections(), [])
+  const connFn = useCallback(() => cachedRead('connections', () => api.connections()), [])
   const conn = useLoad(connFn)
   const recentFn = useCallback(() => api.runs('recent', 100), [])
   const actFn = useCallback(() => api.activity({ limit: 5 }), [])

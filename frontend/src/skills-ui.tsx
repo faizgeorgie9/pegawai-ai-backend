@@ -10,6 +10,11 @@ import { CustomSkills } from './custom-skills'
 const clean = (s: string) => s.replace(/^[^\p{L}\p{N}]+/u, '').trim()
 export const skillText = (s: Pick<Skill, 'name' | 'label' | 'description'>) => toolsetText(s.name, clean(s.label), s.description)
 
+// The BFF asks the gateway for every agent's toolsets, which takes seconds. The tab reads it through
+// `cachedRead('skills')` (one read per minute, shared with the agent screens), so switching back and forth
+// never fetches twice. This starts that same read while the pointer or keyboard focus is still on the tab.
+export const primeSkills = () => void cachedRead('skills', () => api.skillsAll()).catch(() => {})
+
 // One switch per skill of one agent. The BFF answers with the real state after each change (it never trusts the click).
 export function SkillSwitches({ slug, skills, onChange }: { slug: string; skills: Skill[]; onChange: (s: Skill[]) => void }) {
   const admin = useAdminMode()

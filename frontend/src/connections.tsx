@@ -7,7 +7,7 @@ import type { ConnProvider, Connection, HermesApp } from './bff'
 import { useData } from './data'
 import { go } from './router'
 import { SourcePicker } from './pick-ui'
-import { SkillsSection } from './skills-ui'
+import { SkillsSection, primeSkills } from './skills-ui'
 import { Dialog, ErrorLine } from './ui'
 import { CapChip, PageHead, Spinner, useLoad } from './ui-extra'
 import { cachedRead, forgetReads, onLinkIntent } from './session-cache'
@@ -80,7 +80,7 @@ const primeApps = () => {
   void cachedRead('connections', () => api.connections()).catch(() => {})
   void cachedRead('apps-catalog', () => api.appsCatalog()).catch(() => {})
 }
-onLinkIntent('a[href="#/aplikasi"]', primeApps)
+onLinkIntent('a[href="#/aplikasi"]', primeApps, 'apps-data')
 
 // Marks drawn here in each product's colours (simple shapes, not the official artwork).
 function Mark({ id }: { id: string }) {
@@ -354,13 +354,38 @@ function ConnectDialog({ app, onClose, onDone }: { app: HermesApp; onClose: () =
   )
 }
 
-// Same blocks as the loaded page (search row, linked cards, catalog grid), so the first paint already
-// shows the shape of the list and nothing jumps when the data lands. The note appears after 3 s (CSS).
-function AppsSkeleton() {
+// Each part of the page waits for its own read. The connections answer in tens of milliseconds; the catalog runs
+// two Hermes CLI calls in the BFF (up to ~10 s on a cold cache). One page-wide skeleton hid the connected apps
+// behind the slow catalog, so every part now shows the shape of its own block instead.
+function LinkedRowSkeleton() {
   return (
-    <div className="skel skel-apps" role="status" aria-busy="true">
-      <span className="sr">Memuat daftar aplikasi…</span>
-      <div className="skel-body" aria-hidden="true">
+    <li className="app-card app-row skel-app-row" aria-hidden="true">
+      <span className="skel-head">
+        <i className="skel-mark" />
+        <span className="skel-lines">
+          <i className="skel-bar w40" />
+          <i className="skel-bar w70 thin" />
+        </span>
+      </span>
+      <i className="skel-btn" />
+    </li>
+  )
+}
+
+function LinkedSkeleton() {
+  return (
+    <ul className="app-rows" aria-hidden="true">
+      <LinkedRowSkeleton />
+      <LinkedRowSkeleton />
+    </ul>
+  )
+}
+
+// Keeps the search row's real height while the category names, which come with the catalog, are on the way.
+function ToolsSkeleton() {
+  return (
+    <div className="skel skel-apps" aria-hidden="true">
+      <div className="skel-body">
         <div className="skel-app-tools">
           <i className="skel-search" />
           <span className="skel-pills">
@@ -369,47 +394,31 @@ function AppsSkeleton() {
             ))}
           </span>
         </div>
-        <section className="apps-group apps-linked-sec">
-          <header>
-            <h2>
-              Tersambung <span className="slow-note">· Sedang memuat daftar aplikasi…</span>
-            </h2>
-          </header>
-          <ul className="app-rows">
-            {[0, 1, 2].map((i) => (
-              <li key={i} className="app-card app-row skel-app-row">
-                <span className="skel-head">
-                  <i className="skel-mark" />
-                  <span className="skel-lines">
-                    <i className="skel-bar w40" />
-                    <i className="skel-bar w70 thin" />
-                  </span>
-                </span>
-                <i className="skel-btn" />
-              </li>
-            ))}
-          </ul>
-        </section>
-        <section className="apps-group">
-          <header>
-            <h2>Aplikasi lain</h2>
-          </header>
-          <ul className="app-grid app-mini-grid">
-            {Array.from({ length: 12 }, (_, i) => (
-              <li key={i} className="app-card app-mini skel-app-mini">
-                <span className="skel-head">
-                  <i className="skel-mark sm" />
-                  <i className="skel-bar w40" />
-                </span>
-                <i className="skel-btn sm" />
-                <span className="skel-desc">
-                  <i className="skel-bar w70 thin" />
-                  <i className="skel-bar w40 thin" />
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+      </div>
+    </div>
+  )
+}
+
+function CatalogSkeleton() {
+  return (
+    <div className="skel skel-apps" role="status" aria-busy="true">
+      <span className="sr">Sedang memuat daftar aplikasi…</span>
+      <div className="skel-body" aria-hidden="true">
+        <ul className="app-grid app-mini-grid">
+          {Array.from({ length: 9 }, (_, i) => (
+            <li key={i} className="app-card app-mini skel-app-mini">
+              <span className="skel-head">
+                <i className="skel-mark sm" />
+                <i className="skel-bar w40" />
+              </span>
+              <i className="skel-btn sm" />
+              <span className="skel-desc">
+                <i className="skel-bar w70 thin" />
+                <i className="skel-bar w40 thin" />
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   )
@@ -750,8 +759,10 @@ export function AppsPage() {
   const shown = catalog.slice(0, limit)
   const linkedCount = connectedOauth.length + linkedHermes.length
   const problemCount = problemOauth.length
-  const ready = (conns.data || conns.state === 'error') && (cat.data || cat.state === 'error')
-  const failed = conns.state === 'error' && !conns.data ? conns : cat.state === 'error' && !cat.data ? cat : null
+  const connsReady = !!conns.data
+  const connsFailed = !conns.data && conns.state === 'error'
+  const catReady = !!cat.data
+  const catFailed = !cat.data && cat.state === 'error'
 
   return (
     <section className="page apps" data-tab={tab}>
@@ -778,7 +789,15 @@ export function AppsPage() {
       )}
       <div className="tabs" role="tablist" aria-label="Aplikasi dan keahlian pegawai">
         {([['apps', 'Aplikasi'], ['skills', 'Keahlian pegawai']] as const).map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            onPointerEnter={id === 'skills' ? primeSkills : undefined}
+            onFocus={id === 'skills' ? primeSkills : undefined}
+            onClick={() => setTab(id)}
+          >
             {label}
           </button>
         ))}
@@ -793,7 +812,8 @@ export function AppsPage() {
       )}
       {tab === 'apps' && (
         <>
-          {ready && !failed && (
+          {/* The category names arrive with the catalog: hold the row's height instead of hiding it. */}
+          {catReady ? (
             <div className="apps-tools apps-tools-row">
               <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari aplikasi" aria-label="Cari aplikasi" />
               <div className="apps-cats" role="group" aria-label="Kategori">
@@ -807,51 +827,56 @@ export function AppsPage() {
                 ))}
               </div>
             </div>
+          ) : catFailed ? null : (
+            <ToolsSkeleton />
           )}
           <div className="apps-scroll">
-            {!ready && !failed && <AppsSkeleton />}
-            {failed && (
-              <ErrorLine
-                text={failed.error}
-                onRetry={() => {
-                  conns.retry()
-                  cat.retry()
-                }}
-              />
+            {(!catFailed || linkedCount > 0 || connsFailed) && (
+              <section className="apps-group apps-linked-sec" aria-labelledby="g-linked">
+                <header>
+                  <h2 id="g-linked">
+                    Tersambung
+                    {catReady && !connsFailed && <span className="quiet"> · {linkedCount}</span>}
+                    {!connsFailed && !catFailed && (!connsReady || !catReady) && <span className="slow-note"> · Sedang memuat…</span>}
+                  </h2>
+                </header>
+                {connsFailed && <ErrorLine text={conns.error} onRetry={() => conns.retry()} />}
+                {!connsFailed && !connsReady ? (
+                  <LinkedSkeleton />
+                ) : linkedCount > 0 || (!catReady && !catFailed && !connsFailed) ? (
+                  <ul className="app-rows">
+                    {connectedOauth.map((id) => oauthCard(id, 'row'))}
+                    {linkedHermes.map((a) => appCard(a, 'row'))}
+                    {/* Connected Hermes apps arrive with the catalog: one row keeps their place until then. */}
+                    {!catReady && !catFailed && !connsFailed && <LinkedRowSkeleton />}
+                  </ul>
+                ) : catReady && !connsFailed ? (
+                  <p className="quiet">Belum ada aplikasi tersambung. Pilih salah satu di bawah.</p>
+                ) : null}
+              </section>
             )}
-            {ready && !failed && (
-              <>
-                <section className="apps-group apps-linked-sec" aria-labelledby="g-linked">
-                  <header>
-                    <h2 id="g-linked">
-                      Tersambung<span className="quiet"> · {linkedCount}</span>
-                    </h2>
-                  </header>
-                  {linkedCount === 0 ? (
-                    <p className="quiet">Belum ada aplikasi tersambung. Pilih salah satu di bawah.</p>
-                  ) : (
-                    <ul className="app-rows">
-                      {connectedOauth.map((id) => oauthCard(id, 'row'))}
-                      {linkedHermes.map((a) => appCard(a, 'row'))}
-                    </ul>
-                  )}
-                </section>
-                {problemCount > 0 && (
-                  <section className="apps-group" aria-labelledby="g-problem">
-                    <header>
-                      <h2 id="g-problem">
-                        Perlu dihubungkan ulang<span className="quiet"> · {problemCount}</span>
-                      </h2>
-                    </header>
-                    <ul className="app-rows">{problemOauth.map((id) => oauthCard(id, 'row'))}</ul>
-                  </section>
-                )}
-                <section className="apps-group" aria-labelledby="g-catalog">
-                  <header>
-                    <h2 id="g-catalog">
-                      Aplikasi lain<span className="quiet"> · {catalog.length}</span>
-                    </h2>
-                  </header>
+            {problemCount > 0 && (
+              <section className="apps-group" aria-labelledby="g-problem">
+                <header>
+                  <h2 id="g-problem">
+                    Perlu dihubungkan ulang<span className="quiet"> · {problemCount}</span>
+                  </h2>
+                </header>
+                <ul className="app-rows">{problemOauth.map((id) => oauthCard(id, 'row'))}</ul>
+              </section>
+            )}
+            <section className="apps-group" aria-labelledby="g-catalog">
+              <header>
+                <h2 id="g-catalog">
+                  Aplikasi lain{catReady && <span className="quiet"> · {catalog.length}</span>}
+                </h2>
+              </header>
+              {catFailed ? (
+                <ErrorLine text={cat.error} onRetry={() => cat.retry()} />
+              ) : !catReady ? (
+                <CatalogSkeleton />
+              ) : (
+                <>
                   {shown.length > 0 && (
                     <ul className="app-grid app-mini-grid">
                       {shown.map((x) => (x.k === 'o' ? oauthCard(x.id, 'mini') : x.k === 'a' ? appCard(x.a, 'mini') : <WhatsAppAppCard key="whatsapp" />))}
@@ -877,9 +902,9 @@ export function AppsPage() {
                       </button>
                     </p>
                   )}
-                </section>
-              </>
-            )}
+                </>
+              )}
+            </section>
           </div>
         </>
       )}

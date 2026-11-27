@@ -137,7 +137,8 @@ export default function Pelanggan({ id }: { id?: string }) {
     try {
       const [c, m] = await Promise.all([api.conversation(id), api.conversationMessages(id)])
       setConv(c)
-      setThread((t) => (t.id === c.id ? { id: c.id, items: mergeMessages(t.items, m.items), next: m.next } : t))
+      // The refresh reads the newest page only; the older-messages cursor stays where the reader left it.
+      setThread((t) => (t.id === c.id ? { id: c.id, items: mergeMessages(t.items, m.items), next: t.next } : t))
       setDetail((d) => (d.state === 'missing' ? d : { state: 'ok', error: '' }))
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) setDetail({ state: 'missing', error: errText(e) })
@@ -151,7 +152,7 @@ export default function Pelanggan({ id }: { id?: string }) {
     const t = window.setInterval(() => {
       if (document.visibilityState !== 'visible') return
       api.conversationMessages(cid).then(
-        (m) => setThread((x) => (x.id === cid ? { id: cid, items: mergeMessages(x.items, m.items), next: m.next } : x)),
+        (m) => setThread((x) => (x.id === cid ? { id: cid, items: mergeMessages(x.items, m.items), next: x.next } : x)),
         () => undefined, // a quiet refresh never replaces the thread with an error
       )
     }, 20_000)
