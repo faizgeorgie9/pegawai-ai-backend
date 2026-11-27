@@ -227,6 +227,13 @@ export default function Output(): ReactElement {
 
   const apply = (patch: Partial<Filters>) => {
     const f = { ...filters, ...patch }
+    // Picking the filter that is already on is a refresh: the hash does not change, so sync() stays quiet and
+    // only this explicit reload can replace the skeleton. Without it, apply() would clear the list and no
+    // request would follow.
+    if (f.pegawai === filters.pegawai && f.jenis === filters.jenis) {
+      loadFirst()
+      return
+    }
     req.current += 1 // any answer still on its way belongs to the old filter
     setFilters(f)
     setState('loading')

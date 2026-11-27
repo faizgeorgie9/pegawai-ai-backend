@@ -384,9 +384,12 @@ function Shell({ authUser, onLogout }: { authUser: AuthUser; onLogout: () => voi
 // the Mode admin switch. Members are redirected away from those routes in Shell.
 function Sidebar({ route, authUser, onLogout, onClose }: { route: Route; authUser: AuthUser | null; onLogout: () => void; onClose: () => void }) {
   const { settings, bots } = useData()
-  const hv = useHandoverQueue()
-  // The queue endpoint is the reliable signal for staff (who cannot list the employees they hand over to).
+  // The Sidebar is where the Pelanggan entry is decided. With a CS employee on the list the queue also feeds
+  // the badge, so it polls; without one the entry is hidden and the first read is only a probe: if the endpoint
+  // answers (a staff member may not see the employees they hand over to) the entry appears and polling starts,
+  // and if it does not exist it is not asked again this session.
   const hasCs = bots.some(canWhatsApp)
+  const hv = useHandoverQueue(hasCs)
   const showPelanggan = hasCs || hv.ready
   const admin = useAdminMode()
   const waiting = useActions().filter((a) => a.status === 'pending').length // risky agent actions (delete a file, send an email) waiting for the user

@@ -106,6 +106,9 @@ function useFetchedMedia(ids: string[]): { items: Fetched[]; state: 'idle' | 'lo
     Promise.all(
       ids.map(async (id) => {
         const blob = await api.artifactBlob(id)
+        // The card may have unmounted while this file was loading (slow file, navigation away). Creating its
+        // URL after that would leave nobody to revoke it, so the effect's own cleanup wins.
+        if (dead) throw new Error('unmounted')
         const src = URL.createObjectURL(blob)
         urls.push(src)
         return { id, mime: blob.type, bytes: blob.size, src }
@@ -152,16 +155,16 @@ function FetchedMedia({ ids, kind }: { ids: string[]; kind: SocialActionPayload[
     )
   }
   const images = items.filter((f) => /^image\//.test(f.mime))
-  const video = items.find((f) => /^video\//.test(f.mime))
+  const videos = items.filter((f) => /^video\//.test(f.mime))
   const others = items.filter((f) => !/^(image|video)\//.test(f.mime))
   return (
     <>
-      {kind === 'reel' && video ? (
-        <video className="post-reel" controls preload="metadata" playsInline src={video.src} />
+      {kind === 'reel' && videos[0] ? (
+        <video className="post-reel" controls preload="metadata" playsInline src={videos[0].src} />
       ) : kind !== 'carousel' && images[0] ? (
         <img className="post-img" src={images[0].src} alt="Gambar postingan" style={{ aspectRatio: '1' }} />
-      ) : kind !== 'carousel' && video ? (
-        <video className="post-video" controls preload="metadata" playsInline src={video.src} />
+      ) : kind !== 'carousel' && videos[0] ? (
+        <video className="post-video" controls preload="metadata" playsInline src={videos[0].src} />
       ) : images.length > 0 ? (
         <>
           <ul className="post-strip" tabIndex={0} role="region" aria-label="Gambar postingan">
@@ -174,6 +177,13 @@ function FetchedMedia({ ids, kind }: { ids: string[]; kind: SocialActionPayload[
           {images.length > 0 && <small className="quiet post-strip-note">{images.length} gambar</small>}
         </>
       ) : null}
+      {kind === 'carousel' && videos.length > 0 && (
+        <div className="post-files">
+          {videos.map((f) => (
+            <video key={f.id} className="post-video" controls preload="metadata" playsInline src={f.src} />
+          ))}
+        </div>
+      )}
       {others.length > 0 && (
         <div className="post-files">
           {others.map((f) => (

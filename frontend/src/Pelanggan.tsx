@@ -58,6 +58,10 @@ export default function Pelanggan({ id }: { id?: string }) {
   const [nonce, setNonce] = useState(0)
   const picked = useRef(false) // the user chose a filter; the automatic first choice must not override it
   const listSeq = useRef(0)
+  // The conversation the reader is looking at now. An action that started on another one compares against
+  // this before writing, so its reply cannot replace what the reader opened meanwhile.
+  const openId = useRef(id)
+  openId.current = id
   const actionRef = useRef<HTMLButtonElement>(null)
   const confirmRef = useRef<HTMLButtonElement>(null)
   const focusAction = useRef(false)
@@ -131,16 +135,20 @@ export default function Pelanggan({ id }: { id?: string }) {
     }
   }, [id, nonce])
 
-  // Soft refresh: keeps the current thread on screen and only reports a conversation that is gone.
+  // Soft refresh: keeps the current thread on screen and only reports a conversation that is gone. A reply
+  // for a conversation the reader has left is dropped.
   const refreshOpen = useCallback(async () => {
-    if (!id) return
+    const cid = id
+    if (!cid) return
     try {
-      const [c, m] = await Promise.all([api.conversation(id), api.conversationMessages(id)])
+      const [c, m] = await Promise.all([api.conversation(cid), api.conversationMessages(cid)])
+      if (openId.current !== cid) return
       setConv(c)
       // The refresh reads the newest page only; the older-messages cursor stays where the reader left it.
       setThread((t) => (t.id === c.id ? { id: c.id, items: mergeMessages(t.items, m.items), next: t.next } : t))
       setDetail((d) => (d.state === 'missing' ? d : { state: 'ok', error: '' }))
     } catch (e) {
+      if (openId.current !== cid) return
       if (e instanceof ApiError && e.status === 404) setDetail({ state: 'missing', error: errText(e) })
     }
   }, [id])
@@ -205,17 +213,20 @@ export default function Pelanggan({ id }: { id?: string }) {
 
   async function take() {
     if (!current || busy) return
+    const cid = current.id
     setBusy('take')
     setProblem('')
     focusAction.current = true
     try {
-      setConv(await api.takeOver(current.id))
+      const next = await api.takeOver(cid)
+      if (openId.current !== cid) return
+      setConv(next)
       await refreshOpen()
       void loadList(filter, { quiet: true })
       refreshQueue()
       flash('Percakapan diambil alih. Balas lewat WhatsApp Anda.')
     } catch (e) {
-      setProblem(errText(e))
+      if (openId.current === cid) setProblem(errText(e))
     } finally {
       setBusy('')
     }
@@ -223,18 +234,21 @@ export default function Pelanggan({ id }: { id?: string }) {
 
   async function giveBack() {
     if (!current || busy) return
+    const cid = current.id
     setBusy('back')
     setProblem('')
     focusAction.current = true
     try {
-      setConv(await api.handBack(current.id))
+      const next = await api.handBack(cid)
+      if (openId.current !== cid) return
+      setConv(next)
       await refreshOpen()
       void loadList(filter, { quiet: true })
       refreshQueue()
       setConfirmBack(false)
       flash(`Dikembalikan ke ${botName}`)
     } catch (e) {
-      setProblem(errText(e))
+      if (openId.current === cid) setProblem(errText(e))
     } finally {
       setBusy('')
     }

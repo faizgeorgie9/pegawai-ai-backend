@@ -210,7 +210,10 @@ export default function Mulai() {
     const done = finalRows.filter((r) => r.status === 'done').length
     if (done > 0 && done === finalRows.length) flash(`${done} pegawai siap bekerja`)
     refreshMe()
-    await Promise.all([refreshBots(), refreshGroups()])
+    // A failed final read must not hide the result: the employees were created and this screen reads the
+    // rows made so far, while the next page load re-reads the lists. Without this the run stops silently on
+    // the progress step with every row saying "Selesai" and no button left.
+    await Promise.all([refreshBots(), refreshGroups()]).catch(() => [])
     setStep('selesai')
   }
 

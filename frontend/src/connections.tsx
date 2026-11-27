@@ -430,7 +430,7 @@ export function AppsPage() {
   const cat = useLoad(catFn)
   const admin = useAdminMode()
   const { bots } = useData()
-  const [result] = useState(readResult)
+  const [result, setResult] = useState(readResult)
   const personal = !!result && !result.ok && result.app === 'instagram' && result.reason === 'personal'
   const [problem, setProblem] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
@@ -460,9 +460,28 @@ export function AppsPage() {
     }
   }
   const [connecting, setConnecting] = useState<HermesApp | null>(null)
+  const reloadConns = useRef(conns.retry)
+  reloadConns.current = conns.retry
   useEffect(() => {
     if (result) go('/aplikasi', true) // drop the flag so a refresh does not show the banner again
   }, [result])
+  // The consent page normally reloads the app, so the result is read once above. When it only changes the
+  // hash (the sample mode, or a connector that returns without a reload) the page is reconciled, not
+  // remounted: read the result here too, reload the list, and clear the button the round-trip left busy.
+  useEffect(() => {
+    const onHash = () => {
+      const r = readResult()
+      if (!r) return
+      setResult(r)
+      setProblem('')
+      setBusy(null)
+      if (!r.ok && r.app === 'instagram' && r.reason === 'personal') setIgGuide(true)
+      forgetReads('connections')
+      reloadConns.current()
+    }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
   useEffect(() => setLimit(12), [q, only]) // a new search starts at the first page
 
   async function connect(p: ConnProvider) {

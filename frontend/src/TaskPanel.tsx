@@ -126,7 +126,7 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
   const [hist, setHist] = useState(false)
   const [runFiles, setRunFiles] = useState<Attachment[]>([]) // files read from the newest run when the task has none (contract gap G3)
   const [filesLoading, setFilesLoading] = useState(false)
-  const filesAsked = useRef('') // task id whose newest run was already read: the open panel also polls while it runs
+  const filesAsked = useRef('') // "task|newest run|run status" whose files were already read: the open panel also polls while it runs
 
   useEffect(() => {
     api.task(id).then(setT, (e) => setError(errText(e)))
@@ -149,9 +149,14 @@ export default function TaskPanel({ id, edit, ask, onChanged, onClose }: { id: s
   // Contract gap G3: the task may not list its files yet, so read the newest run once. Without files the section
   // simply does not appear; the fetch must not add a second error to a task that already loaded fine.
   useEffect(() => {
-    if (!t || t.attachments.length > 0 || t.runs.length === 0 || filesAsked.current === t.id) return
-    filesAsked.current = t.id
+    if (!t || t.attachments.length > 0 || t.runs.length === 0) return
     const newest = [...t.runs].sort((a, b) => b.at - a.at)[0]
+    // A run that is read while it still works answers with no files; keying only on the task id would then hide
+    // the files it produced for as long as the panel stays open. The poll updates this status, so following it
+    // re-reads the run when it finishes.
+    const key = `${t.id}|${newest.id}|${newest.status}`
+    if (filesAsked.current === key) return
+    filesAsked.current = key
     setFilesLoading(true)
     api.run(newest.id).then(
       (r) => setRunFiles(r.attachments),

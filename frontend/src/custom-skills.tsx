@@ -58,9 +58,12 @@ export function CustomSkills({ slug, canEdit }: { slug: string; canEdit: boolean
   const [newName, setNewName] = useState('')
   const [picked, setPicked] = useState<Picked | null>(null)
 
-  // First load and Retry. A new slug starts from a clean slate so the old agent's list never flashes.
+  // First load and Retry. A new slug starts from a clean slate so the old agent's list never flashes, and it
+  // invalidates a refresh still on its way from the old slug.
+  const readSeq = useRef(0)
   useEffect(() => {
     let live = true
+    readSeq.current++
     setList(null)
     setLoading(true)
     setError('')
@@ -88,13 +91,18 @@ export function CustomSkills({ slug, canEdit }: { slug: string; canEdit: boolean
     }
   }, [slug, tick])
 
-  // After every change the BFF's list is fetched again; the screen never trusts the click.
+  // After every change the BFF's list is fetched again; the screen never trusts the click. Two rows can be
+  // changed at once (only the row being changed is disabled), so only the newest read may replace the list:
+  // an older reply that lands late must not show a switch the BFF already saved as off.
   const refresh = useCallback(async () => {
+    const seq = ++readSeq.current
     try {
       const r = await api.skillFiles(slug)
+      if (seq !== readSeq.current) return
       setList(r)
       setError('')
     } catch (e) {
+      if (seq !== readSeq.current) return
       setError(errText(e))
     }
   }, [slug])

@@ -379,10 +379,27 @@ function extLabel(name: string): string {
   return 'FILE'
 }
 
+// A ".pdf" name is not proof of anything: the server decides the file's real type. Only bytes that are a PDF
+// may open in a blob tab on our origin, and the tab always gets the PDF type, so the browser can never run a
+// page (and the session token in storage) it was handed instead.
+async function pdfViewUrl(blob: Blob): Promise<string | null> {
+  const type = blob.type.split(';')[0].trim().toLowerCase()
+  if (type === 'application/pdf') return URL.createObjectURL(blob)
+  // A server that sends no type at all is checked against the PDF signature and re-wrapped; a server that
+  // says HTML is never opened, even if the name ends in .pdf.
+  if (type !== '' && type !== 'application/octet-stream') return null
+  if ((await blob.slice(0, 5).text()) !== '%PDF-') return null
+  return URL.createObjectURL(blob.slice(0, blob.size, 'application/pdf'))
+}
+
 function Doc({ item, compact }: { item: Attachment; compact?: boolean }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
-  const isPdf = extOf(item.name) === 'pdf' || item.mime === 'application/pdf'
+  const [notPdf, setNotPdf] = useState(false)
+  const mime = item.mime.toLowerCase()
+  const claimsPdf = extOf(item.name) === 'pdf' || mime === 'application/pdf'
+  const silentMime = mime === '' || mime === 'application/octet-stream'
+  const canOpen = claimsPdf && (silentMime || mime === 'application/pdf') && !notPdf
   const kind = attachmentKind(item)
   // The file is read once when the card appears: that is how a deleted file is shown as gone before a click.
   const probe = useArtifactSrc(item, { enabled: !compact })
@@ -398,7 +415,13 @@ function Doc({ item, compact }: { item: Attachment; compact?: boolean }) {
     setErr('')
     try {
       const blob = await api.artifactBlob(item.id)
-      const url = URL.createObjectURL(blob)
+      const url = await pdfViewUrl(blob)
+      if (!url) {
+        tab.close()
+        setNotPdf(true)
+        setErr('Berkas ini tidak bisa dibuka sebagai PDF. Unduh untuk melihat isinya.')
+        return
+      }
       tab.location.href = url
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
     } catch (e) {
@@ -426,7 +449,7 @@ function Doc({ item, compact }: { item: Attachment; compact?: boolean }) {
             <DownloadButton item={item} compact onError={setErr} />
           ) : (
             <>
-              {isPdf && (
+              {canOpen && (
                 <button type="button" className="btn soft" disabled={busy} onClick={open}>
                   {busy ? 'Membuka…' : 'Buka'}
                 </button>
@@ -650,6 +673,14 @@ export function Lightbox({ items, index, onIndex, onClose }: { items: Attachment
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        // One Escape closes every open modal dialog (Chromium takes the whole top layer down), which would also
+        // close the task panel behind this lightbox and lose an unsaved note. Close only here; the browser's
+        // default close request is cancelled.
+        e.preventDefault()
+        ref.current?.close()
+        return
+      }
       if (e.key === 'ArrowLeft' && i > 0) onIndex(i - 1)
       if (e.key === 'ArrowRight' && i < items.length - 1) onIndex(i + 1)
     }
